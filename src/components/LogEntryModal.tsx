@@ -2,7 +2,7 @@ import { X } from 'lucide-react'
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatDate, formatTime } from '../utils/dateUtils'
+import { formatTime } from '../utils/dateUtils'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
 
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'pumping' | 'milestone' | 'doctor_visit' | 'note'
