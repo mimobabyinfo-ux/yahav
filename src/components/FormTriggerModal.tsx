@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
-type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating'; label: string; options?: string[] }
+type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating'; label: string; options?: string[]; required?: boolean }
 type FormRecord = {
   id: string
   title: string
@@ -84,6 +84,8 @@ export default function FormTriggerModal() {
 
   async function submit() {
     if (!user || !pendingForm) return
+    const missing = pendingForm.fields_json.filter(f => f.required && !answers[f.label]?.trim())
+    if (missing.length > 0) { alert(`שדות חובה: ${missing.map(f => f.label).join(', ')}`) ; return }
     setSubmitting(true)
     await supabase.from('form_submissions').insert({
       form_id: pendingForm.id,
@@ -126,7 +128,7 @@ export default function FormTriggerModal() {
           <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
             {pendingForm.fields_json.map(field => (
               <div key={field.id}>
-                <label className="block text-sm font-semibold text-sand-700 mb-1.5">{field.label}</label>
+                <label className="block text-sm font-semibold text-sand-700 mb-1.5">{field.label}{field.required && <span className="text-red-400 mr-1">*</span>}</label>
                 {field.type === 'text' && (
                   <input
                     value={answers[field.label] ?? ''}

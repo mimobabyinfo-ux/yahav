@@ -1106,7 +1106,7 @@ function PerksTab() {
 }
 
 // ─── Forms Tab ────────────────────────────────────────────────────────────────
-type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating'; label: string; options?: string[] }
+type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating'; label: string; options?: string[]; required?: boolean }
 type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[]; trigger_rule: { type: string; count: number } | null; is_active: boolean; created_at: string }
 type Submission = { id: string; user_id: string; responses_json: Record<string, string>; created_at: string; user_profiles?: { mother_name: string | null; email: string } }
 type Assignment = { id: string; user_id: string; is_completed: boolean; user_profiles?: { mother_name: string | null; email: string } }
@@ -1193,7 +1193,7 @@ function FormsTab() {
   useEffect(() => { load() }, [load])
 
   function addField() {
-    setFields(f => [...f, { id: crypto.randomUUID(), type: 'text', label: '' }])
+    setFields(f => [...f, { id: crypto.randomUUID(), type: 'text', label: '', required: false }])
   }
 
   function updateField(id: string, patch: Partial<FormField>) {
@@ -1310,6 +1310,15 @@ function FormsTab() {
                   {field.type === 'select' && (
                     <input value={field.options?.join(', ') ?? ''} onChange={e => updateField(field.id, { options: e.target.value.split(',').map(s => s.trim()) })} placeholder="אפשרויות מופרדות בפסיק" className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none" />
                   )}
+                  {/* Required toggle */}
+                  <button
+                    type="button"
+                    onClick={() => updateField(field.id, { required: !field.required })}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all w-fit ${field.required ? 'bg-red-100 text-red-600' : 'bg-sand-100 text-sand-400'}`}
+                  >
+                    <span>{field.required ? '★' : '☆'}</span>
+                    {field.required ? 'חובה' : 'לא חובה'}
+                  </button>
                 </div>
                 <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400 mt-1"><X className="w-4 h-4" /></button>
               </div>

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { LogOut, ChevronLeft } from 'lucide-react'
+import { LogOut, ChevronLeft, Share2 } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import MyTasksPanel from '../components/MyTasksPanel'
+import ShareBabyModal from '../components/ShareBabyModal'
 import type { Page } from '../App'
 
 type Props = {
@@ -17,6 +18,7 @@ export default function DashboardPage({ onNavigate }: Props) {
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
+  const [showShare, setShowShare] = useState(false)
 
   useEffect(() => {
     fetchTip()
@@ -76,12 +78,23 @@ export default function DashboardPage({ onNavigate }: Props) {
               </p>
             )}
           </div>
-          <button
-            onClick={signOut}
-            className="p-2 rounded-xl hover:bg-sand-100 text-sand-300 hover:text-sand-500 transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {selectedChild && (
+              <button
+                onClick={() => setShowShare(true)}
+                className="p-2 rounded-xl hover:bg-sand-100 text-sand-300 hover:text-sand-500 transition-colors"
+                title="שתפי את פרופיל התינוק"
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
+            )}
+            <button
+              onClick={signOut}
+              className="p-2 rounded-xl hover:bg-sand-100 text-sand-300 hover:text-sand-500 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Child Switcher */}
@@ -242,6 +255,7 @@ export default function DashboardPage({ onNavigate }: Props) {
       {selectedPerk && (
         <PerkDetailsModal perk={selectedPerk} onClose={() => setSelectedPerk(null)} />
       )}
+      {showShare && <ShareBabyModal onClose={() => setShowShare(false)} />}
     </div>
   )
 }
