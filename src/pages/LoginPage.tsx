@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import MimoLogo from '../components/MimoLogo'
 
 export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
@@ -7,6 +8,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [signupSent, setSignupSent] = useState(false)
+
+  async function handleGoogle() {
+    setError('')
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    })
+    if (error) setError(error.message)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -14,8 +25,14 @@ export default function LoginPage() {
     setLoading(true)
     try {
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({ email, password })
+        const { data, error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
+        // If email confirmation is required, data.session will be null
+        if (!data.session) {
+          setSignupSent(true)
+          setLoading(false)
+          return
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
@@ -31,86 +48,159 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-beige-50 via-sand-50 to-mustard-50" dir="rtl">
-      {/* Watermark */}
-      <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none">
-        <span className="text-[200px] opacity-5">🍼</span>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }}
+      dir="rtl"
+    >
+      {/* Background watermark duck */}
+      <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none" style={{ opacity: 0.07 }}>
+        <MimoLogo size={520} />
       </div>
 
-      <div className="w-full max-w-sm space-y-8 relative">
+      <div className="w-full max-w-sm relative z-10 flex flex-col items-center gap-6">
         {/* Logo */}
-        <div className="text-center">
-          <div className="w-20 h-20 bg-gradient-to-br from-mustard-400 to-mustard-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-4xl">🍼</span>
-          </div>
-          <h1 className="text-3xl font-bold text-sand-800">מימו</h1>
-          <p className="text-sand-500 mt-1">חברה לדרך עם התינוק שלך</p>
+        <div className="flex justify-center">
+          <MimoLogo size={260} />
         </div>
 
-        {/* Toggle */}
-        <div className="flex bg-sand-100 rounded-2xl p-1">
-          <button
-            onClick={() => setMode('login')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              mode === 'login' ? 'bg-white text-mustard-700 shadow-sm' : 'text-sand-500'
-            }`}
-          >
-            כניסה
-          </button>
-          <button
-            onClick={() => setMode('signup')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              mode === 'signup' ? 'bg-white text-mustard-700 shadow-sm' : 'text-sand-500'
-            }`}
-          >
-            הרשמה
-          </button>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-sand-600 mb-1.5">כתובת אימייל</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-              className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 transition-colors bg-white text-sand-800"
-            />
+        {/* Signup email-sent confirmation */}
+        {signupSent && (
+          <div className="w-full bg-white rounded-3xl shadow-lg p-7 text-center space-y-4">
+            <div className="text-5xl">📧</div>
+            <h2 className="font-bold text-sand-800 text-xl">בדקי את האימייל שלך!</h2>
+            <p className="text-sand-500 text-sm leading-relaxed">
+              שלחנו לך לינק לאימות ל-<strong>{email}</strong>.<br />
+              לחצי על הלינק וחזרי לכאן להתחבר.
+            </p>
+            <button
+              onClick={() => { setSignupSent(false); setMode('login') }}
+              className="w-full font-bold py-3.5 rounded-2xl text-white"
+              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            >
+              חזרה לכניסה
+            </button>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-sand-600 mb-1.5">סיסמה</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              minLength={6}
-              className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 transition-colors bg-white text-sand-800"
-            />
-          </div>
+        )}
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-3 text-sm text-red-600">
-              {error}
-            </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-mustard-500 to-mustard-600 hover:from-mustard-600 hover:to-mustard-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0"
-          >
-            {loading ? 'מעבדת...' : mode === 'login' ? 'כניסה' : 'הרשמה'}
-          </button>
-        </form>
-
-        <p className="text-center text-xs text-sand-400">
-          מימו — נבנה עם ❤️ לאמהות חדשות
+        {/* Subtitle */}
+        <p style={{ color: '#B8AB98', fontSize: '0.95rem', marginTop: '-12px' }}>
+          מרכז התפתחות לתינוקות
         </p>
+
+        {/* Card */}
+        {!signupSent && <div className="w-full bg-white rounded-3xl shadow-lg p-7 mt-2">
+          <h2
+            className="font-bold text-center mb-6"
+            style={{ fontSize: '1.5rem', color: '#5C4F3D', fontFamily: 'Nunito, sans-serif' }}
+          >
+            {mode === 'login' ? 'התחברות' : 'הרשמה'}
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm text-right mb-1.5" style={{ color: '#9B8E80' }}>
+                אימייל
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="email@example.com"
+                required
+                className="w-full px-4 py-3.5 rounded-2xl text-right focus:outline-none transition-colors"
+                style={{
+                  border: '1.5px solid #E5DDD2',
+                  color: '#5C4F3D',
+                  background: 'white',
+                  fontSize: '0.95rem',
+                }}
+                onFocus={e => (e.target.style.borderColor = '#C49438')}
+                onBlur={e => (e.target.style.borderColor = '#E5DDD2')}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-right mb-1.5" style={{ color: '#9B8E80' }}>
+                סיסמה
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••"
+                required
+                minLength={6}
+                className="w-full px-4 py-3.5 rounded-2xl text-right focus:outline-none transition-colors"
+                style={{
+                  border: '1.5px solid #E5DDD2',
+                  color: '#5C4F3D',
+                  background: 'white',
+                  fontSize: '0.95rem',
+                }}
+                onFocus={e => (e.target.style.borderColor = '#C49438')}
+                onBlur={e => (e.target.style.borderColor = '#E5DDD2')}
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-2xl p-3 text-sm text-center" style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full font-bold py-4 rounded-2xl transition-all disabled:opacity-50"
+              style={{
+                background: 'linear-gradient(135deg, #D4AA52, #C49438)',
+                color: 'white',
+                fontSize: '1rem',
+                fontFamily: 'Nunito, sans-serif',
+                marginTop: '8px',
+              }}
+            >
+              {loading ? '...' : mode === 'login' ? 'כניסה' : 'הרשמה'}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-2">
+            <div className="flex-1 h-px" style={{ background: '#E5DDD2' }} />
+            <span className="text-xs" style={{ color: '#B8AB98' }}>או</span>
+            <div className="flex-1 h-px" style={{ background: '#E5DDD2' }} />
+          </div>
+
+          {/* Google */}
+          <button
+            type="button"
+            onClick={handleGoogle}
+            className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl font-semibold transition-all"
+            style={{ border: '1.5px solid #E5DDD2', color: '#5C4F3D', background: 'white', fontSize: '0.95rem' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.7 2.5 30.2 0 24 0 14.7 0 6.7 5.4 2.8 13.3l7.8 6C12.4 13.2 17.8 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17z"/>
+              <path fill="#FBBC05" d="M10.6 28.7A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.8 10.7l7.8-6z"/>
+              <path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2 1.4-4.6 2.2-7.7 2.2-6.2 0-11.5-4.2-13.4-9.8l-7.8 6C6.7 42.6 14.7 48 24 48z"/>
+            </svg>
+            המשך עם Google
+          </button>
+
+          {/* Toggle */}
+          <p className="text-center mt-4 text-sm" style={{ color: '#B8AB98' }}>
+            {mode === 'login' ? 'אין לך חשבון? ' : 'יש לך חשבון? '}
+            <button
+              onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+              className="font-bold underline"
+              style={{ color: '#C49438' }}
+            >
+              {mode === 'login' ? 'הרשמה' : 'כניסה'}
+            </button>
+          </p>
+        </div>}
       </div>
     </div>
   )

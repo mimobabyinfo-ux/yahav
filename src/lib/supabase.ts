@@ -13,11 +13,21 @@ export type UserProfile = {
   mother_name: string | null
   baby_name: string | null
   baby_dob: string | null
+  baby_gender: 'boy' | 'girl' | 'other' | null
   is_pro: boolean
   is_admin: boolean
   display_name: string | null
   created_at: string
   updated_at: string
+}
+
+export type Child = {
+  id: string
+  user_id: string
+  name: string
+  dob: string | null
+  gender: 'boy' | 'girl' | 'other' | null
+  created_at: string
 }
 
 export type DailyTip = {

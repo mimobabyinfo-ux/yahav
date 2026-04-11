@@ -1,23 +1,39 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check } from 'lucide-react'
-import { supabase, UserProfile, DailyTip, Video, HomeworkTask, Workshop, PartnerPerk, ContentCategory, GlobalSetting, PerkAnalytic } from '../lib/supabase'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, ShoppingBag, Gift, LayoutGrid, Settings } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
+import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, ContentCategory, GlobalSetting } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import type { AdminSection } from '../App'
 
-type Tab = 'users' | 'tips' | 'categories' | 'videos' | 'workshops' | 'perks' | 'settings'
+type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'categories' | 'forms' | 'settings'
 
-const TABS: { id: Tab; label: string; emoji: string }[] = [
-  { id: 'users', label: 'משתמשים', emoji: '👥' },
-  { id: 'tips', label: 'טיפים', emoji: '💡' },
-  { id: 'categories', label: 'קטגוריות', emoji: '🗂️' },
-  { id: 'videos', label: 'סרטונים', emoji: '🎬' },
-  { id: 'workshops', label: 'סדנאות', emoji: '🛠️' },
-  { id: 'perks', label: 'הטבות', emoji: '🎁' },
-  { id: 'settings', label: 'הגדרות', emoji: '⚙️' },
+// Map admin nav sections → internal tabs
+const SECTION_TAB: Record<AdminSection, Tab> = {
+  insights: 'insights',
+  users: 'users',
+  forms: 'forms',
+}
+
+const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: 'users',      label: 'משתמשים',       icon: <Users className="w-3.5 h-3.5" /> },
+  { id: 'insights',   label: 'תובנות',         icon: <BarChart2 className="w-3.5 h-3.5" /> },
+  { id: 'tips',       label: 'טיפים',          icon: <Lightbulb className="w-3.5 h-3.5" /> },
+  { id: 'videos',     label: 'סרטונים',        icon: <Video className="w-3.5 h-3.5" /> },
+  { id: 'workshops',  label: 'מוצרים',         icon: <ShoppingBag className="w-3.5 h-3.5" /> },
+  { id: 'perks',      label: 'הטבות שותפים',   icon: <Gift className="w-3.5 h-3.5" /> },
+  { id: 'categories', label: 'קטגוריות',       icon: <LayoutGrid className="w-3.5 h-3.5" /> },
+  { id: 'forms',      label: 'טפסים',          icon: <span className="text-xs">📋</span> },
+  { id: 'settings',   label: 'הגדרות',         icon: <Settings className="w-3.5 h-3.5" /> },
 ]
 
-export default function AdminPage() {
+export default function AdminPage({ defaultSection }: { defaultSection?: AdminSection }) {
   const { profile } = useAuth()
-  const [tab, setTab] = useState<Tab>('tips')
+  const [tab, setTab] = useState<Tab>(defaultSection ? SECTION_TAB[defaultSection] : 'insights')
+
+  // Sync when parent nav changes the section
+  useEffect(() => {
+    if (defaultSection) setTab(SECTION_TAB[defaultSection])
+  }, [defaultSection])
 
   if (!profile?.is_admin) {
     return (
@@ -28,85 +44,464 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen p-4 pb-24 relative" dir="rtl">
-      <div className="max-w-sm mx-auto space-y-4">
-        <div className="pt-2">
-          <h1 className="text-2xl font-bold text-sand-800">ניהול</h1>
-          <p className="text-sand-400 text-sm">פאנל ניהול תוכן</p>
-        </div>
+    <div className="min-h-screen pb-24" dir="rtl">
+      {/* Admin Header */}
+      <div className="bg-white border-b border-sand-100 shadow-sm px-4 pt-5 pb-3">
+        <div className="max-w-sm mx-auto">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
+              <ShieldAlert className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-sand-800">פאנל ניהול</h1>
+              <p className="text-xs text-sand-400">Mimo CMS</p>
+            </div>
+          </div>
 
-        {/* Tab scroll */}
-        <div className="flex gap-2 overflow-x-auto scroll-hide pb-1">
-          {TABS.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${
-                tab === t.id
-                  ? 'bg-mustard-500 text-white shadow-md'
-                  : 'bg-white text-sand-600 hover:bg-sand-50'
-              }`}
-            >
-              <span>{t.emoji}</span>
-              {t.label}
-            </button>
-          ))}
+          {/* Tab scroll */}
+          <div className="flex gap-1.5 overflow-x-auto scroll-hide pb-1">
+            {TABS.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${
+                  tab === t.id
+                    ? 'text-white shadow-md'
+                    : 'bg-sand-50 text-sand-500 hover:bg-sand-100'
+                }`}
+                style={tab === t.id ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+              >
+                {t.icon}
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
+      </div>
 
-        {/* Tab content */}
-        {tab === 'users' && <UsersTab />}
-        {tab === 'tips' && <TipsTab />}
+      {/* Tab content */}
+      <div className="max-w-sm mx-auto px-4 pt-4 space-y-4">
+        {tab === 'users'      && <UsersTab />}
+        {tab === 'insights'   && <InsightsTab />}
+        {tab === 'tips'       && <TipsTab />}
         {tab === 'categories' && <CategoriesTab />}
-        {tab === 'videos' && <VideosTab />}
-        {tab === 'workshops' && <WorkshopsTab />}
-        {tab === 'perks' && <PerksTab />}
-        {tab === 'settings' && <SettingsTab />}
+        {tab === 'videos'     && <VideosTab />}
+        {tab === 'workshops'  && <WorkshopsTab />}
+        {tab === 'perks'      && <PerksTab />}
+        {tab === 'forms'      && <FormsTab />}
+        {tab === 'settings'   && <SettingsTab />}
       </div>
     </div>
   )
 }
 
 // ─── Users Tab ───────────────────────────────────────────────────────────────
-function UsersTab() {
-  const [users, setUsers] = useState<UserProfile[]>([])
-  useEffect(() => {
-    supabase.from('user_profiles').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => setUsers(data ?? []))
-  }, [])
+type UserWithChildren = UserProfile & { childCount: number }
 
-  async function toggleRole(user: UserProfile, role: 'is_pro' | 'is_admin') {
-    await supabase.from('user_profiles').update({ [role]: !user[role] }).eq('id', user.id)
-    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, [role]: !u[role] } : u))
+function UsersTab() {
+  const [users, setUsers] = useState<UserWithChildren[]>([])
+  const [search, setSearch] = useState('')
+  const [editUser, setEditUser] = useState<UserWithChildren | null>(null)
+  const [editName, setEditName] = useState('')
+  const [deleteUser, setDeleteUser] = useState<UserWithChildren | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    const { data: profiles } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false })
+    const { data: children } = await supabase.from('children').select('user_id')
+    const countMap: Record<string, number> = {}
+    children?.forEach(c => { countMap[c.user_id] = (countMap[c.user_id] ?? 0) + 1 })
+    setUsers((profiles ?? []).map(p => ({ ...p, childCount: countMap[p.id] ?? 0 })))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const filtered = users.filter(u =>
+    !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
+  )
+
+  async function upgradePro(u: UserWithChildren) {
+    await supabase.from('user_profiles').update({ is_pro: !u.is_pro }).eq('id', u.id)
+    setUsers(prev => prev.map(p => p.id === u.id ? { ...p, is_pro: !p.is_pro } : p))
+  }
+
+  async function saveEdit() {
+    if (!editUser || !editName.trim()) return
+    setSaving(true)
+    await supabase.from('user_profiles').update({ mother_name: editName, display_name: editName }).eq('id', editUser.id)
+    setUsers(prev => prev.map(p => p.id === editUser.id ? { ...p, mother_name: editName, display_name: editName } : p))
+    setEditUser(null)
+    setSaving(false)
+  }
+
+  async function confirmDelete() {
+    if (!deleteUser) return
+    await supabase.from('user_profiles').delete().eq('id', deleteUser.id)
+    setUsers(prev => prev.filter(p => p.id !== deleteUser.id))
+    setDeleteUser(null)
   }
 
   return (
-    <div className="space-y-2">
-      {users.map(u => (
-        <div key={u.id} className="bg-white rounded-2xl p-4 shadow-sm">
+    <div className="space-y-3">
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sand-300" />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="חפש לפי שם אמא..."
+          className="w-full pr-9 pl-4 py-3 bg-white border border-sand-100 rounded-2xl text-sm text-sand-800 focus:outline-none focus:border-mustard-400 shadow-sm"
+        />
+      </div>
+
+      <p className="text-xs text-sand-400">{filtered.length} משתמשות</p>
+
+      {filtered.map(u => (
+        <div key={u.id} className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sand-800 text-sm truncate">{u.mother_name ?? u.email}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-bold text-sand-800 text-sm truncate">{u.mother_name ?? '—'}</p>
+                {u.is_admin && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-bold">ADMIN</span>}
+                {u.is_pro && <span className="text-[10px] bg-mustard-100 text-mustard-700 px-1.5 py-0.5 rounded-md font-bold">PRO</span>}
+              </div>
               <p className="text-xs text-sand-400 truncate">{u.email}</p>
-              {u.baby_name && <p className="text-xs text-sand-400">{u.baby_name}</p>}
+              <p className="text-xs text-sand-300 mt-0.5">
+                {u.childCount > 0 ? `${u.childCount} ילד${u.childCount > 1 ? 'ים' : ''}` : 'אין ילדים'}
+              </p>
             </div>
-            <div className="flex gap-1">
-              <button
-                onClick={() => toggleRole(u, 'is_pro')}
-                className={`text-xs px-2 py-1 rounded-lg font-medium transition-colors ${u.is_pro ? 'bg-mustard-100 text-mustard-700' : 'bg-sand-100 text-sand-400'}`}
-              >
-                Pro
-              </button>
-              <button
-                onClick={() => toggleRole(u, 'is_admin')}
-                className={`text-xs px-2 py-1 rounded-lg font-medium transition-colors ${u.is_admin ? 'bg-red-100 text-red-600' : 'bg-sand-100 text-sand-400'}`}
-              >
-                Admin
-              </button>
-            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setEditUser(u); setEditName(u.mother_name ?? '') }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-sand-50 text-sand-600 hover:bg-sand-100 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              ערוך פרטים
+            </button>
+            <button
+              onClick={() => upgradePro(u)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                u.is_pro
+                  ? 'bg-mustard-100 text-mustard-700'
+                  : 'bg-mustard-50 text-mustard-600 hover:bg-mustard-100'
+              }`}
+            >
+              ⭐ {u.is_pro ? 'בטל PRO' : 'שדרג ל-PRO'}
+            </button>
+            <button
+              onClick={() => setDeleteUser(u)}
+              className="p-2 rounded-xl text-red-400 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
         </div>
       ))}
-      {users.length === 0 && <p className="text-center text-sand-400 text-sm py-8">אין משתמשים</p>}
+
+      {filtered.length === 0 && (
+        <p className="text-center text-sand-400 text-sm py-8">לא נמצאו משתמשות</p>
+      )}
+
+      {/* Edit Modal */}
+      {editUser && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditUser(null)}>
+          <div className="bg-white rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-sand-800 text-lg">ערוך פרטים</h3>
+            <div>
+              <label className="text-xs text-sand-500 mb-1 block">שם</label>
+              <input
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={saveEdit} disabled={saving} className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                {saving ? '...' : 'שמירה'}
+              </button>
+              <button onClick={() => setEditUser(null)} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteUser && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setDeleteUser(null)}>
+          <div className="bg-white rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="text-center">
+              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="font-bold text-sand-800">מחיקת משתמשת</h3>
+              <p className="text-sm text-sand-500 mt-1">
+                האם למחוק את <strong>{deleteUser.mother_name ?? deleteUser.email}</strong>? פעולה זו לא ניתנת לביטול.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={confirmDelete} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold text-sm hover:bg-red-600">מחק</button>
+              <button onClick={() => setDeleteUser(null)} className="flex-1 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Insights Tab ─────────────────────────────────────────────────────────────
+type VideoPerf = { title: string; total_views: number; completions: number; completion_pct: number }
+type RetentionRow = { cohort_week: string; total_users: number; day1: number; day3: number; day7: number }
+type User360 = UserProfile & { childCount: number; logCount: number; activityCount: number }
+
+function InsightsTab() {
+  const [stats, setStats] = useState({ users: 0, pro: 0, children: 0, logs: 0 })
+  const [videoPerf, setVideoPerf] = useState<VideoPerf[]>([])
+  const [retention, setRetention] = useState<RetentionRow[]>([])
+  const [user360Id, setUser360Id] = useState<string | null>(null)
+  const [user360, setUser360] = useState<User360 | null>(null)
+  const [user360Logs, setUser360Logs] = useState<{ entry_type: string; created_at: string }[]>([])
+  const [user360Activity, setUser360Activity] = useState<{ event_type: string; created_at: string; event_data: Record<string, unknown> }[]>([])
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([])
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from('user_profiles').select('*').order('created_at', { ascending: false }),
+      supabase.from('children').select('id'),
+      supabase.from('daily_log_entries').select('id'),
+      supabase.from('v_video_performance').select('*').limit(10),
+      supabase.from('v_retention_cohort').select('*').limit(8),
+    ]).then(([{ data: users }, { data: children }, { data: logs }, { data: vids }, { data: ret }]) => {
+      setAllUsers(users ?? [])
+      setStats({
+        users: users?.length ?? 0,
+        pro: users?.filter(u => u.is_pro).length ?? 0,
+        children: children?.length ?? 0,
+        logs: logs?.length ?? 0,
+      })
+      setVideoPerf((vids ?? []).map(v => ({ ...v, title: v.title.slice(0, 20) })))
+      setRetention(ret ?? [])
+    })
+  }, [])
+
+  async function load360(userId: string) {
+    setUser360Id(userId)
+    const [
+      { data: profile },
+      { data: children },
+      { data: logs },
+      { data: acts },
+    ] = await Promise.all([
+      supabase.from('user_profiles').select('*').eq('id', userId).single(),
+      supabase.from('children').select('id').eq('user_id', userId),
+      supabase.from('daily_log_entries').select('entry_type, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
+      supabase.from('user_activities').select('event_type, created_at, event_data').eq('user_id', userId).order('created_at', { ascending: false }).limit(30),
+    ])
+    setUser360({ ...profile!, childCount: children?.length ?? 0, logCount: logs?.length ?? 0, activityCount: acts?.length ?? 0 })
+    setUser360Logs(logs ?? [])
+    setUser360Activity(acts ?? [])
+  }
+
+  const statCards = [
+    { label: 'סה"כ משתמשות', value: stats.users, emoji: '👩', color: '#EFF6FF' },
+    { label: 'מנויות PRO',    value: stats.pro,   emoji: '⭐', color: '#FFFBEB' },
+    { label: 'ילדים',         value: stats.children, emoji: '👶', color: '#F0FDF4' },
+    { label: 'רשומות יומן',  value: stats.logs,  emoji: '📔', color: '#FAF5FF' },
+  ]
+
+  const retentionChart = retention.map(r => ({
+    week: r.cohort_week?.slice(0, 10) ?? '',
+    'יום 1': r.total_users ? Math.round((r.day1 / r.total_users) * 100) : 0,
+    'יום 3': r.total_users ? Math.round((r.day3 / r.total_users) * 100) : 0,
+    'יום 7': r.total_users ? Math.round((r.day7 / r.total_users) * 100) : 0,
+  }))
+
+  return (
+    <div className="space-y-5">
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 gap-3">
+        {statCards.map(c => (
+          <div key={c.label} className="rounded-2xl p-4 shadow-sm text-right" style={{ background: c.color }}>
+            <div className="text-2xl mb-1">{c.emoji}</div>
+            <div className="text-2xl font-black text-sand-800">{c.value}</div>
+            <div className="text-xs text-sand-500 mt-0.5">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Retention chart */}
+      {retentionChart.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <h3 className="font-bold text-sand-800 text-sm mb-3">Retention (%) לפי שבוע</h3>
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={retentionChart}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F0EB" />
+              <XAxis dataKey="week" tick={{ fontSize: 9 }} />
+              <YAxis unit="%" tick={{ fontSize: 9 }} domain={[0, 100]} />
+              <Tooltip formatter={(v: number) => `${v}%`} />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Line type="monotone" dataKey="יום 1" stroke="#3B82F6" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="יום 3" stroke="#C49438" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="יום 7" stroke="#22C55E" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Video performance chart */}
+      {videoPerf.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <h3 className="font-bold text-sand-800 text-sm mb-3">ביצועי סרטונים</h3>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={videoPerf} layout="vertical">
+              <XAxis type="number" tick={{ fontSize: 9 }} />
+              <YAxis dataKey="title" type="category" width={80} tick={{ fontSize: 9 }} />
+              <Tooltip />
+              <Bar dataKey="total_views" name="צפיות" fill="#C49438" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="completions" name="השלמות" fill="#86EFAC" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* User 360 */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-sand-100">
+          <h3 className="font-bold text-sand-800 text-sm">User 360°</h3>
+        </div>
+        <div className="max-h-40 overflow-y-auto divide-y divide-sand-50">
+          {allUsers.map(u => (
+            <button
+              key={u.id}
+              onClick={() => load360(u.id)}
+              className={`w-full text-right px-4 py-2.5 text-sm hover:bg-sand-50 transition-colors flex items-center justify-between ${user360Id === u.id ? 'bg-mustard-50' : ''}`}
+            >
+              <span className="font-medium text-sand-700 truncate">{u.mother_name ?? u.email}</span>
+              <span className="text-xs text-sand-400 flex-shrink-0 mr-2">{u.lead_status ?? 'new'}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 360 Detail Panel */}
+      {user360 && (
+        <div className="bg-white rounded-2xl shadow-sm p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-sand-800">{user360.mother_name ?? user360.email}</h3>
+              <p className="text-xs text-sand-400">{user360.email}</p>
+            </div>
+            <div className="flex gap-1.5">
+              {user360.is_pro && <span className="text-[10px] bg-mustard-100 text-mustard-700 px-2 py-0.5 rounded-full font-bold">PRO</span>}
+              {user360.is_admin && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">ADMIN</span>}
+            </div>
+          </div>
+
+          {/* Lead status + notes */}
+          <LeadStatusEditor user={user360} onSaved={() => load360(user360.id)} />
+
+          {/* Quick stats */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: 'ילדים', value: user360.childCount },
+              { label: 'לוגים', value: user360.logCount },
+              { label: 'אירועים', value: user360.activityCount },
+            ].map(s => (
+              <div key={s.label} className="text-center bg-sand-50 rounded-xl py-2">
+                <div className="font-black text-lg text-sand-800">{s.value}</div>
+                <div className="text-[10px] text-sand-400">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Recent logs */}
+          {user360Logs.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-sand-500 mb-1.5">פעילות אחרונה ביומן</p>
+              <div className="space-y-1">
+                {user360Logs.slice(0, 5).map((l, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs text-sand-600">
+                    <span>{l.entry_type}</span>
+                    <span className="text-sand-400">{new Date(l.created_at).toLocaleDateString('he-IL')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Activity history */}
+          {user360Activity.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-sand-500 mb-1.5">היסטוריית פעילות</p>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {user360Activity.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <span className="text-sand-600">{a.event_type}</span>
+                    <span className="text-sand-400">{new Date(a.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LeadStatusEditor({ user, onSaved }: { user: User360; onSaved: () => void }) {
+  const [status, setStatus] = useState(user.lead_status ?? 'new')
+  const [notes, setNotes] = useState(user.staff_notes ?? '')
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    setSaving(true)
+    await supabase.from('user_profiles').update({ lead_status: status, staff_notes: notes }).eq('id', user.id)
+    setSaving(false)
+    onSaved()
+  }
+
+  const statuses = [
+    { value: 'new', label: 'חדשה', color: '#60A5FA' },
+    { value: 'active_coaching', label: 'בתהליך', color: '#F59E0B' },
+    { value: 'completed', label: 'הושלם', color: '#22C55E' },
+  ]
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1.5">
+        {statuses.map(s => (
+          <button
+            key={s.value}
+            onClick={() => setStatus(s.value)}
+            className="flex-1 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
+            style={{
+              borderColor: status === s.value ? s.color : '#E5DDD2',
+              background: status === s.value ? s.color + '20' : 'white',
+              color: status === s.value ? s.color : '#9B8E80',
+            }}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        placeholder="הערות צוות..."
+        rows={2}
+        className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 resize-none"
+      />
+      <button
+        onClick={save}
+        disabled={saving}
+        className="w-full py-2 rounded-xl text-white text-xs font-bold disabled:opacity-50"
+        style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+      >
+        {saving ? 'שומר...' : 'שמור הערות'}
+      </button>
     </div>
   )
 }
@@ -267,13 +662,42 @@ function CategoriesTab() {
 
 // ─── Videos Tab ───────────────────────────────────────────────────────────────
 function VideosTab() {
-  const [videos, setVideos] = useState<Video[]>([])
+  const [videos, setVideos] = useState<VideoType[]>([])
   const [categories, setCategories] = useState<ContentCategory[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<Video | null>(null)
+  const [editing, setEditing] = useState<VideoType | null>(null)
   const [tasks, setTasks] = useState<HomeworkTask[]>([])
   const [newTask, setNewTask] = useState('')
   const [form, setForm] = useState({ title: '', description: '', video_url: '', thumbnail_url: '', duration_minutes: '', category_id: '' })
+  const [uploadingVideo, setUploadingVideo] = useState(false)
+  const [uploadingThumb, setUploadingThumb] = useState(false)
+
+  async function uploadFile(file: File, bucket: 'videos' | 'images'): Promise<string | null> {
+    const ext = file.name.split('.').pop()
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
+    if (error) { alert('שגיאה בהעלאה: ' + error.message); return null }
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  async function handleVideoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingVideo(true)
+    const url = await uploadFile(file, 'videos')
+    if (url) setForm(f => ({ ...f, video_url: url }))
+    setUploadingVideo(false)
+  }
+
+  async function handleThumbFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingThumb(true)
+    const url = await uploadFile(file, 'images')
+    if (url) setForm(f => ({ ...f, thumbnail_url: url }))
+    setUploadingThumb(false)
+  }
 
   const load = useCallback(async () => {
     const [{ data: vids }, { data: cats }] = await Promise.all([
@@ -314,7 +738,7 @@ function VideosTab() {
     await supabase.from('videos').delete().eq('id', id); load()
   }
 
-  async function toggle(v: Video) {
+  async function toggle(v: VideoType) {
     await supabase.from('videos').update({ is_active: !v.is_active }).eq('id', v.id); load()
   }
 
@@ -357,8 +781,37 @@ function VideosTab() {
         <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="כותרת" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור" rows={2} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none" />
-          <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} placeholder="קישור לסרטון" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
-          <input value={form.thumbnail_url} onChange={e => setForm(f => ({ ...f, thumbnail_url: e.target.value }))} placeholder="קישור לתמונה" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
+          {/* Video upload */}
+          <div className="border-2 border-dashed border-sand-200 rounded-xl p-3 space-y-1.5">
+            <p className="text-xs font-semibold text-sand-500">קובץ וידאו</p>
+            {form.video_url ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-green-600 truncate">✓ סרטון הועלה</span>
+                <button onClick={() => setForm(f => ({ ...f, video_url: '' }))} className="text-sand-300 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+              </div>
+            ) : (
+              <label className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${uploadingVideo ? 'bg-sand-100 text-sand-400' : 'bg-mustard-50 text-mustard-700 hover:bg-mustard-100'}`}>
+                {uploadingVideo ? 'מעלה...' : '📤 בחר קובץ וידאו'}
+                <input type="file" accept="video/*" className="hidden" onChange={handleVideoFile} disabled={uploadingVideo} />
+              </label>
+            )}
+          </div>
+
+          {/* Thumbnail upload */}
+          <div className="border-2 border-dashed border-sand-200 rounded-xl p-3 space-y-1.5">
+            <p className="text-xs font-semibold text-sand-500">תמונה ממוזערת</p>
+            {form.thumbnail_url ? (
+              <div className="flex items-center justify-between gap-2">
+                <img src={form.thumbnail_url} className="w-12 h-8 object-cover rounded-lg" alt="thumb" />
+                <button onClick={() => setForm(f => ({ ...f, thumbnail_url: '' }))} className="text-sand-300 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+              </div>
+            ) : (
+              <label className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${uploadingThumb ? 'bg-sand-100 text-sand-400' : 'bg-mustard-50 text-mustard-700 hover:bg-mustard-100'}`}>
+                {uploadingThumb ? 'מעלה...' : '🖼️ בחר תמונה'}
+                <input type="file" accept="image/*" className="hidden" onChange={handleThumbFile} disabled={uploadingThumb} />
+              </label>
+            )}
+          </div>
           <div className="flex gap-2">
             <input value={form.duration_minutes} onChange={e => setForm(f => ({ ...f, duration_minutes: e.target.value }))} placeholder="משך (דקות)" type="number" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
             <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))} className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white">
@@ -385,7 +838,9 @@ function VideosTab() {
           )}
 
           <div className="flex gap-2">
-            <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold">שמירה</button>
+            <button onClick={save} disabled={uploadingVideo || uploadingThumb} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold disabled:opacity-50">
+              {uploadingVideo || uploadingThumb ? 'מעלה...' : 'שמירה'}
+            </button>
             <button onClick={() => { setShowForm(false); setEditing(null); setTasks([]) }} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
           </div>
         </div>
@@ -420,7 +875,7 @@ function WorkshopsTab() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Workshop | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', price: '', payment_link: '', image_url: '', video_url: '' })
+  const [form, setForm] = useState({ title: '', description: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
 
   const load = useCallback(() => {
     supabase.from('workshops').select('*').order('display_order')
@@ -438,6 +893,8 @@ function WorkshopsTab() {
       image_url: form.image_url || null,
       video_url: form.video_url || null,
       currency: 'ILS',
+      stock_quantity: form.stock_quantity ? parseInt(form.stock_quantity) : null,
+      whatsapp_number: form.whatsapp_number || null,
     }
     if (editing) {
       await supabase.from('workshops').update(payload).eq('id', editing.id)
@@ -445,7 +902,7 @@ function WorkshopsTab() {
       const maxOrder = workshops.length > 0 ? Math.max(...workshops.map(w => w.display_order)) : 0
       await supabase.from('workshops').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ title: '', description: '', price: '', payment_link: '', image_url: '', video_url: '' })
+    setForm({ title: '', description: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
     setEditing(null); setShowForm(false); load()
   }
 
@@ -475,8 +932,12 @@ function WorkshopsTab() {
             <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="מחיר (₪)" type="number" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
             <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור רישום" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
           </div>
-          <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="קישור תמונה" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
+          <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="קישור תמונה (URL)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
           <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} placeholder="קישור סרטון" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
+          <div className="flex gap-2">
+            <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מלאי (יחידות)" type="number" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
+            <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="מספר WhatsApp" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
+          </div>
           <div className="flex gap-2">
             <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold">שמירה</button>
             <button onClick={() => { setShowForm(false); setEditing(null) }} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
@@ -495,7 +956,7 @@ function WorkshopsTab() {
               <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
                 {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
               </button>
-              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
               <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
@@ -644,6 +1105,326 @@ function PerksTab() {
   )
 }
 
+// ─── Forms Tab ────────────────────────────────────────────────────────────────
+type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating'; label: string; options?: string[] }
+type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[]; trigger_rule: { type: string; count: number } | null; is_active: boolean; created_at: string }
+type Submission = { id: string; user_id: string; responses_json: Record<string, string>; created_at: string; user_profiles?: { mother_name: string | null; email: string } }
+type Assignment = { id: string; user_id: string; is_completed: boolean; user_profiles?: { mother_name: string | null; email: string } }
+
+function AssignFormModal({ form, onClose }: { form: FormRecord; onClose: () => void }) {
+  const [users, setUsers] = useState<UserProfile[]>([])
+  const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    supabase.from('user_profiles').select('*').order('mother_name').then(({ data }) => setUsers(data ?? []))
+    supabase.from('form_assignments')
+      .select('*, user_profiles(mother_name, email)')
+      .eq('form_id', form.id)
+      .then(({ data }) => setAssignments((data ?? []) as Assignment[]))
+  }, [form.id])
+
+  const assignedIds = new Set(assignments.map(a => a.user_id))
+
+  async function toggle(userId: string) {
+    if (assignedIds.has(userId)) {
+      await supabase.from('form_assignments').delete().eq('form_id', form.id).eq('user_id', userId)
+      setAssignments(a => a.filter(x => x.user_id !== userId))
+    } else {
+      const { data } = await supabase.from('form_assignments').insert({ form_id: form.id, user_id: userId }).select('*, user_profiles(mother_name, email)').single()
+      if (data) setAssignments(a => [...a, data as Assignment])
+    }
+  }
+
+  const filtered = users.filter(u => !search || (u.mother_name ?? '').includes(search) || u.email.includes(search))
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl w-full max-w-sm mx-auto shadow-2xl overflow-hidden max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-sand-100">
+          <h3 className="font-bold text-sand-800">שייך טופס למשתמשות</h3>
+          <p className="text-xs text-sand-400 mt-0.5">{form.title}</p>
+        </div>
+        <div className="p-4 border-b border-sand-100">
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="חפש..." className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+        </div>
+        <div className="overflow-y-auto flex-1 p-4 space-y-2">
+          {filtered.map(u => (
+            <button
+              key={u.id}
+              onClick={() => toggle(u.id)}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 transition-all text-right ${assignedIds.has(u.id) ? 'border-mustard-400 bg-mustard-50' : 'border-sand-200 bg-white'}`}
+            >
+              <div>
+                <p className="text-sm font-semibold text-sand-800">{u.mother_name ?? '—'}</p>
+                <p className="text-xs text-sand-400">{u.email}</p>
+              </div>
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${assignedIds.has(u.id) ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
+                {assignedIds.has(u.id) && <Check className="w-3 h-3 text-white" />}
+              </div>
+            </button>
+          ))}
+        </div>
+        <div className="p-4 border-t border-sand-100">
+          <button onClick={onClose} className="w-full py-3 rounded-2xl bg-sand-100 text-sand-700 font-semibold text-sm">סגור</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FormsTab() {
+  const [forms, setForms] = useState<FormRecord[]>([])
+  const [showCreate, setShowCreate] = useState(false)
+  const [viewSubmissions, setViewSubmissions] = useState<FormRecord | null>(null)
+  const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [assignForm, setAssignForm] = useState<FormRecord | null>(null)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [fields, setFields] = useState<FormField[]>([])
+  const [triggerType, setTriggerType] = useState('after_video_views')
+  const [triggerCount, setTriggerCount] = useState('3')
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(() => {
+    supabase.from('forms').select('*').order('created_at', { ascending: false })
+      .then(({ data }) => setForms((data ?? []) as FormRecord[]))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  function addField() {
+    setFields(f => [...f, { id: crypto.randomUUID(), type: 'text', label: '' }])
+  }
+
+  function updateField(id: string, patch: Partial<FormField>) {
+    setFields(f => f.map(field => field.id === id ? { ...field, ...patch } : field))
+  }
+
+  function removeField(id: string) {
+    setFields(f => f.filter(field => field.id !== id))
+  }
+
+  async function saveForm() {
+    if (!title.trim() || fields.length === 0) return
+    setSaving(true)
+    await supabase.from('forms').insert({
+      title: title.trim(),
+      description: description || null,
+      fields_json: fields,
+      trigger_rule: { type: triggerType, count: parseInt(triggerCount) || 3 },
+      is_active: true,
+    })
+    setTitle(''); setDescription(''); setFields([]); setShowCreate(false)
+    setSaving(false); load()
+  }
+
+  async function toggleForm(form: FormRecord) {
+    await supabase.from('forms').update({ is_active: !form.is_active }).eq('id', form.id)
+    load()
+  }
+
+  async function deleteForm(id: string) {
+    await supabase.from('forms').delete().eq('id', id); load()
+  }
+
+  async function loadSubmissions(form: FormRecord) {
+    setViewSubmissions(form)
+    const { data } = await supabase
+      .from('form_submissions')
+      .select('*, user_profiles(mother_name, email)')
+      .eq('form_id', form.id)
+      .order('created_at', { ascending: false })
+    setSubmissions((data ?? []) as Submission[])
+  }
+
+  const fieldTypes = [
+    { value: 'text', label: 'שדה טקסט' },
+    { value: 'textarea', label: 'טקסט ארוך' },
+    { value: 'rating', label: 'דירוג 1-5' },
+    { value: 'select', label: 'בחירה מרשימה' },
+  ]
+
+  if (viewSubmissions) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setViewSubmissions(null)} className="text-mustard-600 text-sm font-semibold">← חזרה</button>
+          <h3 className="font-bold text-sand-800">{viewSubmissions.title}</h3>
+        </div>
+        <p className="text-xs text-sand-400">{submissions.length} תשובות</p>
+        {submissions.map(s => (
+          <div key={s.id} className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-sand-700">{(s.user_profiles as { mother_name: string | null; email: string } | undefined)?.mother_name ?? (s.user_profiles as { mother_name: string | null; email: string } | undefined)?.email}</p>
+              <p className="text-xs text-sand-400">{new Date(s.created_at).toLocaleDateString('he-IL')}</p>
+            </div>
+            {Object.entries(s.responses_json).map(([key, val]) => (
+              <div key={key}>
+                <p className="text-xs text-sand-500">{key}</p>
+                <p className="text-sm text-sand-800">{val}</p>
+              </div>
+            ))}
+          </div>
+        ))}
+        {submissions.length === 0 && <p className="text-center text-sand-400 text-sm py-8">אין תשובות עדיין</p>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <button
+        onClick={() => setShowCreate(!showCreate)}
+        className="w-full flex items-center justify-center gap-2 text-white font-semibold py-3 rounded-2xl transition-colors"
+        style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+      >
+        <Plus className="w-4 h-4" />
+        טופס חדש
+      </button>
+
+      {showCreate && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+          <input value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+
+          {/* Trigger */}
+          <div className="flex gap-2 items-center">
+            <select value={triggerType} onChange={e => setTriggerType(e.target.value)} className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm bg-white focus:outline-none focus:border-mustard-400">
+              <option value="after_video_views">אחרי X צפיות בסרטון</option>
+              <option value="after_days">אחרי X ימים</option>
+              <option value="manual">ידני</option>
+            </select>
+            <input type="number" value={triggerCount} onChange={e => setTriggerCount(e.target.value)} className="w-16 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" min="1" />
+          </div>
+
+          {/* Fields */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-sand-500">שדות הטופס</p>
+            {fields.map(field => (
+              <div key={field.id} className="flex gap-2 items-start">
+                <div className="flex-1 space-y-1.5">
+                  <input value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400" />
+                  <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs bg-white focus:outline-none">
+                    {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  {field.type === 'select' && (
+                    <input value={field.options?.join(', ') ?? ''} onChange={e => updateField(field.id, { options: e.target.value.split(',').map(s => s.trim()) })} placeholder="אפשרויות מופרדות בפסיק" className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none" />
+                  )}
+                </div>
+                <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400 mt-1"><X className="w-4 h-4" /></button>
+              </div>
+            ))}
+            <button onClick={addField} className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-semibold text-mustard-600 bg-mustard-50 hover:bg-mustard-100">
+              <Plus className="w-3.5 h-3.5" /> הוסף שדה
+            </button>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: '#C49438' }}>
+              {saving ? 'שומר...' : 'צור טופס'}
+            </button>
+            <button onClick={() => setShowCreate(false)} className="px-4 py-2.5 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
+          </div>
+        </div>
+      )}
+
+      {forms.map(form => (
+        <div key={form.id} className={`bg-white rounded-2xl p-4 shadow-sm ${!form.is_active ? 'opacity-50' : ''}`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1">
+              <p className="font-bold text-sand-800 text-sm">{form.title}</p>
+              <p className="text-xs text-sand-400 mt-0.5">
+                {form.fields_json.length} שדות
+                {form.trigger_rule && ` · ${form.trigger_rule.type === 'after_video_views' ? `אחרי ${form.trigger_rule.count} צפיות` : ''}`}
+              </p>
+            </div>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setAssignForm(form)} className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">שייך</button>
+              <button onClick={() => loadSubmissions(form)} className="text-xs px-2 py-1 bg-sand-50 text-sand-600 rounded-lg hover:bg-sand-100">תשובות</button>
+              <button onClick={() => toggleForm(form)} className="text-sand-400 hover:text-mustard-500">
+                {form.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
+              </button>
+              <button onClick={() => deleteForm(form.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+            </div>
+          </div>
+        </div>
+      ))}
+      {forms.length === 0 && <p className="text-center text-sand-400 text-sm py-8">אין טפסים עדיין</p>}
+
+      {assignForm && <AssignFormModal form={assignForm} onClose={() => setAssignForm(null)} />}
+    </div>
+  )
+}
+
+// ─── Plan Features Tab (inside Settings) ─────────────────────────────────────
+const PLAN_FEATURES = [
+  { key: 'feature_daily_insights',   label: 'תובנות יומיות' },
+  { key: 'feature_expert_chat',      label: "צ'אט עם מומחות" },
+  { key: 'feature_advanced_stats',   label: 'סטטיסטיקות מתקדמות' },
+  { key: 'feature_videos',           label: 'סרטונים מקצועיים' },
+  { key: 'feature_multiple_children',label: 'ריבוי ילדים' },
+]
+
+function PlanFeaturesSection() {
+  const [features, setFeatures] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.from('global_settings')
+      .select('setting_key, setting_value')
+      .eq('category', 'plan_features')
+      .then(({ data }) => {
+        const map: Record<string, string> = {}
+        data?.forEach(d => { map[d.setting_key] = d.setting_value ?? 'pro' })
+        setFeatures(map)
+      })
+  }, [])
+
+  async function toggle(key: string) {
+    const current = features[key] ?? 'pro'
+    const next = current === 'pro' ? 'lite' : 'pro'
+    setSaving(key)
+    await supabase.from('global_settings').upsert({
+      setting_key: key,
+      setting_value: next,
+      setting_type: 'text',
+      category: 'plan_features',
+      description: PLAN_FEATURES.find(f => f.key === key)?.label ?? key,
+    }, { onConflict: 'setting_key' })
+    setFeatures(f => ({ ...f, [key]: next }))
+    setSaving(null)
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="px-4 py-3 border-b border-sand-100">
+        <h3 className="font-bold text-sand-800 text-sm">פיצ'רים לפי תוכנית</h3>
+        <p className="text-xs text-sand-400 mt-0.5">בחרי אילו פיצ'רים זמינים ל-Lite ואילו ל-Pro בלבד</p>
+      </div>
+      {PLAN_FEATURES.map(f => {
+        const isPro = (features[f.key] ?? 'pro') === 'pro'
+        return (
+          <div key={f.key} className="flex items-center justify-between px-4 py-3 border-b border-sand-50 last:border-0">
+            <div>
+              <p className="text-sm font-semibold text-sand-700">{f.label}</p>
+              <p className="text-xs text-sand-400">{isPro ? 'Pro בלבד' : 'כולל Lite'}</p>
+            </div>
+            <button
+              onClick={() => toggle(f.key)}
+              disabled={saving === f.key}
+              className={`relative w-12 h-6 rounded-full transition-colors ${isPro ? 'bg-mustard-400' : 'bg-sand-200'} disabled:opacity-50`}
+            >
+              <span
+                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${isPro ? 'right-0.5' : 'left-0.5'}`}
+              />
+            </button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
 function SettingsTab() {
   const [settings, setSettings] = useState<GlobalSetting[]>([])
@@ -691,6 +1472,9 @@ function SettingsTab() {
 
   return (
     <div className="space-y-3">
+      {/* Plan Features */}
+      <PlanFeaturesSection />
+
       <button
         onClick={() => { setShowForm(true); setEditing(null) }}
         className="w-full flex items-center justify-center gap-2 bg-mustard-500 text-white font-semibold py-3 rounded-2xl hover:bg-mustard-600 transition-colors"

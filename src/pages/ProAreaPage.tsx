@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { Search, Check, PlayCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase, Video, HomeworkTask } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import UpgradeModal from '../components/UpgradeModal'
+import { useTracker } from '../hooks/useTracker'
 
 type VideoWithDetails = Video & {
   is_completed: boolean
@@ -11,10 +13,12 @@ type VideoWithDetails = Video & {
 
 export default function ProAreaPage() {
   const { user, profile } = useAuth()
+  const { track } = useTracker()
   const [videos, setVideos] = useState<VideoWithDetails[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [playingId, setPlayingId] = useState<string | null>(null)
 
   const fetchVideos = useCallback(async () => {
     if (!user) return
@@ -60,15 +64,32 @@ export default function ProAreaPage() {
 
   if (!profile?.is_pro && !profile?.is_admin) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" dir="rtl">
-        <div className="text-center max-w-sm">
-          <div className="text-6xl mb-4">🔒</div>
-          <h2 className="text-xl font-bold text-sand-800 mb-2">תוכן Pro בלבד</h2>
-          <p className="text-sand-500 text-sm leading-relaxed">
-            שדרגי לחשבון Pro כדי לגשת לסרטונים, ורקשופים, ותכנים מקצועיים
-          </p>
+      <>
+        <div className="min-h-screen flex items-center justify-center p-6" dir="rtl">
+          <div className="text-center max-w-sm space-y-5">
+            <div
+              className="w-24 h-24 rounded-3xl mx-auto flex items-center justify-center shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            >
+              <span className="text-5xl">⭐</span>
+            </div>
+            <h2 className="text-2xl font-black text-sand-800">תוכן Pro בלבד</h2>
+            <p className="text-sand-500 text-sm leading-relaxed">
+              שדרגי לחשבון Pro כדי לגשת לסרטונים ותכנים מקצועיים
+            </p>
+            <button
+              onClick={() => setPlayingId('upgrade')}
+              className="w-full py-4 rounded-2xl text-white font-bold shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            >
+              שדרגי עכשיו ⭐
+            </button>
+          </div>
         </div>
-      </div>
+        {playingId === 'upgrade' && (
+          <UpgradeModal featureName="סרטונים" onClose={() => setPlayingId(null)} />
+        )}
+      </>
     )
   }
 
@@ -140,16 +161,31 @@ export default function ProAreaPage() {
                     </div>
                   )}
                   {video.video_url && (
-                    <a
-                      href={video.video_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/30 transition-opacity"
+                    <button
+                      onClick={() => {
+                        if (playingId !== video.id) track('video_start', { video_id: video.id, title: video.title })
+                        setPlayingId(playingId === video.id ? null : video.id)
+                      }}
+                      className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors"
                     >
-                      <PlayCircle className="w-16 h-16 text-white" />
-                    </a>
+                      <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                        <PlayCircle className="w-8 h-8 text-mustard-600" />
+                      </div>
+                    </button>
                   )}
                 </div>
+
+                {/* Inline video player */}
+                {playingId === video.id && video.video_url && (
+                  <video
+                    src={video.video_url}
+                    controls
+                    autoPlay
+                    className="w-full bg-black"
+                    style={{ maxHeight: '220px' }}
+                    onEnded={() => setPlayingId(null)}
+                  />
+                )}
 
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">

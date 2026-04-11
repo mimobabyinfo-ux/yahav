@@ -4,6 +4,8 @@ import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
 import PerkDetailsModal from '../components/PerkDetailsModal'
+import ChildSwitcher from '../components/ChildSwitcher'
+import MyTasksPanel from '../components/MyTasksPanel'
 import type { Page } from '../App'
 
 type Props = {
@@ -11,7 +13,7 @@ type Props = {
 }
 
 export default function DashboardPage({ onNavigate }: Props) {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, selectedChild, children } = useAuth()
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
@@ -67,10 +69,10 @@ export default function DashboardPage({ onNavigate }: Props) {
             <h1 className="text-2xl font-bold text-sand-800">
               {profile?.mother_name ?? 'אמא'}! 👋
             </h1>
-            {profile?.baby_name && (
+            {selectedChild && (
               <p className="text-sand-500 text-sm mt-0.5">
-                {profile.baby_name}
-                {profile.baby_dob && ` · ${getBabyAge(profile.baby_dob)}`}
+                {selectedChild.name}
+                {selectedChild.dob && ` · ${getBabyAge(selectedChild.dob)}`}
               </p>
             )}
           </div>
@@ -81,6 +83,12 @@ export default function DashboardPage({ onNavigate }: Props) {
             <LogOut className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Child Switcher */}
+        {children.length > 0 && <ChildSwitcher />}
+
+        {/* Assigned tasks */}
+        <MyTasksPanel />
 
         {/* Daily Tip */}
         {tip && (
@@ -95,7 +103,35 @@ export default function DashboardPage({ onNavigate }: Props) {
           </div>
         )}
 
-        {/* Quick Actions */}
+        {/* Quick-action shortcuts */}
+        <div className="flex gap-3">
+          <button
+            onClick={() => onNavigate('journal')}
+            className="flex-1 flex items-center gap-3 bg-white rounded-3xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
+          >
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              <span className="text-xl">📔</span>
+            </div>
+            <div>
+              <p className="font-bold text-sand-800 text-sm">הוסף רשומה</p>
+              <p className="text-xs text-sand-400">לפתוח יומן</p>
+            </div>
+          </button>
+          <button
+            onClick={() => onNavigate('workshops')}
+            className="flex-1 flex items-center gap-3 bg-white rounded-3xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
+          >
+            <div className="w-10 h-10 rounded-2xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+              <span className="text-xl">▶️</span>
+            </div>
+            <div>
+              <p className="font-bold text-sand-800 text-sm">המשך סדנה</p>
+              <p className="text-xs text-sand-400">לפתוח מוצרים</p>
+            </div>
+          </button>
+        </div>
+
+        {/* Main grid */}
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => onNavigate('journal')}
@@ -118,8 +154,8 @@ export default function DashboardPage({ onNavigate }: Props) {
             className="bg-white rounded-3xl p-5 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all text-right"
           >
             <span className="text-3xl block mb-2">🛠️</span>
-            <p className="font-bold text-sand-800">סדנאות</p>
-            <p className="text-xs text-sand-400 mt-0.5">למד והתפתח</p>
+            <p className="font-bold text-sand-800">מוצרים</p>
+            <p className="text-xs text-sand-400 mt-0.5">סדנאות ורכישות</p>
           </button>
           {profile?.is_pro || profile?.is_admin ? (
             <button
@@ -131,11 +167,14 @@ export default function DashboardPage({ onNavigate }: Props) {
               <p className="text-xs text-mustard-100 mt-0.5">תכנים אקסקלוסיביים</p>
             </button>
           ) : (
-            <div className="bg-sand-100 rounded-3xl p-5 text-right opacity-60">
+            <button
+              onClick={() => onNavigate('pro')}
+              className="bg-gradient-to-br from-sand-200 to-sand-300 rounded-3xl p-5 text-right hover:from-mustard-100 hover:to-mustard-200 transition-all"
+            >
               <span className="text-3xl block mb-2">🔒</span>
-              <p className="font-bold text-sand-600">סרטונים</p>
-              <p className="text-xs text-sand-400 mt-0.5">Pro בלבד</p>
-            </div>
+              <p className="font-bold text-sand-700">סרטונים</p>
+              <p className="text-xs text-sand-500 mt-0.5">שדרגי ל-Pro</p>
+            </button>
           )}
         </div>
 
@@ -189,7 +228,7 @@ export default function DashboardPage({ onNavigate }: Props) {
               <p className="text-xs text-sand-400">אנחנו כאן בשבילך</p>
             </div>
             <a
-              href="https://wa.me/972500000000"
+              href="https://wa.me/972559904274"
               target="_blank"
               rel="noopener noreferrer"
               className="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors"
