@@ -100,6 +100,22 @@ export default function DashboardPage({ onNavigate }: Props) {
         {/* Child Switcher */}
         {children.length > 0 && <ChildSwitcher />}
 
+        {/* Share baby card */}
+        {selectedChild && (
+          <button
+            onClick={() => setShowShare(true)}
+            className="w-full flex items-center gap-3 bg-white rounded-3xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right border border-mustard-100"
+          >
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              <Share2 className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-sand-800 text-sm">שתפי את {selectedChild.name} 🐣</p>
+              <p className="text-xs text-sand-400">שלחי לינק עם פרטי התינוק/ת</p>
+            </div>
+          </button>
+        )}
+
         {/* Assigned tasks */}
         <MyTasksPanel />
 
