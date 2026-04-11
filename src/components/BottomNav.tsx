@@ -1,4 +1,4 @@
-import { Home, BookOpen, Gift, Play, Phone, ShoppingBag, BarChart2, Users, LogOut, ShieldAlert, Eye } from 'lucide-react'
+import { Home, BookOpen, Play, Phone, ShoppingBag, BarChart2, Users, LogOut, ShieldAlert, Eye, Star } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import type { Page, AdminSection } from '../App'
 
@@ -79,7 +79,7 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, adminS
     { id: 'journal',    label: 'יומן',        icon: <BookOpen className="w-5 h-5" /> },
     { id: 'pro',        label: 'סרטונים',     icon: <Play className="w-5 h-5" /> },
     { id: 'workshops',  label: 'מוצרים',      icon: <ShoppingBag className="w-5 h-5" /> },
-    { id: 'benefits',   label: 'הטבות',       icon: <Gift className="w-5 h-5" /> },
+    { id: 'services',   label: 'השירותים',    icon: <Star className="w-5 h-5" /> },
     { id: 'contact',    label: 'צור קשר',     icon: <Phone className="w-5 h-5" /> },
   ]
 

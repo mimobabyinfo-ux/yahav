@@ -15,6 +15,57 @@ import ChildSwitcher from '../components/ChildSwitcher'
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'pumping' | 'milestone' | 'doctor_visit' | 'note'
 type ViewMode = 'day' | 'week' | 'month'
 
+const UPSELLS: Record<string, { emoji: string; text: string; cta: string; wa: string }> = {
+  sleep: {
+    emoji: '😴',
+    text: 'מתמודדת עם שינה קשה?',
+    cta: 'סדנת שינה לתינוקות',
+    wa: 'היי! אני מתמודדת עם שינה קשה ורוצה לשמוע על הסדנה',
+  },
+  diaper: {
+    emoji: '🍼',
+    text: 'הרבה חיתולים מלוכלכים? נסי עיסוי בטן',
+    cta: 'סדנת עיסוי תינוקות',
+    wa: 'היי! אני מעוניינת לשמוע על סדנת עיסוי תינוקות',
+  },
+  note: {
+    emoji: '💛',
+    text: 'כתבת הערה — אנחנו כאן לכל שאלה',
+    cta: 'שאלי אותנו בוואטסאפ',
+    wa: 'היי! יש לי שאלה לגבי התינוק שלי',
+  },
+  feeding: {
+    emoji: '🤱',
+    text: 'רוצה תמיכה בהנקה?',
+    cta: 'להתייעצות עם מנחה',
+    wa: 'היי! אני מעוניינת בייעוץ הנקה',
+  },
+}
+
+function UpsellCard({ type, onDismiss }: { type: EntryType; onDismiss: () => void }) {
+  const u = UPSELLS[type]
+  if (!u) return null
+  const waUrl = `https://wa.me/972559904274?text=${encodeURIComponent(u.wa)}`
+  return (
+    <div className="bg-gradient-to-r from-mustard-50 to-beige-50 border border-mustard-200 rounded-3xl p-4 flex items-start gap-3 animate-fade-in">
+      <span className="text-2xl flex-shrink-0">{u.emoji}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-sand-800">{u.text}</p>
+        <a
+          href={waUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block mt-2 text-xs font-bold text-white px-3 py-1.5 rounded-xl"
+          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+        >
+          {u.cta} →
+        </a>
+      </div>
+      <button onClick={onDismiss} className="text-sand-300 hover:text-sand-500 flex-shrink-0">✕</button>
+    </div>
+  )
+}
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 function startOfWeek(date: Date): Date {
   const d = new Date(date)
@@ -164,6 +215,7 @@ export default function JournalPage() {
   const [allEntries, setAllEntries] = useState<DailyLogEntryWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [modalType, setModalType] = useState<EntryType | null>(null)
+  const [upsellType, setUpsellType] = useState<EntryType | null>(null)
 
   // Week/month navigation
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()))
@@ -285,6 +337,10 @@ export default function JournalPage() {
 
             <DailySummary entries={entries} />
 
+            {upsellType && (
+              <UpsellCard type={upsellType} onDismiss={() => setUpsellType(null)} />
+            )}
+
             {loading ? (
               <div className="text-center py-8">
                 <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
@@ -368,7 +424,11 @@ export default function JournalPage() {
           entryType={modalType}
           date={selectedDate}
           onClose={() => setModalType(null)}
-          onSaved={fetchEntries}
+          onSaved={() => {
+            fetchEntries()
+            setUpsellType(modalType)
+            setTimeout(() => setUpsellType(null), 8000)
+          }}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, ShoppingBag, Gift, LayoutGrid, Settings } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, ShoppingBag, Gift, LayoutGrid, Settings, MessageCircle, Mail } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
 import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -95,6 +95,23 @@ export default function AdminPage({ defaultSection }: { defaultSection?: AdminSe
   )
 }
 
+// ─── CRM helpers ─────────────────────────────────────────────────────────────
+const LEAD_STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+  new_lead:        { label: 'ליד חדש',           color: '#3b82f6', bg: '#eff6ff' },
+  active_workshop: { label: 'בסדנה פעילה',       color: '#16a34a', bg: '#f0fdf4' },
+  post_service:    { label: 'לאחר שירות',         color: '#9ca3af', bg: '#f9fafb' },
+}
+
+function LeadBadge({ status }: { status: string | null }) {
+  const s = status ? (LEAD_STATUS_LABELS[status] ?? null) : null
+  if (!s) return <span className="text-[10px] bg-sand-100 text-sand-400 px-1.5 py-0.5 rounded-md">ללא סטטוס</span>
+  return (
+    <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold" style={{ color: s.color, background: s.bg }}>
+      {s.label}
+    </span>
+  )
+}
+
 // ─── Users Tab ───────────────────────────────────────────────────────────────
 type UserWithChildren = UserProfile & { childCount: number }
 
@@ -103,6 +120,8 @@ function UsersTab() {
   const [search, setSearch] = useState('')
   const [editUser, setEditUser] = useState<UserWithChildren | null>(null)
   const [editName, setEditName] = useState('')
+  const [editLeadStatus, setEditLeadStatus] = useState<string>('')
+  const [editNotes, setEditNotes] = useState('')
   const [deleteUser, setDeleteUser] = useState<UserWithChildren | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -127,8 +146,15 @@ function UsersTab() {
   async function saveEdit() {
     if (!editUser || !editName.trim()) return
     setSaving(true)
-    await supabase.from('user_profiles').update({ mother_name: editName, display_name: editName }).eq('id', editUser.id)
-    setUsers(prev => prev.map(p => p.id === editUser.id ? { ...p, mother_name: editName, display_name: editName } : p))
+    const ls = (editLeadStatus || null) as 'new_lead' | 'active_workshop' | 'post_service' | null
+    const updates = {
+      mother_name: editName,
+      display_name: editName,
+      lead_status: ls,
+      staff_notes: editNotes || null,
+    }
+    await supabase.from('user_profiles').update(updates).eq('id', editUser.id)
+    setUsers(prev => prev.map(p => p.id === editUser.id ? { ...p, ...updates } : p))
     setEditUser(null)
     setSaving(false)
   }
@@ -159,26 +185,48 @@ function UsersTab() {
         <div key={u.id} className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-bold text-sand-800 text-sm truncate">{u.mother_name ?? '—'}</p>
                 {u.is_admin && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-bold">ADMIN</span>}
                 {u.is_pro && <span className="text-[10px] bg-mustard-100 text-mustard-700 px-1.5 py-0.5 rounded-md font-bold">PRO</span>}
+                <LeadBadge status={u.lead_status} />
               </div>
               <p className="text-xs text-sand-400 truncate">{u.email}</p>
               <p className="text-xs text-sand-300 mt-0.5">
                 {u.childCount > 0 ? `${u.childCount} ילד${u.childCount > 1 ? 'ים' : ''}` : 'אין ילדים'}
+                {u.staff_notes && <span className="mr-2 text-sand-400">· {u.staff_notes.slice(0, 30)}{u.staff_notes.length > 30 ? '...' : ''}</span>}
               </p>
             </div>
+          </div>
+
+          {/* Communication row */}
+          <div className="flex gap-2">
+            <a
+              href={`https://wa.me/${u.email.replace(/[^0-9]/g, '') || '972559904274'}?text=${encodeURIComponent(`היי ${u.mother_name ?? ''}! 👋`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              WhatsApp
+            </a>
+            <a
+              href={`mailto:${u.email}?subject=Mimo - עדכון עבורך&body=היי ${u.mother_name ?? ''}!`}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              מייל
+            </a>
           </div>
 
           {/* Action buttons */}
           <div className="flex gap-2">
             <button
-              onClick={() => { setEditUser(u); setEditName(u.mother_name ?? '') }}
+              onClick={() => { setEditUser(u); setEditName(u.mother_name ?? ''); setEditLeadStatus(u.lead_status ?? ''); setEditNotes(u.staff_notes ?? '') }}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-sand-50 text-sand-600 hover:bg-sand-100 transition-colors"
             >
               <Pencil className="w-3.5 h-3.5" />
-              ערוך פרטים
+              ערוך
             </button>
             <button
               onClick={() => upgradePro(u)}
@@ -188,7 +236,7 @@ function UsersTab() {
                   : 'bg-mustard-50 text-mustard-600 hover:bg-mustard-100'
               }`}
             >
-              ⭐ {u.is_pro ? 'בטל PRO' : 'שדרג ל-PRO'}
+              ⭐ {u.is_pro ? 'בטל PRO' : 'PRO'}
             </button>
             <button
               onClick={() => setDeleteUser(u)}
@@ -215,6 +263,29 @@ function UsersTab() {
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
                 className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-sand-500 mb-1 block">סטטוס CRM</label>
+              <select
+                value={editLeadStatus}
+                onChange={e => setEditLeadStatus(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 bg-white"
+              >
+                <option value="">ללא סטטוס</option>
+                <option value="new_lead">ליד חדש</option>
+                <option value="active_workshop">בסדנה פעילה</option>
+                <option value="post_service">לאחר שירות</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-sand-500 mb-1 block">הערות פנימיות</label>
+              <textarea
+                rows={2}
+                value={editNotes}
+                onChange={e => setEditNotes(e.target.value)}
+                placeholder="הערות לצוות..."
+                className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none"
               />
             </div>
             <div className="flex gap-2">

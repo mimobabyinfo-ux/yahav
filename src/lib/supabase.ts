@@ -17,11 +17,30 @@ export type UserProfile = {
   is_pro: boolean
   is_admin: boolean
   display_name: string | null
-  lead_status: string | null
+  lead_status: 'new_lead' | 'active_workshop' | 'post_service' | null
   staff_notes: string | null
   last_active: string | null
+  family_id: string | null
   created_at: string
   updated_at: string
+}
+
+export type Family = {
+  id: string
+  created_by: string | null
+  family_name: string | null
+  invite_code: string
+  created_at: string
+}
+
+export type PurchasedWorkshop = {
+  id: string
+  user_id: string
+  workshop_id: string
+  purchase_date: string
+  amount_paid: number | null
+  notes: string | null
+  created_at: string
 }
 
 export type Child = {
