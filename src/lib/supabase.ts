@@ -17,6 +17,9 @@ export type UserProfile = {
   is_pro: boolean
   is_admin: boolean
   display_name: string | null
+  lead_status: string | null
+  staff_notes: string | null
+  last_active: string | null
   created_at: string
   updated_at: string
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, ShoppingBag, Gift, LayoutGrid, Settings } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
-import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, ContentCategory, GlobalSetting } from '../lib/supabase'
+import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { AdminSection } from '../App'
 
@@ -254,7 +254,7 @@ function UsersTab() {
 // ─── Insights Tab ─────────────────────────────────────────────────────────────
 type VideoPerf = { title: string; total_views: number; completions: number; completion_pct: number }
 type RetentionRow = { cohort_week: string; total_users: number; day1: number; day3: number; day7: number }
-type User360 = UserProfile & { childCount: number; logCount: number; activityCount: number }
+type User360 = UserProfile & { childCount: number; logCount: number; activityCount: number; lead_status: string | null; staff_notes: string | null }
 
 function InsightsTab() {
   const [stats, setStats] = useState({ users: 0, pro: 0, children: 0, logs: 0 })
@@ -340,7 +340,7 @@ function InsightsTab() {
               <CartesianGrid strokeDasharray="3 3" stroke="#F3F0EB" />
               <XAxis dataKey="week" tick={{ fontSize: 9 }} />
               <YAxis unit="%" tick={{ fontSize: 9 }} domain={[0, 100]} />
-              <Tooltip formatter={(v: number) => `${v}%`} />
+              <Tooltip formatter={(v) => `${v}%`} />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               <Line type="monotone" dataKey="יום 1" stroke="#3B82F6" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="יום 3" stroke="#C49438" strokeWidth={2} dot={false} />

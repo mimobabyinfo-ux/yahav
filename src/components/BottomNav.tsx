@@ -1,5 +1,4 @@
 import { Home, BookOpen, Gift, Play, Phone, ShoppingBag, BarChart2, Users, LogOut, ShieldAlert, Eye } from 'lucide-react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { Page, AdminSection } from '../App'
 

@@ -50,7 +50,7 @@ export function useTracker() {
         event_type: 'session_end',
         event_data: { duration_s },
       })
-      if (navigator.sendBeacon) {
+      if (typeof navigator.sendBeacon === 'function') {
         // sendBeacon to Supabase REST requires auth header — fall back to sync XHR
         const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_activities`
         const xhr = new XMLHttpRequest()
