@@ -18,11 +18,11 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
     profile?.mother_name ? `אמא: ${profile.mother_name}` : null,
     '',
     '📱 עוקבת אחר ההתפתחות שלנו עם Mimo',
-    'https://mimo-app.vercel.app',
+    'https://mimoapp.vercel.app',
   ].filter(l => l !== null).join('\n')
 
   function copyLink() {
-    navigator.clipboard.writeText('https://mimo-app.vercel.app').then(() => {
+    navigator.clipboard.writeText('https://mimoapp.vercel.app').then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
