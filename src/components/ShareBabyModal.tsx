@@ -4,8 +4,6 @@ import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
 import MimoLogo from './MimoLogo'
 
-const WA_NUMBER = '972559904274'
-
 export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
   const { profile, selectedChild } = useAuth()
   const [copied, setCopied] = useState(false)
