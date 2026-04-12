@@ -21,6 +21,7 @@ export type UserProfile = {
   staff_notes: string | null
   last_active: string | null
   family_id: string | null
+  area: string | null
   created_at: string
   updated_at: string
 }

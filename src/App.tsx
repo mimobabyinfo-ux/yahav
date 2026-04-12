@@ -11,12 +11,17 @@ import ProAreaPage from './pages/ProAreaPage'
 import AdminPage from './pages/AdminPage'
 import ContactPage from './pages/ContactPage'
 import MyServicesPage from './pages/MyServicesPage'
+import CommunityPage from './pages/CommunityPage'
+import PublicFormPage from './pages/PublicFormPage'
 import BottomNav from './components/BottomNav'
 import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
 
-export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'contact' | 'services'
+export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'contact' | 'services' | 'community'
 export type AdminSection = 'insights' | 'users' | 'forms'
+
+// Detect public form URL: ?form=FORM_ID
+const publicFormId = new URLSearchParams(window.location.search).get('form')
 
 function AppInner() {
   const { user, profile, loading } = useAuth()
@@ -44,6 +49,8 @@ function AppInner() {
     setAdminSection(section)
     setCurrentPage('admin')
   }
+
+  if (publicFormId) return <PublicFormPage formId={publicFormId} />
 
   if (loading) {
     return (
@@ -73,6 +80,7 @@ function AppInner() {
       case 'admin':      return <AdminPage defaultSection={adminSection} />
       case 'contact':    return <ContactPage />
       case 'services':   return <MyServicesPage />
+      case 'community':  return <CommunityPage />
       default:           return <DashboardPage onNavigate={setCurrentPage} />
     }
   }

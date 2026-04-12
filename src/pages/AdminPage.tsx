@@ -7,6 +7,8 @@ import type { AdminSection } from '../App'
 
 type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'categories' | 'forms' | 'settings'
 
+const APP_URL = 'https://mimoapp.vercel.app'
+
 // Map admin nav sections → internal tabs
 const SECTION_TAB: Record<AdminSection, Tab> = {
   insights: 'insights',
@@ -947,6 +949,25 @@ function WorkshopsTab() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [form, setForm] = useState({ title: '', description: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
+  const [uploadingImage, setUploadingImage] = useState(false)
+
+  async function uploadImage(file: File): Promise<string | null> {
+    const ext = file.name.split('.').pop()
+    const path = `workshops/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('images').upload(path, file, { upsert: true })
+    if (error) return null
+    const { data } = supabase.storage.from('images').getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  async function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingImage(true)
+    const url = await uploadImage(file)
+    if (url) setForm(f => ({ ...f, image_url: url }))
+    setUploadingImage(false)
+  }
 
   const load = useCallback(() => {
     supabase.from('workshops').select('*').order('display_order')
@@ -1003,7 +1024,20 @@ function WorkshopsTab() {
             <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="מחיר (₪)" type="number" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
             <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור רישום" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
           </div>
-          <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="קישור תמונה (URL)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
+          {/* Image upload or URL */}
+          <div className="space-y-1.5">
+            <label className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${uploadingImage ? 'bg-sand-100 text-sand-400' : 'bg-mustard-50 text-mustard-700 hover:bg-mustard-100'}`}>
+              {uploadingImage ? 'מעלה תמונה...' : '🖼️ העלה תמונה (PNG/JPG)'}
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleImageFile} disabled={uploadingImage} />
+            </label>
+            {form.image_url && (
+              <div className="relative">
+                <img src={form.image_url} alt="preview" className="w-full h-28 object-cover rounded-xl" />
+                <button onClick={() => setForm(f => ({ ...f, image_url: '' }))} className="absolute top-1 left-1 w-6 h-6 bg-black/50 text-white rounded-full text-xs flex items-center justify-center hover:bg-black/70">✕</button>
+              </div>
+            )}
+            <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="או הדבק קישור URL..." className="w-full px-3 py-2 border border-sand-200 rounded-xl focus:outline-none focus:border-mustard-400 text-xs text-sand-500" dir="ltr" />
+          </div>
           <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} placeholder="קישור סרטון" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
           <div className="flex gap-2">
             <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מלאי (יחידות)" type="number" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
@@ -1178,7 +1212,7 @@ function PerksTab() {
 
 // ─── Forms Tab ────────────────────────────────────────────────────────────────
 type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating'; label: string; options?: string[]; required?: boolean }
-type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[]; trigger_rule: { type: string; count: number } | null; is_active: boolean; created_at: string }
+type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[]; trigger_rule: { type: string; count: number } | null; is_active: boolean; public_link_enabled: boolean; created_at: string }
 type Submission = { id: string; user_id: string; responses_json: Record<string, string>; created_at: string; user_profiles?: { mother_name: string | null; email: string } }
 type Assignment = { id: string; user_id: string; is_completed: boolean; user_profiles?: { mother_name: string | null; email: string } }
 
@@ -1250,6 +1284,20 @@ function FormsTab() {
   const [viewSubmissions, setViewSubmissions] = useState<FormRecord | null>(null)
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [assignForm, setAssignForm] = useState<FormRecord | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  function copyFormLink(formId: string) {
+    const url = `${APP_URL}/?form=${formId}`
+    navigator.clipboard.writeText(url)
+    setCopiedId(formId)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  async function togglePublicLink(form: FormRecord) {
+    const newVal = !(form as FormRecord & { public_link_enabled?: boolean }).public_link_enabled
+    await supabase.from('forms').update({ public_link_enabled: newVal }).eq('id', form.id)
+    load()
+  }
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [fields, setFields] = useState<FormField[]>([])
@@ -1418,9 +1466,23 @@ function FormsTab() {
                 {form.trigger_rule && ` · ${form.trigger_rule.type === 'after_video_views' ? `אחרי ${form.trigger_rule.count} צפיות` : ''}`}
               </p>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap justify-end">
               <button onClick={() => setAssignForm(form)} className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">שייך</button>
               <button onClick={() => loadSubmissions(form)} className="text-xs px-2 py-1 bg-sand-50 text-sand-600 rounded-lg hover:bg-sand-100">תשובות</button>
+              <button
+                onClick={() => togglePublicLink(form)}
+                className={`text-xs px-2 py-1 rounded-lg transition-colors ${form.public_link_enabled ? 'bg-green-100 text-green-700' : 'bg-sand-50 text-sand-500 hover:bg-sand-100'}`}
+              >
+                {form.public_link_enabled ? '🔗 פעיל' : '🔗 לינק'}
+              </button>
+              {form.public_link_enabled && (
+                <button
+                  onClick={() => copyFormLink(form.id)}
+                  className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100"
+                >
+                  {copiedId === form.id ? '✓ הועתק' : 'העתק'}
+                </button>
+              )}
               <button onClick={() => toggleForm(form)} className="text-sand-400 hover:text-mustard-500">
                 {form.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
               </button>
