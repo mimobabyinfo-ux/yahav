@@ -30,7 +30,6 @@ export default function PublicFormPage({ formId }: { formId: string }) {
       .from('forms')
       .select('*')
       .eq('id', formId)
-      .eq('public_link_enabled', true)
       .maybeSingle()
       .then(({ data }) => {
         if (!data) setNotFound(true)

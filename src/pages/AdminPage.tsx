@@ -1293,11 +1293,6 @@ function FormsTab() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  async function togglePublicLink(form: FormRecord) {
-    const newVal = !(form as FormRecord & { public_link_enabled?: boolean }).public_link_enabled
-    await supabase.from('forms').update({ public_link_enabled: newVal }).eq('id', form.id)
-    load()
-  }
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [fields, setFields] = useState<FormField[]>([])
@@ -1470,19 +1465,11 @@ function FormsTab() {
               <button onClick={() => setAssignForm(form)} className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">שייך</button>
               <button onClick={() => loadSubmissions(form)} className="text-xs px-2 py-1 bg-sand-50 text-sand-600 rounded-lg hover:bg-sand-100">תשובות</button>
               <button
-                onClick={() => togglePublicLink(form)}
-                className={`text-xs px-2 py-1 rounded-lg transition-colors ${form.public_link_enabled ? 'bg-green-100 text-green-700' : 'bg-sand-50 text-sand-500 hover:bg-sand-100'}`}
+                onClick={() => copyFormLink(form.id)}
+                className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100"
               >
-                {form.public_link_enabled ? '🔗 פעיל' : '🔗 לינק'}
+                {copiedId === form.id ? '✓ הועתק' : '🔗 לינק'}
               </button>
-              {form.public_link_enabled && (
-                <button
-                  onClick={() => copyFormLink(form.id)}
-                  className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100"
-                >
-                  {copiedId === form.id ? '✓ הועתק' : 'העתק'}
-                </button>
-              )}
               <button onClick={() => toggleForm(form)} className="text-sand-400 hover:text-mustard-500">
                 {form.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
               </button>
