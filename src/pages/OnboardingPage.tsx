@@ -21,6 +21,7 @@ const emptyBaby = (): Baby => ({ name: '', dob: '', gender: 'girl' })
 export default function OnboardingPage() {
   const { user, refreshProfile, refreshChildren } = useAuth()
   const [motherName, setMotherName] = useState('')
+  const [area, setArea] = useState('')
   const [babies, setBabies] = useState<Baby[]>([emptyBaby()])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -44,6 +45,10 @@ export default function OnboardingPage() {
       setError('אנא מלאי שם לכל תינוק/ת')
       return
     }
+    if (babies.some(b => !b.dob)) {
+      setError('אנא מלאי תאריך לידה לכל תינוק/ת')
+      return
+    }
     setError('')
     setLoading(true)
     try {
@@ -56,6 +61,8 @@ export default function OnboardingPage() {
         baby_dob: babies[0].dob || null,
         baby_gender: babies[0].gender,
         display_name: motherName,
+        area: area.trim() || null,
+        lead_status: 'new_lead',
       })
       if (profileError) throw profileError
 
@@ -92,17 +99,31 @@ export default function OnboardingPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Mother name */}
-          <div className="bg-white rounded-3xl shadow-sm p-5">
-            <label className="block text-xs font-semibold text-sand-600 mb-1.5">שמך</label>
-            <input
-              type="text"
-              value={motherName}
-              onChange={e => setMotherName(e.target.value)}
-              placeholder="מה שמך?"
-              required
-              className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
-            />
+          {/* Mother name + area */}
+          <div className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">שמך</label>
+              <input
+                type="text"
+                value={motherName}
+                onChange={e => setMotherName(e.target.value)}
+                placeholder="מה שמך?"
+                required
+                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">
+                עיר / אזור <span className="text-sand-400 font-normal">(לחיפוש בקהילה)</span>
+              </label>
+              <input
+                type="text"
+                value={area}
+                onChange={e => setArea(e.target.value)}
+                placeholder="למשל: תל אביב, ירושלים, חיפה..."
+                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
+              />
+            </div>
           </div>
 
           {/* Baby cards */}
@@ -160,13 +181,14 @@ export default function OnboardingPage() {
               {/* Birthday */}
               <div>
                 <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                  תאריך לידה <span className="text-sand-400 font-normal">(אופציונלי)</span>
+                  תאריך לידה <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="date"
                   value={baby.dob}
                   onChange={e => updateBaby(idx, { dob: e.target.value })}
                   max={new Date().toISOString().split('T')[0]}
+                  required
                   className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
                 />
               </div>
