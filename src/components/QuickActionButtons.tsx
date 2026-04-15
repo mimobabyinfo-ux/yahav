@@ -1,4 +1,4 @@
-type EntryType = 'feeding' | 'sleep' | 'diaper' | 'pumping' | 'milestone' | 'doctor_visit' | 'note'
+type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 
 type Props = {
   onSelect: (type: EntryType) => void
@@ -6,7 +6,7 @@ type Props = {
 
 const actions: { type: EntryType; emoji: string; label: string }[] = [
   { type: 'diaper', emoji: '🧷', label: 'חיתול' },
-  { type: 'pumping', emoji: '🫧', label: 'שאיבה' },
+  { type: 'tummy_time', emoji: '🐣', label: 'זמן בטן' },
   { type: 'milestone', emoji: '⭐', label: 'אבן דרך' },
   { type: 'doctor_visit', emoji: '🏥', label: 'רופא' },
   { type: 'note', emoji: '📝', label: 'הערה' },

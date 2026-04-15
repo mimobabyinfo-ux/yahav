@@ -12,7 +12,7 @@ import LogEntryModal from '../components/LogEntryModal'
 import QuickActionButtons from '../components/QuickActionButtons'
 import ChildSwitcher from '../components/ChildSwitcher'
 
-type EntryType = 'feeding' | 'sleep' | 'diaper' | 'pumping' | 'milestone' | 'doctor_visit' | 'note'
+type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 type ViewMode = 'day' | 'week' | 'month'
 
 const UPSELLS: Record<string, { emoji: string; text: string; cta: string; wa: string }> = {

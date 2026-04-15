@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { ExternalLink, MessageCircle, ShoppingBag, Star, X, Sparkles, CreditCard } from 'lucide-react'
+import { ExternalLink, MessageCircle, ShoppingBag, Star, X, Sparkles, CreditCard, Zap } from 'lucide-react'
 import { supabase, Workshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import UpgradeModal from '../components/UpgradeModal'
 
 const WA_NUMBER = '972559904274'
 
@@ -101,7 +100,6 @@ export default function WorkshopsPage() {
   const { profile } = useAuth()
   const [workshops, setWorkshops] = useState<WorkshopExt[]>([])
   const [loading, setLoading] = useState(true)
-  const [upgradeFeature, setUpgradeFeature] = useState<string | null>(null)
   const [selected, setSelected] = useState<WorkshopExt | null>(null)
   const [category, setCategory] = useState('all')
 
@@ -164,6 +162,32 @@ export default function WorkshopsPage() {
       </div>
 
       <div className="max-w-sm mx-auto px-4 pt-4 space-y-3">
+        {/* Pro upgrade banner for non-Pro users */}
+        {!isPro && (
+          <a
+            href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent('היי! אני רוצה לשדרג לחברות Pro 🌟')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block rounded-3xl p-4 mb-1"
+            style={{ background: 'linear-gradient(135deg, #4A3F35, #3a302a)' }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-white text-sm">שדרגי לחברות Pro</p>
+                <p className="text-xs" style={{ color: '#C49438' }}>גישה לכל הסרטונים והתכנים הבלעדיים</p>
+              </div>
+              <span className="text-white text-xs font-bold px-3 py-1.5 rounded-xl"
+                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                שלחי הודעה →
+              </span>
+            </div>
+          </a>
+        )}
+
         {loading ? (
           <div className="text-center py-12">
             <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
@@ -175,13 +199,12 @@ export default function WorkshopsPage() {
           </div>
         ) : (
           filtered.map(ws => {
-            const locked = !isPro && ws.price != null && ws.price > 0
             const isFeatured = ws.display_order === 1
             return (
               <div
                 key={ws.id}
                 className="bg-white rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md"
-                onClick={() => locked ? setUpgradeFeature(ws.title) : setSelected(ws)}
+                onClick={() => setSelected(ws)}
               >
                 <div className="flex gap-3 p-4">
                   {/* Text side */}
@@ -222,11 +245,6 @@ export default function WorkshopsPage() {
                         <Star className="w-2.5 h-2.5" /> מומלץ
                       </div>
                     )}
-                    {locked && (
-                      <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
-                        <span className="text-xl">🔒</span>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -243,9 +261,8 @@ export default function WorkshopsPage() {
                   </a>
                   {ws.payment_link && (
                     <a
-                      href={locked ? '#' : ws.payment_link}
-                      target={locked ? undefined : '_blank'} rel="noopener noreferrer"
-                      onClick={locked ? e => { e.preventDefault(); setUpgradeFeature(ws.title) } : undefined}
+                      href={ws.payment_link}
+                      target="_blank" rel="noopener noreferrer"
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white transition-all"
                       style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
                     >
@@ -261,10 +278,6 @@ export default function WorkshopsPage() {
       </div>
 
       {selected && <ProductModal ws={selected} onClose={() => setSelected(null)} />}
-
-      {upgradeFeature && (
-        <UpgradeModal featureName={upgradeFeature} onClose={() => setUpgradeFeature(null)} />
-      )}
     </div>
   )
 }

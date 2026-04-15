@@ -22,6 +22,8 @@ export type UserProfile = {
   last_active: string | null
   family_id: string | null
   area: string | null
+  phone_number: string | null
+  community_consent: boolean
   created_at: string
   updated_at: string
 }

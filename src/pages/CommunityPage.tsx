@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { MessageCircle, MapPin, Filter } from 'lucide-react'
+import { MessageCircle, MapPin, Filter, Phone, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
@@ -10,6 +10,8 @@ type CommunityProfile = {
   id: string
   mother_name: string | null
   area: string | null
+  phone_number: string | null
+  community_consent: boolean | null
   child_id: string
   child_dob: string | null
   child_gender: 'boy' | 'girl' | 'other' | null
@@ -33,12 +35,16 @@ function ageMonths(dob: string): number {
 }
 
 export default function CommunityPage() {
-  const { selectedChild, profile, user } = useAuth()
+  const { selectedChild, profile, user, refreshProfile } = useAuth()
   const [profiles, setProfiles] = useState<CommunityProfile[]>([])
-  const [filterMode, setFilterMode] = useState<FilterMode>('age')
+  const [filterMode, setFilterMode] = useState<FilterMode>('all')
+
+  // My profile settings
   const [areaInput, setAreaInput] = useState(profile?.area ?? '')
-  const [savingArea, setSavingArea] = useState(false)
-  const [areaSaved, setAreaSaved] = useState(false)
+  const [phoneInput, setPhoneInput] = useState(profile?.phone_number ?? '')
+  const [consentChecked, setConsentChecked] = useState(profile?.community_consent ?? false)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileSaved, setProfileSaved] = useState(false)
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -49,29 +55,44 @@ export default function CommunityPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function saveArea() {
-    if (!user || !areaInput.trim()) return
-    setSavingArea(true)
-    await supabase.from('user_profiles').update({ area: areaInput.trim() }).eq('id', user.id)
-    setSavingArea(false)
-    setAreaSaved(true)
-    setTimeout(() => setAreaSaved(false), 2000)
+  // Sync local state when profile loads
+  useEffect(() => {
+    if (profile) {
+      setAreaInput(profile.area ?? '')
+      setPhoneInput(profile.phone_number ?? '')
+      setConsentChecked(profile.community_consent ?? false)
+    }
+  }, [profile])
+
+  async function saveMyProfile() {
+    if (!user) return
+    setSavingProfile(true)
+    await supabase.from('user_profiles').update({
+      area: areaInput.trim() || null,
+      phone_number: phoneInput.trim() || null,
+      community_consent: consentChecked,
+    }).eq('id', user.id)
+    await refreshProfile()
+    setSavingProfile(false)
+    setProfileSaved(true)
+    setTimeout(() => setProfileSaved(false), 2500)
     load()
   }
 
   const myMonths = selectedChild?.dob ? ageMonths(selectedChild.dob) : null
+  const myArea = (profile?.area ?? areaInput).trim().toLowerCase()
 
   const filtered = profiles.filter(p => {
-    if (p.id === user?.id) return false // exclude self
-    if (filterMode === 'age' && myMonths != null && p.child_dob) {
-      const diff = Math.abs(ageMonths(p.child_dob) - myMonths)
-      return diff <= 2 // ±2 months
+    if (p.id === user?.id) return false
+    if (filterMode === 'age') {
+      if (myMonths == null || !p.child_dob) return false
+      return Math.abs(ageMonths(p.child_dob) - myMonths) <= 2
     }
     if (filterMode === 'area') {
-      const myArea = profile?.area ?? areaInput
-      return myArea && p.area && p.area === myArea
+      if (!myArea || !p.area) return false
+      return p.area.trim().toLowerCase() === myArea
     }
-    return true
+    return true // 'all'
   })
 
   const genderEmoji = (g: string | null) => g === 'boy' ? '👦' : g === 'girl' ? '👧' : '👶'
@@ -88,36 +109,61 @@ export default function CommunityPage() {
           <p className="text-sand-400 text-sm">אמהות בשלב דומה כמוך</p>
         </div>
 
-        {/* Area setup */}
+        {/* My profile card */}
         <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
+          <p className="text-sm font-bold text-sand-700">הפרופיל שלי בקהילה</p>
+
           <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-mustard-500" />
-            <p className="text-sm font-semibold text-sand-700">האזור שלי</p>
-          </div>
-          <div className="flex gap-2">
+            <MapPin className="w-4 h-4 text-mustard-500 flex-shrink-0" />
             <input
               value={areaInput}
               onChange={e => setAreaInput(e.target.value)}
-              placeholder="למשל: תל אביב, חיפה..."
+              placeholder="עיר / אזור (למשל: תל אביב)"
               className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
             />
-            <button
-              onClick={saveArea}
-              disabled={savingArea || !areaInput.trim()}
-              className="px-4 py-2.5 rounded-2xl text-white text-sm font-bold disabled:opacity-40"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-            >
-              {areaSaved ? '✓' : savingArea ? '...' : 'שמור'}
-            </button>
           </div>
+
+          <div className="flex items-center gap-2">
+            <Phone className="w-4 h-4 text-mustard-500 flex-shrink-0" />
+            <input
+              value={phoneInput}
+              onChange={e => setPhoneInput(e.target.value)}
+              placeholder="מספר טלפון (אופציונלי)"
+              type="tel"
+              className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+              dir="ltr"
+            />
+          </div>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <div
+              onClick={() => setConsentChecked(v => !v)}
+              className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${consentChecked ? 'border-mustard-500' : 'border-sand-300'}`}
+              style={consentChecked ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+            >
+              {consentChecked && <Check className="w-3 h-3 text-white" />}
+            </div>
+            <span className="text-xs text-sand-600 leading-relaxed">
+              אני מסכימה לשתף את מספר הטלפון שלי עם אמהות אחרות בקהילה
+            </span>
+          </label>
+
+          <button
+            onClick={saveMyProfile}
+            disabled={savingProfile}
+            className="w-full py-2.5 rounded-2xl text-white text-sm font-bold disabled:opacity-40 transition-all"
+            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+          >
+            {profileSaved ? '✓ נשמר!' : savingProfile ? '...' : 'שמירה'}
+          </button>
         </div>
 
         {/* Filter tabs */}
         <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
           {([
-            ['age',  `גיל דומה ${myMonths != null ? `(${ageRangeLabel(myMonths)})` : ''}`],
-            ['area', 'אותו אזור'],
             ['all',  'כולן'],
+            ['age',  myMonths != null ? `גיל דומה (${ageRangeLabel(myMonths)})` : 'גיל דומה'],
+            ['area', 'אותו אזור'],
           ] as [FilterMode, string][]).map(([v, label]) => (
             <button
               key={v}
@@ -135,8 +181,10 @@ export default function CommunityPage() {
           <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-2">
             <p className="text-3xl">🔍</p>
             <p className="font-semibold text-sand-700 text-sm">
-              {filterMode === 'area' && !profile?.area
+              {filterMode === 'area' && !myArea
                 ? 'הזיני את האזור שלך למעלה כדי לחפש'
+                : filterMode === 'age' && myMonths == null
+                ? 'הוסיפי תאריך לידה לתינוק/ת כדי לסנן לפי גיל'
                 : 'לא נמצאו אמהות בסינון זה'}
             </p>
             <p className="text-xs text-sand-400">נסי סינון אחר, או הכרי אמהות חדשות דרך הקהילה שלנו</p>
@@ -150,7 +198,6 @@ export default function CommunityPage() {
             {filtered.map(p => (
               <div key={p.child_id} className="bg-white rounded-3xl p-4 shadow-sm">
                 <div className="flex items-center gap-3">
-                  {/* Avatar */}
                   <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0"
                     style={{ background: 'linear-gradient(135deg, #F7F3EC, #F2EBE0)' }}>
                     {genderEmoji(p.child_gender)}
@@ -164,15 +211,28 @@ export default function CommunityPage() {
                       {p.area && ` · ${p.area}`}
                     </p>
                   </div>
-                  <a
-                    href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent(`היי! אני רוצה להתחבר עם אמא אחרת מהקהילה שיש לה תינוק${p.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors flex-shrink-0"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    חיבור
-                  </a>
+                  {/* Direct WA if consented, otherwise route through admin */}
+                  {p.community_consent && p.phone_number ? (
+                    <a
+                      href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת Mimo 🌿')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors flex-shrink-0"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      WhatsApp
+                    </a>
+                  ) : (
+                    <a
+                      href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent(`היי! אני רוצה להתחבר עם אמא אחרת מהקהילה שיש לה תינוק${p.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors flex-shrink-0"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      חיבור
+                    </a>
+                  )}
                 </div>
               </div>
             ))}

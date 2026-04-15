@@ -13,7 +13,7 @@ export const ENTRY_COLORS: Record<string, { bg: string; border: string; dot: str
   feeding:      { bg: '#EFF6FF', border: '#93C5FD', dot: '#3B82F6', label: '#1D4ED8' },
   sleep:        { bg: '#FEF2F2', border: '#FCA5A5', dot: '#EF4444', label: '#B91C1C' },
   diaper:       { bg: '#F0FDF4', border: '#86EFAC', dot: '#22C55E', label: '#15803D' },
-  pumping:      { bg: '#FAF5FF', border: '#D8B4FE', dot: '#A855F7', label: '#7E22CE' },
+  tummy_time:   { bg: '#FFF7ED', border: '#FED7AA', dot: '#F97316', label: '#C2410C' },
   milestone:    { bg: '#FFFBEB', border: '#FCD34D', dot: '#F59E0B', label: '#B45309' },
   doctor_visit: { bg: '#F0FDFA', border: '#5EEAD4', dot: '#14B8A6', label: '#0F766E' },
   note:         { bg: '#F9FAFB', border: '#D1D5DB', dot: '#6B7280', label: '#374151' },

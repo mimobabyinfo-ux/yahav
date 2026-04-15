@@ -9,7 +9,7 @@ type Props = {
   onEntrySaved: () => void
 }
 
-type TimerType = 'feeding' | 'sleep' | 'pumping'
+type TimerType = 'feeding' | 'sleep' | 'tummy_time'
 
 type AdditionalData = {
   breast_side?: 'left' | 'right' | 'both'
@@ -66,7 +66,8 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
     if (!user) return
     const start = new Date(timer.start_time)
     const now = new Date()
-    const durationMins = (now.getTime() - start.getTime()) / 60000
+    const durationSecs = Math.round((now.getTime() - start.getTime()) / 1000)
+    const durationForLog = durationSecs >= 1 ? parseFloat((durationSecs / 60).toFixed(2)) : null
 
     const { data: entry } = await supabase
       .from('daily_log_entries')
@@ -75,6 +76,9 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
         entry_date: formatDate(now),
         entry_time: formatTime(start),
         entry_type: timer.timer_type,
+        notes: timer.timer_type === 'tummy_time' && durationSecs
+          ? `משך: ${durationSecs < 60 ? `${durationSecs} שניות` : `${Math.round(durationSecs / 60)} דקות`}`
+          : null,
       })
       .select()
       .single()
@@ -86,13 +90,13 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
           log_entry_id: entry.id,
           feeding_type: addl.feeding_type ?? 'breast',
           breast_side: addl.breast_side ?? null,
-          duration_minutes: parseFloat(durationMins.toFixed(2)),
+          duration_minutes: durationForLog,
         })
       } else if (timer.timer_type === 'sleep') {
         await supabase.from('sleep_details').insert({
           log_entry_id: entry.id,
           sleep_type: 'nap',
-          duration_minutes: Math.round(durationMins),
+          duration_minutes: durationForLog,
         })
       }
     }
@@ -114,9 +118,9 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
   }
 
   const timerDefs: { type: TimerType; emoji: string; label: string; color: string }[] = [
-    { type: 'feeding', emoji: '🍼', label: 'האכלה', color: 'bg-amber-100 text-amber-700 border-amber-300' },
-    { type: 'sleep', emoji: '😴', label: 'שינה', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-    { type: 'pumping', emoji: '🫧', label: 'שאיבה', color: 'bg-purple-50 text-purple-600 border-purple-200' },
+    { type: 'feeding',    emoji: '🍼', label: 'האכלה',   color: 'bg-amber-100 text-amber-700 border-amber-300' },
+    { type: 'sleep',      emoji: '😴', label: 'שינה',    color: 'bg-blue-50 text-blue-600 border-blue-200' },
+    { type: 'tummy_time', emoji: '🐣', label: 'זמן בטן', color: 'bg-orange-50 text-orange-600 border-orange-200' },
   ]
 
   const runningTypes = new Set(activeTimers.map(t => t.timer_type))

@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatTime } from '../utils/dateUtils'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
 
-type EntryType = 'feeding' | 'sleep' | 'diaper' | 'pumping' | 'milestone' | 'doctor_visit' | 'note'
+type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 
 type Props = {
   entryType: EntryType
@@ -18,7 +18,7 @@ const TYPE_LABELS: Record<EntryType, string> = {
   feeding: 'האכלה',
   sleep: 'שינה',
   diaper: 'חיתול',
-  pumping: 'שאיבה',
+  tummy_time: 'זמן בטן',
   milestone: 'אבן דרך',
   doctor_visit: 'ביקור רופא',
   note: 'הערה',
@@ -35,6 +35,9 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
   const [breastSide, setBreastSide] = useState<'left' | 'right' | 'both'>('right')
   const [durationMins, setDurationMins] = useState('')
   const [amountMl, setAmountMl] = useState('')
+
+  // Tummy time
+  const [tummyDuration, setTummyDuration] = useState('')
 
   // Sleep
   const [sleepType, setSleepType] = useState<'nap' | 'night'>('nap')
@@ -62,6 +65,12 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
         .single()
 
       if (error || !entry) throw error
+
+      if (entryType === 'tummy_time' && tummyDuration && !notes) {
+        await supabase.from('daily_log_entries').update({
+          notes: `משך: ${tummyDuration} דקות`
+        }).eq('id', entry.id)
+      }
 
       if (entryType === 'feeding') {
         await supabase.from('feeding_details').insert({
@@ -96,19 +105,22 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" dir="rtl">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl">
+      <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl flex flex-col max-h-[88vh]">
         {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
           <div className="w-10 h-1 bg-sand-200 rounded-full" />
         </div>
 
-        <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-sand-800">הוספת {TYPE_LABELS[entryType]}</h2>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-sand-100 text-sand-400">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+        {/* Header */}
+        <div className="px-5 pb-3 flex items-center justify-between flex-shrink-0">
+          <h2 className="text-lg font-bold text-sand-800">הוספת {TYPE_LABELS[entryType]}</h2>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-sand-100 text-sand-400">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Scrollable fields */}
+        <div className="px-5 space-y-4 overflow-y-auto flex-1 pb-2">
 
           {/* Time */}
           <div>
@@ -248,8 +260,24 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
             </div>
           )}
 
+          {/* Tummy time fields */}
+          {entryType === 'tummy_time' && (
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות) — אופציונלי</label>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                placeholder="0"
+                value={tummyDuration}
+                onChange={e => setTummyDuration(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
+              />
+            </div>
+          )}
+
           {/* Notes */}
-          {['milestone', 'doctor_visit', 'note', 'pumping'].includes(entryType) && (
+          {['milestone', 'doctor_visit', 'note', 'tummy_time'].includes(entryType) && (
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1">
                 {entryType === 'note' ? 'הערה' : entryType === 'milestone' ? 'תיאור האבן דרך' : 'הערות'}
@@ -263,14 +291,16 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
               />
             </div>
           )}
+        </div>
 
-          {/* Save button */}
+        {/* Sticky save button */}
+        <div className="px-5 pb-6 pt-3 flex-shrink-0 border-t border-sand-100">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-gradient-to-r from-mustard-500 to-mustard-600 hover:from-mustard-600 hover:to-mustard-700 text-white font-semibold py-3.5 rounded-2xl transition-all shadow-lg disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-mustard-500 to-mustard-600 hover:from-mustard-600 hover:to-mustard-700 text-white font-semibold py-4 rounded-2xl transition-all shadow-lg disabled:opacity-50"
           >
-            {saving ? 'שומרת...' : 'שמירה'}
+            {saving ? 'שומרת...' : 'שמירה ✓'}
           </button>
         </div>
       </div>
