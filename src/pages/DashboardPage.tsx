@@ -133,30 +133,32 @@ export default function DashboardPage({ onNavigate }: Props) {
         )}
 
         {/* Quick-action shortcuts */}
-        <div className="flex gap-3">
+        <div className="space-y-3">
           <button
             onClick={() => onNavigate('journal')}
-            className="flex-1 flex items-center gap-3 bg-white rounded-3xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
+            className="w-full flex items-center gap-4 bg-white rounded-3xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
           >
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
-              <span className="text-xl">📔</span>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              <span className="text-2xl">📔</span>
             </div>
-            <div>
-              <p className="font-bold text-sand-800 text-sm">הוסף רשומה</p>
-              <p className="text-xs text-sand-400">לפתוח יומן</p>
+            <div className="flex-1">
+              <p className="font-bold text-sand-800">הוסף רשומה ליומן</p>
+              <p className="text-xs text-sand-400 mt-0.5">תעדי האכלות, שינה ועוד</p>
             </div>
+            <ChevronLeft className="w-5 h-5 text-sand-300 flex-shrink-0" />
           </button>
           <button
             onClick={() => onNavigate('workshops')}
-            className="flex-1 flex items-center gap-3 bg-white rounded-3xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
+            className="w-full flex items-center gap-4 bg-white rounded-3xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
           >
-            <div className="w-10 h-10 rounded-2xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-              <span className="text-xl">▶️</span>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
+              <span className="text-2xl">▶️</span>
             </div>
-            <div>
-              <p className="font-bold text-sand-800 text-sm">המשך סדנה</p>
-              <p className="text-xs text-sand-400">לפתוח מוצרים</p>
+            <div className="flex-1">
+              <p className="font-bold text-sand-800">המשך את הסדנה שלך</p>
+              <p className="text-xs text-sand-400 mt-0.5">מוצרים וסדנאות</p>
             </div>
+            <ChevronLeft className="w-5 h-5 text-sand-300 flex-shrink-0" />
           </button>
         </div>
 
