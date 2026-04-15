@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { MessageCircle, MapPin, Filter, Phone, Check, Pencil } from 'lucide-react'
+import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
@@ -12,22 +12,13 @@ type CommunityProfile = {
   area: string | null
   phone_number: string | null
   community_consent: boolean | null
+  community_bio: string | null
   child_id: string
   child_dob: string | null
   child_gender: 'boy' | 'girl' | 'other' | null
 }
 
 type FilterMode = 'age' | 'area' | 'all'
-
-function ageRangeLabel(months: number): string {
-  if (months < 3) return '0–3 חודשים'
-  if (months < 6) return '3–6 חודשים'
-  if (months < 9) return '6–9 חודשים'
-  if (months < 12) return '9–12 חודשים'
-  if (months < 18) return '12–18 חודשים'
-  if (months < 24) return '18–24 חודשים'
-  return '2+ שנים'
-}
 
 function ageMonths(dob: string): number {
   const ms = Date.now() - new Date(dob).getTime()
@@ -40,20 +31,24 @@ export default function CommunityPage() {
   const [filterMode, setFilterMode] = useState<FilterMode>('all')
   const [editMode, setEditMode] = useState(false)
 
-  // Initialize inputs from profile ONCE (not on every re-render)
+  // After a successful save, immediately hide the form (don't wait for DB refresh)
+  const [registeredInSession, setRegisteredInSession] = useState(false)
+
+  // Initialize inputs from profile ONCE
   const initialized = useRef(false)
   const [areaInput, setAreaInput] = useState('')
   const [phoneInput, setPhoneInput] = useState('')
+  const [bioInput, setBioInput] = useState('')
   const [consentChecked, setConsentChecked] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
-  const [profileSaved, setProfileSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
-  // Seed inputs when profile first arrives
   useEffect(() => {
     if (profile && !initialized.current) {
       initialized.current = true
       setAreaInput(profile.area ?? '')
       setPhoneInput(profile.phone_number ?? '')
+      setBioInput(profile.community_bio ?? '')
       setConsentChecked(profile.community_consent ?? false)
     }
   }, [profile])
@@ -68,31 +63,41 @@ export default function CommunityPage() {
   async function saveMyProfile() {
     if (!user) return
     setSavingProfile(true)
+    setSaveError('')
+
     const { error } = await supabase
       .from('user_profiles')
       .update({
         area: areaInput.trim() || null,
         phone_number: phoneInput.trim() || null,
+        community_bio: bioInput.trim() || null,
         community_consent: consentChecked,
       })
       .eq('id', user.id)
 
-    if (!error) {
-      await refreshProfile()
-      setProfileSaved(true)
-      setEditMode(false)
-      setTimeout(() => setProfileSaved(false), 3000)
-      load()
-    }
     setSavingProfile(false)
+
+    if (error) {
+      setSaveError('שגיאה בשמירה — נסי שוב')
+      return
+    }
+
+    // Immediately hide form (don't wait for profile refresh)
+    setRegisteredInSession(true)
+    setEditMode(false)
+
+    // Refresh in background
+    refreshProfile()
+    load()
   }
 
-  // Profile is "complete" when both area and phone are saved in DB
-  const profileComplete = !!(profile?.area && profile?.phone_number)
+  // Show edit form if: never registered AND profile has no phone saved in DB
+  const profileComplete = registeredInSession || !!(profile?.phone_number)
   const showEditSection = !profileComplete || editMode
 
   const myMonths = selectedChild?.dob ? ageMonths(selectedChild.dob) : null
-  const myArea = (profile?.area ?? areaInput).trim().toLowerCase()
+  // Use freshly saved area input OR profile area
+  const myArea = (registeredInSession ? areaInput : (profile?.area ?? areaInput)).trim().toLowerCase()
 
   const filtered = profiles.filter(p => {
     if (p.id === user?.id) return false
@@ -133,34 +138,61 @@ export default function CommunityPage() {
           )}
         </div>
 
-        {/* My profile edit section — hidden once profile is complete */}
+        {/* Community profile form — hidden once complete */}
         {showEditSection && (
-          <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
-            <p className="text-sm font-bold text-sand-700">הפרופיל שלי בקהילה</p>
+          <div className="bg-white rounded-3xl p-5 shadow-sm space-y-4">
+            <div>
+              <p className="text-base font-bold text-sand-800">הצטרפי לקהילה 🌸</p>
+              <p className="text-xs text-sand-400 mt-0.5">מלאי פרטים כדי שאמהות אחרות יוכלו להתחבר איתך</p>
+            </div>
 
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-mustard-500 flex-shrink-0" />
+            {/* Area */}
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">
+                <MapPin className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
+                עיר / אזור
+              </label>
               <input
                 value={areaInput}
                 onChange={e => setAreaInput(e.target.value)}
-                placeholder="עיר / אזור (למשל: תל אביב)"
-                className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+                placeholder="למשל: תל אביב, ירושלים, חיפה..."
+                className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
               />
             </div>
 
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-mustard-500 flex-shrink-0" />
+            {/* Phone */}
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">
+                <Phone className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
+                מספר טלפון
+              </label>
               <input
                 value={phoneInput}
                 onChange={e => setPhoneInput(e.target.value)}
-                placeholder="מספר טלפון (אופציונלי)"
+                placeholder="050-0000000"
                 type="tel"
-                className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
                 dir="ltr"
+                className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
               />
             </div>
 
-            <label className="flex items-start gap-2 cursor-pointer">
+            {/* Bio */}
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">
+                <AlignLeft className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
+                קצת עליי / מה אני מחפשת
+              </label>
+              <textarea
+                value={bioInput}
+                onChange={e => setBioInput(e.target.value)}
+                placeholder="למשל: אמא לתינוקת בת 3 חודשים, מחפשת אמא לטיולים משותפים..."
+                rows={3}
+                className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none"
+              />
+            </div>
+
+            {/* Consent */}
+            <label className="flex items-start gap-3 cursor-pointer">
               <div
                 onClick={() => setConsentChecked(v => !v)}
                 className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${consentChecked ? 'border-mustard-500' : 'border-sand-300'}`}
@@ -173,11 +205,13 @@ export default function CommunityPage() {
               </span>
             </label>
 
-            <div className="flex gap-2 pt-1">
+            {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+
+            <div className="flex gap-2">
               {editMode && (
                 <button
                   onClick={() => setEditMode(false)}
-                  className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold"
+                  className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold"
                 >
                   ביטול
                 </button>
@@ -185,34 +219,26 @@ export default function CommunityPage() {
               <button
                 onClick={saveMyProfile}
                 disabled={savingProfile}
-                className="flex-1 py-2.5 rounded-2xl text-white text-sm font-bold disabled:opacity-40 transition-all"
+                className="flex-1 py-3 rounded-2xl text-white text-sm font-bold disabled:opacity-40 transition-all"
                 style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
               >
-                {profileSaved ? '✓ נשמר!' : savingProfile ? '...' : 'שמירה'}
+                {savingProfile ? 'שומרת...' : editMode ? 'עדכון' : 'הצטרפי לקהילה ✓'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Saved confirmation banner (when profile was just saved) */}
-        {profileSaved && profileComplete && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl px-4 py-2.5 flex items-center gap-2">
-            <Check className="w-4 h-4 text-green-600" />
-            <p className="text-sm font-semibold text-green-700">הפרופיל נשמר בהצלחה!</p>
-          </div>
-        )}
-
-        {/* Filter tabs */}
+        {/* Filters */}
         <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
           {([
             ['all',  'כולן'],
-            ['age',  myMonths != null ? `גיל דומה (${ageRangeLabel(myMonths)})` : 'גיל דומה'],
+            ['age',  'גיל דומה'],
             ['area', 'אותו אזור'],
           ] as [FilterMode, string][]).map(([v, label]) => (
             <button
               key={v}
               onClick={() => setFilterMode(v as FilterMode)}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all truncate px-1 ${filterMode === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
+              className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${filterMode === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
               style={filterMode === v ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
             >
               {label}
@@ -226,12 +252,11 @@ export default function CommunityPage() {
             <p className="text-3xl">🔍</p>
             <p className="font-semibold text-sand-700 text-sm">
               {filterMode === 'area' && !myArea
-                ? 'הזיני את האזור שלך למעלה כדי לחפש'
+                ? 'הזיני עיר / אזור בפרופיל שלך כדי לחפש'
                 : filterMode === 'age' && myMonths == null
                 ? 'הוסיפי תאריך לידה לתינוק/ת כדי לסנן לפי גיל'
-                : 'לא נמצאו אמהות בסינון זה'}
+                : 'לא נמצאו אמהות בסינון זה — נסי "כולן"'}
             </p>
-            <p className="text-xs text-sand-400">נסי סינון אחר, או הכרי אמהות חדשות דרך הקהילה שלנו</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -241,8 +266,8 @@ export default function CommunityPage() {
             </p>
             {filtered.map(p => (
               <div key={p.child_id} className="bg-white rounded-3xl p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0"
+                <div className="flex items-start gap-3">
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 mt-0.5"
                     style={{ background: 'linear-gradient(135deg, #F7F3EC, #F2EBE0)' }}>
                     {genderEmoji(p.child_gender)}
                   </div>
@@ -254,28 +279,35 @@ export default function CommunityPage() {
                       {p.child_dob ? getBabyAge(p.child_dob) : ''}
                       {p.area && ` · ${p.area}`}
                     </p>
+                    {p.community_bio && (
+                      <p className="text-xs text-sand-600 mt-1.5 leading-relaxed line-clamp-2">
+                        {p.community_bio}
+                      </p>
+                    )}
                   </div>
-                  {p.community_consent && p.phone_number ? (
-                    <a
-                      href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת Mimo 🌿')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors flex-shrink-0"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      WhatsApp
-                    </a>
-                  ) : (
-                    <a
-                      href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent(`היי! אני רוצה להתחבר עם אמא אחרת מהקהילה שיש לה תינוק${p.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors flex-shrink-0"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      חיבור
-                    </a>
-                  )}
+                  <div className="flex-shrink-0">
+                    {p.community_consent && p.phone_number ? (
+                      <a
+                        href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת Mimo 🌿')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        WhatsApp
+                      </a>
+                    ) : (
+                      <a
+                        href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent(`היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוק${p.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        חיבור
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

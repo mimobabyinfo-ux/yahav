@@ -24,6 +24,7 @@ export type UserProfile = {
   area: string | null
   phone_number: string | null
   community_consent: boolean
+  community_bio: string | null
   created_at: string
   updated_at: string
 }
