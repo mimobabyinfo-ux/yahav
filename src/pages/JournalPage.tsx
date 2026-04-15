@@ -208,7 +208,7 @@ function MonthView({ entries, month, year, onDayClick }: { entries: DailyLogEntr
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function JournalPage() {
-  const { user, selectedChild, profile } = useAuth()
+  const { user, selectedChild, profile, isGuest } = useAuth()
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()))
   const [entries, setEntries] = useState<DailyLogEntryWithDetails[]>([])
@@ -292,6 +292,16 @@ export default function JournalPage() {
       </div>
 
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
+        {/* Guest banner */}
+        {isGuest && selectedChild && (
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={{ background: 'linear-gradient(135deg, #FFF8E7, #FFF0CC)' }}>
+            <span className="text-lg">👁️</span>
+            <p className="text-xs font-semibold text-mustard-800">
+              צופה ביומן של {selectedChild.name} — הצטרפת כבן/בת משפחה
+            </p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="pt-2 flex items-center justify-between">
           <div>

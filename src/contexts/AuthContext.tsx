@@ -9,6 +9,7 @@ type AuthContextType = {
   selectedChild: Child | null
   setSelectedChild: (child: Child) => void
   loading: boolean
+  isGuest: boolean
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
   refreshChildren: () => Promise<void>
@@ -16,6 +17,8 @@ type AuthContextType = {
   familyMembers: UserProfile[]
   createFamily: (name: string) => Promise<string | null>
   joinFamily: (code: string) => Promise<boolean>
+  createFamilyInvite: (childId: string) => Promise<string | null>
+  redeemFamilyInvite: (token: string) => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -76,8 +79,11 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       .order('created_at')
     const list = data ?? []
     setChildren(list)
-    if (list.length > 0 && !selectedChild) {
-      setSelectedChild(list[0])
+    // Honor the guest's invited child, otherwise default to first
+    const guestChildId = sessionStorage.getItem('guestChildId')
+    const preferred = guestChildId ? list.find(c => c.id === guestChildId) : null
+    if (!selectedChild) {
+      setSelectedChild(preferred ?? list[0] ?? null)
     }
   }
 
@@ -94,6 +100,51 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
     setFamilyMembers([profile!])
     setProfile(prev => prev ? { ...prev, family_id: fam.id } : prev)
     return fam.invite_code
+  }
+
+  async function createFamilyInvite(childId: string): Promise<string | null> {
+    if (!user || !profile?.family_id) return null
+    const token = Math.random().toString(36).substring(2, 8).toUpperCase()
+    const { error } = await supabase.from('family_invite_tokens').insert({
+      family_id: profile.family_id,
+      child_id: childId,
+      token,
+      created_by: user.id,
+    })
+    if (error) return null
+    return token
+  }
+
+  async function redeemFamilyInvite(token: string): Promise<boolean> {
+    // Look up the token
+    const { data: invite } = await supabase
+      .from('family_invite_tokens')
+      .select('*')
+      .eq('token', token.toUpperCase())
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle()
+    if (!invite) return false
+
+    // Sign in anonymously (must be enabled in Supabase Auth settings)
+    const { data: authData, error: authError } = await supabase.auth.signInAnonymously()
+    if (authError || !authData.user) return false
+
+    // Create minimal guest profile linked to the family
+    const { error: profileError } = await supabase.from('user_profiles').upsert({
+      id: authData.user.id,
+      email: '',
+      family_id: invite.family_id,
+      is_pro: false,
+      is_admin: false,
+      lead_status: 'new_lead',
+    })
+    if (profileError) return false
+
+    // Pre-select the invited child
+    if (invite.child_id) {
+      sessionStorage.setItem('guestChildId', invite.child_id)
+    }
+    return true
   }
 
   async function joinFamily(code: string): Promise<boolean> {
@@ -153,11 +204,15 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
     setFamilyMembers([])
   }
 
+  // Anonymous Supabase users have no email — treat them as guests
+  const isGuest = !!(user && !user.email)
+
   return (
     <AuthContext.Provider value={{
       user, profile, children, selectedChild, setSelectedChild,
-      loading, signOut, refreshProfile, refreshChildren,
+      loading, isGuest, signOut, refreshProfile, refreshChildren,
       family, familyMembers, createFamily, joinFamily,
+      createFamilyInvite, redeemFamilyInvite,
     }}>
       {reactChildren}
     </AuthContext.Provider>

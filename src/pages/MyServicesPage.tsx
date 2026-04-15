@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { MessageCircle, ShoppingBag, Users, Copy, Check } from 'lucide-react'
+import { MessageCircle, ShoppingBag, Users, Copy, Check, UserPlus, Link } from 'lucide-react'
 import { supabase, Workshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+
+const APP_BASE = 'https://mimoapp.vercel.app'
 
 const WA_NUMBER = '972559904274'
 
@@ -14,13 +16,15 @@ type PurchasedRow = {
 
 // ── Family Sync Panel ─────────────────────────────────────────────────────────
 function FamilyPanel() {
-  const { family, familyMembers, createFamily, joinFamily, profile } = useAuth()
+  const { family, familyMembers, createFamily, joinFamily, createFamilyInvite, profile, selectedChild } = useAuth()
   const [mode, setMode] = useState<'idle' | 'create' | 'join'>('idle')
   const [familyName, setFamilyName] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleCreate() {
@@ -41,10 +45,29 @@ function FamilyPanel() {
     else setMode('idle')
   }
 
+  async function handleCreateInvite() {
+    if (!selectedChild) return
+    setLoading(true)
+    const token = await createFamilyInvite(selectedChild.id)
+    setLoading(false)
+    if (token) {
+      setInviteLink(`${APP_BASE}?join=${token}`)
+    } else {
+      setError('שגיאה ביצירת קישור')
+    }
+  }
+
   function copyCode(code: string) {
     navigator.clipboard.writeText(code)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  function copyInviteLink() {
+    if (!inviteLink) return
+    navigator.clipboard.writeText(inviteLink)
+    setCopiedLink(true)
+    setTimeout(() => setCopiedLink(false), 2000)
   }
 
   if (family) {
@@ -76,6 +99,52 @@ function FamilyPanel() {
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             {copied ? 'הועתק' : 'העתק'}
           </button>
+        </div>
+
+        {/* Invite guest (Dad / Grandma) */}
+        <div className="border-t border-sand-100 pt-3 space-y-2">
+          <p className="text-xs font-semibold text-sand-700 flex items-center gap-1.5">
+            <UserPlus className="w-3.5 h-3.5 text-mustard-500" />
+            הזמן/י סבתא, אבא, או כל אחד — בלי הרשמה
+          </p>
+          <p className="text-[11px] text-sand-400 leading-relaxed">
+            הם יוכלו לצפות ולהוסיף רשומות ליומן, בלי שם משתמש או סיסמה.
+          </p>
+          {inviteLink ? (
+            <div className="bg-mustard-50 rounded-2xl p-3 space-y-2">
+              <p className="text-[11px] text-sand-500 break-all">{inviteLink}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={copyInviteLink}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                >
+                  {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedLink ? 'הועתק!' : 'העתק קישור'}
+                </button>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`הצטרפ/י ליומן של ${selectedChild?.name ?? 'התינוק'} 🌿\n${inviteLink}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold bg-green-500 text-white"
+                >
+                  <Link className="w-3.5 h-3.5" />
+                  שלח/י בוואטסאפ
+                </a>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleCreateInvite}
+              disabled={loading || !selectedChild}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-40"
+              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            >
+              <UserPlus className="w-4 h-4" />
+              {loading ? 'יוצר קישור...' : 'צור קישור הזמנה'}
+            </button>
+          )}
+          {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
       </div>
     )

@@ -53,6 +53,7 @@ export type Child = {
   name: string
   dob: string | null
   gender: 'boy' | 'girl' | 'other' | null
+  share_token: string | null
   created_at: string
 }
 

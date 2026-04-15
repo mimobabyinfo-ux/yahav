@@ -6,14 +6,56 @@ type Props = {
   currentPage: Page
   onNavigate: (page: Page) => void
   isAdminMode: boolean
+  isGuest: boolean
   adminSection: AdminSection
   onAdminSection: (section: AdminSection) => void
   viewAsUser: boolean
   onToggleUserView: () => void
 }
 
-export default function BottomNav({ currentPage, onNavigate, isAdminMode, adminSection, onAdminSection, viewAsUser, onToggleUserView }: Props) {
-  const { signOut } = useAuth()
+export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGuest, adminSection, onAdminSection, viewAsUser, onToggleUserView }: Props) {
+  const { signOut, selectedChild } = useAuth()
+
+  // ── Guest nav ─────────────────────────────────────────────────────────────
+  if (isGuest) {
+    const guestItems: { id: Page; label: string; icon: React.ReactNode }[] = [
+      { id: 'journal',   label: 'יומן',  icon: <BookOpen className="w-5 h-5" /> },
+      { id: 'dashboard', label: 'בית',   icon: <Home className="w-5 h-5" /> },
+    ]
+    return (
+      <nav className="fixed bottom-0 right-0 left-0 max-w-[480px] mx-auto bg-white border-t border-sand-100 shadow-xl z-50">
+        <div className="px-4 py-1.5 border-b border-mustard-100 bg-mustard-50 flex items-center justify-center gap-1.5">
+          <span className="text-[11px] font-semibold text-mustard-700">
+            👁️ צופה ביומן של {selectedChild?.name ?? 'התינוק'}
+          </span>
+        </div>
+        <div className="flex items-center justify-around px-4 py-2">
+          {guestItems.map(item => {
+            const active = currentPage === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => onNavigate(item.id)}
+                className={`flex flex-col items-center gap-0.5 px-6 py-1.5 rounded-2xl transition-all ${
+                  active ? 'text-mustard-600 bg-mustard-50' : 'text-sand-400 hover:text-sand-600'
+                }`}
+              >
+                {item.icon}
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </button>
+            )
+          })}
+          <button
+            onClick={signOut}
+            className="flex flex-col items-center gap-0.5 px-6 py-1.5 rounded-2xl transition-all text-red-300 hover:text-red-500"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-[10px] font-medium">יציאה</span>
+          </button>
+        </div>
+      </nav>
+    )
+  }
   if (isAdminMode) {
     const adminItems: { id: AdminSection; label: string; icon: React.ReactNode }[] = [
       { id: 'insights', label: 'דשבורד',  icon: <BarChart2 className="w-5 h-5" /> },

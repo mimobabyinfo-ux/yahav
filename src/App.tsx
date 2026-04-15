@@ -13,6 +13,8 @@ import ContactPage from './pages/ContactPage'
 import MyServicesPage from './pages/MyServicesPage'
 import CommunityPage from './pages/CommunityPage'
 import PublicFormPage from './pages/PublicFormPage'
+import PublicBabyPage from './pages/PublicBabyPage'
+import GuestJoinPage from './pages/GuestJoinPage'
 import BottomNav from './components/BottomNav'
 import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
@@ -20,11 +22,13 @@ import FormTriggerModal from './components/FormTriggerModal'
 export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'contact' | 'services' | 'community'
 export type AdminSection = 'insights' | 'users' | 'forms'
 
-// Detect public form URL: ?form=FORM_ID
+// Detect public URLs
 const publicFormId = new URLSearchParams(window.location.search).get('form')
+const publicBabyToken = new URLSearchParams(window.location.search).get('baby')
+const joinToken = new URLSearchParams(window.location.search).get('join')
 
 function AppInner() {
-  const { user, profile, loading } = useAuth()
+  const { user, profile, loading, isGuest } = useAuth()
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
   const [adminSection, setAdminSection] = useState<AdminSection>('insights')
   const [viewAsUser, setViewAsUser] = useState(false)
@@ -41,6 +45,16 @@ function AppInner() {
     }
   }, [profile?.is_admin, viewAsUser])
 
+  // Guests land on journal and clean up URL
+  useEffect(() => {
+    if (isGuest) {
+      setCurrentPage('journal')
+      if (joinToken) {
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }, [isGuest]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function navigate(page: Page) {
     setCurrentPage(page)
   }
@@ -51,6 +65,9 @@ function AppInner() {
   }
 
   if (publicFormId) return <PublicFormPage formId={publicFormId} />
+  if (publicBabyToken) return <PublicBabyPage token={publicBabyToken} />
+  // Guest join: show join page until auth session is established
+  if (joinToken && !user) return <GuestJoinPage token={joinToken} />
 
   if (loading) {
     return (
@@ -92,6 +109,7 @@ function AppInner() {
         currentPage={currentPage}
         onNavigate={navigate}
         isAdminMode={isAdminMode}
+        isGuest={isGuest}
         adminSection={adminSection}
         onAdminSection={navigateAdmin}
         viewAsUser={viewAsUser}

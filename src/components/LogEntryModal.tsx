@@ -104,9 +104,9 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center pb-[72px]" dir="rtl">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl flex flex-col max-h-[88vh]">
+      <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl flex flex-col max-h-[75vh]">
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
           <div className="w-10 h-1 bg-sand-200 rounded-full" />
@@ -295,7 +295,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
         </div>
 
         {/* Sticky save button */}
-        <div className="px-5 pb-6 pt-3 flex-shrink-0 border-t border-sand-100">
+        <div className="px-5 pb-5 pt-3 flex-shrink-0 border-t border-sand-100">
           <button
             onClick={handleSave}
             disabled={saving}

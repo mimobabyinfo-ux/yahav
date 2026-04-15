@@ -1,30 +1,45 @@
 import { useState } from 'react'
-import { X, Copy, Check, MessageCircle } from 'lucide-react'
+import { X, Copy, Check, MessageCircle, Eye } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
 import MimoLogo from './MimoLogo'
 
+const APP_BASE = 'https://mimoapp.vercel.app'
+
 export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
   const { profile, selectedChild } = useAuth()
-  const [copied, setCopied] = useState(false)
+  const [copiedLive, setCopiedLive] = useState(false)
+  const [copiedApp, setCopiedApp] = useState(false)
 
   const baby = selectedChild
   const age = baby?.dob ? getBabyAge(baby.dob) : null
   const genderEmoji = baby?.gender === 'boy' ? '👦' : baby?.gender === 'girl' ? '👧' : '👶'
+
+  const liveLink = baby?.share_token
+    ? `${APP_BASE}?baby=${baby.share_token}`
+    : null
 
   const shareText = [
     `${genderEmoji} ${baby?.name ?? 'התינוק שלי'}`,
     age ? `גיל: ${age}` : null,
     profile?.mother_name ? `אמא: ${profile.mother_name}` : null,
     '',
-    '📱 עוקבת אחר ההתפתחות שלנו עם Mimo',
-    'https://mimoapp.vercel.app',
+    '👀 לצפייה חיה בפעילויות של היום:',
+    liveLink ?? APP_BASE,
   ].filter(l => l !== null).join('\n')
 
-  function copyLink() {
-    navigator.clipboard.writeText('https://mimoapp.vercel.app').then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+  function copyLiveLink() {
+    if (!liveLink) return
+    navigator.clipboard.writeText(liveLink).then(() => {
+      setCopiedLive(true)
+      setTimeout(() => setCopiedLive(false), 2000)
+    })
+  }
+
+  function copyAppLink() {
+    navigator.clipboard.writeText(APP_BASE).then(() => {
+      setCopiedApp(true)
+      setTimeout(() => setCopiedApp(false), 2000)
     })
   }
 
@@ -65,6 +80,26 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
 
         {/* Action buttons */}
         <div className="px-5 pb-6 space-y-3">
+          {/* Live view — main CTA */}
+          {liveLink && (
+            <div className="bg-blue-50 rounded-2xl p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                <p className="text-xs font-semibold text-blue-800">צפייה חיה בלי להירשם</p>
+              </div>
+              <p className="text-[11px] text-blue-600 leading-relaxed">
+                סבתא, אבא או כל אחד — יכולים לראות את הפעילויות של היום בלחיצה אחת, בלי להתחבר
+              </p>
+              <button
+                onClick={copyLiveLink}
+                className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
+              >
+                {copiedLive ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copiedLive ? 'הלינק הועתק!' : 'העתק לינק לצפייה חיה'}
+              </button>
+            </div>
+          )}
+
           <button
             onClick={shareWhatsApp}
             className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-2xl text-sm transition-all"
@@ -74,11 +109,11 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
           </button>
 
           <button
-            onClick={copyLink}
+            onClick={copyAppLink}
             className="w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-2xl text-sm transition-all border-2 border-sand-200 text-sand-700 hover:bg-sand-50"
           >
-            {copied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
-            {copied ? 'הלינק הועתק!' : 'העתק לינק לאפליקציה'}
+            {copiedApp ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
+            {copiedApp ? 'הועתק!' : 'העתק לינק לאפליקציה'}
           </button>
         </div>
       </div>
