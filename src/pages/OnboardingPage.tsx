@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLogo from '../components/MimoLogo'
@@ -22,6 +22,8 @@ export default function OnboardingPage() {
   const { user, refreshProfile, refreshChildren } = useAuth()
   const [motherName, setMotherName] = useState('')
   const [area, setArea] = useState('')
+  const [phone, setPhone] = useState('')
+  const [showPhone, setShowPhone] = useState(false)
   const [babies, setBabies] = useState<Baby[]>([emptyBaby()])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -62,6 +64,8 @@ export default function OnboardingPage() {
         baby_gender: babies[0].gender,
         display_name: motherName,
         area: area.trim() || null,
+        phone_number: phone.trim() || null,
+        community_consent: showPhone,
         lead_status: 'new_lead',
       })
       if (profileError) throw profileError
@@ -124,6 +128,31 @@ export default function OnboardingPage() {
                 className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
               />
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">
+                מספר טלפון <span className="text-sand-400 font-normal">(אופציונלי)</span>
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="050-0000000"
+                dir="ltr"
+                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
+              />
+            </div>
+            <label className="flex items-start gap-3 cursor-pointer pt-1">
+              <div
+                onClick={() => setShowPhone(v => !v)}
+                className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${showPhone ? 'border-mustard-500' : 'border-sand-300'}`}
+                style={showPhone ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+              >
+                {showPhone && <Check className="w-3 h-3 text-white" />}
+              </div>
+              <span className="text-xs text-sand-600 leading-relaxed">
+                אני מסכימה לשתף את מספר הטלפון שלי עם אמהות אחרות בקהילה
+              </span>
+            </label>
           </div>
 
           {/* Baby cards */}
