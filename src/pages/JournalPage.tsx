@@ -208,7 +208,7 @@ function MonthView({ entries, month, year, onDayClick }: { entries: DailyLogEntr
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function JournalPage() {
-  const { user, selectedChild } = useAuth()
+  const { user, selectedChild, profile } = useAuth()
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()))
   const [entries, setEntries] = useState<DailyLogEntryWithDetails[]>([])
@@ -221,36 +221,49 @@ export default function JournalPage() {
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()))
   const [monthDate, setMonthDate] = useState<Date>(() => new Date())
 
+  // Helper: get all relevant user IDs (self + family members)
+  const getFamilyUserIds = useCallback(async (): Promise<string[]> => {
+    if (!user) return []
+    if (!profile?.family_id) return [user.id]
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('family_id', profile.family_id)
+    return data?.map(r => r.id) ?? [user.id]
+  }, [user, profile?.family_id])
+
   // Fetch entries for the selected date (daily view)
   const fetchEntries = useCallback(async () => {
     if (!user) return
     setLoading(true)
+    const userIds = await getFamilyUserIds()
     let query = supabase
       .from('daily_log_entries')
       .select(`*, feeding_details(*), sleep_details(*), diaper_details(*)`)
-      .eq('user_id', user.id)
+      .in('user_id', userIds)
       .eq('entry_date', selectedDate)
       .order('entry_time', { ascending: false })
     if (selectedChild) query = query.eq('child_id', selectedChild.id)
     const { data } = await query
     setEntries((data as DailyLogEntryWithDetails[]) ?? [])
     setLoading(false)
-  }, [user, selectedDate, selectedChild])
+  }, [user, selectedDate, selectedChild, getFamilyUserIds])
 
   // Fetch all entries for the week/month range
   const fetchRangeEntries = useCallback(async (from: string, to: string) => {
     if (!user) return
+    const userIds = await getFamilyUserIds()
     let query = supabase
       .from('daily_log_entries')
       .select(`*, feeding_details(*), sleep_details(*), diaper_details(*)`)
-      .eq('user_id', user.id)
+      .in('user_id', userIds)
       .gte('entry_date', from)
       .lte('entry_date', to)
       .order('entry_date')
     if (selectedChild) query = query.eq('child_id', selectedChild.id)
     const { data } = await query
     setAllEntries((data as DailyLogEntryWithDetails[]) ?? [])
-  }, [user, selectedChild])
+  }, [user, selectedChild, getFamilyUserIds])
 
   useEffect(() => {
     if (viewMode === 'day') {

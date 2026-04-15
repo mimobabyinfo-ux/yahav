@@ -25,7 +25,7 @@ const TYPE_LABELS: Record<EntryType, string> = {
 }
 
 export default function LogEntryModal({ entryType, date, onClose, onSaved }: Props) {
-  const { user } = useAuth()
+  const { user, selectedChild } = useAuth()
   const [saving, setSaving] = useState(false)
   const [time, setTime] = useState(formatTime(new Date()))
   const [notes, setNotes] = useState('')
@@ -56,6 +56,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
         .from('daily_log_entries')
         .insert({
           user_id: user.id,
+          child_id: selectedChild?.id ?? null,
           entry_date: date,
           entry_time: time || formatTime(now),
           entry_type: entryType,

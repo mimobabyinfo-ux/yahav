@@ -17,7 +17,7 @@ type AdditionalData = {
 }
 
 export default function ActivityTimers({ onEntrySaved }: Props) {
-  const { user } = useAuth()
+  const { user, selectedChild } = useAuth()
   const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([])
   const [elapsed, setElapsed] = useState<Record<string, string>>({})
   const [breastSide, setBreastSide] = useState<'left' | 'right' | 'both'>('right')
@@ -69,32 +69,56 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
     const durationSecs = Math.round((now.getTime() - start.getTime()) / 1000)
     const durationForLog = durationSecs >= 1 ? parseFloat((durationSecs / 60).toFixed(2)) : null
 
-    const { data: entry } = await supabase
+    const durationLabel = durationSecs < 60
+      ? `${durationSecs} שניות`
+      : `${Math.round(durationSecs / 60)} דקות`
+
+    const { error: entryError } = await supabase
       .from('daily_log_entries')
       .insert({
         user_id: user.id,
+        child_id: selectedChild?.id ?? null,
         entry_date: formatDate(now),
         entry_time: formatTime(start),
         entry_type: timer.timer_type,
         notes: timer.timer_type === 'tummy_time' && durationSecs
-          ? `משך: ${durationSecs < 60 ? `${durationSecs} שניות` : `${Math.round(durationSecs / 60)} דקות`}`
+          ? `משך: ${durationLabel}`
           : null,
       })
+
+    if (entryError) {
+      console.error('Timer save error:', entryError)
+      await supabase.from('active_timers').delete().eq('id', timer.id)
+      await loadTimers()
+      onEntrySaved()
+      return
+    }
+
+    const saved = await supabase
+      .from('daily_log_entries')
+      .select()
+      .eq('user_id', user.id)
+      .eq('entry_date', formatDate(now))
+      .eq('entry_type', timer.timer_type)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    const entryRow = saved.data
       .select()
       .single()
 
-    if (entry) {
+    if (entryRow) {
       const addl = (timer.additional_data ?? {}) as AdditionalData
       if (timer.timer_type === 'feeding') {
         await supabase.from('feeding_details').insert({
-          log_entry_id: entry.id,
+          log_entry_id: entryRow.id,
           feeding_type: addl.feeding_type ?? 'breast',
           breast_side: addl.breast_side ?? null,
           duration_minutes: durationForLog,
         })
       } else if (timer.timer_type === 'sleep') {
         await supabase.from('sleep_details').insert({
-          log_entry_id: entry.id,
+          log_entry_id: entryRow.id,
           sleep_type: 'nap',
           duration_minutes: durationForLog,
         })
