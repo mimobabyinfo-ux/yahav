@@ -123,7 +123,7 @@ function FamilyPanel() {
                   {copiedLink ? 'הועתק!' : 'העתק קישור'}
                 </button>
                 <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`הצטרפ/י ליומן של ${selectedChild?.name ?? 'התינוק'} 🌿\n${inviteLink}`)}`}
+                  href={`https://wa.me/?text=${encodeURIComponent(inviteLink)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold bg-green-500 text-white"

@@ -85,6 +85,15 @@ function AppInner() {
   if (!user) return <LoginPage />
   if (!profile && !isGuest) return <OnboardingPage />
 
+  // Guests see ONLY the journal — no nav, no other pages
+  if (isGuest) {
+    return (
+      <div className="min-h-screen" style={{ background: '#FAF8F4' }}>
+        <JournalPage />
+      </div>
+    )
+  }
+
   const isAdminMode = (profile?.is_admin ?? false) && !viewAsUser
 
   const renderPage = () => {
