@@ -83,7 +83,7 @@ function AppInner() {
   }
 
   if (!user) return <LoginPage />
-  if (!profile) return <OnboardingPage />
+  if (!profile && !isGuest) return <OnboardingPage />
 
   const isAdminMode = profile.is_admin && !viewAsUser
 

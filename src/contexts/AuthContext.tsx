@@ -38,6 +38,29 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       .select('*')
       .eq('id', userId)
       .maybeSingle()
+
+    if (!data) {
+      // Anonymous/guest user: create minimal profile from sessionStorage
+      const guestFamilyId = sessionStorage.getItem('guestFamilyId')
+      if (guestFamilyId) {
+        const { data: newProfile } = await supabase
+          .from('user_profiles')
+          .upsert({
+            id: userId,
+            email: '',
+            family_id: guestFamilyId,
+            is_pro: false,
+            is_admin: false,
+            lead_status: 'new_lead',
+          })
+          .select()
+          .maybeSingle()
+        setProfile(newProfile ?? null)
+        if (newProfile?.family_id) fetchFamily(newProfile.family_id)
+        return newProfile
+      }
+    }
+
     setProfile(data ?? null)
     if (data?.family_id) {
       fetchFamily(data.family_id)
@@ -125,25 +148,19 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       .maybeSingle()
     if (!invite) return false
 
-    // Sign in anonymously (must be enabled in Supabase Auth settings)
+    // Store family info BEFORE sign-in so fetchProfile can create the guest profile
+    // when onAuthStateChange fires (before our upsert below would run)
+    sessionStorage.setItem('guestFamilyId', invite.family_id)
+    if (invite.child_id) sessionStorage.setItem('guestChildId', invite.child_id)
+
+    // Sign in anonymously (must be enabled in Supabase: Auth → Providers → Anonymous)
     const { data: authData, error: authError } = await supabase.auth.signInAnonymously()
-    if (authError || !authData.user) return false
-
-    // Create minimal guest profile linked to the family
-    const { error: profileError } = await supabase.from('user_profiles').upsert({
-      id: authData.user.id,
-      email: '',
-      family_id: invite.family_id,
-      is_pro: false,
-      is_admin: false,
-      lead_status: 'new_lead',
-    })
-    if (profileError) return false
-
-    // Pre-select the invited child
-    if (invite.child_id) {
-      sessionStorage.setItem('guestChildId', invite.child_id)
+    if (authError || !authData.user) {
+      sessionStorage.removeItem('guestFamilyId')
+      sessionStorage.removeItem('guestChildId')
+      return false
     }
+
     return true
   }
 
