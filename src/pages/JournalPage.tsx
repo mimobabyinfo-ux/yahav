@@ -236,14 +236,19 @@ export default function JournalPage() {
   const fetchEntries = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    const userIds = await getFamilyUserIds()
+    // When a child is selected, filter by child_id — works for all family members & guests
+    // Otherwise fall back to user_id-based family query
     let query = supabase
       .from('daily_log_entries')
       .select(`*, feeding_details(*), sleep_details(*), diaper_details(*)`)
-      .in('user_id', userIds)
       .eq('entry_date', selectedDate)
       .order('entry_time', { ascending: false })
-    if (selectedChild) query = query.eq('child_id', selectedChild.id)
+    if (selectedChild) {
+      query = query.eq('child_id', selectedChild.id)
+    } else {
+      const userIds = await getFamilyUserIds()
+      query = query.in('user_id', userIds)
+    }
     const { data } = await query
     setEntries((data as DailyLogEntryWithDetails[]) ?? [])
     setLoading(false)
@@ -252,15 +257,18 @@ export default function JournalPage() {
   // Fetch all entries for the week/month range
   const fetchRangeEntries = useCallback(async (from: string, to: string) => {
     if (!user) return
-    const userIds = await getFamilyUserIds()
     let query = supabase
       .from('daily_log_entries')
       .select(`*, feeding_details(*), sleep_details(*), diaper_details(*)`)
-      .in('user_id', userIds)
       .gte('entry_date', from)
       .lte('entry_date', to)
       .order('entry_date')
-    if (selectedChild) query = query.eq('child_id', selectedChild.id)
+    if (selectedChild) {
+      query = query.eq('child_id', selectedChild.id)
+    } else {
+      const userIds = await getFamilyUserIds()
+      query = query.in('user_id', userIds)
+    }
     const { data } = await query
     setAllEntries((data as DailyLogEntryWithDetails[]) ?? [])
   }, [user, selectedChild, getFamilyUserIds])

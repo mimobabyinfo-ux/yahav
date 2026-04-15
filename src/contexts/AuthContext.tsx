@@ -100,9 +100,22 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       .select('*')
       .in('user_id', userIds)
       .order('created_at')
-    const list = data ?? []
+    let list = data ?? []
+
+    // Guests: if family RLS blocked the lookup, fetch the invited child directly
+    if (list.length === 0) {
+      const guestChildId = sessionStorage.getItem('guestChildId')
+      if (guestChildId) {
+        const { data: directChild } = await supabase
+          .from('children')
+          .select('*')
+          .eq('id', guestChildId)
+          .maybeSingle()
+        if (directChild) list = [directChild]
+      }
+    }
+
     setChildren(list)
-    // Honor the guest's invited child, otherwise default to first
     const guestChildId = sessionStorage.getItem('guestChildId')
     const preferred = guestChildId ? list.find(c => c.id === guestChildId) : null
     if (!selectedChild) {
