@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
-import { LogOut, ChevronLeft, Share2 } from 'lucide-react'
+import { LogOut, ChevronLeft } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import MyTasksPanel from '../components/MyTasksPanel'
-import ShareBabyModal from '../components/ShareBabyModal'
 import type { Page } from '../App'
 
 type Props = {
@@ -18,7 +17,6 @@ export default function DashboardPage({ onNavigate }: Props) {
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
-  const [showShare, setShowShare] = useState(false)
 
   useEffect(() => {
     fetchTip()
@@ -78,43 +76,16 @@ export default function DashboardPage({ onNavigate }: Props) {
               </p>
             )}
           </div>
-          <div className="flex items-center gap-1">
-            {selectedChild && (
-              <button
-                onClick={() => setShowShare(true)}
-                className="p-2 rounded-xl hover:bg-sand-100 text-sand-300 hover:text-sand-500 transition-colors"
-                title="שתפי את פרופיל התינוק"
-              >
-                <Share2 className="w-5 h-5" />
-              </button>
-            )}
-            <button
-              onClick={signOut}
-              className="p-2 rounded-xl hover:bg-sand-100 text-sand-300 hover:text-sand-500 transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={signOut}
+            className="p-2 rounded-xl hover:bg-sand-100 text-sand-300 hover:text-sand-500 transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Child Switcher */}
         {children.length > 0 && <ChildSwitcher />}
-
-        {/* Share baby card */}
-        {selectedChild && (
-          <button
-            onClick={() => setShowShare(true)}
-            className="w-full flex items-center gap-3 bg-white rounded-3xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right border border-mustard-100"
-          >
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
-              <Share2 className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-sand-800 text-sm">שתפי את {selectedChild.name} 🐣</p>
-              <p className="text-xs text-sand-400">שלחי לינק עם פרטי התינוק/ת</p>
-            </div>
-          </button>
-        )}
 
         {/* Assigned tasks */}
         <MyTasksPanel />
@@ -132,81 +103,40 @@ export default function DashboardPage({ onNavigate }: Props) {
           </div>
         )}
 
-        {/* Quick-action shortcuts */}
-        <div className="space-y-3">
-          <button
-            onClick={() => onNavigate('journal')}
-            className="w-full flex items-center gap-4 bg-white rounded-3xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
-          >
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
-              <span className="text-2xl">📔</span>
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-sand-800">הוסף רשומה ליומן</p>
-              <p className="text-xs text-sand-400 mt-0.5">תעדי האכלות, שינה ועוד</p>
-            </div>
-            <ChevronLeft className="w-5 h-5 text-sand-300 flex-shrink-0" />
-          </button>
-          <button
-            onClick={() => onNavigate('workshops')}
-            className="w-full flex items-center gap-4 bg-white rounded-3xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
-          >
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
-              <span className="text-2xl">▶️</span>
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-sand-800">המשך את הסדנה שלך</p>
-              <p className="text-xs text-sand-400 mt-0.5">מוצרים וסדנאות</p>
-            </div>
-            <ChevronLeft className="w-5 h-5 text-sand-300 flex-shrink-0" />
-          </button>
-        </div>
-
-        {/* Main grid */}
+        {/* Quick access */}
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => onNavigate('journal')}
-            className="bg-white rounded-3xl p-5 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all text-right"
+            className="bg-white rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
           >
             <span className="text-3xl block mb-2">📔</span>
             <p className="font-bold text-sand-800">יומן</p>
-            <p className="text-xs text-sand-400 mt-0.5">עקבי אחר פעילויות</p>
+            <p className="text-xs text-sand-400 mt-0.5">האכלות, שינה ועוד</p>
+          </button>
+          <button
+            onClick={() => onNavigate('community')}
+            className="bg-white rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
+          >
+            <span className="text-3xl block mb-2">🌸</span>
+            <p className="font-bold text-sand-800">קהילה</p>
+            <p className="text-xs text-sand-400 mt-0.5">אמהות בשלב דומה</p>
+          </button>
+          <button
+            onClick={() => onNavigate('workshops')}
+            className="bg-white rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
+          >
+            <span className="text-3xl block mb-2">🛍️</span>
+            <p className="font-bold text-sand-800">מוצרים</p>
+            <p className="text-xs text-sand-400 mt-0.5">סדנאות ורכישות</p>
           </button>
           <button
             onClick={() => onNavigate('benefits')}
-            className="bg-white rounded-3xl p-5 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all text-right"
+            className="bg-white rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
           >
             <span className="text-3xl block mb-2">🎁</span>
             <p className="font-bold text-sand-800">הטבות</p>
             <p className="text-xs text-sand-400 mt-0.5">הנחות ומבצעים</p>
           </button>
-          <button
-            onClick={() => onNavigate('workshops')}
-            className="bg-white rounded-3xl p-5 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all text-right"
-          >
-            <span className="text-3xl block mb-2">🛠️</span>
-            <p className="font-bold text-sand-800">מוצרים</p>
-            <p className="text-xs text-sand-400 mt-0.5">סדנאות ורכישות</p>
-          </button>
-          {profile?.is_pro || profile?.is_admin ? (
-            <button
-              onClick={() => onNavigate('pro')}
-              className="bg-gradient-to-br from-mustard-400 to-mustard-600 rounded-3xl p-5 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all text-right"
-            >
-              <span className="text-3xl block mb-2">🎬</span>
-              <p className="font-bold text-white">סרטונים</p>
-              <p className="text-xs text-mustard-100 mt-0.5">תכנים אקסקלוסיביים</p>
-            </button>
-          ) : (
-            <button
-              onClick={() => onNavigate('pro')}
-              className="bg-gradient-to-br from-sand-200 to-sand-300 rounded-3xl p-5 text-right hover:from-mustard-100 hover:to-mustard-200 transition-all"
-            >
-              <span className="text-3xl block mb-2">🔒</span>
-              <p className="font-bold text-sand-700">סרטונים</p>
-              <p className="text-xs text-sand-500 mt-0.5">שדרגי ל-Pro</p>
-            </button>
-          )}
         </div>
 
         {/* Featured Perks */}
@@ -273,7 +203,6 @@ export default function DashboardPage({ onNavigate }: Props) {
       {selectedPerk && (
         <PerkDetailsModal perk={selectedPerk} onClose={() => setSelectedPerk(null)} />
       )}
-      {showShare && <ShareBabyModal onClose={() => setShowShare(false)} />}
     </div>
   )
 }

@@ -139,7 +139,7 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
   }
 
   async function redeemFamilyInvite(token: string): Promise<boolean> {
-    // Look up the token
+    // Look up the token (anon RLS allows this)
     const { data: invite } = await supabase
       .from('family_invite_tokens')
       .select('*')
@@ -148,18 +148,31 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       .maybeSingle()
     if (!invite) return false
 
-    // Store family info BEFORE sign-in so fetchProfile can create the guest profile
-    // when onAuthStateChange fires (before our upsert below would run)
+    // Store family info BEFORE sign-in so fetchProfile can use it immediately
     sessionStorage.setItem('guestFamilyId', invite.family_id)
     if (invite.child_id) sessionStorage.setItem('guestChildId', invite.child_id)
 
-    // Sign in anonymously (must be enabled in Supabase: Auth → Providers → Anonymous)
+    // Sign in anonymously (Supabase: Auth → Providers → Anonymous must be ON)
     const { data: authData, error: authError } = await supabase.auth.signInAnonymously()
     if (authError || !authData.user) {
       sessionStorage.removeItem('guestFamilyId')
       sessionStorage.removeItem('guestChildId')
       return false
     }
+
+    // Upsert profile immediately with a unique email to avoid conflicts
+    await supabase.from('user_profiles').upsert({
+      id: authData.user.id,
+      email: `guest-${authData.user.id.slice(0, 12)}@mimo.internal`,
+      family_id: invite.family_id,
+      is_pro: false,
+      is_admin: false,
+      lead_status: 'new_lead',
+    }, { onConflict: 'id' })
+
+    // Force refresh so App.tsx sees the profile without waiting for onAuthStateChange
+    const prof = await fetchProfile(authData.user.id)
+    await fetchChildren(authData.user.id, prof as UserProfile | null)
 
     return true
   }
