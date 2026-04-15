@@ -68,12 +68,12 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
     const now = new Date()
     const durationSecs = Math.round((now.getTime() - start.getTime()) / 1000)
     const durationForLog = durationSecs >= 1 ? parseFloat((durationSecs / 60).toFixed(2)) : null
-
     const durationLabel = durationSecs < 60
       ? `${durationSecs} שניות`
       : `${Math.round(durationSecs / 60)} דקות`
 
-    const { error: entryError } = await supabase
+    // Insert log entry and get back the row in one call
+    const { data: entry } = await supabase
       .from('daily_log_entries')
       .insert({
         user_id: user.id,
@@ -85,46 +85,29 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
           ? `משך: ${durationLabel}`
           : null,
       })
-
-    if (entryError) {
-      console.error('Timer save error:', entryError)
-      await supabase.from('active_timers').delete().eq('id', timer.id)
-      await loadTimers()
-      onEntrySaved()
-      return
-    }
-
-    const saved = await supabase
-      .from('daily_log_entries')
-      .select()
-      .eq('user_id', user.id)
-      .eq('entry_date', formatDate(now))
-      .eq('entry_type', timer.timer_type)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-    const entryRow = saved.data
       .select()
       .single()
 
-    if (entryRow) {
+    // Save type-specific details if we have the entry ID
+    if (entry) {
       const addl = (timer.additional_data ?? {}) as AdditionalData
       if (timer.timer_type === 'feeding') {
         await supabase.from('feeding_details').insert({
-          log_entry_id: entryRow.id,
+          log_entry_id: entry.id,
           feeding_type: addl.feeding_type ?? 'breast',
           breast_side: addl.breast_side ?? null,
           duration_minutes: durationForLog,
         })
       } else if (timer.timer_type === 'sleep') {
         await supabase.from('sleep_details').insert({
-          log_entry_id: entryRow.id,
+          log_entry_id: entry.id,
           sleep_type: 'nap',
           duration_minutes: durationForLog,
         })
       }
     }
 
+    // Always delete the active timer and refresh — even if details save failed
     await supabase.from('active_timers').delete().eq('id', timer.id)
     await loadTimers()
     onEntrySaved()
