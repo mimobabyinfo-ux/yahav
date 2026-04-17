@@ -244,7 +244,7 @@ export default function JournalPage() {
       .eq('entry_date', selectedDate)
       .order('entry_time', { ascending: false })
     if (selectedChild) {
-      query = query.eq('child_id', selectedChild.id)
+      query = query.or(`child_id.eq.${selectedChild.id},user_id.eq.${selectedChild.user_id}`)
     } else {
       const userIds = await getFamilyUserIds()
       query = query.in('user_id', userIds)
@@ -264,7 +264,7 @@ export default function JournalPage() {
       .lte('entry_date', to)
       .order('entry_date')
     if (selectedChild) {
-      query = query.eq('child_id', selectedChild.id)
+      query = query.or(`child_id.eq.${selectedChild.id},user_id.eq.${selectedChild.user_id}`)
     } else {
       const userIds = await getFamilyUserIds()
       query = query.in('user_id', userIds)
