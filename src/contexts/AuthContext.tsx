@@ -47,12 +47,12 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
           .from('user_profiles')
           .upsert({
             id: userId,
-            email: '',
+            email: `guest-${userId.slice(0, 12)}@mimo.internal`,
             family_id: guestFamilyId,
             is_pro: false,
             is_admin: false,
             lead_status: 'new_lead',
-          })
+          }, { onConflict: 'id' })
           .select()
           .maybeSingle()
         setProfile(newProfile ?? null)
@@ -186,6 +186,17 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
     // Force refresh so App.tsx sees the profile without waiting for onAuthStateChange
     const prof = await fetchProfile(authData.user.id)
     await fetchChildren(authData.user.id, prof as UserProfile | null)
+
+    // Directly set the invited child — don't rely on the if(!selectedChild) guard
+    // which can silently no-op due to async race conditions
+    if (invite.child_id) {
+      const { data: theChild } = await supabase
+        .from('children')
+        .select('*')
+        .eq('id', invite.child_id)
+        .maybeSingle()
+      if (theChild) setSelectedChild(theChild)
+    }
 
     return true
   }
