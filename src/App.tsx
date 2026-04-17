@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import LoginPage from './pages/LoginPage'
 import OnboardingPage from './pages/OnboardingPage'
 import DashboardPage from './pages/DashboardPage'
+import PregnancyDashboard from './pages/PregnancyDashboard'
 import JournalPage from './pages/JournalPage'
 import BenefitsPage from './pages/BenefitsPage'
 import WorkshopsPage from './pages/WorkshopsPage'
@@ -66,7 +67,6 @@ function AppInner() {
 
   if (publicFormId) return <PublicFormPage formId={publicFormId} />
   if (publicBabyToken) return <PublicBabyPage token={publicBabyToken} />
-  // Guest join: show join page until auth session is established
   if (joinToken && !user) return <GuestJoinPage token={joinToken} />
 
   if (loading) {
@@ -95,8 +95,13 @@ function AppInner() {
   }
 
   const isAdminMode = (profile?.is_admin ?? false) && !viewAsUser
+  const isPregnant = profile?.user_mode === 'pregnant'
 
   const renderPage = () => {
+    // Pregnant users get their own dashboard
+    if (currentPage === 'dashboard' && isPregnant) {
+      return <PregnancyDashboard onNavigate={setCurrentPage} />
+    }
     switch (currentPage) {
       case 'dashboard':  return <DashboardPage onNavigate={setCurrentPage} />
       case 'journal':    return <JournalPage />
@@ -107,7 +112,9 @@ function AppInner() {
       case 'contact':    return <ContactPage />
       case 'services':   return <MyServicesPage />
       case 'community':  return <CommunityPage />
-      default:           return <DashboardPage onNavigate={setCurrentPage} />
+      default:           return isPregnant
+        ? <PregnancyDashboard onNavigate={setCurrentPage} />
+        : <DashboardPage onNavigate={setCurrentPage} />
     }
   }
 

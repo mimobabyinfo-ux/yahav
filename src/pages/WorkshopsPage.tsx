@@ -96,12 +96,21 @@ const CATEGORIES = [
 ]
 
 // ── Main page ─────────────────────────────────────────────────────────────────
+type PurchasedRow = {
+  id: string
+  purchase_date: string
+  amount_paid: number | null
+  workshops: Workshop
+}
+
 export default function WorkshopsPage() {
-  const { profile } = useAuth()
+  const { profile, user } = useAuth()
   const [workshops, setWorkshops] = useState<WorkshopExt[]>([])
+  const [purchases, setPurchases] = useState<PurchasedRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<WorkshopExt | null>(null)
   const [category, setCategory] = useState('all')
+  const [tab, setTab] = useState<'store' | 'purchases'>('store')
 
   useEffect(() => {
     supabase
@@ -114,6 +123,16 @@ export default function WorkshopsPage() {
         setLoading(false)
       })
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+    supabase
+      .from('purchased_workshops')
+      .select('*, workshops(*)')
+      .eq('user_id', user.id)
+      .order('purchase_date', { ascending: false })
+      .then(({ data }) => setPurchases((data ?? []) as PurchasedRow[]))
+  }, [user])
 
   const isPro = profile?.is_pro || profile?.is_admin
 
@@ -135,145 +154,164 @@ export default function WorkshopsPage() {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="max-w-sm mx-auto mt-4 relative">
-          <input
-            placeholder="חפשי מוצר..."
-            className="w-full pr-4 pl-4 py-3 rounded-2xl text-sm text-sand-800 focus:outline-none"
-            style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}
-          />
+        {/* Tab switcher */}
+        <div className="max-w-sm mx-auto mt-4 flex bg-white/10 rounded-2xl p-1 gap-1">
+          <button
+            onClick={() => setTab('store')}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${tab === 'store' ? 'bg-white text-sand-800' : 'text-white/70'}`}
+          >
+            החנות
+          </button>
+          <button
+            onClick={() => setTab('purchases')}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${tab === 'purchases' ? 'bg-white text-sand-800' : 'text-white/70'}`}
+          >
+            הרכישות שלי {purchases.length > 0 && `(${purchases.length})`}
+          </button>
         </div>
 
-        {/* Category filters */}
-        <div className="max-w-sm mx-auto flex gap-2 mt-4 overflow-x-auto scroll-hide pb-1">
-          {CATEGORIES.map(c => (
-            <button
-              key={c.key}
-              onClick={() => setCategory(c.key)}
-              className="flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all"
-              style={category === c.key
-                ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }
-                : { background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)' }}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
+        {/* Category filters — store only */}
+        {tab === 'store' && (
+          <div className="max-w-sm mx-auto flex gap-2 mt-4 overflow-x-auto scroll-hide pb-1">
+            {CATEGORIES.map(c => (
+              <button
+                key={c.key}
+                onClick={() => setCategory(c.key)}
+                className="flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all"
+                style={category === c.key
+                  ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }
+                  : { background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)' }}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="max-w-sm mx-auto px-4 pt-4 space-y-3">
-        {/* Pro upgrade banner for non-Pro users */}
-        {!isPro && (
-          <a
-            href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent('היי! אני רוצה לשדרג לחברות Pro 🌟')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block rounded-3xl p-4 mb-1"
-            style={{ background: 'linear-gradient(135deg, #4A3F35, #3a302a)' }}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
-                <Zap className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="font-bold text-white text-sm">שדרגי לחברות Pro</p>
-                <p className="text-xs" style={{ color: '#C49438' }}>גישה לכל הסרטונים והתכנים הבלעדיים</p>
-              </div>
-              <span className="text-white text-xs font-bold px-3 py-1.5 rounded-xl"
-                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
-                שלחי הודעה →
-              </span>
-            </div>
-          </a>
-        )}
-
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-sand-400">
-            <p className="text-4xl mb-3">🛍️</p>
-            <p className="text-sm">אין מוצרים בקטגוריה זו</p>
-          </div>
-        ) : (
-          filtered.map(ws => {
-            const isFeatured = ws.display_order === 1
-            return (
-              <div
-                key={ws.id}
-                className="bg-white rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md"
-                onClick={() => setSelected(ws)}
+        {tab === 'store' ? (
+          <>
+            {!isPro && (
+              <a
+                href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent('היי! אני רוצה לשדרג לחברות Pro 🌟')}`}
+                target="_blank" rel="noopener noreferrer"
+                className="block rounded-3xl p-4 mb-1"
+                style={{ background: 'linear-gradient(135deg, #4A3F35, #3a302a)' }}
               >
-                <div className="flex gap-3 p-4">
-                  {/* Text side */}
-                  <div className="flex-1 min-w-0 space-y-2">
-                    {ws.workshop_type && (
-                      <span className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full"
-                        style={{ background: '#FDF3E3', color: '#C49438' }}>
-                        {ws.workshop_type}
-                      </span>
-                    )}
-                    <h3 className="font-bold text-sm leading-snug" style={{ color: '#4A3F35' }}>{ws.title}</h3>
-                    {ws.description && (
-                      <p className="text-xs leading-relaxed line-clamp-2" style={{ color: '#9B8E80' }}>
-                        {ws.description.split('\n')[0]}
-                      </p>
-                    )}
-                    {ws.price != null && (
-                      <p className="text-lg font-black" style={{ color: '#C49438' }}>
-                        {ws.price === 0 ? 'חינם' : `₪${ws.price}`}
-                      </p>
-                    )}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                    <Zap className="w-5 h-5 text-white" />
                   </div>
-
-                  {/* Image side */}
-                  <div className="relative flex-shrink-0">
-                    {ws.image_url ? (
-                      <img src={ws.image_url} alt={ws.title}
-                        className="w-24 h-24 object-cover rounded-2xl" />
-                    ) : (
-                      <div className="w-24 h-24 rounded-2xl flex items-center justify-center"
-                        style={{ background: 'linear-gradient(135deg, #F7F3EC, #F2EBE0)' }}>
-                        <ShoppingBag className="w-8 h-8 text-sand-300" />
-                      </div>
-                    )}
-                    {isFeatured && (
-                      <div className="absolute -top-2 -right-2 flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
-                        style={{ background: '#4A3F35' }}>
-                        <Star className="w-2.5 h-2.5" /> מומלץ
-                      </div>
-                    )}
+                  <div className="flex-1">
+                    <p className="font-bold text-white text-sm">שדרגי לחברות Pro</p>
+                    <p className="text-xs" style={{ color: '#C49438' }}>גישה לכל הסרטונים והתכנים הבלעדיים</p>
                   </div>
+                  <span className="text-white text-xs font-bold px-3 py-1.5 rounded-xl" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>שלחי הודעה →</span>
                 </div>
+              </a>
+            )}
 
-                {/* Action buttons */}
-                <div className="flex gap-2 px-4 pb-4" onClick={e => e.stopPropagation()}>
-                  <a
-                    href={`https://wa.me/${ws.whatsapp_number ?? WA_NUMBER}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 text-sand-400">
+                <p className="text-4xl mb-3">🛍️</p>
+                <p className="text-sm">אין מוצרים בקטגוריה זו</p>
+              </div>
+            ) : (
+              filtered.map(ws => {
+                const isFeatured = ws.display_order === 1
+                return (
+                  <div key={ws.id} className="bg-white rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => setSelected(ws)}>
+                    <div className="flex gap-3 p-4">
+                      <div className="flex-1 min-w-0 space-y-2">
+                        {ws.workshop_type && (
+                          <span className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#FDF3E3', color: '#C49438' }}>
+                            {ws.workshop_type}
+                          </span>
+                        )}
+                        <h3 className="font-bold text-sm leading-snug" style={{ color: '#4A3F35' }}>{ws.title}</h3>
+                        {ws.description && (
+                          <p className="text-xs leading-relaxed line-clamp-2" style={{ color: '#9B8E80' }}>{ws.description.split('\n')[0]}</p>
+                        )}
+                        {ws.price != null && (
+                          <p className="text-lg font-black" style={{ color: '#C49438' }}>{ws.price === 0 ? 'חינם' : `₪${ws.price}`}</p>
+                        )}
+                      </div>
+                      <div className="relative flex-shrink-0">
+                        {ws.image_url ? (
+                          <img src={ws.image_url} alt={ws.title} className="w-24 h-24 object-cover rounded-2xl" />
+                        ) : (
+                          <div className="w-24 h-24 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #F7F3EC, #F2EBE0)' }}>
+                            <ShoppingBag className="w-8 h-8 text-sand-300" />
+                          </div>
+                        )}
+                        {isFeatured && (
+                          <div className="absolute -top-2 -right-2 flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: '#4A3F35' }}>
+                            <Star className="w-2.5 h-2.5" /> מומלץ
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 px-4 pb-4" onClick={e => e.stopPropagation()}>
+                      <a href={`https://wa.me/${ws.whatsapp_number ?? WA_NUMBER}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white"
+                        style={{ background: '#4A3F35' }}>
+                        <MessageCircle className="w-4 h-4" /> וואטסאפ
+                      </a>
+                      {ws.payment_link && (
+                        <a href={ws.payment_link} target="_blank" rel="noopener noreferrer"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white"
+                          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                          <CreditCard className="w-4 h-4" /> רכישה
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </>
+        ) : (
+          /* Purchases tab */
+          purchases.length === 0 ? (
+            <div className="text-center py-16 space-y-3">
+              <ShoppingBag className="w-12 h-12 text-sand-200 mx-auto" />
+              <p className="text-sand-400 text-sm">עדיין אין רכישות</p>
+              <p className="text-xs text-sand-300">רכישות שתבצעי יופיעו כאן</p>
+            </div>
+          ) : (
+            purchases.map(p => (
+              <div key={p.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
+                {p.workshops.image_url && (
+                  <img src={p.workshops.image_url} alt={p.workshops.title} className="w-full h-32 object-cover" />
+                )}
+                <div className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-bold text-sand-800">{p.workshops.title}</p>
+                      <p className="text-xs text-sand-400 mt-0.5">
+                        {p.amount_paid != null ? `שולם: ₪${p.amount_paid}` : ''}
+                        {' · '}{new Date(p.purchase_date).toLocaleDateString('he-IL')}
+                      </p>
+                    </div>
+                    {p.workshops.price != null && (
+                      <span className="text-sm font-bold text-mustard-600">₪{p.workshops.price}</span>
+                    )}
+                  </div>
+                  <a href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(`היי! יש לי שאלה לגבי: ${p.workshops.title}`)}`}
                     target="_blank" rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white transition-all"
-                    style={{ background: '#4A3F35' }}
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    וואטסאפ
+                    className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-2.5 rounded-2xl text-sm transition-all">
+                    <MessageCircle className="w-4 h-4" /> צרי קשר על הסדנה
                   </a>
-                  {ws.payment_link && (
-                    <a
-                      href={ws.payment_link}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white transition-all"
-                      style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      רכישה
-                    </a>
-                  )}
                 </div>
               </div>
-            )
-          })
+            ))
+          )
         )}
       </div>
 

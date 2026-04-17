@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LogOut, ChevronLeft } from 'lucide-react'
+import { LogOut, ChevronLeft, UserPlus, Copy, Check } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
@@ -12,11 +12,16 @@ type Props = {
   onNavigate: (page: Page) => void
 }
 
+const APP_BASE = 'https://mimoapp.vercel.app'
+
 export default function DashboardPage({ onNavigate }: Props) {
-  const { profile, signOut, selectedChild, children } = useAuth()
+  const { profile, signOut, selectedChild, children, family, createFamilyInvite } = useAuth()
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [inviteLoading, setInviteLoading] = useState(false)
 
   useEffect(() => {
     fetchTip()
@@ -43,6 +48,21 @@ export default function DashboardPage({ onNavigate }: Props) {
       .eq('is_featured', true)
       .order('display_order')
     setFeaturedPerks(data ?? [])
+  }
+
+  async function handleCreateInvite() {
+    if (!selectedChild) return
+    setInviteLoading(true)
+    const token = await createFamilyInvite(selectedChild.id)
+    setInviteLoading(false)
+    if (token) setInviteLink(`${APP_BASE}?join=${token}`)
+  }
+
+  function copyLink() {
+    if (!inviteLink) return
+    navigator.clipboard.writeText(inviteLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   const greeting = () => {
@@ -138,6 +158,43 @@ export default function DashboardPage({ onNavigate }: Props) {
             <p className="text-xs text-sand-400 mt-0.5">הנחות ומבצעים</p>
           </button>
         </div>
+
+        {/* Family invite */}
+        {family && selectedChild && (
+          <div className="bg-white rounded-3xl p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-2xl bg-mustard-50 flex items-center justify-center flex-shrink-0">
+                <UserPlus className="w-4 h-4 text-mustard-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-sand-800">שתפי את היומן</p>
+                <p className="text-xs text-sand-400">הזמיני אבא, סבתא — בלי הרשמה</p>
+              </div>
+              {inviteLink ? (
+                <button
+                  onClick={copyLink}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                >
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? 'הועתק!' : 'העתק'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleCreateInvite}
+                  disabled={inviteLoading}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0 disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                >
+                  {inviteLoading ? '...' : 'צור קישור'}
+                </button>
+              )}
+            </div>
+            {inviteLink && (
+              <p className="text-[10px] text-sand-400 mt-2 break-all">{inviteLink}</p>
+            )}
+          </div>
+        )}
 
         {/* Featured Perks */}
         {featuredPerks.length > 0 && (

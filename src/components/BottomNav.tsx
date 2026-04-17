@@ -14,7 +14,7 @@ type Props = {
 }
 
 export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGuest, adminSection, onAdminSection, viewAsUser, onToggleUserView }: Props) {
-  const { signOut, selectedChild } = useAuth()
+  const { signOut, selectedChild, profile } = useAuth()
 
   // ── Guest nav ─────────────────────────────────────────────────────────────
   if (isGuest) {
@@ -117,13 +117,24 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
 
   // ── User nav ──────────────────────────────────────────────────────────────
   const userItems: { id: Page; label: string; icon: React.ReactNode }[] = [
-    { id: 'dashboard',  label: 'בית',       icon: <Home className="w-5 h-5" /> },
-    { id: 'journal',    label: 'יומן',       icon: <BookOpen className="w-5 h-5" /> },
-    { id: 'pro',        label: 'סרטונים',   icon: <PlayCircle className="w-5 h-5" /> },
-    { id: 'workshops',  label: 'מוצרים',    icon: <ShoppingBag className="w-5 h-5" /> },
-    { id: 'services',   label: 'שירותים',   icon: <Users className="w-5 h-5" /> },
-    { id: 'benefits',   label: 'הטבות',     icon: <Gift className="w-5 h-5" /> },
+    { id: 'dashboard',  label: 'בית',      icon: <Home className="w-5 h-5" /> },
+    { id: 'journal',    label: 'יומן',      icon: <BookOpen className="w-5 h-5" /> },
+    { id: 'pro',        label: 'סרטונים',  icon: <PlayCircle className="w-5 h-5" /> },
+    { id: 'workshops',  label: 'מוצרים',   icon: <ShoppingBag className="w-5 h-5" /> },
+    { id: 'community',  label: 'קהילה',    icon: <span className="text-lg leading-none">🌸</span> },
+    { id: 'benefits',   label: 'הטבות',    icon: <Gift className="w-5 h-5" /> },
   ]
+
+  const pregnancyItems: { id: Page; label: string; icon: React.ReactNode }[] = [
+    { id: 'dashboard',  label: 'בית',      icon: <Home className="w-5 h-5" /> },
+    { id: 'pro',        label: 'סרטונים',  icon: <PlayCircle className="w-5 h-5" /> },
+    { id: 'workshops',  label: 'מוצרים',   icon: <ShoppingBag className="w-5 h-5" /> },
+    { id: 'community',  label: 'קהילה',    icon: <span className="text-lg leading-none">🌸</span> },
+    { id: 'benefits',   label: 'הטבות',    icon: <Gift className="w-5 h-5" /> },
+  ]
+
+  const isPregnant = !!(profile?.user_mode === 'pregnant')
+  const navItems = isPregnant ? pregnancyItems : userItems
 
   return (
     <nav className="fixed bottom-0 right-0 left-0 max-w-[480px] mx-auto bg-white border-t border-sand-100 shadow-xl z-50">
@@ -135,7 +146,7 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
         </div>
       )}
       <div className="flex items-center justify-around px-1 py-1.5">
-        {userItems.map(item => {
+        {navItems.map(item => {
           const active = currentPage === item.id
           return (
             <button

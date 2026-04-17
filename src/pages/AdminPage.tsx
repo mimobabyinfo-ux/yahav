@@ -120,10 +120,12 @@ type UserWithChildren = UserProfile & { childCount: number }
 function UsersTab() {
   const [users, setUsers] = useState<UserWithChildren[]>([])
   const [search, setSearch] = useState('')
+  const [modeFilter, setModeFilter] = useState<'all' | 'pregnant' | 'mom'>('all')
   const [editUser, setEditUser] = useState<UserWithChildren | null>(null)
   const [editName, setEditName] = useState('')
   const [editLeadStatus, setEditLeadStatus] = useState<string>('')
   const [editNotes, setEditNotes] = useState('')
+  const [editUserMode, setEditUserMode] = useState<string>('')
   const [deleteUser, setDeleteUser] = useState<UserWithChildren | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -136,9 +138,10 @@ function UsersTab() {
   }, [])
   useEffect(() => { load() }, [load])
 
-  const filtered = users.filter(u =>
-    !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
-  )
+  const filtered = users.filter(u => {
+    if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
+    return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
+  })
 
   async function upgradePro(u: UserWithChildren) {
     await supabase.from('user_profiles').update({ is_pro: !u.is_pro }).eq('id', u.id)
@@ -154,6 +157,7 @@ function UsersTab() {
       display_name: editName,
       lead_status: ls,
       staff_notes: editNotes || null,
+      user_mode: (editUserMode || null) as 'pregnant' | 'mom' | null,
     }
     await supabase.from('user_profiles').update(updates).eq('id', editUser.id)
     setUsers(prev => prev.map(p => p.id === editUser.id ? { ...p, ...updates } : p))
@@ -181,6 +185,20 @@ function UsersTab() {
         />
       </div>
 
+      {/* Mode filter */}
+      <div className="flex gap-2">
+        {(['all', 'mom', 'pregnant'] as const).map(m => (
+          <button
+            key={m}
+            onClick={() => setModeFilter(m)}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${modeFilter === m ? 'text-white shadow-sm' : 'bg-sand-50 text-sand-500'}`}
+            style={modeFilter === m ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+          >
+            {m === 'all' ? 'הכל' : m === 'mom' ? '👶 אמהות' : '🤰 הריון'}
+          </button>
+        ))}
+      </div>
+
       <p className="text-xs text-sand-400">{filtered.length} משתמשות</p>
 
       {filtered.map(u => (
@@ -191,6 +209,7 @@ function UsersTab() {
                 <p className="font-bold text-sand-800 text-sm truncate">{u.mother_name ?? '—'}</p>
                 {u.is_admin && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-bold">ADMIN</span>}
                 {u.is_pro && <span className="text-[10px] bg-mustard-100 text-mustard-700 px-1.5 py-0.5 rounded-md font-bold">PRO</span>}
+                {u.user_mode === 'pregnant' && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-bold">🤰 הריון</span>}
                 <LeadBadge status={u.lead_status} />
               </div>
               <p className="text-xs text-sand-400 truncate">{u.email}</p>
@@ -224,7 +243,7 @@ function UsersTab() {
           {/* Action buttons */}
           <div className="flex gap-2">
             <button
-              onClick={() => { setEditUser(u); setEditName(u.mother_name ?? ''); setEditLeadStatus(u.lead_status ?? ''); setEditNotes(u.staff_notes ?? '') }}
+              onClick={() => { setEditUser(u); setEditName(u.mother_name ?? ''); setEditLeadStatus(u.lead_status ?? ''); setEditNotes(u.staff_notes ?? ''); setEditUserMode(u.user_mode ?? '') }}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-sand-50 text-sand-600 hover:bg-sand-100 transition-colors"
             >
               <Pencil className="w-3.5 h-3.5" />
@@ -281,6 +300,18 @@ function UsersTab() {
               </select>
             </div>
             <div>
+              <label className="text-xs text-sand-500 mb-1 block">מצב משתמשת</label>
+              <select
+                value={editUserMode}
+                onChange={e => setEditUserMode(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 bg-white"
+              >
+                <option value="">לא הוגדר</option>
+                <option value="mom">👶 אמא</option>
+                <option value="pregnant">🤰 בהריון</option>
+              </select>
+            </div>
+            <div>
               <label className="text-xs text-sand-500 mb-1 block">הערות פנימיות</label>
               <textarea
                 rows={2}
@@ -330,7 +361,7 @@ type RetentionRow = { cohort_week: string; total_users: number; day1: number; da
 type User360 = UserProfile & { childCount: number; logCount: number; activityCount: number; lead_status: string | null; staff_notes: string | null }
 
 function InsightsTab() {
-  const [stats, setStats] = useState({ users: 0, pro: 0, children: 0, logs: 0 })
+  const [stats, setStats] = useState({ users: 0, pro: 0, pregnant: 0, moms: 0, children: 0, logs: 0 })
   const [videoPerf, setVideoPerf] = useState<VideoPerf[]>([])
   const [retention, setRetention] = useState<RetentionRow[]>([])
   const [user360Id, setUser360Id] = useState<string | null>(null)
@@ -351,6 +382,8 @@ function InsightsTab() {
       setStats({
         users: users?.length ?? 0,
         pro: users?.filter(u => u.is_pro).length ?? 0,
+        pregnant: users?.filter(u => u.user_mode === 'pregnant').length ?? 0,
+        moms: users?.filter(u => u.user_mode === 'mom').length ?? 0,
         children: children?.length ?? 0,
         logs: logs?.length ?? 0,
       })
@@ -378,10 +411,12 @@ function InsightsTab() {
   }
 
   const statCards = [
-    { label: 'סה"כ משתמשות', value: stats.users, emoji: '👩', color: '#EFF6FF' },
-    { label: 'מנויות PRO',    value: stats.pro,   emoji: '⭐', color: '#FFFBEB' },
-    { label: 'ילדים',         value: stats.children, emoji: '👶', color: '#F0FDF4' },
-    { label: 'רשומות יומן',  value: stats.logs,  emoji: '📔', color: '#FAF5FF' },
+    { label: 'סה"כ משתמשות', value: stats.users,    emoji: '👩',  color: '#EFF6FF' },
+    { label: 'מנויות PRO',    value: stats.pro,      emoji: '⭐',  color: '#FFFBEB' },
+    { label: 'בהריון',        value: stats.pregnant, emoji: '🤰',  color: '#F5F3FF' },
+    { label: 'אמהות',         value: stats.moms,     emoji: '👶',  color: '#F0FDF4' },
+    { label: 'ילדים',         value: stats.children, emoji: '🍼',  color: '#FFF7ED' },
+    { label: 'רשומות יומן',  value: stats.logs,     emoji: '📔',  color: '#FAF5FF' },
   ]
 
   const retentionChart = retention.map(r => ({

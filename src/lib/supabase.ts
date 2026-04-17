@@ -25,6 +25,8 @@ export type UserProfile = {
   phone_number: string | null
   community_consent: boolean
   community_bio: string | null
+  user_mode: 'pregnant' | 'mom' | null
+  due_date: string | null
   created_at: string
   updated_at: string
 }

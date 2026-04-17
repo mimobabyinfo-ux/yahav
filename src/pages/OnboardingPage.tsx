@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLogo from '../components/MimoLogo'
 
+type Mode = 'mom' | 'pregnant'
+
 type Baby = {
   name: string
   dob: string
@@ -20,10 +22,12 @@ const emptyBaby = (): Baby => ({ name: '', dob: '', gender: 'girl' })
 
 export default function OnboardingPage() {
   const { user, refreshProfile, refreshChildren } = useAuth()
+  const [mode, setMode] = useState<Mode>('mom')
   const [motherName, setMotherName] = useState('')
   const [area, setArea] = useState('')
   const [phone, setPhone] = useState('')
   const [showPhone, setShowPhone] = useState(false)
+  const [dueDate, setDueDate] = useState('')
   const [babies, setBabies] = useState<Baby[]>([emptyBaby()])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -43,43 +47,41 @@ export default function OnboardingPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!user) return
-    if (babies.some(b => !b.name.trim())) {
-      setError('אנא מלאי שם לכל תינוק/ת')
-      return
-    }
-    if (babies.some(b => !b.dob)) {
-      setError('אנא מלאי תאריך לידה לכל תינוק/ת')
-      return
+    if (mode === 'mom') {
+      if (babies.some(b => !b.name.trim())) { setError('אנא מלאי שם לכל תינוק/ת'); return }
+      if (babies.some(b => !b.dob)) { setError('אנא מלאי תאריך לידה לכל תינוק/ת'); return }
     }
     setError('')
     setLoading(true)
     try {
-      // Save user profile
       const { error: profileError } = await supabase.from('user_profiles').upsert({
         id: user.id,
         email: user.email ?? '',
         mother_name: motherName,
-        baby_name: babies[0].name,
-        baby_dob: babies[0].dob || null,
-        baby_gender: babies[0].gender,
+        baby_name: mode === 'mom' ? babies[0].name : null,
+        baby_dob: mode === 'mom' ? babies[0].dob || null : null,
+        baby_gender: mode === 'mom' ? babies[0].gender : null,
         display_name: motherName,
         area: area.trim() || null,
         phone_number: phone.trim() || null,
         community_consent: showPhone,
         lead_status: 'new_lead',
+        user_mode: mode,
+        due_date: mode === 'pregnant' ? dueDate || null : null,
       })
       if (profileError) throw profileError
 
-      // Insert all children
-      const { error: childError } = await supabase.from('children').insert(
-        babies.map(b => ({
-          user_id: user.id,
-          name: b.name.trim(),
-          dob: b.dob || null,
-          gender: b.gender,
-        }))
-      )
-      if (childError) throw childError
+      if (mode === 'mom') {
+        const { error: childError } = await supabase.from('children').insert(
+          babies.map(b => ({
+            user_id: user.id,
+            name: b.name.trim(),
+            dob: b.dob || null,
+            gender: b.gender,
+          }))
+        )
+        if (childError) throw childError
+      }
 
       await Promise.all([refreshProfile(), refreshChildren()])
     } catch (err: unknown) {
@@ -103,6 +105,27 @@ export default function OnboardingPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Mode selector */}
+          <div className="bg-white rounded-3xl shadow-sm p-4">
+            <p className="text-xs font-semibold text-sand-600 mb-3 text-center">איפה את בתהליך?</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMode('pregnant')}
+                className={`flex-1 py-3 rounded-2xl text-sm font-bold border-2 transition-all ${mode === 'pregnant' ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}
+              >
+                🤰 בהיריון
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('mom')}
+                className={`flex-1 py-3 rounded-2xl text-sm font-bold border-2 transition-all ${mode === 'mom' ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}
+              >
+                👶 כבר אמא
+              </button>
+            </div>
+          </div>
+
           {/* Mother name + area */}
           <div className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
             <div>
@@ -155,8 +178,24 @@ export default function OnboardingPage() {
             </label>
           </div>
 
-          {/* Baby cards */}
-          {babies.map((baby, idx) => (
+          {/* Due date — pregnant only */}
+          {mode === 'pregnant' && (
+            <div className="bg-white rounded-3xl shadow-sm p-5">
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">
+                תאריך לידה משוער <span className="text-sand-400 font-normal">(אופציונלי)</span>
+              </label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
+              />
+            </div>
+          )}
+
+          {/* Baby cards — mom only */}
+          {mode === 'mom' && babies.map((baby, idx) => (
             <div key={idx} className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sand-700 text-sm">
@@ -224,15 +263,17 @@ export default function OnboardingPage() {
             </div>
           ))}
 
-          {/* Add another baby */}
-          <button
-            type="button"
-            onClick={addBaby}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-dashed border-mustard-300 text-mustard-600 font-semibold text-sm hover:bg-mustard-50 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            הוסיפי תינוק/ת נוסף/ת
-          </button>
+          {/* Add another baby — mom only */}
+          {mode === 'mom' && (
+            <button
+              type="button"
+              onClick={addBaby}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-dashed border-mustard-300 text-mustard-600 font-semibold text-sm hover:bg-mustard-50 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              הוסיפי תינוק/ת נוסף/ת
+            </button>
+          )}
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-3 text-sm text-red-600">
