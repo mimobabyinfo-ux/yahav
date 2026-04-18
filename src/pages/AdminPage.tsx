@@ -1322,6 +1322,7 @@ function AssignFormModal({ form, onClose }: { form: FormRecord; onClose: () => v
 function FormsTab() {
   const [forms, setForms] = useState<FormRecord[]>([])
   const [showCreate, setShowCreate] = useState(false)
+  const [editingForm, setEditingForm] = useState<FormRecord | null>(null)
   const [viewSubmissions, setViewSubmissions] = useState<FormRecord | null>(null)
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [assignForm, setAssignForm] = useState<FormRecord | null>(null)
@@ -1340,6 +1341,19 @@ function FormsTab() {
   const [triggerType, setTriggerType] = useState('after_video_views')
   const [triggerCount, setTriggerCount] = useState('3')
   const [saving, setSaving] = useState(false)
+
+  function startEdit(form: FormRecord) {
+    setEditingForm(form)
+    setTitle(form.title)
+    setDescription(form.description ?? '')
+    setFields(form.fields_json.map(f => ({ ...f })))
+    setShowCreate(false)
+  }
+
+  function cancelEdit() {
+    setEditingForm(null)
+    setTitle(''); setDescription(''); setFields([])
+  }
 
   const load = useCallback(() => {
     supabase.from('forms').select('*').order('created_at', { ascending: false })
@@ -1362,14 +1376,23 @@ function FormsTab() {
   async function saveForm() {
     if (!title.trim() || fields.length === 0) return
     setSaving(true)
-    await supabase.from('forms').insert({
-      title: title.trim(),
-      description: description || null,
-      fields_json: fields,
-      trigger_rule: { type: triggerType, count: parseInt(triggerCount) || 3 },
-      is_active: true,
-    })
-    setTitle(''); setDescription(''); setFields([]); setShowCreate(false)
+    if (editingForm) {
+      await supabase.from('forms').update({
+        title: title.trim(),
+        description: description || null,
+        fields_json: fields,
+      }).eq('id', editingForm.id)
+      cancelEdit()
+    } else {
+      await supabase.from('forms').insert({
+        title: title.trim(),
+        description: description || null,
+        fields_json: fields,
+        trigger_rule: { type: triggerType, count: parseInt(triggerCount) || 3 },
+        is_active: true,
+      })
+      setTitle(''); setDescription(''); setFields([]); setShowCreate(false)
+    }
     setSaving(false); load()
   }
 
@@ -1437,35 +1460,38 @@ function FormsTab() {
         טופס חדש
       </button>
 
-      {showCreate && (
+      {(showCreate || editingForm) && (
         <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+          {editingForm && <p className="text-xs font-bold text-mustard-600">✏️ עריכת טופס: {editingForm.title}</p>}
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
           <input value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
 
-          {/* Trigger */}
-          <div className="flex gap-2 items-center">
-            <select value={triggerType} onChange={e => setTriggerType(e.target.value)} className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm bg-white focus:outline-none focus:border-mustard-400">
-              <option value="after_video_views">אחרי X צפיות בסרטון</option>
-              <option value="after_days">אחרי X ימים</option>
-              <option value="manual">ידני</option>
-            </select>
-            <input type="number" value={triggerCount} onChange={e => setTriggerCount(e.target.value)} className="w-16 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" min="1" />
-          </div>
+          {/* Trigger — only for new forms */}
+          {!editingForm && (
+            <div className="flex gap-2 items-center">
+              <select value={triggerType} onChange={e => setTriggerType(e.target.value)} className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm bg-white focus:outline-none focus:border-mustard-400">
+                <option value="after_video_views">אחרי X צפיות בסרטון</option>
+                <option value="after_days">אחרי X ימים</option>
+                <option value="manual">ידני</option>
+              </select>
+              <input type="number" value={triggerCount} onChange={e => setTriggerCount(e.target.value)} className="w-16 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" min="1" />
+            </div>
+          )}
 
           {/* Fields */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-sand-500">שדות הטופס</p>
-            {fields.map(field => (
-              <div key={field.id} className="flex gap-2 items-start">
+            <p className="text-xs font-semibold text-sand-500">שדות הטופס ({fields.length})</p>
+            {fields.map((field, idx) => (
+              <div key={field.id} className="flex gap-2 items-start bg-sand-50 rounded-xl p-2">
+                <span className="text-xs text-sand-400 pt-2.5 w-5 text-center">{idx + 1}</span>
                 <div className="flex-1 space-y-1.5">
-                  <input value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400" />
+                  <input value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white" />
                   <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs bg-white focus:outline-none">
                     {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                   {field.type === 'select' && (
-                    <input value={field.options?.join(', ') ?? ''} onChange={e => updateField(field.id, { options: e.target.value.split(',').map(s => s.trim()) })} placeholder="אפשרויות מופרדות בפסיק" className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none" />
+                    <input value={field.options?.join(', ') ?? ''} onChange={e => updateField(field.id, { options: e.target.value.split(',').map(s => s.trim()) })} placeholder="אפשרויות מופרדות בפסיק" className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white" />
                   )}
-                  {/* Required toggle */}
                   <button
                     type="button"
                     onClick={() => updateField(field.id, { required: !field.required })}
@@ -1485,9 +1511,9 @@ function FormsTab() {
 
           <div className="flex gap-2">
             <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: '#C49438' }}>
-              {saving ? 'שומר...' : 'צור טופס'}
+              {saving ? 'שומר...' : editingForm ? 'שמור שינויים' : 'צור טופס'}
             </button>
-            <button onClick={() => setShowCreate(false)} className="px-4 py-2.5 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
+            <button onClick={() => { setShowCreate(false); cancelEdit() }} className="px-4 py-2.5 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
           </div>
         </div>
       )}
@@ -1503,6 +1529,7 @@ function FormsTab() {
               </p>
             </div>
             <div className="flex items-center gap-1 flex-wrap justify-end">
+              <button onClick={() => startEdit(form)} className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100">✏️ ערכי</button>
               <button onClick={() => setAssignForm(form)} className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">שייך</button>
               <button onClick={() => loadSubmissions(form)} className="text-xs px-2 py-1 bg-sand-50 text-sand-600 rounded-lg hover:bg-sand-100">תשובות</button>
               <button
