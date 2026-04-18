@@ -493,8 +493,26 @@ export default function JournalPage() {
             setUpsellType(modalType)
             setTimeout(() => setUpsellType(null), 8000)
             if (modalType === 'feeding') {
-              localStorage.setItem('last_feeding_time', new Date().toISOString())
+              const now = new Date()
+              localStorage.setItem('last_feeding_time', now.toISOString())
+              const intervalHours = profile?.feeding_interval_hours ?? 3
+              const nextTime = new Date(now.getTime() + intervalHours * 3600 * 1000)
+              localStorage.setItem('next_feeding_time', nextTime.toISOString())
               setFeedingAlert(false)
+              if ('Notification' in window) {
+                Notification.requestPermission().then(perm => {
+                  if (perm === 'granted') {
+                    const delay = nextTime.getTime() - Date.now()
+                    if (delay > 0) {
+                      setTimeout(() => {
+                        new Notification('הגיע זמן לאכול! 🍼', {
+                          body: `${selectedChild?.name ?? 'התינוק'} צריכ/ה לאכול עכשיו`,
+                        })
+                      }, delay)
+                    }
+                  }
+                })
+              }
             }
           }}
         />

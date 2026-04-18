@@ -248,6 +248,16 @@ export type PregnancyChecklistItem = {
   created_at: string
 }
 
+export type UserReminder = {
+  id: string
+  user_id: string
+  label: string
+  emoji: string
+  time_of_day: string | null
+  is_enabled: boolean
+  created_at: string
+}
+
 // Extended types (with joins)
 export type DailyLogEntryWithDetails = DailyLogEntry & {
   feeding_details?: FeedingDetail | null

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   LogOut, Sparkles, CheckCircle2, Circle, ShoppingBag, Stethoscope,
-  ChevronDown, ChevronUp, Plus, Trash2, Bell, X,
+  ChevronDown, ChevronUp, Plus, Trash2, Bell, X, Pencil, Check,
 } from 'lucide-react'
-import { supabase, PregnancyChecklistItem, PregnancyWeeklyGuide, UserPregnancyItem } from '../lib/supabase'
+import { supabase, PregnancyChecklistItem, PregnancyWeeklyGuide, UserPregnancyItem, UserReminder } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { Page } from '../App'
 
@@ -123,130 +123,118 @@ function ReminderBanner({ emoji, text, onDismiss }: { emoji: string; text: strin
   )
 }
 
-// ── Reminders Settings Panel ──────────────────────────────────────────────────
-function RemindersPanel() {
-  const { profile, user, refreshProfile } = useAuth()
+// ── Custom Reminders Panel ────────────────────────────────────────────────────
+function CustomRemindersPanel() {
+  const { user } = useAuth()
+  const [reminders, setReminders] = useState<UserReminder[]>([])
+  const [adding, setAdding] = useState(false)
+  const [newLabel, setNewLabel] = useState('')
+  const [newEmoji, setNewEmoji] = useState('🔔')
+  const [newTime, setNewTime] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const [waterOn, setWaterOn] = useState(profile?.reminder_water_enabled ?? false)
-  const [waterHours, setWaterHours] = useState(profile?.reminder_water_hours ?? 2)
-  const [vitOn, setVitOn] = useState(profile?.reminder_vitamins_enabled ?? false)
-  const [vitTime, setVitTime] = useState(profile?.reminder_vitamins_time ?? '08:00')
-  const [exOn, setExOn] = useState(profile?.reminder_exercise_enabled ?? false)
-  const [exTime, setExTime] = useState(profile?.reminder_exercise_time ?? '09:00')
-
-  async function save() {
+  const load = useCallback(async () => {
     if (!user) return
+    const { data } = await supabase.from('user_reminders').select('*').eq('user_id', user.id).order('created_at')
+    setReminders((data ?? []) as UserReminder[])
+  }, [user])
+
+  useEffect(() => { load() }, [load])
+
+  async function toggle(r: UserReminder) {
+    await supabase.from('user_reminders').update({ is_enabled: !r.is_enabled }).eq('id', r.id)
+    setReminders(prev => prev.map(x => x.id === r.id ? { ...x, is_enabled: !x.is_enabled } : x))
+  }
+
+  async function del(id: string) {
+    await supabase.from('user_reminders').delete().eq('id', id)
+    setReminders(prev => prev.filter(x => x.id !== id))
+  }
+
+  async function add() {
+    if (!user || !newLabel.trim()) return
     setSaving(true)
-    await supabase.from('user_profiles').update({
-      reminder_water_enabled: waterOn,
-      reminder_water_hours: waterHours,
-      reminder_vitamins_enabled: vitOn,
-      reminder_vitamins_time: vitTime,
-      reminder_exercise_enabled: exOn,
-      reminder_exercise_time: exTime,
-    }).eq('id', user.id)
-    await refreshProfile()
+    const { data } = await supabase.from('user_reminders').insert({
+      user_id: user.id,
+      label: newLabel.trim(),
+      emoji: newEmoji || '🔔',
+      time_of_day: newTime || null,
+      is_enabled: true,
+    }).select().single()
+    if (data) setReminders(prev => [...prev, data as UserReminder])
+    setNewLabel(''); setNewEmoji('🔔'); setNewTime('')
+    setAdding(false)
     setSaving(false)
   }
 
-  const toggle = (
-    <div className="space-y-4">
-      {/* Water */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">💧</span>
-            <p className="font-semibold text-sand-800 text-sm">שתייה</p>
-          </div>
-          <button
-            onClick={() => setWaterOn(v => !v)}
-            className={`w-11 h-6 rounded-full transition-all relative ${waterOn ? 'bg-mustard-500' : 'bg-sand-200'}`}
-          >
-            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${waterOn ? 'left-5' : 'left-0.5'}`} />
-          </button>
+  return (
+    <div className="space-y-3">
+      {reminders.length === 0 && !adding && (
+        <div className="bg-white rounded-3xl p-8 text-center shadow-sm">
+          <p className="text-3xl mb-2">🔔</p>
+          <p className="font-semibold text-sand-700 text-sm">אין תזכורות עדיין</p>
+          <p className="text-xs text-sand-400 mt-1">הוסיפי תזכורות אישיות להריון</p>
         </div>
-        {waterOn && (
-          <div>
-            <label className="text-xs text-sand-500 mb-1 block">תזכורת כל כמה שעות?</label>
-            <select
-              value={waterHours}
-              onChange={e => setWaterHours(Number(e.target.value))}
-              className="w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 bg-white"
-            >
-              {[1, 1.5, 2, 2.5, 3].map(h => (
-                <option key={h} value={h}>כל {h} שעות</option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
+      )}
 
-      {/* Vitamins */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">💊</span>
-            <p className="font-semibold text-sand-800 text-sm">ויטמינים / תרופות</p>
+      {reminders.map(r => (
+        <div key={r.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
+          <span className="text-xl flex-shrink-0">{r.emoji}</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sand-800 text-sm">{r.label}</p>
+            {r.time_of_day && <p className="text-xs text-sand-400">{r.time_of_day}</p>}
           </div>
           <button
-            onClick={() => setVitOn(v => !v)}
-            className={`w-11 h-6 rounded-full transition-all relative ${vitOn ? 'bg-mustard-500' : 'bg-sand-200'}`}
+            onClick={() => toggle(r)}
+            className={`w-11 h-6 rounded-full transition-all relative flex-shrink-0 ${r.is_enabled ? 'bg-mustard-500' : 'bg-sand-200'}`}
           >
-            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${vitOn ? 'left-5' : 'left-0.5'}`} />
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${r.is_enabled ? 'left-5' : 'left-0.5'}`} />
+          </button>
+          <button onClick={() => del(r.id)} className="text-sand-200 hover:text-red-400 flex-shrink-0">
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
-        {vitOn && (
-          <div>
-            <label className="text-xs text-sand-500 mb-1 block">שעת תזכורת</label>
+      ))}
+
+      {adding ? (
+        <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
+          <div className="flex gap-2">
             <input
-              type="time"
-              value={vitTime}
-              onChange={e => setVitTime(e.target.value)}
+              value={newEmoji} onChange={e => setNewEmoji(e.target.value)}
+              placeholder="🔔" maxLength={2}
+              className="w-16 px-3 py-3 border-2 border-sand-200 rounded-2xl text-center text-lg focus:outline-none focus:border-mustard-400"
+            />
+            <input
+              value={newLabel} onChange={e => setNewLabel(e.target.value)}
+              placeholder="תיאור התזכורת..."
+              className="flex-1 px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="text-xs text-sand-500 mb-1 block">שעת תזכורת (אופציונלי)</label>
+            <input
+              type="time" value={newTime} onChange={e => setNewTime(e.target.value)}
               className="w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
             />
           </div>
-        )}
-      </div>
-
-      {/* Exercise */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🧘</span>
-            <p className="font-semibold text-sand-800 text-sm">תרגיל / הליכה יומית</p>
+          <div className="flex gap-2">
+            <button onClick={add} disabled={saving || !newLabel.trim()}
+              className="flex-1 py-2.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              {saving ? '...' : 'הוסיפי'}
+            </button>
+            <button onClick={() => setAdding(false)} className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>
           </div>
-          <button
-            onClick={() => setExOn(v => !v)}
-            className={`w-11 h-6 rounded-full transition-all relative ${exOn ? 'bg-mustard-500' : 'bg-sand-200'}`}
-          >
-            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${exOn ? 'left-5' : 'left-0.5'}`} />
-          </button>
         </div>
-        {exOn && (
-          <div>
-            <label className="text-xs text-sand-500 mb-1 block">שעת תזכורת</label>
-            <input
-              type="time"
-              value={exTime}
-              onChange={e => setExTime(e.target.value)}
-              className="w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
-            />
-          </div>
-        )}
-      </div>
-
-      <button
-        onClick={save}
-        disabled={saving}
-        className="w-full py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
-        style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-      >
-        {saving ? 'שומרת...' : 'שמירת הגדרות'}
-      </button>
+      ) : (
+        <button onClick={() => setAdding(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-mustard-200 text-mustard-600 text-sm font-semibold hover:bg-mustard-50 transition-colors">
+          <Plus className="w-4 h-4" /> הוסיפי תזכורת אישית
+        </button>
+      )}
     </div>
   )
-  return toggle
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -267,6 +255,10 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
   const [newItemWeekFrom, setNewItemWeekFrom] = useState('')
   const [newItemWeekTo, setNewItemWeekTo] = useState('')
   const [savingPersonal, setSavingPersonal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+  const [editWeekFrom, setEditWeekFrom] = useState('')
+  const [editWeekTo, setEditWeekTo] = useState('')
 
   // Weekly guide
   const [guide, setGuide] = useState<PregnancyWeeklyGuide | null>(null)
@@ -384,6 +376,25 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
   async function deletePersonalItem(id: string) {
     await supabase.from('user_pregnancy_items').delete().eq('id', id)
     setPersonalItems(prev => prev.filter(i => i.id !== id))
+  }
+
+  function startEdit(item: UserPregnancyItem) {
+    setEditingId(item.id)
+    setEditText(item.text)
+    setEditWeekFrom(item.week_from?.toString() ?? '')
+    setEditWeekTo(item.week_to?.toString() ?? '')
+  }
+
+  async function saveEdit() {
+    if (!editingId || !editText.trim()) return
+    const updates = {
+      text: editText.trim(),
+      week_from: editWeekFrom ? parseInt(editWeekFrom) : null,
+      week_to: editWeekTo ? parseInt(editWeekTo) : null,
+    }
+    await supabase.from('user_pregnancy_items').update(updates).eq('id', editingId)
+    setPersonalItems(prev => prev.map(i => i.id === editingId ? { ...i, ...updates } : i))
+    setEditingId(null)
   }
 
   function toggleBucket(key: string) {
@@ -538,7 +549,27 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                   <p className="text-xs font-bold text-mustard-600">📝 הוספות אישיות שלי</p>
                 </div>
                 <div className="divide-y divide-sand-50">
-                  {myPersonalMedical.map(item => (
+                  {myPersonalMedical.map(item => editingId === item.id ? (
+                    <div key={item.id} className="px-4 py-3 space-y-2">
+                      <input value={editText} onChange={e => setEditText(e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-mustard-300 rounded-xl text-sm focus:outline-none" autoFocus />
+                      <div className="flex gap-2">
+                        <input type="number" value={editWeekFrom} onChange={e => setEditWeekFrom(e.target.value)}
+                          placeholder="שבוע מ-" min={1} max={42}
+                          className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none" />
+                        <input type="number" value={editWeekTo} onChange={e => setEditWeekTo(e.target.value)}
+                          placeholder="שבוע עד" min={1} max={42}
+                          className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none" />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={saveEdit} className="flex-1 py-2 rounded-xl text-white font-bold text-xs"
+                          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                          <Check className="w-3.5 h-3.5 inline ml-1" />שמירה
+                        </button>
+                        <button onClick={() => setEditingId(null)} className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-xs font-semibold">ביטול</button>
+                      </div>
+                    </div>
+                  ) : (
                     <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                       <button onClick={() => togglePersonal(item)}>
                         {item.is_completed ? <CheckCircle2 className="w-5 h-5 text-mustard-500" /> : <Circle className="w-5 h-5 text-sand-300" />}
@@ -547,6 +578,9 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                         {item.text}
                         {item.week_from && <span className="text-xs text-mustard-500 mr-1"> · שבוע {item.week_from}{item.week_to && `–${item.week_to}`}</span>}
                       </span>
+                      <button onClick={() => startEdit(item)} className="text-sand-200 hover:text-mustard-400 flex-shrink-0">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
                       <button onClick={() => deletePersonalItem(item.id)} className="text-sand-200 hover:text-red-400 flex-shrink-0">
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -620,12 +654,27 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                   <p className="text-xs font-bold text-mustard-600">📝 פריטים שהוספתי</p>
                 </div>
                 <div className="divide-y divide-sand-50">
-                  {myPersonalBuying.map(item => (
+                  {myPersonalBuying.map(item => editingId === item.id ? (
+                    <div key={item.id} className="px-4 py-3 space-y-2">
+                      <input value={editText} onChange={e => setEditText(e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-mustard-300 rounded-xl text-sm focus:outline-none" autoFocus />
+                      <div className="flex gap-2">
+                        <button onClick={saveEdit} className="flex-1 py-2 rounded-xl text-white font-bold text-xs"
+                          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                          <Check className="w-3.5 h-3.5 inline ml-1" />שמירה
+                        </button>
+                        <button onClick={() => setEditingId(null)} className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-xs font-semibold">ביטול</button>
+                      </div>
+                    </div>
+                  ) : (
                     <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                       <button onClick={() => togglePersonal(item)}>
                         {item.is_completed ? <CheckCircle2 className="w-5 h-5 text-mustard-500" /> : <Circle className="w-5 h-5 text-sand-300" />}
                       </button>
                       <span className={`text-sm flex-1 text-right ${item.is_completed ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
+                      <button onClick={() => startEdit(item)} className="text-sand-200 hover:text-mustard-400 flex-shrink-0">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
                       <button onClick={() => deletePersonalItem(item.id)} className="text-sand-200 hover:text-red-400 flex-shrink-0">
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -663,7 +712,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
 
         {/* ── Reminders Tab ── */}
         {dashTab === 'reminders' && (
-          <RemindersPanel />
+          <CustomRemindersPanel />
         )}
 
         {/* ── Quick links + Graduation (always visible) ── */}

@@ -79,9 +79,8 @@ export default function CommunityPage() {
 
   const loadPregnant = useCallback(async () => {
     const { data } = await supabase
-      .from('user_profiles')
-      .select('id, mother_name, area, phone_number, community_consent, community_bio, due_date')
-      .eq('user_mode', 'pregnant')
+      .from('community_pregnant_profiles')
+      .select('*')
     setPregnantProfiles((data ?? []) as PregnantProfile[])
   }, [])
 

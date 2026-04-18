@@ -15,18 +15,34 @@ type Props = {
 const APP_BASE = 'https://mimoapp.vercel.app'
 
 export default function DashboardPage({ onNavigate }: Props) {
-  const { profile, signOut, selectedChild, children, family, createFamilyInvite } = useAuth()
+  const { profile, signOut, selectedChild, children, family, createFamilyInvite, user, refreshProfile } = useAuth()
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [nextFeedingTime, setNextFeedingTime] = useState<Date | null>(null)
+  const [now, setNow] = useState(new Date())
 
   useEffect(() => {
     fetchTip()
     fetchPerks()
+    const stored = localStorage.getItem('next_feeding_time')
+    if (stored) setNextFeedingTime(new Date(stored))
+    const timer = setInterval(() => {
+      setNow(new Date())
+      const s = localStorage.getItem('next_feeding_time')
+      if (s) setNextFeedingTime(new Date(s))
+    }, 30000)
+    return () => clearInterval(timer)
   }, [])
+
+  async function saveFeedingInterval(hours: number) {
+    if (!user) return
+    await supabase.from('user_profiles').update({ feeding_interval_hours: hours }).eq('id', user.id)
+    refreshProfile()
+  }
 
   async function fetchTip() {
     const { data } = await supabase
@@ -106,6 +122,54 @@ export default function DashboardPage({ onNavigate }: Props) {
 
         {/* Child Switcher */}
         {children.length > 0 && <ChildSwitcher />}
+
+        {/* Next feeding card */}
+        {selectedChild && (() => {
+          const overdue = nextFeedingTime && now >= nextFeedingTime
+          const minutesLeft = nextFeedingTime && !overdue
+            ? Math.round((nextFeedingTime.getTime() - now.getTime()) / 60000)
+            : null
+          const nextStr = nextFeedingTime
+            ? nextFeedingTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+            : null
+          const intervalHours = profile?.feeding_interval_hours ?? 3
+          return (
+            <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 ${overdue ? 'bg-orange-100' : 'bg-mustard-50'}`}>
+                  🍼
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-sand-800">
+                    {overdue ? 'הגיע זמן להאכיל!' : nextStr ? `האכלה הבאה בשעה ${nextStr}` : 'מעקב האכלה'}
+                  </p>
+                  <p className="text-xs text-sand-400">
+                    {overdue
+                      ? 'עבר הזמן מאז ההאכלה האחרונה'
+                      : minutesLeft != null
+                      ? `עוד ${minutesLeft < 60 ? `${minutesLeft} דקות` : `${Math.round(minutesLeft / 60 * 10) / 10} שעות`}`
+                      : 'רשמי האכלה ביומן כדי לעקוב'}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-sand-400 mb-1.5">מרווח בין האכלות</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {[2, 2.5, 3, 3.5, 4].map(h => (
+                    <button
+                      key={h}
+                      onClick={() => saveFeedingInterval(h)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${intervalHours === h ? 'text-white shadow-sm' : 'bg-sand-100 text-sand-500'}`}
+                      style={intervalHours === h ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+                    >
+                      {h}ש׳
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Assigned tasks */}
         <MyTasksPanel />
