@@ -90,6 +90,7 @@ function ProductModal({ ws, onClose }: { ws: WorkshopExt; onClose: () => void })
 
 const CATEGORIES = [
   { key: 'all',      label: 'הכל' },
+  { key: 'הריון',   label: '🤰 הריון' },
   { key: 'תינוקות', label: 'תינוקות' },
   { key: 'אימהות',  label: 'אימהות' },
   { key: 'ביי',     label: 'ביי' },
@@ -105,11 +106,12 @@ type PurchasedRow = {
 
 export default function WorkshopsPage() {
   const { profile, user } = useAuth()
+  const isPregnant = profile?.user_mode === 'pregnant'
   const [workshops, setWorkshops] = useState<WorkshopExt[]>([])
   const [purchases, setPurchases] = useState<PurchasedRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<WorkshopExt | null>(null)
-  const [category, setCategory] = useState('all')
+  const [category, setCategory] = useState(isPregnant ? 'הריון' : 'all')
   const [tab, setTab] = useState<'store' | 'purchases'>('store')
 
   useEffect(() => {

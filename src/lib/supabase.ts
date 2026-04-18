@@ -207,6 +207,17 @@ export type ActiveTimer = {
   created_at: string
 }
 
+export type PregnancyChecklistItem = {
+  id: string
+  category: 'medical' | 'buying'
+  text: string
+  week_from: number | null
+  week_to: number | null
+  display_order: number
+  is_active: boolean
+  created_at: string
+}
+
 // Extended types (with joins)
 export type DailyLogEntryWithDetails = DailyLogEntry & {
   feeding_details?: FeedingDetail | null

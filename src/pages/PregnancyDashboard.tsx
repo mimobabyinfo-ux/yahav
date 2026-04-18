@@ -1,100 +1,75 @@
 import { useState, useEffect } from 'react'
-import { Baby, CheckCircle2, Circle, ChevronDown, ChevronUp, Sparkles, LogOut } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { LogOut, Sparkles, CheckCircle2, Circle, ShoppingBag, Stethoscope, ChevronDown, ChevronUp } from 'lucide-react'
+import { supabase, PregnancyChecklistItem } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { Page } from '../App'
 
-type Props = {
-  onNavigate: (page: Page) => void
-}
+type Props = { onNavigate: (page: Page) => void }
 
-type ChecklistItem = { id: string; text: string }
-type ChecklistCategory = { key: string; label: string; emoji: string; items: ChecklistItem[] }
-
-const CHECKLISTS: ChecklistCategory[] = [
-  {
-    key: 'hospital',
-    label: 'תיק לבית חולים',
-    emoji: '🏥',
-    items: [
-      { id: 'h1', text: 'תעודת זהות וכרטיס קופת חולים' },
-      { id: 'h2', text: 'בגדים לתינוק (4-5 חליפות)' },
-      { id: 'h3', text: 'חיתולים לתינוק' },
-      { id: 'h4', text: 'שמיכה לעטיפה' },
-      { id: 'h5', text: 'בגדים נוחים לאמא לאחר לידה' },
-      { id: 'h6', text: 'אוכל קל ומשקאות' },
-      { id: 'h7', text: 'מטען לטלפון' },
-      { id: 'h8', text: 'טיפות עיניים לתינוק (לפי הנחיות)' },
-    ],
-  },
-  {
-    key: 'nursery',
-    label: 'חדר תינוק',
-    emoji: '🛏️',
-    items: [
-      { id: 'n1', text: 'עריסה או מיטת תינוק' },
-      { id: 'n2', text: 'מזרן ומצעים' },
-      { id: 'n3', text: 'שינוי חיתולים ורפד' },
-      { id: 'n4', text: 'אמבטיה לתינוק' },
-      { id: 'n5', text: 'מנורת לילה' },
-      { id: 'n6', text: 'בייבי מוניטור' },
-    ],
-  },
-  {
-    key: 'shopping',
-    label: 'קניות לתינוק',
-    emoji: '🛍️',
-    items: [
-      { id: 's1', text: 'עגלת תינוק' },
-      { id: 's2', text: 'כיסא בטיחות לרכב' },
-      { id: 's3', text: 'מנשא/עגלת טיול' },
-      { id: 's4', text: 'שאבת חלב' },
-      { id: 's5', text: 'בקבוקי האכלה ופטמות' },
-      { id: 's6', text: 'בגדים (גודל 50, 56, 62)' },
-      { id: 's7', text: 'חיתולים ומגבונים' },
-      { id: 's8', text: 'מוצץ' },
-    ],
-  },
-  {
-    key: 'medical',
-    label: 'פגישות רפואיות',
-    emoji: '👩‍⚕️',
-    items: [
-      { id: 'm1', text: 'בדיקת אולטרסאונד שבוע 12' },
-      { id: 'm2', text: 'בדיקת שקיפות עורפית' },
-      { id: 'm3', text: 'בדיקת אולטרסאונד שבוע 22' },
-      { id: 'm4', text: 'בדיקת סוכר הריון (שבוע 26-28)' },
-      { id: 'm5', text: 'כיתת לידה' },
-      { id: 'm6', text: 'פגישה עם מיילדת/רופא ילדים' },
-      { id: 'm7', text: 'ייעוץ הנקה' },
-    ],
-  },
-]
+type DashTab = 'medical' | 'buying'
 
 function pregnancyWeek(dueDate: string): number {
-  const due = new Date(dueDate)
-  const today = new Date()
-  const daysLeft = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  const totalDays = 280
-  const daysPregnant = totalDays - daysLeft
-  return Math.max(1, Math.min(42, Math.floor(daysPregnant / 7)))
+  const daysLeft = Math.round((new Date(dueDate).getTime() - Date.now()) / 86400000)
+  return Math.max(1, Math.min(42, Math.floor((280 - daysLeft) / 7)))
 }
 
 function daysUntilDue(dueDate: string): number {
-  const due = new Date(dueDate)
-  const today = new Date()
-  return Math.max(0, Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))
+  return Math.max(0, Math.round((new Date(dueDate).getTime() - Date.now()) / 86400000))
+}
+
+// Group medical items into week buckets
+function groupByWeek(items: PregnancyChecklistItem[]) {
+  const buckets: { label: string; key: string; items: PregnancyChecklistItem[] }[] = []
+  const seen = new Set<string>()
+  items.forEach(item => {
+    const key = `${item.week_from ?? 0}-${item.week_to ?? 42}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      const label = item.week_from && item.week_to
+        ? `שבוע ${item.week_from}–${item.week_to}`
+        : item.week_from
+        ? `מסביב לשבוע ${item.week_from}`
+        : 'כללי'
+      buckets.push({ label, key, items: [] })
+    }
+    buckets.find(b => b.key === key)!.items.push(item)
+  })
+  return buckets.sort((a, b) => {
+    const aFrom = parseInt(a.key.split('-')[0])
+    const bFrom = parseInt(b.key.split('-')[0])
+    return aFrom - bFrom
+  })
 }
 
 export default function PregnancyDashboard({ onNavigate }: Props) {
-  const { profile, signOut, refreshProfile, user } = useAuth()
+  const { profile, signOut, refreshProfile, refreshChildren, user } = useAuth()
+  const [dashTab, setDashTab] = useState<DashTab>('medical')
+  const [medicalItems, setMedicalItems] = useState<PregnancyChecklistItem[]>([])
+  const [buyingItems, setBuyingItems] = useState<PregnancyChecklistItem[]>([])
   const [completed, setCompleted] = useState<Set<string>>(new Set())
-  const [expanded, setExpanded] = useState<string | null>('hospital')
+  const [expandedBuckets, setExpandedBuckets] = useState<Set<string>>(new Set())
   const [graduating, setGraduating] = useState(false)
   const [babyName, setBabyName] = useState('')
   const [babyDob, setBabyDob] = useState(new Date().toISOString().split('T')[0])
   const [babyGender, setBabyGender] = useState<'girl' | 'boy' | 'other'>('girl')
   const [saving, setSaving] = useState(false)
+
+  // Load checklist items from DB
+  useEffect(() => {
+    supabase
+      .from('pregnancy_checklist_items')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order')
+      .then(({ data }) => {
+        const all = (data ?? []) as PregnancyChecklistItem[]
+        setMedicalItems(all.filter(i => i.category === 'medical'))
+        setBuyingItems(all.filter(i => i.category === 'buying'))
+        // Auto-expand first medical bucket
+        const firstKey = groupByWeek(all.filter(i => i.category === 'medical'))[0]?.key
+        if (firstKey) setExpandedBuckets(new Set([firstKey]))
+      })
+  }, [])
 
   // Load completions from DB
   useEffect(() => {
@@ -123,134 +98,200 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
       .eq('id', user.id)
   }
 
+  function toggleBucket(key: string) {
+    setExpandedBuckets(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   async function graduate() {
     if (!user || !babyName.trim()) return
     setSaving(true)
-    // Add baby
     await supabase.from('children').insert({
       user_id: user.id,
       name: babyName.trim(),
       dob: babyDob || null,
       gender: babyGender,
     })
-    // Switch mode to mom
-    await supabase
-      .from('user_profiles')
-      .update({ user_mode: 'mom', baby_name: babyName.trim(), baby_dob: babyDob || null })
-      .eq('id', user.id)
-    await refreshProfile()
+    await supabase.from('user_profiles').update({
+      user_mode: 'mom',
+      baby_name: babyName.trim(),
+      baby_dob: babyDob || null,
+    }).eq('id', user.id)
+    await Promise.all([refreshProfile(), refreshChildren()])
     setSaving(false)
   }
 
   const week = profile?.due_date ? pregnancyWeek(profile.due_date) : null
   const daysLeft = profile?.due_date ? daysUntilDue(profile.due_date) : null
 
-  const totalItems = CHECKLISTS.reduce((a, c) => a + c.items.length, 0)
-  const doneCount = CHECKLISTS.reduce(
-    (a, c) => a + c.items.filter(i => completed.has(i.id)).length, 0
-  )
-  const pct = Math.round((doneCount / totalItems) * 100)
+  const allItems = [...medicalItems, ...buyingItems]
+  const totalItems = allItems.length
+  const doneCount = allItems.filter(i => completed.has(i.id)).length
+  const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0
+
+  const medicalBuckets = groupByWeek(medicalItems)
 
   return (
-    <div className="min-h-screen p-4 pb-28 relative" dir="rtl">
-      <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
-        <span className="text-[220px] opacity-5">🤰</span>
+    <div className="min-h-screen pb-28" dir="rtl">
+      {/* Header */}
+      <div className="px-5 pt-10 pb-6" style={{ background: 'linear-gradient(160deg, #4A3F35 0%, #3a302a 100%)' }}>
+        <div className="max-w-sm mx-auto">
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <p className="text-sm" style={{ color: '#C49438' }}>שלום,</p>
+              <h1 className="text-2xl font-bold text-white">{profile?.mother_name ?? 'אמא לעתיד'} 🤰</h1>
+            </div>
+            <button onClick={signOut} className="p-2 rounded-xl text-white/50 hover:text-white transition-colors">
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Due date card */}
+          {profile?.due_date ? (
+            <div className="rounded-3xl p-5 relative overflow-hidden mb-4" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              <div className="relative z-10">
+                <p className="text-sm font-semibold text-white/80">שבוע הריון</p>
+                <p className="text-5xl font-black text-white mt-1">{week}</p>
+                <p className="text-sm text-white/80 mt-2">
+                  {daysLeft === 0 ? '🎉 יום הלידה הגיע!' : `עוד ${daysLeft} ימים ללידה`}
+                </p>
+              </div>
+              <div className="absolute left-4 top-4 text-6xl opacity-20">👶</div>
+            </div>
+          ) : (
+            <div className="bg-white/10 rounded-3xl p-4 text-center mb-4">
+              <p className="text-white/60 text-sm">הוסיפי תאריך לידה משוער בפרופיל שלך</p>
+            </div>
+          )}
+
+          {/* Progress bar */}
+          <div className="bg-white/10 rounded-2xl p-3 flex items-center gap-3">
+            <div className="flex-1">
+              <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #D4AA52, #ffdf80)' }}
+                />
+              </div>
+            </div>
+            <p className="text-xs font-bold text-white/80 flex-shrink-0">{doneCount}/{totalItems} הושלמו</p>
+          </div>
+        </div>
       </div>
 
-      <div className="relative z-10 max-w-sm mx-auto space-y-4">
-        {/* Header */}
-        <div className="flex items-start justify-between pt-2">
-          <div>
-            <p className="text-sand-400 text-sm">שלום,</p>
-            <h1 className="text-2xl font-bold text-sand-800">{profile?.mother_name ?? 'אמא לעתיד'} 🤰</h1>
-          </div>
-          <button onClick={signOut} className="p-2 rounded-xl hover:bg-sand-100 text-sand-300 hover:text-sand-500 transition-colors">
-            <LogOut className="w-5 h-5" />
+      <div className="max-w-sm mx-auto px-4 pt-4 space-y-3">
+        {/* Tab switcher */}
+        <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
+          <button
+            onClick={() => setDashTab('medical')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${dashTab === 'medical' ? 'text-white shadow-sm' : 'text-sand-500'}`}
+            style={dashTab === 'medical' ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+          >
+            <Stethoscope className="w-4 h-4" />
+            משימות רפואיות
+          </button>
+          <button
+            onClick={() => setDashTab('buying')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${dashTab === 'buying' ? 'text-white shadow-sm' : 'text-sand-500'}`}
+            style={dashTab === 'buying' ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+          >
+            <ShoppingBag className="w-4 h-4" />
+            רשימת קניות
           </button>
         </div>
 
-        {/* Due date card */}
-        {profile?.due_date ? (
-          <div className="rounded-3xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
-            <div className="relative z-10">
-              <p className="text-sm font-semibold opacity-80">שבוע הריון</p>
-              <p className="text-5xl font-black mt-1">{week}</p>
-              <p className="text-sm opacity-80 mt-2">
-                {daysLeft === 0 ? '🎉 יום הלידה הגיע!' : `עוד ${daysLeft} ימים ללידה`}
-              </p>
+        {/* Medical missions — grouped by week */}
+        {dashTab === 'medical' && (
+          medicalBuckets.length === 0 ? (
+            <div className="text-center py-10 text-sand-400 text-sm">טוענת...</div>
+          ) : (
+            <div className="space-y-2">
+              {medicalBuckets.map(bucket => {
+                const bucketDone = bucket.items.filter(i => completed.has(i.id)).length
+                const isOpen = expandedBuckets.has(bucket.key)
+                const allDone = bucketDone === bucket.items.length
+                return (
+                  <div key={bucket.key} className="bg-white rounded-3xl shadow-sm overflow-hidden">
+                    <button
+                      className="w-full flex items-center justify-between p-4"
+                      onClick={() => toggleBucket(bucket.key)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-base flex-shrink-0 ${allDone ? 'bg-green-100' : 'bg-mustard-50'}`}>
+                          {allDone ? '✅' : '🩺'}
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-sand-800 text-sm">{bucket.label}</p>
+                          <p className="text-xs text-sand-400">{bucketDone}/{bucket.items.length} הושלמו</p>
+                        </div>
+                      </div>
+                      {isOpen
+                        ? <ChevronUp className="w-4 h-4 text-sand-400" />
+                        : <ChevronDown className="w-4 h-4 text-sand-400" />}
+                    </button>
+
+                    {isOpen && (
+                      <div className="border-t border-sand-100 divide-y divide-sand-50">
+                        {bucket.items.map(item => {
+                          const done = completed.has(item.id)
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => toggleItem(item.id)}
+                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sand-50 transition-colors text-right"
+                            >
+                              {done
+                                ? <CheckCircle2 className="w-5 h-5 text-mustard-500 flex-shrink-0" />
+                                : <Circle className="w-5 h-5 text-sand-300 flex-shrink-0" />}
+                              <span className={`text-sm flex-1 text-right ${done ? 'line-through text-sand-400' : 'text-sand-700'}`}>
+                                {item.text}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-            <div className="absolute left-4 top-4 text-6xl opacity-20">👶</div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-3xl p-4 shadow-sm text-center">
-            <p className="text-sand-500 text-sm">הוסיפי תאריך לידה משוער בפרופיל שלך</p>
-          </div>
+          )
         )}
 
-        {/* Progress bar */}
-        <div className="bg-white rounded-3xl p-4 shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-sand-800">ההכנות שלי</p>
-            <p className="text-sm font-bold text-mustard-600">{doneCount}/{totalItems}</p>
-          </div>
-          <div className="w-full h-3 bg-sand-100 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #D4AA52, #C49438)' }}
-            />
-          </div>
-          <p className="text-xs text-sand-400">{pct}% הושלם</p>
-        </div>
-
-        {/* Checklists */}
-        <div className="space-y-2">
-          {CHECKLISTS.map(cat => {
-            const catDone = cat.items.filter(i => completed.has(i.id)).length
-            const isOpen = expanded === cat.key
-            return (
-              <div key={cat.key} className="bg-white rounded-3xl shadow-sm overflow-hidden">
-                <button
-                  className="w-full flex items-center justify-between p-4"
-                  onClick={() => setExpanded(isOpen ? null : cat.key)}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{cat.emoji}</span>
-                    <div className="text-right">
-                      <p className="font-bold text-sand-800 text-sm">{cat.label}</p>
-                      <p className="text-xs text-sand-400">{catDone}/{cat.items.length} הושלמו</p>
-                    </div>
-                  </div>
-                  {isOpen ? <ChevronUp className="w-4 h-4 text-sand-400" /> : <ChevronDown className="w-4 h-4 text-sand-400" />}
-                </button>
-
-                {isOpen && (
-                  <div className="border-t border-sand-100 divide-y divide-sand-50">
-                    {cat.items.map(item => {
-                      const done = completed.has(item.id)
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => toggleItem(item.id)}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sand-50 transition-colors text-right"
-                        >
-                          {done
-                            ? <CheckCircle2 className="w-5 h-5 text-mustard-500 flex-shrink-0" />
-                            : <Circle className="w-5 h-5 text-sand-300 flex-shrink-0" />}
-                          <span className={`text-sm ${done ? 'line-through text-sand-400' : 'text-sand-700'}`}>
-                            {item.text}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+        {/* Buying list — flat */}
+        {dashTab === 'buying' && (
+          buyingItems.length === 0 ? (
+            <div className="text-center py-10 text-sand-400 text-sm">טוענת...</div>
+          ) : (
+            <div className="bg-white rounded-3xl shadow-sm overflow-hidden divide-y divide-sand-50">
+              {buyingItems.map(item => {
+                const done = completed.has(item.id)
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => toggleItem(item.id)}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-sand-50 transition-colors text-right"
+                  >
+                    {done
+                      ? <CheckCircle2 className="w-5 h-5 text-mustard-500 flex-shrink-0" />
+                      : <Circle className="w-5 h-5 text-sand-300 flex-shrink-0" />}
+                    <span className={`text-sm flex-1 text-right ${done ? 'line-through text-sand-400' : 'text-sand-700'}`}>
+                      {item.text}
+                    </span>
+                    {done && <span className="text-xs text-mustard-500 font-semibold flex-shrink-0">✓</span>}
+                  </button>
+                )
+              })}
+            </div>
+          )
+        )}
 
         {/* Quick links */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 pt-1">
           <button
             onClick={() => onNavigate('workshops')}
             className="bg-white rounded-3xl p-4 shadow-sm text-right hover:shadow-md hover:-translate-y-0.5 transition-all"
@@ -265,7 +306,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
           >
             <span className="text-3xl block mb-2">🌸</span>
             <p className="font-bold text-sand-800 text-sm">קהילה</p>
-            <p className="text-xs text-sand-400">אמהות לעתיד</p>
+            <p className="text-xs text-sand-400">בנות בריון כמוך</p>
           </button>
         </div>
 
@@ -335,11 +376,6 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
             </div>
           </div>
         )}
-
-        {/* Baby icon bottom */}
-        <div className="flex justify-center py-2">
-          <Baby className="w-6 h-6 text-sand-200" />
-        </div>
       </div>
     </div>
   )

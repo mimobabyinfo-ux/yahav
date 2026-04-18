@@ -126,8 +126,7 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
   ]
 
   const pregnancyItems: { id: Page; label: string; icon: React.ReactNode }[] = [
-    { id: 'dashboard',  label: 'בית',      icon: <Home className="w-5 h-5" /> },
-    { id: 'pro',        label: 'סרטונים',  icon: <PlayCircle className="w-5 h-5" /> },
+    { id: 'dashboard',  label: 'מעקב',     icon: <Home className="w-5 h-5" /> },
     { id: 'workshops',  label: 'מוצרים',   icon: <ShoppingBag className="w-5 h-5" /> },
     { id: 'community',  label: 'קהילה',    icon: <span className="text-lg leading-none">🌸</span> },
     { id: 'benefits',   label: 'הטבות',    icon: <Gift className="w-5 h-5" /> },

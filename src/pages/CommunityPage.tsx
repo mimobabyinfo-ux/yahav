@@ -18,23 +18,42 @@ type CommunityProfile = {
   child_gender: 'boy' | 'girl' | 'other' | null
 }
 
+type PregnantProfile = {
+  id: string
+  mother_name: string | null
+  area: string | null
+  phone_number: string | null
+  community_consent: boolean | null
+  community_bio: string | null
+  due_date: string | null
+}
+
 type FilterMode = 'age' | 'area' | 'all'
+type PregnancyFilter = 'all' | 'week' | 'area'
 
 function ageMonths(dob: string): number {
-  const ms = Date.now() - new Date(dob).getTime()
-  return Math.floor(ms / (1000 * 60 * 60 * 24 * 30.44))
+  return Math.floor((Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+}
+
+function pregnancyWeek(dueDate: string): number {
+  const daysLeft = Math.round((new Date(dueDate).getTime() - Date.now()) / 86400000)
+  return Math.max(1, Math.min(42, Math.floor((280 - daysLeft) / 7)))
 }
 
 export default function CommunityPage() {
   const { selectedChild, profile, user, refreshProfile } = useAuth()
+  const isPregnant = profile?.user_mode === 'pregnant'
+
+  // Mom-mode state
   const [profiles, setProfiles] = useState<CommunityProfile[]>([])
   const [filterMode, setFilterMode] = useState<FilterMode>('all')
+
+  // Pregnancy-mode state
+  const [pregnantProfiles, setPregnantProfiles] = useState<PregnantProfile[]>([])
+  const [pregnancyFilter, setPregnancyFilter] = useState<PregnancyFilter>('all')
+
   const [editMode, setEditMode] = useState(false)
-
-  // After a successful save, immediately hide the form (don't wait for DB refresh)
   const [registeredInSession, setRegisteredInSession] = useState(false)
-
-  // Initialize inputs from profile ONCE
   const initialized = useRef(false)
   const [areaInput, setAreaInput] = useState('')
   const [phoneInput, setPhoneInput] = useState('')
@@ -53,18 +72,29 @@ export default function CommunityPage() {
     }
   }, [profile])
 
-  const load = useCallback(async () => {
+  const loadMoms = useCallback(async () => {
     const { data } = await supabase.from('community_profiles').select('*')
     setProfiles((data ?? []) as CommunityProfile[])
   }, [])
 
-  useEffect(() => { load() }, [load])
+  const loadPregnant = useCallback(async () => {
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('id, mother_name, area, phone_number, community_consent, community_bio, due_date')
+      .eq('user_mode', 'pregnant')
+      .eq('community_consent', true)
+    setPregnantProfiles((data ?? []) as PregnantProfile[])
+  }, [])
+
+  useEffect(() => {
+    if (isPregnant) loadPregnant()
+    else loadMoms()
+  }, [isPregnant, loadMoms, loadPregnant])
 
   async function saveMyProfile() {
     if (!user) return
     setSavingProfile(true)
     setSaveError('')
-
     const { error } = await supabase
       .from('user_profiles')
       .update({
@@ -74,32 +104,24 @@ export default function CommunityPage() {
         community_consent: consentChecked,
       })
       .eq('id', user.id)
-
     setSavingProfile(false)
-
-    if (error) {
-      setSaveError('שגיאה בשמירה — נסי שוב')
-      return
-    }
-
-    // Immediately hide form (don't wait for profile refresh)
+    if (error) { setSaveError('שגיאה בשמירה — נסי שוב'); return }
     setRegisteredInSession(true)
     setEditMode(false)
-
-    // Refresh in background
     refreshProfile()
-    load()
+    if (isPregnant) loadPregnant()
+    else loadMoms()
   }
 
-  // Show edit form if: never registered AND profile has no phone saved in DB
-  const profileComplete = registeredInSession || !!(profile?.phone_number)
+  const profileComplete = registeredInSession || !!(profile?.phone_number || profile?.community_consent)
   const showEditSection = !profileComplete || editMode
 
   const myMonths = selectedChild?.dob ? ageMonths(selectedChild.dob) : null
-  // Use freshly saved area input OR profile area
   const myArea = (registeredInSession ? areaInput : (profile?.area ?? areaInput)).trim().toLowerCase()
+  const myWeek = profile?.due_date ? pregnancyWeek(profile.due_date) : null
 
-  const filtered = profiles.filter(p => {
+  // Filter mom profiles
+  const filteredMoms = profiles.filter(p => {
     if (p.id === user?.id) return false
     if (filterMode === 'age') {
       if (myMonths == null || !p.child_dob) return false
@@ -112,12 +134,26 @@ export default function CommunityPage() {
     return true
   })
 
+  // Filter pregnant profiles
+  const filteredPregnant = pregnantProfiles.filter(p => {
+    if (p.id === user?.id) return false
+    if (pregnancyFilter === 'week') {
+      if (myWeek == null || !p.due_date) return false
+      return Math.abs(pregnancyWeek(p.due_date) - myWeek) <= 2
+    }
+    if (pregnancyFilter === 'area') {
+      if (!myArea || !p.area) return false
+      return p.area.trim().toLowerCase() === myArea
+    }
+    return true
+  })
+
   const genderEmoji = (g: string | null) => g === 'boy' ? '👦' : g === 'girl' ? '👧' : '👶'
 
   return (
     <div className="min-h-screen p-4 pb-28 relative" dir="rtl">
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
-        <span className="text-[250px] opacity-5">👩‍👩‍👧</span>
+        <span className="text-[250px] opacity-5">{isPregnant ? '🤰' : '👩‍👩‍👧'}</span>
       </div>
 
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
@@ -125,7 +161,9 @@ export default function CommunityPage() {
         <div className="pt-2 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-sand-800">קהילה</h1>
-            <p className="text-sand-400 text-sm">אמהות בשלב דומה כמוך</p>
+            <p className="text-sand-400 text-sm">
+              {isPregnant ? 'בנות בהריון בשלב דומה' : 'אמהות בשלב דומה כמוך'}
+            </p>
           </div>
           {profileComplete && !editMode && (
             <button
@@ -138,15 +176,16 @@ export default function CommunityPage() {
           )}
         </div>
 
-        {/* Community profile form — hidden once complete */}
+        {/* Community profile form */}
         {showEditSection && (
           <div className="bg-white rounded-3xl p-5 shadow-sm space-y-4">
             <div>
-              <p className="text-base font-bold text-sand-800">הצטרפי לקהילה 🌸</p>
-              <p className="text-xs text-sand-400 mt-0.5">מלאי פרטים כדי שאמהות אחרות יוכלו להתחבר איתך</p>
+              <p className="text-base font-bold text-sand-800">
+                {isPregnant ? 'הצטרפי לקהילת הריון 🤰' : 'הצטרפי לקהילה 🌸'}
+              </p>
+              <p className="text-xs text-sand-400 mt-0.5">מלאי פרטים כדי שנשים אחרות יוכלו להתחבר איתך</p>
             </div>
 
-            {/* Area */}
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
                 <MapPin className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
@@ -160,7 +199,6 @@ export default function CommunityPage() {
               />
             </div>
 
-            {/* Phone */}
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
                 <Phone className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
@@ -176,22 +214,22 @@ export default function CommunityPage() {
               />
             </div>
 
-            {/* Bio */}
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
                 <AlignLeft className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
-                קצת עליי / מה אני מחפשת
+                {isPregnant ? 'קצת עליי / שבוע הריון ומה אני מחפשת' : 'קצת עליי / מה אני מחפשת'}
               </label>
               <textarea
                 value={bioInput}
                 onChange={e => setBioInput(e.target.value)}
-                placeholder="למשל: אמא לתינוקת בת 3 חודשים, מחפשת אמא לטיולים משותפים..."
+                placeholder={isPregnant
+                  ? 'למשל: שבוע 28, מחפשת חברותא לטיולים ולמדריכי לידה...'
+                  : 'למשל: אמא לתינוקת בת 3 חודשים, מחפשת אמא לטיולים משותפים...'}
                 rows={3}
                 className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none"
               />
             </div>
 
-            {/* Consent */}
             <label className="flex items-start gap-3 cursor-pointer">
               <div
                 onClick={() => setConsentChecked(v => !v)}
@@ -201,7 +239,7 @@ export default function CommunityPage() {
                 {consentChecked && <Check className="w-3 h-3 text-white" />}
               </div>
               <span className="text-xs text-sand-600 leading-relaxed">
-                אני מסכימה לשתף את מספר הטלפון שלי עם אמהות אחרות בקהילה
+                אני מסכימה לשתף את מספר הטלפון שלי עם נשים אחרות בקהילה
               </span>
             </label>
 
@@ -209,10 +247,7 @@ export default function CommunityPage() {
 
             <div className="flex gap-2">
               {editMode && (
-                <button
-                  onClick={() => setEditMode(false)}
-                  className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold"
-                >
+                <button onClick={() => setEditMode(false)} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">
                   ביטול
                 </button>
               )}
@@ -229,96 +264,188 @@ export default function CommunityPage() {
         )}
 
         {/* Filters */}
-        <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
-          {([
-            ['all',  'כולן'],
-            ['age',  'גיל דומה'],
-            ['area', 'אותו אזור'],
-          ] as [FilterMode, string][]).map(([v, label]) => (
-            <button
-              key={v}
-              onClick={() => setFilterMode(v as FilterMode)}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${filterMode === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
-              style={filterMode === v ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Results */}
-        {filtered.length === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-2">
-            <p className="text-3xl">🔍</p>
-            <p className="font-semibold text-sand-700 text-sm">
-              {filterMode === 'area' && !myArea
-                ? 'הזיני עיר / אזור בפרופיל שלך כדי לחפש'
-                : filterMode === 'age' && myMonths == null
-                ? 'הוסיפי תאריך לידה לתינוק/ת כדי לסנן לפי גיל'
-                : 'לא נמצאו אמהות בסינון זה — נסי "כולן"'}
-            </p>
+        {isPregnant ? (
+          <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
+            {([
+              ['all',  'כולן'],
+              ['week', 'שבוע דומה'],
+              ['area', 'אותו אזור'],
+            ] as [PregnancyFilter, string][]).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setPregnancyFilter(v)}
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${pregnancyFilter === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
+                style={pregnancyFilter === v ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         ) : (
-          <div className="space-y-3">
-            <p className="text-xs text-sand-400 flex items-center gap-1">
-              <Filter className="w-3.5 h-3.5" />
-              {filtered.length} אמהות נמצאו
-            </p>
-            {filtered.map(p => (
-              <div key={p.child_id} className="bg-white rounded-3xl p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 mt-0.5"
-                    style={{ background: 'linear-gradient(135deg, #F7F3EC, #F2EBE0)' }}>
-                    {genderEmoji(p.child_gender)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sand-800 text-sm">
-                      {p.mother_name ? p.mother_name.split(' ')[0] : 'אמא'}
-                    </p>
-                    <p className="text-xs text-sand-400">
-                      {p.child_dob ? getBabyAge(p.child_dob) : ''}
-                      {p.area && ` · ${p.area}`}
-                    </p>
-                    {p.community_bio && (
-                      <p className="text-xs text-sand-600 mt-1.5 leading-relaxed line-clamp-2">
-                        {p.community_bio}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex-shrink-0">
-                    {p.community_consent && p.phone_number ? (
-                      <a
-                        href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת Mimo 🌿')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        WhatsApp
-                      </a>
-                    ) : (
-                      <a
-                        href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent(`היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוק${p.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        חיבור
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
+          <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
+            {([
+              ['all',  'כולן'],
+              ['age',  'גיל דומה'],
+              ['area', 'אותו אזור'],
+            ] as [FilterMode, string][]).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setFilterMode(v as FilterMode)}
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${filterMode === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
+                style={filterMode === v ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+              >
+                {label}
+              </button>
             ))}
           </div>
         )}
 
+        {/* ── Pregnant community results ─────────────────────────────────────── */}
+        {isPregnant && (
+          filteredPregnant.length === 0 ? (
+            <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-2">
+              <p className="text-3xl">🔍</p>
+              <p className="font-semibold text-sand-700 text-sm">
+                {pregnancyFilter === 'week' && myWeek == null
+                  ? 'הוסיפי תאריך לידה משוער בפרופיל שלך כדי לסנן לפי שבוע'
+                  : pregnancyFilter === 'area' && !myArea
+                  ? 'הזיני עיר / אזור בפרופיל שלך כדי לחפש'
+                  : 'לא נמצאו בנות בהריון בסינון זה — נסי "כולן"'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-sand-400 flex items-center gap-1">
+                <Filter className="w-3.5 h-3.5" />
+                {filteredPregnant.length} בנות בהריון נמצאו
+              </p>
+              {filteredPregnant.map(p => {
+                const week = p.due_date ? pregnancyWeek(p.due_date) : null
+                return (
+                  <div key={p.id} className="bg-white rounded-3xl p-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 mt-0.5"
+                        style={{ background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)' }}>
+                        🤰
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sand-800 text-sm">
+                          {p.mother_name ? p.mother_name.split(' ')[0] : 'בהריון'}
+                        </p>
+                        <p className="text-xs text-sand-400">
+                          {week != null ? `שבוע ${week}` : 'בהריון'}
+                          {p.area && ` · ${p.area}`}
+                        </p>
+                        {p.community_bio && (
+                          <p className="text-xs text-sand-600 mt-1.5 leading-relaxed line-clamp-2">{p.community_bio}</p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0">
+                        {p.community_consent && p.phone_number ? (
+                          <a
+                            href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת הריון של Mimo 🤰')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            WhatsApp
+                          </a>
+                        ) : (
+                          <a
+                            href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent('היי! אני בהריון ורוצה להתחבר עם בנות בשבוע דומה 🤰')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            חיבור
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        )}
+
+        {/* ── Mom community results ──────────────────────────────────────────── */}
+        {!isPregnant && (
+          filteredMoms.length === 0 ? (
+            <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-2">
+              <p className="text-3xl">🔍</p>
+              <p className="font-semibold text-sand-700 text-sm">
+                {filterMode === 'area' && !myArea
+                  ? 'הזיני עיר / אזור בפרופיל שלך כדי לחפש'
+                  : filterMode === 'age' && myMonths == null
+                  ? 'הוסיפי תאריך לידה לתינוק/ת כדי לסנן לפי גיל'
+                  : 'לא נמצאו אמהות בסינון זה — נסי "כולן"'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-sand-400 flex items-center gap-1">
+                <Filter className="w-3.5 h-3.5" />
+                {filteredMoms.length} אמהות נמצאו
+              </p>
+              {filteredMoms.map(p => (
+                <div key={p.child_id} className="bg-white rounded-3xl p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 mt-0.5"
+                      style={{ background: 'linear-gradient(135deg, #F7F3EC, #F2EBE0)' }}>
+                      {genderEmoji(p.child_gender)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sand-800 text-sm">
+                        {p.mother_name ? p.mother_name.split(' ')[0] : 'אמא'}
+                      </p>
+                      <p className="text-xs text-sand-400">
+                        {p.child_dob ? getBabyAge(p.child_dob) : ''}
+                        {p.area && ` · ${p.area}`}
+                      </p>
+                      {p.community_bio && (
+                        <p className="text-xs text-sand-600 mt-1.5 leading-relaxed line-clamp-2">{p.community_bio}</p>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0">
+                      {p.community_consent && p.phone_number ? (
+                        <a
+                          href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת Mimo 🌿')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          WhatsApp
+                        </a>
+                      ) : (
+                        <a
+                          href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent(`היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוק${p.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          חיבור
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
         {/* CTA */}
         <div className="bg-mustard-50 border border-mustard-200 rounded-3xl p-4 text-center space-y-2">
-          <p className="text-sm font-semibold text-sand-800">רוצה קבוצת וואטסאפ עם אמהות מהאזור?</p>
+          <p className="text-sm font-semibold text-sand-800">
+            {isPregnant ? 'רוצה קבוצת וואטסאפ עם בנות בהריון מהאזור?' : 'רוצה קבוצת וואטסאפ עם אמהות מהאזור?'}
+          </p>
           <a
-            href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent('היי! אני רוצה להצטרף לקבוצת אמהות מהאזור שלי 🌿')}`}
+            href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent(isPregnant ? 'היי! אני בהריון ורוצה להצטרף לקבוצת בנות בהריון 🤰' : 'היי! אני רוצה להצטרף לקבוצת אמהות מהאזור שלי 🌿')}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-white text-sm font-bold"

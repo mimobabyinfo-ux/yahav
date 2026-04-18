@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, ShoppingBag, Gift, LayoutGrid, Settings, MessageCircle, Mail } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
-import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting } from '../lib/supabase'
+import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { AdminSection } from '../App'
 
-type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'categories' | 'forms' | 'settings'
+type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'categories' | 'forms' | 'settings' | 'pregnancy'
 
 const APP_URL = 'https://mimoapp.vercel.app'
 
@@ -24,6 +24,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'workshops',  label: 'מוצרים',         icon: <ShoppingBag className="w-3.5 h-3.5" /> },
   { id: 'perks',      label: 'הטבות שותפים',   icon: <Gift className="w-3.5 h-3.5" /> },
   { id: 'categories', label: 'קטגוריות',       icon: <LayoutGrid className="w-3.5 h-3.5" /> },
+  { id: 'pregnancy',  label: 'הריון',           icon: <span className="text-xs">🤰</span> },
   { id: 'forms',      label: 'טפסים',          icon: <span className="text-xs">📋</span> },
   { id: 'settings',   label: 'הגדרות',         icon: <Settings className="w-3.5 h-3.5" /> },
 ]
@@ -90,6 +91,7 @@ export default function AdminPage({ defaultSection }: { defaultSection?: AdminSe
         {tab === 'videos'     && <VideosTab />}
         {tab === 'workshops'  && <WorkshopsTab />}
         {tab === 'perks'      && <PerksTab />}
+        {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'forms'      && <FormsTab />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
@@ -1697,6 +1699,214 @@ function SettingsTab() {
           ))}
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── Pregnancy Admin Tab ──────────────────────────────────────────────────────
+type PregnancyCat = 'medical' | 'buying'
+
+function PregnancyAdminTab() {
+  const [cat, setCat] = useState<PregnancyCat>('medical')
+  const [items, setItems] = useState<PregnancyChecklistItem[]>([])
+  const [editItem, setEditItem] = useState<PregnancyChecklistItem | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+
+  // Form state
+  const [formText, setFormText] = useState('')
+  const [formWeekFrom, setFormWeekFrom] = useState('')
+  const [formWeekTo, setFormWeekTo] = useState('')
+  const [formOrder, setFormOrder] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from('pregnancy_checklist_items')
+      .select('*')
+      .order('display_order')
+    setItems((data ?? []) as PregnancyChecklistItem[])
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  function openEdit(item: PregnancyChecklistItem) {
+    setEditItem(item)
+    setFormText(item.text)
+    setFormWeekFrom(item.week_from?.toString() ?? '')
+    setFormWeekTo(item.week_to?.toString() ?? '')
+    setFormOrder(item.display_order.toString())
+    setShowAdd(false)
+  }
+
+  function openAdd() {
+    setEditItem(null)
+    setFormText('')
+    setFormWeekFrom('')
+    setFormWeekTo('')
+    setFormOrder('')
+    setShowAdd(true)
+  }
+
+  async function save() {
+    if (!formText.trim()) return
+    setSaving(true)
+    const payload = {
+      text: formText.trim(),
+      category: cat,
+      week_from: formWeekFrom ? parseInt(formWeekFrom) : null,
+      week_to: formWeekTo ? parseInt(formWeekTo) : null,
+      display_order: formOrder ? parseInt(formOrder) : 0,
+    }
+    if (editItem) {
+      await supabase.from('pregnancy_checklist_items').update(payload).eq('id', editItem.id)
+    } else {
+      await supabase.from('pregnancy_checklist_items').insert({ ...payload, is_active: true })
+    }
+    setSaving(false)
+    setEditItem(null)
+    setShowAdd(false)
+    load()
+  }
+
+  async function toggleActive(item: PregnancyChecklistItem) {
+    await supabase.from('pregnancy_checklist_items').update({ is_active: !item.is_active }).eq('id', item.id)
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_active: !i.is_active } : i))
+  }
+
+  async function del(id: string) {
+    await supabase.from('pregnancy_checklist_items').delete().eq('id', id)
+    setItems(prev => prev.filter(i => i.id !== id))
+  }
+
+  const displayed = items.filter(i => i.category === cat)
+
+  return (
+    <div className="space-y-4">
+      {/* Category tabs */}
+      <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
+        <button
+          onClick={() => setCat('medical')}
+          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${cat === 'medical' ? 'text-white shadow-sm' : 'text-sand-500'}`}
+          style={cat === 'medical' ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+        >
+          🩺 משימות רפואיות
+        </button>
+        <button
+          onClick={() => setCat('buying')}
+          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${cat === 'buying' ? 'text-white shadow-sm' : 'text-sand-500'}`}
+          style={cat === 'buying' ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+        >
+          🛍️ רשימת קניות
+        </button>
+      </div>
+
+      {/* Add button */}
+      <button
+        onClick={openAdd}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-white font-bold text-sm"
+        style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+      >
+        <Plus className="w-4 h-4" />
+        {cat === 'medical' ? 'הוסף משימה רפואית' : 'הוסף פריט לקנייה'}
+      </button>
+
+      {/* Add / Edit form */}
+      {(showAdd || editItem) && (
+        <div className="bg-white rounded-3xl p-5 shadow-sm space-y-3">
+          <h3 className="font-bold text-sand-800 text-sm">{editItem ? 'ערוך פריט' : 'פריט חדש'}</h3>
+          <div>
+            <label className="text-xs text-sand-500 mb-1 block">טקסט</label>
+            <input
+              value={formText}
+              onChange={e => setFormText(e.target.value)}
+              placeholder="תיאור המשימה..."
+              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+            />
+          </div>
+          {cat === 'medical' && (
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs text-sand-500 mb-1 block">שבוע מ-</label>
+                <input
+                  type="number"
+                  value={formWeekFrom}
+                  onChange={e => setFormWeekFrom(e.target.value)}
+                  placeholder="1"
+                  min={1} max={42}
+                  className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-sand-500 mb-1 block">שבוע עד</label>
+                <input
+                  type="number"
+                  value={formWeekTo}
+                  onChange={e => setFormWeekTo(e.target.value)}
+                  placeholder="42"
+                  min={1} max={42}
+                  className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+                />
+              </div>
+            </div>
+          )}
+          <div>
+            <label className="text-xs text-sand-500 mb-1 block">סדר תצוגה</label>
+            <input
+              type="number"
+              value={formOrder}
+              onChange={e => setFormOrder(e.target.value)}
+              placeholder="0"
+              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={save}
+              disabled={saving || !formText.trim()}
+              className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            >
+              {saving ? '...' : 'שמירה'}
+            </button>
+            <button
+              onClick={() => { setEditItem(null); setShowAdd(false) }}
+              className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm"
+            >
+              ביטול
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Items list */}
+      <div className="space-y-2">
+        {displayed.map(item => (
+          <div key={item.id} className={`bg-white rounded-2xl p-4 shadow-sm flex items-start gap-3 ${!item.is_active ? 'opacity-50' : ''}`}>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-sand-800">{item.text}</p>
+              {item.category === 'medical' && (item.week_from || item.week_to) && (
+                <p className="text-xs text-mustard-600 mt-0.5">
+                  שבוע {item.week_from ?? '?'}–{item.week_to ?? '?'}
+                </p>
+              )}
+              <p className="text-xs text-sand-300 mt-0.5">סדר: {item.display_order}</p>
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button onClick={() => openEdit(item)} className="p-1.5 text-sand-400 hover:text-mustard-600 transition-colors">
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button onClick={() => toggleActive(item)} className="p-1.5 text-sand-400 hover:text-sand-700 transition-colors">
+                {item.is_active ? <ToggleRight className="w-4 h-4 text-green-500" /> : <ToggleLeft className="w-4 h-4" />}
+              </button>
+              <button onClick={() => del(item.id)} className="p-1.5 text-sand-300 hover:text-red-400 transition-colors">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+        {displayed.length === 0 && (
+          <p className="text-center text-sand-400 text-sm py-6">אין פריטים עדיין</p>
+        )}
+      </div>
     </div>
   )
 }
