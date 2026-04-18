@@ -258,6 +258,29 @@ export type UserReminder = {
   created_at: string
 }
 
+export type ServicePartner = {
+  id: string
+  title: string
+  description: string | null
+  category: 'pregnancy' | 'motherhood'
+  subcategory: string | null
+  whatsapp_number: string | null
+  logo_url: string | null
+  display_order: number
+  is_active: boolean
+  created_at: string
+}
+
+export type PartnerLead = {
+  id: string
+  user_id: string | null
+  partner_id: string | null
+  action_type: 'whatsapp' | 'callback'
+  contact_name: string | null
+  contact_phone: string | null
+  created_at: string
+}
+
 // Extended types (with joins)
 export type DailyLogEntryWithDetails = DailyLogEntry & {
   feeding_details?: FeedingDetail | null

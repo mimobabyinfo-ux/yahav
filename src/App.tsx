@@ -12,6 +12,7 @@ import ProAreaPage from './pages/ProAreaPage'
 import AdminPage from './pages/AdminPage'
 import ContactPage from './pages/ContactPage'
 import MyServicesPage from './pages/MyServicesPage'
+import ServicesMarketplacePage from './pages/ServicesMarketplacePage'
 import CommunityPage from './pages/CommunityPage'
 import PublicFormPage from './pages/PublicFormPage'
 import PublicBabyPage from './pages/PublicBabyPage'
@@ -20,7 +21,7 @@ import BottomNav from './components/BottomNav'
 import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
 
-export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'contact' | 'services' | 'community'
+export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'contact' | 'services' | 'community' | 'marketplace'
 export type AdminSection = 'insights' | 'users' | 'forms'
 
 // Detect public URLs
@@ -111,6 +112,7 @@ function AppInner() {
       case 'admin':      return <AdminPage defaultSection={adminSection} />
       case 'contact':    return <ContactPage />
       case 'services':   return <MyServicesPage />
+      case 'marketplace': return <ServicesMarketplacePage />
       case 'community':  return <CommunityPage />
       default:           return isPregnant
         ? <PregnancyDashboard onNavigate={setCurrentPage} />

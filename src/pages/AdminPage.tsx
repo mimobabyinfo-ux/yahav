@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, ShoppingBag, Gift, LayoutGrid, Settings, MessageCircle, Mail } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, ShoppingBag, Gift, LayoutGrid, Settings, MessageCircle, Mail, Phone } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
-import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide } from '../lib/supabase'
+import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { AdminSection } from '../App'
 
-type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'categories' | 'forms' | 'settings' | 'pregnancy'
+type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'categories' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads'
 
 const APP_URL = 'https://mimoapp.vercel.app'
 
@@ -25,6 +25,8 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'perks',      label: 'הטבות שותפים',   icon: <Gift className="w-3.5 h-3.5" /> },
   { id: 'categories', label: 'קטגוריות',       icon: <LayoutGrid className="w-3.5 h-3.5" /> },
   { id: 'pregnancy',  label: 'הריון',           icon: <span className="text-xs">🤰</span> },
+  { id: 'partners',   label: 'שירותים',        icon: <span className="text-xs">🌿</span> },
+  { id: 'leads',      label: 'לידים',          icon: <span className="text-xs">📞</span> },
   { id: 'forms',      label: 'טפסים',          icon: <span className="text-xs">📋</span> },
   { id: 'settings',   label: 'הגדרות',         icon: <Settings className="w-3.5 h-3.5" /> },
 ]
@@ -92,6 +94,8 @@ export default function AdminPage({ defaultSection }: { defaultSection?: AdminSe
         {tab === 'workshops'  && <WorkshopsTab />}
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
+        {tab === 'partners'   && <PartnersTab />}
+        {tab === 'leads'      && <LeadsTab />}
         {tab === 'forms'      && <FormsTab />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
@@ -2063,6 +2067,244 @@ function WeeklyGuideAdminSection() {
         ))}
         {guides.length === 0 && <p className="text-center text-sand-400 text-sm py-6">אין תוכן שבועי עדיין</p>}
       </div>
+    </div>
+  )
+}
+
+// ─── Partners Tab ─────────────────────────────────────────────────────────────
+const SUBCATS = [
+  { value: 'doula',        label: 'דולה' },
+  { value: 'pelvic_floor', label: 'רצפת האגן' },
+  { value: 'studio',       label: 'סטודיו' },
+  { value: 'lactation',    label: 'יועצת הנקה' },
+  { value: 'osteopath',    label: 'אוסטאופתיה' },
+  { value: 'physio',       label: 'פיזיותרפיה' },
+  { value: 'psychologist', label: 'פסיכולוגיה' },
+  { value: 'nutrition',    label: 'תזונה' },
+  { value: 'other',        label: 'אחר' },
+]
+
+function PartnersTab() {
+  const [partners, setPartners] = useState<ServicePartner[]>([])
+  const [editing, setEditing] = useState<ServicePartner | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState({ title: '', description: '', category: 'pregnancy' as 'pregnancy' | 'motherhood', subcategory: 'doula', whatsapp_number: '', logo_url: '', display_order: 0 })
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('service_partners').select('*').order('category').order('display_order')
+    setPartners((data ?? []) as ServicePartner[])
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  function openNew() {
+    setForm({ title: '', description: '', category: 'pregnancy', subcategory: 'doula', whatsapp_number: '', logo_url: '', display_order: partners.length })
+    setEditing(null)
+    setAdding(true)
+  }
+
+  function openEdit(p: ServicePartner) {
+    setForm({ title: p.title, description: p.description ?? '', category: p.category, subcategory: p.subcategory ?? 'other', whatsapp_number: p.whatsapp_number ?? '', logo_url: p.logo_url ?? '', display_order: p.display_order })
+    setEditing(p)
+    setAdding(true)
+  }
+
+  async function save() {
+    if (!form.title.trim()) return
+    setSaving(true)
+    if (editing) {
+      await supabase.from('service_partners').update(form).eq('id', editing.id)
+    } else {
+      await supabase.from('service_partners').insert({ ...form, is_active: true })
+    }
+    await load()
+    setAdding(false)
+    setEditing(null)
+    setSaving(false)
+  }
+
+  async function toggleActive(p: ServicePartner) {
+    await supabase.from('service_partners').update({ is_active: !p.is_active }).eq('id', p.id)
+    setPartners(prev => prev.map(x => x.id === p.id ? { ...x, is_active: !x.is_active } : x))
+  }
+
+  async function del(id: string) {
+    await supabase.from('service_partners').delete().eq('id', id)
+    setPartners(prev => prev.filter(x => x.id !== id))
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-sand-400">{partners.length} שירותים</p>
+        <button onClick={openNew}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-white text-xs font-bold"
+          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+          <Plus className="w-3.5 h-3.5" /> הוסף שירות
+        </button>
+      </div>
+
+      {adding && (
+        <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
+          <p className="font-bold text-sand-800 text-sm">{editing ? 'ערוך שירות' : 'שירות חדש'}</p>
+          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+            placeholder="שם השירות / נותן השירות"
+            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
+          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            placeholder="תיאור קצר..." rows={2}
+            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
+          <div className="flex gap-2">
+            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as 'pregnancy' | 'motherhood' }))}
+              className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400">
+              <option value="pregnancy">הריון</option>
+              <option value="motherhood">אמהות</option>
+            </select>
+            <select value={form.subcategory} onChange={e => setForm(f => ({ ...f, subcategory: e.target.value }))}
+              className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400">
+              {SUBCATS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+          <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))}
+            placeholder="מספר WhatsApp (972...)" dir="ltr"
+            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
+          <input value={form.logo_url} onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))}
+            placeholder="קישור לתמונה (אופציונלי)" dir="ltr"
+            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
+          <div className="flex gap-2">
+            <button onClick={save} disabled={saving || !form.title.trim()}
+              className="flex-1 py-2.5 rounded-2xl text-white font-bold text-sm disabled:opacity-40"
+              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              {saving ? '...' : editing ? 'שמור שינויים' : 'הוסף'}
+            </button>
+            <button onClick={() => { setAdding(false); setEditing(null) }}
+              className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>
+          </div>
+        </div>
+      )}
+
+      {partners.map(p => (
+        <div key={p.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-bold text-sand-800 text-sm truncate">{p.title}</p>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${p.category === 'pregnancy' ? 'bg-purple-100 text-purple-700' : 'bg-pink-100 text-pink-700'}`}>
+                {p.category === 'pregnancy' ? '🤰 הריון' : '🌸 אמהות'}
+              </span>
+              {!p.is_active && <span className="text-[10px] bg-sand-100 text-sand-400 px-1.5 py-0.5 rounded-md">מוסתר</span>}
+            </div>
+            {p.description && <p className="text-xs text-sand-400 truncate mt-0.5">{p.description}</p>}
+            {p.whatsapp_number && <p className="text-xs text-sand-300 mt-0.5 font-mono" dir="ltr">{p.whatsapp_number}</p>}
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button onClick={() => toggleActive(p)} title={p.is_active ? 'הסתר' : 'הפעל'}
+              className="p-1.5 text-sand-300 hover:text-mustard-500 transition-colors">
+              {p.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
+            </button>
+            <button onClick={() => openEdit(p)} className="p-1.5 text-sand-300 hover:text-mustard-600 transition-colors">
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button onClick={() => del(p.id)} className="p-1.5 text-sand-200 hover:text-red-400 transition-colors">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      ))}
+      {partners.length === 0 && !adding && <p className="text-center text-sand-400 text-sm py-8">אין שירותים עדיין</p>}
+    </div>
+  )
+}
+
+// ─── Leads Tab ────────────────────────────────────────────────────────────────
+type LeadWithDetails = PartnerLead & {
+  user_name: string | null
+  user_phone: string | null
+  partner_title: string | null
+}
+
+function LeadsTab() {
+  const [leads, setLeads] = useState<LeadWithDetails[]>([])
+  const [filterType, setFilterType] = useState<'all' | 'whatsapp' | 'callback'>('all')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const { data: rawLeads } = await supabase.from('partner_leads').select('*').order('created_at', { ascending: false })
+      if (!rawLeads || rawLeads.length === 0) { setLeads([]); setLoading(false); return }
+
+      const userIds = [...new Set(rawLeads.map((l: PartnerLead) => l.user_id).filter(Boolean))] as string[]
+      const partnerIds = [...new Set(rawLeads.map((l: PartnerLead) => l.partner_id).filter(Boolean))] as string[]
+
+      const [{ data: profiles }, { data: partners }] = await Promise.all([
+        supabase.from('user_profiles').select('id, mother_name, phone_number').in('id', userIds),
+        supabase.from('service_partners').select('id, title').in('id', partnerIds),
+      ])
+
+      const profileMap: Record<string, { mother_name: string | null; phone_number: string | null }> = {}
+      ;(profiles ?? []).forEach((p: { id: string; mother_name: string | null; phone_number: string | null }) => { profileMap[p.id] = p })
+      const partnerMap: Record<string, string> = {}
+      ;(partners ?? []).forEach((p: { id: string; title: string }) => { partnerMap[p.id] = p.title })
+
+      setLeads(rawLeads.map((l: PartnerLead) => ({
+        ...l,
+        user_name: l.contact_name ?? (l.user_id ? profileMap[l.user_id]?.mother_name ?? null : null),
+        user_phone: l.contact_phone ?? (l.user_id ? profileMap[l.user_id]?.phone_number ?? null : null),
+        partner_title: l.partner_id ? (partnerMap[l.partner_id] ?? null) : null,
+      })))
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  const filtered = leads.filter(l => filterType === 'all' || l.action_type === filterType)
+
+  if (loading) return <div className="text-center py-12"><div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" /></div>
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-sand-400">{filtered.length} לידים</p>
+        <div className="flex gap-1">
+          {(['all', 'whatsapp', 'callback'] as const).map(t => (
+            <button key={t} onClick={() => setFilterType(t)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${filterType === t ? 'text-white' : 'bg-sand-50 text-sand-500'}`}
+              style={filterType === t ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
+              {t === 'all' ? 'הכל' : t === 'whatsapp' ? '💬 WA' : '📞 טלפון'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="bg-white rounded-3xl p-10 text-center shadow-sm">
+          <p className="text-3xl mb-2">📭</p>
+          <p className="text-sm text-sand-400">אין לידים עדיין</p>
+        </div>
+      )}
+
+      {filtered.map(l => (
+        <div key={l.id} className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sand-800 text-sm">{l.user_name ?? '—'}</p>
+              {l.user_phone && (
+                <a href={`https://wa.me/${l.user_phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-green-600 font-semibold flex items-center gap-1 mt-0.5">
+                  <Phone className="w-3 h-3" />{l.user_phone}
+                </a>
+              )}
+            </div>
+            <span className={`text-[10px] px-2 py-1 rounded-xl font-bold flex-shrink-0 ${l.action_type === 'whatsapp' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+              {l.action_type === 'whatsapp' ? '💬 WhatsApp' : '📞 התקשרות'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-sand-500">🌿 {l.partner_title ?? 'שירות לא ידוע'}</p>
+            <p className="text-xs text-sand-300">
+              {new Date(l.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
