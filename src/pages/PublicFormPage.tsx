@@ -124,26 +124,8 @@ export default function PublicFormPage({ formId }: { formId: string }) {
               )
             }
 
-            /* ── Link button (payment / external) ── */
-            if (field.type === 'link') {
-              const url = field.options?.[0] ?? '#'
-              return (
-                <div key={field.id} className="space-y-2">
-                  {field.label && (
-                    <p className="text-sm font-semibold text-sand-700 text-right">{field.label}</p>
-                  )}
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full py-3 px-4 rounded-2xl text-center text-white font-semibold text-sm break-all"
-                    style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-                  >
-                    {url}
-                  </a>
-                </div>
-              )
-            }
+            /* ── Link field: hidden from form, opens after submit ── */
+            if (field.type === 'link') return null
 
             /* ── Regular input fields ── */
             return (
