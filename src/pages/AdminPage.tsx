@@ -1373,6 +1373,18 @@ function FormsTab() {
     setFields(f => f.filter(field => field.id !== id))
   }
 
+  function moveField(id: string, dir: -1 | 1) {
+    setFields(f => {
+      const idx = f.findIndex(field => field.id === id)
+      if (idx < 0) return f
+      const next = idx + dir
+      if (next < 0 || next >= f.length) return f
+      const arr = [...f]
+      ;[arr[idx], arr[next]] = [arr[next], arr[idx]]
+      return arr
+    })
+  }
+
   async function saveForm() {
     if (!title.trim() || fields.length === 0) return
     setSaving(true)
@@ -1542,7 +1554,11 @@ function FormsTab() {
                     </button>
                   )}
                 </div>
-                <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400 mt-1"><X className="w-4 h-4" /></button>
+                <div className="flex flex-col gap-1 mt-1">
+                  <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▲</button>
+                  <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▼</button>
+                  <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400"><X className="w-4 h-4" /></button>
+                </div>
               </div>
             ))}
             <button onClick={addField} className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-semibold text-mustard-600 bg-mustard-50 hover:bg-mustard-100">
