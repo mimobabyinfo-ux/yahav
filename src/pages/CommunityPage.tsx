@@ -82,7 +82,6 @@ export default function CommunityPage() {
       .from('user_profiles')
       .select('id, mother_name, area, phone_number, community_consent, community_bio, due_date')
       .eq('user_mode', 'pregnant')
-      .eq('community_consent', true)
     setPregnantProfiles((data ?? []) as PregnantProfile[])
   }, [])
 

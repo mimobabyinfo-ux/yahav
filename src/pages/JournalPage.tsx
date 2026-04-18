@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { supabase, DailyLogEntryWithDetails } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDate, formatDisplayDate, entryTypeLabel } from '../utils/dateUtils'
@@ -216,6 +216,26 @@ export default function JournalPage() {
   const [loading, setLoading] = useState(true)
   const [modalType, setModalType] = useState<EntryType | null>(null)
   const [upsellType, setUpsellType] = useState<EntryType | null>(null)
+  const [feedingAlert, setFeedingAlert] = useState(false)
+
+  // Feeding interval alert: check on mount and after each feeding save
+  const checkFeedingAlert = useCallback(() => {
+    const intervalHours = profile?.feeding_interval_hours ?? 3
+    const lastStr = localStorage.getItem('last_feeding_time')
+    const dismissedStr = localStorage.getItem('feeding_alert_dismissed')
+    if (!lastStr) return
+    const elapsed = (Date.now() - new Date(lastStr).getTime()) / 3600000
+    if (elapsed < intervalHours) { setFeedingAlert(false); return }
+    // Don't re-show if already dismissed since the last feeding
+    if (dismissedStr && new Date(dismissedStr) > new Date(lastStr)) { setFeedingAlert(false); return }
+    setFeedingAlert(true)
+  }, [profile?.feeding_interval_hours])
+
+  useEffect(() => {
+    checkFeedingAlert()
+    const timer = setInterval(checkFeedingAlert, 60000) // recheck every minute
+    return () => clearInterval(timer)
+  }, [checkFeedingAlert])
 
   // Week/month navigation
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()))
@@ -300,6 +320,19 @@ export default function JournalPage() {
       </div>
 
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
+        {/* Feeding interval alert */}
+        {feedingAlert && selectedChild && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl" style={{ background: 'linear-gradient(135deg, #FFF7ED, #FFFBEB)', border: '1px solid #F3C96C' }}>
+            <span className="text-2xl flex-shrink-0">🍼</span>
+            <p className="flex-1 text-sm font-semibold text-sand-800">
+              {selectedChild.name} צריך/ה לאכול עכשיו!
+            </p>
+            <button onClick={() => { localStorage.setItem('feeding_alert_dismissed', new Date().toISOString()); setFeedingAlert(false) }} className="text-sand-400 hover:text-sand-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Guest banner */}
         {isGuest && selectedChild && (
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={{ background: 'linear-gradient(135deg, #FFF8E7, #FFF0CC)' }}>
@@ -459,6 +492,10 @@ export default function JournalPage() {
             fetchEntries()
             setUpsellType(modalType)
             setTimeout(() => setUpsellType(null), 8000)
+            if (modalType === 'feeding') {
+              localStorage.setItem('last_feeding_time', new Date().toISOString())
+              setFeedingAlert(false)
+            }
           }}
         />
       )}

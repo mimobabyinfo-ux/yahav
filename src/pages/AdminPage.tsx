@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, ShoppingBag, Gift, LayoutGrid, Settings, MessageCircle, Mail } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
-import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem } from '../lib/supabase'
+import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { AdminSection } from '../App'
 
@@ -1704,7 +1704,7 @@ function SettingsTab() {
 }
 
 // ─── Pregnancy Admin Tab ──────────────────────────────────────────────────────
-type PregnancyCat = 'medical' | 'buying'
+type PregnancyCat = 'medical' | 'buying' | 'guide'
 
 function PregnancyAdminTab() {
   const [cat, setCat] = useState<PregnancyCat>('medical')
@@ -1777,27 +1777,30 @@ function PregnancyAdminTab() {
     setItems(prev => prev.filter(i => i.id !== id))
   }
 
-  const displayed = items.filter(i => i.category === cat)
+  const displayed = items.filter(i => i.category === (cat as 'medical' | 'buying'))
 
   return (
     <div className="space-y-4">
       {/* Category tabs */}
-      <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
-        <button
-          onClick={() => setCat('medical')}
-          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${cat === 'medical' ? 'text-white shadow-sm' : 'text-sand-500'}`}
-          style={cat === 'medical' ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
-        >
-          🩺 משימות רפואיות
-        </button>
-        <button
-          onClick={() => setCat('buying')}
-          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${cat === 'buying' ? 'text-white shadow-sm' : 'text-sand-500'}`}
-          style={cat === 'buying' ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
-        >
-          🛍️ רשימת קניות
-        </button>
+      <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1 overflow-x-auto">
+        {([
+          { id: 'medical' as PregnancyCat, label: '🩺 רפואי' },
+          { id: 'buying'  as PregnancyCat, label: '🛍️ קניות' },
+          { id: 'guide'   as PregnancyCat, label: '📖 מדריך שבועי' },
+        ]).map(t => (
+          <button key={t.id}
+            onClick={() => { setCat(t.id); setEditItem(null); setShowAdd(false) }}
+            className={`flex-shrink-0 flex-1 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${cat === t.id ? 'text-white shadow-sm' : 'text-sand-500'}`}
+            style={cat === t.id ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
+
+      {/* Weekly guide sub-section */}
+      {cat === 'guide' && <WeeklyGuideAdminSection />}
+      {cat !== 'guide' && (<>
 
       {/* Add button */}
       <button
@@ -1906,6 +1909,159 @@ function PregnancyAdminTab() {
         {displayed.length === 0 && (
           <p className="text-center text-sand-400 text-sm py-6">אין פריטים עדיין</p>
         )}
+      </div>
+      </>)}
+    </div>
+  )
+}
+
+// ─── Weekly Guide Admin Section ───────────────────────────────────────────────
+function WeeklyGuideAdminSection() {
+  const [guides, setGuides] = useState<PregnancyWeeklyGuide[]>([])
+  const [editGuide, setEditGuide] = useState<PregnancyWeeklyGuide | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [formWeek, setFormWeek] = useState('')
+  const [formSymptoms, setFormSymptoms] = useState('')
+  const [formBabySize, setFormBabySize] = useState('')
+  const [formEmoji, setFormEmoji] = useState('🍊')
+  const [formDevelopment, setFormDevelopment] = useState('')
+  const [formImageUrl, setFormImageUrl] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('pregnancy_weekly_guide').select('*').order('week')
+    setGuides((data ?? []) as PregnancyWeeklyGuide[])
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  function openEdit(g: PregnancyWeeklyGuide) {
+    setEditGuide(g)
+    setFormWeek(g.week.toString())
+    setFormSymptoms(g.symptoms ?? '')
+    setFormBabySize(g.baby_size ?? '')
+    setFormEmoji(g.baby_size_emoji ?? '🍊')
+    setFormDevelopment(g.development ?? '')
+    setFormImageUrl(g.image_url ?? '')
+    setShowAdd(false)
+  }
+
+  function openAdd() {
+    setEditGuide(null)
+    setFormWeek(''); setFormSymptoms(''); setFormBabySize('')
+    setFormEmoji('🍊'); setFormDevelopment(''); setFormImageUrl('')
+    setShowAdd(true)
+  }
+
+  async function save() {
+    if (!formWeek) return
+    setSaving(true)
+    const payload = {
+      week: parseInt(formWeek),
+      symptoms: formSymptoms.trim() || null,
+      baby_size: formBabySize.trim() || null,
+      baby_size_emoji: formEmoji.trim() || '🍊',
+      development: formDevelopment.trim() || null,
+      image_url: formImageUrl.trim() || null,
+    }
+    if (editGuide) {
+      await supabase.from('pregnancy_weekly_guide').update(payload).eq('id', editGuide.id)
+    } else {
+      await supabase.from('pregnancy_weekly_guide').insert({ ...payload, is_active: true })
+    }
+    setSaving(false)
+    setEditGuide(null)
+    setShowAdd(false)
+    load()
+  }
+
+  async function delGuide(id: string) {
+    await supabase.from('pregnancy_weekly_guide').delete().eq('id', id)
+    setGuides(prev => prev.filter(g => g.id !== id))
+  }
+
+  const form = (showAdd || editGuide) && (
+    <div className="bg-white rounded-3xl p-5 shadow-sm space-y-3">
+      <h3 className="font-bold text-sand-800 text-sm">{editGuide ? `ערוך שבוע ${editGuide.week}` : 'שבוע חדש'}</h3>
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <label className="text-xs text-sand-500 mb-1 block">מספר שבוע</label>
+          <input type="number" value={formWeek} onChange={e => setFormWeek(e.target.value)}
+            placeholder="20" min={1} max={42} disabled={!!editGuide}
+            className="w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 disabled:bg-sand-50" />
+        </div>
+        <div className="w-20">
+          <label className="text-xs text-sand-500 mb-1 block">אמוג'י</label>
+          <input value={formEmoji} onChange={e => setFormEmoji(e.target.value)}
+            className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-xl text-center focus:outline-none focus:border-mustard-400" />
+        </div>
+      </div>
+      <div>
+        <label className="text-xs text-sand-500 mb-1 block">גודל התינוק (למשל: "כגודל בננה")</label>
+        <input value={formBabySize} onChange={e => setFormBabySize(e.target.value)}
+          placeholder="כגודל בננה"
+          className="w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
+      </div>
+      <div>
+        <label className="text-xs text-sand-500 mb-1 block">התפתחות (מה קורה בפנים)</label>
+        <textarea rows={3} value={formDevelopment} onChange={e => setFormDevelopment(e.target.value)}
+          placeholder="הריאות מתחילות להתפתח..."
+          className="w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
+      </div>
+      <div>
+        <label className="text-xs text-sand-500 mb-1 block">סימפטומים</label>
+        <textarea rows={2} value={formSymptoms} onChange={e => setFormSymptoms(e.target.value)}
+          placeholder="בחילות, עייפות, כאבי גב..."
+          className="w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
+      </div>
+      <div>
+        <label className="text-xs text-sand-500 mb-1 block">URL תמונה (אופציונלי)</label>
+        <input value={formImageUrl} onChange={e => setFormImageUrl(e.target.value)}
+          placeholder="https://..."
+          className="w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
+      </div>
+      <div className="flex gap-2">
+        <button onClick={save} disabled={saving || !formWeek}
+          className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
+          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+          {saving ? '...' : 'שמירה'}
+        </button>
+        <button onClick={() => { setEditGuide(null); setShowAdd(false) }}
+          className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">
+          ביטול
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="space-y-3">
+      <button onClick={openAdd}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-white font-bold text-sm"
+        style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+        <Plus className="w-4 h-4" /> הוסף שבוע חדש
+      </button>
+
+      {form}
+
+      <div className="space-y-2">
+        {guides.map(g => (
+          <div key={g.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
+            <span className="text-2xl flex-shrink-0">{g.baby_size_emoji}</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sand-800 text-sm">שבוע {g.week}</p>
+              <p className="text-xs text-sand-400 truncate">{g.baby_size ?? '—'}</p>
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button onClick={() => openEdit(g)} className="p-1.5 text-sand-400 hover:text-mustard-600 transition-colors">
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button onClick={() => delGuide(g.id)} className="p-1.5 text-sand-300 hover:text-red-400 transition-colors">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+        {guides.length === 0 && <p className="text-center text-sand-400 text-sm py-6">אין תוכן שבועי עדיין</p>}
       </div>
     </div>
   )

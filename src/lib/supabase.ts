@@ -27,6 +27,13 @@ export type UserProfile = {
   community_bio: string | null
   user_mode: 'pregnant' | 'mom' | null
   due_date: string | null
+  reminder_water_enabled: boolean
+  reminder_water_hours: number
+  reminder_vitamins_enabled: boolean
+  reminder_vitamins_time: string | null
+  reminder_exercise_enabled: boolean
+  reminder_exercise_time: string | null
+  feeding_interval_hours: number
   created_at: string
   updated_at: string
 }
@@ -204,6 +211,29 @@ export type ActiveTimer = {
   timer_type: string
   start_time: string
   additional_data: Record<string, unknown> | null
+  created_at: string
+}
+
+export type PregnancyWeeklyGuide = {
+  id: string
+  week: number
+  symptoms: string | null
+  baby_size: string | null
+  baby_size_emoji: string | null
+  development: string | null
+  image_url: string | null
+  is_active: boolean
+  created_at: string
+}
+
+export type UserPregnancyItem = {
+  id: string
+  user_id: string
+  category: 'medical' | 'buying'
+  text: string
+  week_from: number | null
+  week_to: number | null
+  is_completed: boolean
   created_at: string
 }
 
