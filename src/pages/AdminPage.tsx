@@ -1252,7 +1252,7 @@ function PerksTab() {
 }
 
 // ─── Forms Tab ────────────────────────────────────────────────────────────────
-type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating'; label: string; options?: string[]; required?: boolean }
+type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating' | 'info' | 'link'; label: string; options?: string[]; required?: boolean }
 type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[]; trigger_rule: { type: string; count: number } | null; is_active: boolean; public_link_enabled: boolean; created_at: string }
 type Submission = { id: string; user_id: string; responses_json: Record<string, string>; created_at: string; user_profiles?: { mother_name: string | null; email: string } }
 type Assignment = { id: string; user_id: string; is_completed: boolean; user_profiles?: { mother_name: string | null; email: string } }
