@@ -1253,7 +1253,7 @@ function PerksTab() {
 
 // ─── Forms Tab ────────────────────────────────────────────────────────────────
 type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating' | 'info' | 'link'; label: string; options?: string[]; required?: boolean }
-type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[]; trigger_rule: { type: string; count: number } | null; is_active: boolean; public_link_enabled: boolean; created_at: string }
+type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[]; trigger_rule: { type: string; count: number } | null; is_active: boolean; public_link_enabled: boolean; folder: string | null; created_at: string }
 type Submission = { id: string; user_id: string; responses_json: Record<string, string>; created_at: string; user_profiles?: { mother_name: string | null; email: string } }
 type Assignment = { id: string; user_id: string; is_completed: boolean; user_profiles?: { mother_name: string | null; email: string } }
 
@@ -1337,22 +1337,33 @@ function FormsTab() {
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [folder, setFolder] = useState('')
   const [fields, setFields] = useState<FormField[]>([])
   const [triggerType, setTriggerType] = useState('after_video_views')
   const [triggerCount, setTriggerCount] = useState('3')
   const [saving, setSaving] = useState(false)
+  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['']))
 
   function startEdit(form: FormRecord) {
     setEditingForm(form)
     setTitle(form.title)
     setDescription(form.description ?? '')
+    setFolder(form.folder ?? '')
     setFields(form.fields_json.map(f => ({ ...f })))
     setShowCreate(false)
   }
 
   function cancelEdit() {
     setEditingForm(null)
-    setTitle(''); setDescription(''); setFields([])
+    setTitle(''); setDescription(''); setFolder(''); setFields([])
+  }
+
+  function toggleFolder(f: string) {
+    setOpenFolders(prev => {
+      const next = new Set(prev)
+      next.has(f) ? next.delete(f) : next.add(f)
+      return next
+    })
   }
 
   const load = useCallback(() => {
@@ -1392,6 +1403,7 @@ function FormsTab() {
       await supabase.from('forms').update({
         title: title.trim(),
         description: description || null,
+        folder: folder.trim() || null,
         fields_json: fields,
       }).eq('id', editingForm.id)
       cancelEdit()
@@ -1399,6 +1411,7 @@ function FormsTab() {
       await supabase.from('forms').insert({
         title: title.trim(),
         description: description || null,
+        folder: folder.trim() || null,
         fields_json: fields,
         trigger_rule: { type: triggerType, count: parseInt(triggerCount) || 3 },
         is_active: true,
@@ -1427,6 +1440,11 @@ function FormsTab() {
     setSubmissions((data ?? []) as Submission[])
   }
 
+  async function deleteSubmission(id: string) {
+    await supabase.from('form_submissions').delete().eq('id', id)
+    setSubmissions(s => s.filter(x => x.id !== id))
+  }
+
   const fieldTypes = [
     { value: 'text',     label: 'שדה טקסט' },
     { value: 'textarea', label: 'טקסט ארוך' },
@@ -1447,12 +1465,21 @@ function FormsTab() {
         {submissions.map(s => (
           <div key={s.id} className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-sand-700">{(s.user_profiles as { mother_name: string | null; email: string } | undefined)?.mother_name ?? (s.user_profiles as { mother_name: string | null; email: string } | undefined)?.email}</p>
-              <p className="text-xs text-sand-400">{new Date(s.created_at).toLocaleDateString('he-IL')}</p>
+              <p className="text-sm font-semibold text-sand-700">
+                {(s.user_profiles as { mother_name: string | null; email: string } | undefined)?.mother_name
+                  ?? (s.user_profiles as { mother_name: string | null; email: string } | undefined)?.email
+                  ?? 'אנונימי'}
+              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-sand-400">{new Date(s.created_at).toLocaleDateString('he-IL')}</p>
+                <button onClick={() => deleteSubmission(s.id)} className="p-1 text-sand-300 hover:text-red-500 transition-colors" title="מחק תשובה">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
             {Object.entries(s.responses_json).map(([key, val]) => (
-              <div key={key}>
-                <p className="text-xs text-sand-500">{key}</p>
+              <div key={key} className="border-t border-sand-50 pt-1.5">
+                <p className="text-xs text-sand-400">{key}</p>
                 <p className="text-sm text-sand-800">{val}</p>
               </div>
             ))}
@@ -1479,6 +1506,7 @@ function FormsTab() {
           {editingForm && <p className="text-xs font-bold text-mustard-600">✏️ עריכת טופס: {editingForm.title}</p>}
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
           <input value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+          <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="📁 תיקייה (למשל: סדנת עיסוי, הרשמות)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
 
           {/* Trigger — only for new forms */}
           {!editingForm && (
@@ -1575,34 +1603,57 @@ function FormsTab() {
         </div>
       )}
 
-      {forms.map(form => (
-        <div key={form.id} className={`bg-white rounded-2xl p-4 shadow-sm ${!form.is_active ? 'opacity-50' : ''}`}>
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1">
-              <p className="font-bold text-sand-800 text-sm">{form.title}</p>
-              <p className="text-xs text-sand-400 mt-0.5">
-                {form.fields_json.length} שדות
-                {form.trigger_rule && ` · ${form.trigger_rule.type === 'after_video_views' ? `אחרי ${form.trigger_rule.count} צפיות` : ''}`}
-              </p>
-            </div>
-            <div className="flex items-center gap-1 flex-wrap justify-end">
-              <button onClick={() => startEdit(form)} className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100">✏️ ערכי</button>
-              <button onClick={() => setAssignForm(form)} className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">שייך</button>
-              <button onClick={() => loadSubmissions(form)} className="text-xs px-2 py-1 bg-sand-50 text-sand-600 rounded-lg hover:bg-sand-100">תשובות</button>
-              <button
-                onClick={() => copyFormLink(form.id)}
-                className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100"
-              >
-                {copiedId === form.id ? '✓ הועתק' : '🔗 לינק'}
-              </button>
-              <button onClick={() => toggleForm(form)} className="text-sand-400 hover:text-mustard-500">
-                {form.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
-              </button>
-              <button onClick={() => deleteForm(form.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-            </div>
+      {/* Group forms by folder */}
+      {(() => {
+        const folderMap = new Map<string, FormRecord[]>()
+        forms.forEach(f => {
+          const key = f.folder ?? ''
+          if (!folderMap.has(key)) folderMap.set(key, [])
+          folderMap.get(key)!.push(f)
+        })
+        const folders = Array.from(folderMap.entries()).sort(([a], [b]) => {
+          if (a === '') return 1
+          if (b === '') return -1
+          return a.localeCompare(b, 'he')
+        })
+        return folders.map(([folderName, folderForms]) => (
+          <div key={folderName || '__none__'} className="space-y-2">
+            {/* Folder header */}
+            <button
+              onClick={() => toggleFolder(folderName)}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-sand-100 hover:bg-sand-200 transition-colors"
+            >
+              <span className="text-xs font-bold text-sand-600">
+                {folderName ? `📁 ${folderName}` : '📋 ללא תיקייה'}
+                <span className="mr-2 text-sand-400 font-normal">({folderForms.length})</span>
+              </span>
+              <span className="text-sand-400 text-xs">{openFolders.has(folderName) ? '▲' : '▼'}</span>
+            </button>
+
+            {openFolders.has(folderName) && folderForms.map(form => (
+              <div key={form.id} className={`bg-white rounded-2xl p-4 shadow-sm mr-2 ${!form.is_active ? 'opacity-50' : ''}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="font-bold text-sand-800 text-sm">{form.title}</p>
+                    <p className="text-xs text-sand-400 mt-0.5">{form.fields_json.length} שדות</p>
+                  </div>
+                  <div className="flex items-center gap-1 flex-wrap justify-end">
+                    <button onClick={() => startEdit(form)} className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100">✏️ ערכי</button>
+                    <button onClick={() => loadSubmissions(form)} className="text-xs px-2 py-1 bg-sand-50 text-sand-600 rounded-lg hover:bg-sand-100">תשובות</button>
+                    <button onClick={() => copyFormLink(form.id)} className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100">
+                      {copiedId === form.id ? '✓ הועתק' : '🔗 לינק'}
+                    </button>
+                    <button onClick={() => toggleForm(form)} className="text-sand-400 hover:text-mustard-500">
+                      {form.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
+                    </button>
+                    <button onClick={() => deleteForm(form.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      ))}
+        ))
+      })()}
       {forms.length === 0 && <p className="text-center text-sand-400 text-sm py-8">אין טפסים עדיין</p>}
 
       {assignForm && <AssignFormModal form={assignForm} onClose={() => setAssignForm(null)} />}
