@@ -246,6 +246,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
   const [medicalItems, setMedicalItems] = useState<PregnancyChecklistItem[]>([])
   const [buyingItems, setBuyingItems] = useState<PregnancyChecklistItem[]>([])
   const [completed, setCompleted] = useState<Set<string>>(new Set())
+  const [hidden, setHidden] = useState<Set<string>>(new Set())
   const [expandedBuckets, setExpandedBuckets] = useState<Set<string>>(new Set())
 
   // Personal items
@@ -288,13 +289,15 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
       })
   }, [])
 
-  // Load completions from profile
+  // Load completions + hidden items from profile
   useEffect(() => {
     if (!user) return
-    supabase.from('user_profiles').select('pregnancy_task_completions').eq('id', user.id).maybeSingle()
+    supabase.from('user_profiles').select('pregnancy_task_completions, hidden_pregnancy_items').eq('id', user.id).maybeSingle()
       .then(({ data }) => {
         if (data?.pregnancy_task_completions)
           setCompleted(new Set(data.pregnancy_task_completions as string[]))
+        if (data?.hidden_pregnancy_items)
+          setHidden(new Set(data.hidden_pregnancy_items as string[]))
       })
   }, [user])
 
@@ -350,6 +353,14 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
     else next.add(itemId)
     setCompleted(next)
     await supabase.from('user_profiles').update({ pregnancy_task_completions: Array.from(next) }).eq('id', user.id)
+  }
+
+  async function hideItem(itemId: string) {
+    if (!user) return
+    const next = new Set(hidden)
+    next.add(itemId)
+    setHidden(next)
+    await supabase.from('user_profiles').update({ hidden_pregnancy_items: Array.from(next) }).eq('id', user.id)
   }
 
   async function togglePersonal(item: UserPregnancyItem) {
@@ -415,11 +426,13 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
     setSaving(false)
   }
 
-  const allMasterItems = [...medicalItems, ...buyingItems]
+  const visibleMedical = medicalItems.filter(i => !hidden.has(i.id))
+  const visibleBuying = buyingItems.filter(i => !hidden.has(i.id))
+  const allMasterItems = [...visibleMedical, ...visibleBuying]
   const totalItems = allMasterItems.length + personalItems.length
   const doneCount = allMasterItems.filter(i => completed.has(i.id)).length + personalItems.filter(i => i.is_completed).length
   const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0
-  const medicalBuckets = groupByWeek(medicalItems)
+  const medicalBuckets = groupByWeek(visibleMedical)
   const myPersonalMedical = personalItems.filter(i => i.category === 'medical')
   const myPersonalBuying = personalItems.filter(i => i.category === 'buying')
 
@@ -529,11 +542,20 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                       {bucket.items.map(item => {
                         const done = completed.has(item.id)
                         return (
-                          <button key={item.id} onClick={() => toggleItem(item.id)}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sand-50 transition-colors text-right">
-                            {done ? <CheckCircle2 className="w-5 h-5 text-mustard-500 flex-shrink-0" /> : <Circle className="w-5 h-5 text-sand-300 flex-shrink-0" />}
-                            <span className={`text-sm flex-1 text-right ${done ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
-                          </button>
+                          <div key={item.id} className="flex items-center gap-1 pr-4 pl-2 hover:bg-sand-50 transition-colors">
+                            <button onClick={() => toggleItem(item.id)}
+                              className="flex items-center gap-3 flex-1 py-3 text-right">
+                              {done ? <CheckCircle2 className="w-5 h-5 text-mustard-500 flex-shrink-0" /> : <Circle className="w-5 h-5 text-sand-300 flex-shrink-0" />}
+                              <span className={`text-sm flex-1 text-right ${done ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
+                            </button>
+                            <button
+                              onClick={() => hideItem(item.id)}
+                              className="p-2 text-sand-200 hover:text-red-400 transition-colors flex-shrink-0"
+                              title="הסר פריט"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         )
                       })}
                     </div>
@@ -634,15 +656,24 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
         {dashTab === 'buying' && (
           <div className="space-y-2">
             <div className="bg-white rounded-3xl shadow-sm overflow-hidden divide-y divide-sand-50">
-              {buyingItems.map(item => {
+              {visibleBuying.map(item => {
                 const done = completed.has(item.id)
                 return (
-                  <button key={item.id} onClick={() => toggleItem(item.id)}
-                    className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-sand-50 transition-colors text-right">
-                    {done ? <CheckCircle2 className="w-5 h-5 text-mustard-500 flex-shrink-0" /> : <Circle className="w-5 h-5 text-sand-300 flex-shrink-0" />}
-                    <span className={`text-sm flex-1 text-right ${done ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
-                    {done && <span className="text-xs text-mustard-500 font-semibold flex-shrink-0">✓</span>}
-                  </button>
+                  <div key={item.id} className="flex items-center gap-1 pr-4 pl-2 hover:bg-sand-50 transition-colors">
+                    <button onClick={() => toggleItem(item.id)}
+                      className="flex items-center gap-3 flex-1 py-3.5 text-right">
+                      {done ? <CheckCircle2 className="w-5 h-5 text-mustard-500 flex-shrink-0" /> : <Circle className="w-5 h-5 text-sand-300 flex-shrink-0" />}
+                      <span className={`text-sm flex-1 text-right ${done ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
+                      {done && <span className="text-xs text-mustard-500 font-semibold flex-shrink-0">✓</span>}
+                    </button>
+                    <button
+                      onClick={() => hideItem(item.id)}
+                      className="p-2 text-sand-200 hover:text-red-400 transition-colors flex-shrink-0"
+                      title="הסר פריט"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 )
               })}
             </div>
