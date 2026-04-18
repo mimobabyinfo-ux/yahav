@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   LogOut, Sparkles, CheckCircle2, Circle, ShoppingBag, Stethoscope,
-  ChevronDown, ChevronUp, Plus, Trash2, Bell, BellOff, X,
+  ChevronDown, ChevronUp, Plus, Trash2, Bell, X,
 } from 'lucide-react'
 import { supabase, PregnancyChecklistItem, PregnancyWeeklyGuide, UserPregnancyItem } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
