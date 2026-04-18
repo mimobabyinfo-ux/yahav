@@ -4,7 +4,7 @@ import MimoLogo from '../components/MimoLogo'
 
 type FormField = {
   id: string
-  type: 'text' | 'textarea' | 'select' | 'rating'
+  type: 'text' | 'textarea' | 'select' | 'rating' | 'info' | 'link'
   label: string
   options?: string[]
   required?: boolean
@@ -16,6 +16,8 @@ type FormRecord = {
   description: string | null
   fields_json: FormField[]
 }
+
+const INPUT_TYPES = new Set(['text', 'textarea', 'select', 'rating'])
 
 export default function PublicFormPage({ formId }: { formId: string }) {
   const [form, setForm] = useState<FormRecord | null>(null)
@@ -39,10 +41,9 @@ export default function PublicFormPage({ formId }: { formId: string }) {
 
   async function submit() {
     if (!form) return
-    // Validate required fields
     const errs: Record<string, boolean> = {}
     form.fields_json.forEach(f => {
-      if (f.required && !answers[f.label]?.trim()) errs[f.label] = true
+      if (INPUT_TYPES.has(f.type) && f.required && !answers[f.label]?.trim()) errs[f.label] = true
     })
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     setErrors({})
@@ -99,74 +100,111 @@ export default function PublicFormPage({ formId }: { formId: string }) {
         <div className="text-center space-y-2">
           <MimoLogo size={60} />
           <h1 className="text-xl font-bold text-sand-800">{form.title}</h1>
-          {form.description && <p className="text-sand-500 text-sm">{form.description}</p>}
+          {form.description && (
+            <p className="text-sand-600 text-sm leading-relaxed whitespace-pre-line text-right">
+              {form.description}
+            </p>
+          )}
         </div>
 
         {/* Form */}
         <div className="bg-white rounded-3xl p-5 shadow-sm space-y-5">
-          {form.fields_json.map(field => (
-            <div key={field.id}>
-              <label className="block text-sm font-semibold text-sand-700 mb-2">
-                {field.label}
-                {field.required && <span className="text-red-500 mr-1">*</span>}
-              </label>
-
-              {field.type === 'text' && (
-                <input
-                  value={answers[field.label] ?? ''}
-                  onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                  className={`w-full px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none transition-colors ${errors[field.label] ? 'border-red-300 bg-red-50' : 'border-sand-200 focus:border-mustard-400'}`}
-                />
-              )}
-
-              {field.type === 'textarea' && (
-                <textarea
-                  rows={3}
-                  value={answers[field.label] ?? ''}
-                  onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                  className={`w-full px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none resize-none transition-colors ${errors[field.label] ? 'border-red-300 bg-red-50' : 'border-sand-200 focus:border-mustard-400'}`}
-                />
-              )}
-
-              {field.type === 'rating' && (
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setAnswers(a => ({ ...a, [field.label]: String(n) }))}
-                      className="w-11 h-11 rounded-xl text-sm font-bold transition-all"
-                      style={answers[field.label] === String(n)
-                        ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }
-                        : { background: '#F5F0E8', color: '#9B8E80' }}
-                    >
-                      {n}
-                    </button>
-                  ))}
+          {form.fields_json.map(field => {
+            /* ── Info block (display-only text) ── */
+            if (field.type === 'info') {
+              return (
+                <div key={field.id} className="bg-sand-50 rounded-2xl p-4">
+                  <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-line">{field.label}</p>
                 </div>
-              )}
+              )
+            }
 
-              {field.type === 'select' && (
-                <div className="flex flex-wrap gap-2">
-                  {(field.options ?? []).map(opt => (
-                    <button
-                      key={opt}
-                      onClick={() => setAnswers(a => ({ ...a, [field.label]: opt }))}
-                      className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
-                      style={answers[field.label] === opt
-                        ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }
-                        : { background: '#F5F0E8', color: '#9B8E80' }}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+            /* ── Link button (payment / external) ── */
+            if (field.type === 'link') {
+              const url = field.options?.[0] ?? '#'
+              return (
+                <div key={field.id} className="space-y-2">
+                  {field.label && (
+                    <p className="text-sm font-semibold text-sand-700 text-right">{field.label}</p>
+                  )}
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full py-3 px-4 rounded-2xl text-center text-white font-semibold text-sm break-all"
+                    style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                  >
+                    {url}
+                  </a>
                 </div>
-              )}
+              )
+            }
 
-              {errors[field.label] && (
-                <p className="text-xs text-red-500 mt-1">שדה זה חובה</p>
-              )}
-            </div>
-          ))}
+            /* ── Regular input fields ── */
+            return (
+              <div key={field.id}>
+                <label className="block text-sm font-semibold text-sand-700 mb-2">
+                  {field.label}
+                  {field.required && <span className="text-red-500 mr-1">*</span>}
+                </label>
+
+                {field.type === 'text' && (
+                  <input
+                    value={answers[field.label] ?? ''}
+                    onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
+                    className={`w-full px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none transition-colors ${errors[field.label] ? 'border-red-300 bg-red-50' : 'border-sand-200 focus:border-mustard-400'}`}
+                  />
+                )}
+
+                {field.type === 'textarea' && (
+                  <textarea
+                    rows={3}
+                    value={answers[field.label] ?? ''}
+                    onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
+                    className={`w-full px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none resize-none transition-colors ${errors[field.label] ? 'border-red-300 bg-red-50' : 'border-sand-200 focus:border-mustard-400'}`}
+                  />
+                )}
+
+                {field.type === 'rating' && (
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setAnswers(a => ({ ...a, [field.label]: String(n) }))}
+                        className="w-11 h-11 rounded-xl text-sm font-bold transition-all"
+                        style={answers[field.label] === String(n)
+                          ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }
+                          : { background: '#F5F0E8', color: '#9B8E80' }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {field.type === 'select' && (
+                  <div className="flex flex-wrap gap-2">
+                    {(field.options ?? []).map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => setAnswers(a => ({ ...a, [field.label]: opt }))}
+                        className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
+                        style={answers[field.label] === opt
+                          ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }
+                          : { background: '#F5F0E8', color: '#9B8E80' }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {errors[field.label] && (
+                  <p className="text-xs text-red-500 mt-1">שדה זה חובה</p>
+                )}
+              </div>
+            )
+          })}
 
           <button
             onClick={submit}

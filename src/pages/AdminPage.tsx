@@ -1416,10 +1416,12 @@ function FormsTab() {
   }
 
   const fieldTypes = [
-    { value: 'text', label: 'שדה טקסט' },
+    { value: 'text',     label: 'שדה טקסט' },
     { value: 'textarea', label: 'טקסט ארוך' },
-    { value: 'rating', label: 'דירוג 1-5' },
-    { value: 'select', label: 'בחירה מרשימה' },
+    { value: 'select',   label: 'בחירה מרשימה' },
+    { value: 'rating',   label: 'דירוג 1-5' },
+    { value: 'info',     label: '📋 בלוק טקסט (תצוגה בלבד)' },
+    { value: 'link',     label: '🔗 כפתור לינק (תשלום וכו׳)' },
   ]
 
   if (viewSubmissions) {
@@ -1485,21 +1487,60 @@ function FormsTab() {
               <div key={field.id} className="flex gap-2 items-start bg-sand-50 rounded-xl p-2">
                 <span className="text-xs text-sand-400 pt-2.5 w-5 text-center">{idx + 1}</span>
                 <div className="flex-1 space-y-1.5">
-                  <input value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white" />
                   <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs bg-white focus:outline-none">
                     {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
+
+                  {/* info: label = the display text */}
+                  {field.type === 'info' && (
+                    <textarea
+                      rows={3}
+                      value={field.label}
+                      onChange={e => updateField(field.id, { label: e.target.value })}
+                      placeholder="טקסט שיוצג בטופס (תאריכים, פרטים, הנחיות...)"
+                      className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white resize-none"
+                    />
+                  )}
+
+                  {/* link: label = display text above button, options[0] = URL */}
+                  {field.type === 'link' && (
+                    <>
+                      <input
+                        value={field.label}
+                        onChange={e => updateField(field.id, { label: e.target.value })}
+                        placeholder="טקסט מעל הכפתור (למשל: נא לבצע תשלום בלינק)"
+                        className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
+                      />
+                      <input
+                        value={field.options?.[0] ?? ''}
+                        onChange={e => updateField(field.id, { options: [e.target.value] })}
+                        placeholder="כתובת הלינק (https://...)"
+                        className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
+                        dir="ltr"
+                      />
+                    </>
+                  )}
+
+                  {/* regular fields: label input */}
+                  {field.type !== 'info' && field.type !== 'link' && (
+                    <input value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white" />
+                  )}
+
                   {field.type === 'select' && (
                     <input value={field.options?.join(', ') ?? ''} onChange={e => updateField(field.id, { options: e.target.value.split(',').map(s => s.trim()) })} placeholder="אפשרויות מופרדות בפסיק" className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white" />
                   )}
-                  <button
-                    type="button"
-                    onClick={() => updateField(field.id, { required: !field.required })}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all w-fit ${field.required ? 'bg-red-100 text-red-600' : 'bg-sand-100 text-sand-400'}`}
-                  >
-                    <span>{field.required ? '★' : '☆'}</span>
-                    {field.required ? 'חובה' : 'לא חובה'}
-                  </button>
+
+                  {/* required toggle — not applicable for info/link */}
+                  {field.type !== 'info' && field.type !== 'link' && (
+                    <button
+                      type="button"
+                      onClick={() => updateField(field.id, { required: !field.required })}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all w-fit ${field.required ? 'bg-red-100 text-red-600' : 'bg-sand-100 text-sand-400'}`}
+                    >
+                      <span>{field.required ? '★' : '☆'}</span>
+                      {field.required ? 'חובה' : 'לא חובה'}
+                    </button>
+                  )}
                 </div>
                 <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400 mt-1"><X className="w-4 h-4" /></button>
               </div>
