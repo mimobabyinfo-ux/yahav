@@ -174,7 +174,7 @@ export default function PublicFormPage({ formId }: { formId: string }) {
             className="w-full py-4 rounded-2xl text-white font-bold text-sm disabled:opacity-50 mt-2"
             style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
           >
-            {submitting ? 'שולח...' : 'שליחה ✓'}
+            {submitting ? 'שולח...' : 'שלח טופס ✓'}
           </button>
         </div>
 
