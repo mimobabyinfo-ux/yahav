@@ -55,6 +55,11 @@ export default function PublicFormPage({ formId }: { formId: string }) {
     })
     setSubmitting(false)
     setSubmitted(true)
+    // Auto-open payment link if form contains a link field
+    const linkField = form.fields_json.find(f => f.type === 'link')
+    if (linkField?.options?.[0]) {
+      window.open(linkField.options[0], '_blank', 'noopener,noreferrer')
+    }
   }
 
   const bg = 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)'
