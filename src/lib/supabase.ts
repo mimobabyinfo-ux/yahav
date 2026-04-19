@@ -138,6 +138,18 @@ export type Workshop = {
   updated_at: string
 }
 
+export type WorkshopContent = {
+  id: string
+  workshop_id: string
+  type: 'video' | 'homework' | 'pdf'
+  title: string
+  description: string | null
+  url: string | null
+  display_order: number
+  is_active: boolean
+  created_at: string
+}
+
 export type PartnerPerk = {
   id: string
   partner_name: string

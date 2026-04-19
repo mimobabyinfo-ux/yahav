@@ -1,64 +1,66 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Search, Check, PlayCircle, ChevronDown, ChevronUp } from 'lucide-react'
-import { supabase, Video, HomeworkTask } from '../lib/supabase'
+import { ChevronRight, PlayCircle, BookOpen, FileText, Lock } from 'lucide-react'
+import { supabase, Workshop, WorkshopContent, PurchasedWorkshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
 
-type VideoWithDetails = Video & {
-  is_completed: boolean
-  homework_tasks: HomeworkTask[]
-  content_categories?: { name: string } | null
-}
+type ActiveWorkshop = PurchasedWorkshop & { workshop: Workshop | null }
 
 export default function ProAreaPage() {
-  const { user, profile, hasActiveWorkshopAccess } = useAuth()
+  const { user, profile, hasActiveWorkshopAccess, purchasedWorkshops } = useAuth()
   const { track } = useTracker()
-  const [videos, setVideos] = useState<VideoWithDetails[]>([])
-  const [search, setSearch] = useState('')
+  const [activeWorkshops, setActiveWorkshops] = useState<ActiveWorkshop[]>([])
+  const [selected, setSelected] = useState<ActiveWorkshop | null>(null)
+  const [content, setContent] = useState<WorkshopContent[]>([])
   const [loading, setLoading] = useState(true)
-  const [expanded, setExpanded] = useState<string | null>(null)
+  const [contentLoading, setContentLoading] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
-  const fetchVideos = useCallback(async () => {
-    if (!user) return
 
-    const { data: vids } = await supabase
-      .from('videos')
-      .select('*, content_categories(name), homework_tasks(*)')
+  const fetchActive = useCallback(async () => {
+    if (!user) return
+    const today = new Date().toISOString().split('T')[0]
+
+    // For admins show all workshops; for users show only active access
+    if (profile?.is_admin) {
+      const { data: all } = await supabase.from('workshops').select('*').eq('is_active', true).order('display_order')
+      setActiveWorkshops((all ?? []).map(w => ({
+        id: w.id, user_id: user.id, workshop_id: w.id,
+        purchase_date: today, amount_paid: null, notes: null,
+        access_start_date: null, access_end_date: null, created_at: today,
+        workshop: w,
+      })))
+    } else {
+      const active = purchasedWorkshops.filter(pw =>
+        pw.access_start_date && pw.access_end_date &&
+        pw.access_start_date <= today && pw.access_end_date >= today
+      )
+      if (active.length === 0) { setActiveWorkshops([]); setLoading(false); return }
+
+      const { data: wshops } = await supabase
+        .from('workshops')
+        .select('*')
+        .in('id', active.map(pw => pw.workshop_id))
+
+      const map = new Map((wshops ?? []).map(w => [w.id, w]))
+      setActiveWorkshops(active.map(pw => ({ ...pw, workshop: map.get(pw.workshop_id) ?? null })))
+    }
+    setLoading(false)
+  }, [user, profile, purchasedWorkshops])
+
+  useEffect(() => { fetchActive() }, [fetchActive])
+
+  async function openWorkshop(aw: ActiveWorkshop) {
+    setSelected(aw)
+    setContentLoading(true)
+    track('workshop_open', { workshop_id: aw.workshop_id, title: aw.workshop?.title })
+    const { data } = await supabase
+      .from('workshop_content')
+      .select('*')
+      .eq('workshop_id', aw.workshop_id)
       .eq('is_active', true)
       .order('display_order')
-
-    const { data: progress } = await supabase
-      .from('user_video_progress')
-      .select('video_id, completed')
-      .eq('user_id', user.id)
-
-    const progressMap = new Map((progress ?? []).map(p => [p.video_id, p.completed]))
-
-    setVideos(
-      (vids ?? []).map(v => ({
-        ...v,
-        is_completed: progressMap.get(v.id) ?? false,
-        homework_tasks: (v.homework_tasks ?? []).sort(
-          (a: HomeworkTask, b: HomeworkTask) => a.display_order - b.display_order
-        ),
-      }))
-    )
-    setLoading(false)
-  }, [user])
-
-  useEffect(() => {
-    fetchVideos()
-  }, [fetchVideos])
-
-  async function toggleComplete(videoId: string, currentlyCompleted: boolean) {
-    if (!user) return
-    await supabase.from('user_video_progress').upsert({
-      user_id: user.id,
-      video_id: videoId,
-      completed: !currentlyCompleted,
-      completed_at: !currentlyCompleted ? new Date().toISOString() : null,
-    }, { onConflict: 'user_id,video_id' })
-    await fetchVideos()
+    setContent(data ?? [])
+    setContentLoading(false)
   }
 
   const hasAccess = hasActiveWorkshopAccess || profile?.is_pro || profile?.is_admin
@@ -67,15 +69,13 @@ export default function ProAreaPage() {
     return (
       <div className="min-h-screen flex items-center justify-center p-6" dir="rtl">
         <div className="text-center max-w-sm space-y-5">
-          <div
-            className="w-24 h-24 rounded-3xl mx-auto flex items-center justify-center shadow-lg"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-          >
-            <span className="text-5xl">🔒</span>
+          <div className="w-24 h-24 rounded-3xl mx-auto flex items-center justify-center shadow-lg"
+            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+            <Lock className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-2xl font-black text-sand-800">הסרטונים נעולים</h2>
+          <h2 className="text-2xl font-black text-sand-800">הסדנאות נעולות</h2>
           <p className="text-sand-500 text-sm leading-relaxed">
-            הגישה לסרטונים ניתנת לאחר רכישת סדנה פעילה.<br />
+            הגישה לסדנאות ניתנת לאחר רכישה.<br />
             פנייה לברנדה לפתיחת גישה 💛
           </p>
         </div>
@@ -83,152 +83,182 @@ export default function ProAreaPage() {
     )
   }
 
-  const filtered = videos.filter(v =>
-    !search ||
-    v.title.toLowerCase().includes(search.toLowerCase()) ||
-    (v.description ?? '').toLowerCase().includes(search.toLowerCase())
-  )
+  // ── Folder / content view ──────────────────────────────────────────────────
+  if (selected) {
+    const videos   = content.filter(c => c.type === 'video')
+    const homework = content.filter(c => c.type === 'homework')
+    const pdfs     = content.filter(c => c.type === 'pdf')
 
-  return (
-    <div className="min-h-screen p-4 pb-24 relative" dir="rtl">
-      {/* Watermark */}
-      <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
-        <span className="text-[250px] opacity-5">🎬</span>
+    return (
+      <div className="min-h-screen pb-24" dir="rtl" style={{ background: '#FDFBF7' }}>
+        {/* Header */}
+        <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-sand-100 bg-white sticky top-0 z-10">
+          <button onClick={() => { setSelected(null); setContent([]); setPlayingId(null) }}
+            className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 transition-colors">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+          {selected.workshop?.image_url && (
+            <img src={selected.workshop.image_url} alt="" className="w-9 h-9 rounded-xl object-cover" />
+          )}
+          <div>
+            <h1 className="font-bold text-sand-800 text-base leading-tight">{selected.workshop?.title ?? 'סדנה'}</h1>
+            <p className="text-[11px] text-sand-400">{content.length} פריטים</p>
+          </div>
+        </div>
+
+        <div className="p-4 space-y-5 max-w-sm mx-auto">
+          {contentLoading ? (
+            <div className="flex justify-center py-16">
+              <div className="w-7 h-7 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin" />
+            </div>
+          ) : content.length === 0 ? (
+            <div className="text-center py-16 text-sand-400">
+              <p className="text-4xl mb-3">📂</p>
+              <p className="text-sm">אין תוכן עדיין בסדנה זו</p>
+            </div>
+          ) : (
+            <>
+              {/* Videos section */}
+              {videos.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <PlayCircle className="w-4 h-4 text-mustard-500" />
+                    <h2 className="font-bold text-sand-700 text-sm">סרטונים</h2>
+                    <span className="text-[10px] bg-mustard-100 text-mustard-600 px-1.5 py-0.5 rounded-md font-semibold">{videos.length}</span>
+                  </div>
+                  <div className="space-y-3">
+                    {videos.map(item => (
+                      <div key={item.id} className="bg-white rounded-2xl overflow-hidden shadow-sm">
+                        {item.url && (
+                          <div className="relative bg-sand-100 h-36">
+                            {playingId === item.id ? (
+                              <video src={item.url} controls autoPlay className="w-full h-full object-cover bg-black" onEnded={() => setPlayingId(null)} />
+                            ) : (
+                              <button onClick={() => { track('video_start', { item_id: item.id }); setPlayingId(item.id) }}
+                                className="absolute inset-0 flex items-center justify-center w-full h-full">
+                                <div className="w-14 h-14 rounded-full bg-white/90 shadow-lg flex items-center justify-center">
+                                  <PlayCircle className="w-8 h-8 text-mustard-500" />
+                                </div>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        <div className="p-3">
+                          <p className="font-semibold text-sand-800 text-sm">{item.title}</p>
+                          {item.description && <p className="text-xs text-sand-400 mt-1 leading-relaxed">{item.description}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Homework section */}
+              {homework.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <BookOpen className="w-4 h-4 text-purple-500" />
+                    <h2 className="font-bold text-sand-700 text-sm">שיעורי בית</h2>
+                    <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-md font-semibold">{homework.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {homework.map((item, i) => (
+                      <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-xs font-bold text-purple-600">{i + 1}</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-sand-800 text-sm">{item.title}</p>
+                          {item.description && <p className="text-xs text-sand-400 mt-1 leading-relaxed">{item.description}</p>}
+                          {item.url && (
+                            <a href={item.url} target="_blank" rel="noopener noreferrer"
+                              className="inline-block mt-2 text-xs text-mustard-600 font-medium underline">
+                              פתח קישור ←
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* PDFs section */}
+              {pdfs.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText className="w-4 h-4 text-blue-500" />
+                    <h2 className="font-bold text-sand-700 text-sm">קבצים</h2>
+                    <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-md font-semibold">{pdfs.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {pdfs.map(item => (
+                      <a key={item.id} href={item.url ?? '#'} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm hover:bg-sand-50 transition-colors">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                          <FileText className="w-4 h-4 text-blue-500" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sand-800 text-sm">{item.title}</p>
+                          {item.description && <p className="text-xs text-sand-400">{item.description}</p>}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </div>
       </div>
+    )
+  }
 
-      <div className="relative z-10 max-w-sm mx-auto space-y-4">
+  // ── Workshop list view ─────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen p-4 pb-24" dir="rtl" style={{ background: '#FDFBF7' }}>
+      <div className="max-w-sm mx-auto space-y-4">
         <div className="pt-2">
           <h1 className="text-2xl font-bold text-sand-800">סדנאות</h1>
           <p className="text-sand-400 text-sm">תכנים מקצועיים עבורך</p>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-sand-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="חיפוש סרטונים..."
-            className="w-full pr-10 pl-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 bg-white"
-          />
-        </div>
-
         {loading ? (
-          <div className="text-center py-12">
-            <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
+          <div className="flex justify-center py-16">
+            <div className="w-7 h-7 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin" />
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-sand-400">
-            <p className="text-4xl mb-3">🎬</p>
-            <p className="text-sm">לא נמצאו סרטונים</p>
+        ) : activeWorkshops.length === 0 ? (
+          <div className="text-center py-16 text-sand-400">
+            <p className="text-4xl mb-3">🎓</p>
+            <p className="text-sm">אין סדנאות פעילות כרגע</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map(video => (
-              <div key={video.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
-                {/* Thumbnail */}
-                <div className="relative">
-                  {video.thumbnail_url ? (
-                    <img
-                      src={video.thumbnail_url}
-                      alt={video.title}
-                      className="w-full h-36 object-cover"
-                    />
+            {activeWorkshops.map(aw => {
+              const w = aw.workshop
+              return (
+                <button key={aw.id} onClick={() => openWorkshop(aw)}
+                  className="w-full bg-white rounded-3xl shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all text-right">
+                  {w?.image_url ? (
+                    <img src={w.image_url} alt={w.title} className="w-full h-36 object-cover" />
                   ) : (
-                    <div className="w-full h-36 bg-gradient-to-br from-mustard-100 to-sand-100 flex items-center justify-center">
-                      <PlayCircle className="w-12 h-12 text-mustard-400" />
+                    <div className="w-full h-36 flex items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg, #F7E8C0, #EDD898)' }}>
+                      <span className="text-5xl">🎓</span>
                     </div>
                   )}
-                  {video.is_completed && (
-                    <div className="absolute top-2 left-2 bg-green-500 rounded-full p-1">
-                      <Check className="w-3.5 h-3.5 text-white" />
-                    </div>
-                  )}
-                  {video.duration_minutes && (
-                    <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-lg">
-                      {video.duration_minutes} דק'
-                    </div>
-                  )}
-                  {video.video_url && (
-                    <button
-                      onClick={() => {
-                        if (playingId !== video.id) track('video_start', { video_id: video.id, title: video.title })
-                        setPlayingId(playingId === video.id ? null : video.id)
-                      }}
-                      className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors"
-                    >
-                      <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-                        <PlayCircle className="w-8 h-8 text-mustard-600" />
-                      </div>
-                    </button>
-                  )}
-                </div>
-
-                {/* Inline video player */}
-                {playingId === video.id && video.video_url && (
-                  <video
-                    src={video.video_url}
-                    controls
-                    autoPlay
-                    className="w-full bg-black"
-                    style={{ maxHeight: '220px' }}
-                    onEnded={() => setPlayingId(null)}
-                  />
-                )}
-
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      {video.content_categories?.name && (
-                        <span className="text-xs text-mustard-600 font-medium bg-mustard-50 px-2 py-0.5 rounded-lg">
-                          {video.content_categories.name}
-                        </span>
-                      )}
-                      <h3 className="font-bold text-sand-800 mt-1.5">{video.title}</h3>
-                      {video.description && (
-                        <p className="text-xs text-sand-400 mt-1 leading-relaxed line-clamp-2">
-                          {video.description}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => toggleComplete(video.id, video.is_completed)}
-                      className={`mt-1 p-2 rounded-xl transition-all flex-shrink-0 ${
-                        video.is_completed
-                          ? 'bg-green-100 text-green-600'
-                          : 'bg-sand-100 text-sand-400 hover:bg-mustard-100 hover:text-mustard-600'
-                      }`}
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
+                  <div className="p-4">
+                    <h3 className="font-bold text-sand-800">{w?.title ?? 'סדנה'}</h3>
+                    {w?.description && <p className="text-xs text-sand-400 mt-1 line-clamp-2 leading-relaxed">{w.description}</p>}
+                    {aw.access_end_date && (
+                      <p className="text-[10px] text-mustard-500 font-medium mt-2">
+                        ✓ גישה פעילה עד {new Date(aw.access_end_date + 'T12:00:00').toLocaleDateString('he-IL')}
+                      </p>
+                    )}
                   </div>
-
-                  {/* Homework */}
-                  {video.homework_tasks.length > 0 && (
-                    <div className="mt-3">
-                      <button
-                        onClick={() => setExpanded(expanded === video.id ? null : video.id)}
-                        className="flex items-center gap-1 text-xs text-mustard-600 font-medium"
-                      >
-                        {expanded === video.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                        {video.homework_tasks.length} משימות
-                      </button>
-                      {expanded === video.id && (
-                        <div className="mt-2 space-y-1.5">
-                          {video.homework_tasks.map((task, i) => (
-                            <div key={task.id} className="flex items-start gap-2 text-xs text-sand-600">
-                              <span className="text-mustard-400 font-bold flex-shrink-0">{i + 1}.</span>
-                              <span>{task.task_description}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>

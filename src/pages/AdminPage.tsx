@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
-import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead } from '../lib/supabase'
+import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { AdminSection } from '../App'
 
@@ -1043,11 +1043,126 @@ function VideosTab() {
   )
 }
 
+// ─── Workshop Content Modal ───────────────────────────────────────────────────
+function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClose: () => void }) {
+  const [items, setItems] = useState<WorkshopContent[]>([])
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ type: 'video' as WorkshopContent['type'], title: '', description: '', url: '' })
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(() => {
+    supabase.from('workshop_content').select('*').eq('workshop_id', workshop.id).order('display_order')
+      .then(({ data }) => setItems(data ?? []))
+  }, [workshop.id])
+  useEffect(() => { load() }, [load])
+
+  async function save() {
+    if (!form.title.trim()) return
+    setSaving(true)
+    const maxOrder = items.length > 0 ? Math.max(...items.map(i => i.display_order)) : 0
+    await supabase.from('workshop_content').insert({
+      workshop_id: workshop.id,
+      type: form.type,
+      title: form.title,
+      description: form.description || null,
+      url: form.url || null,
+      display_order: maxOrder + 1,
+    })
+    setForm({ type: 'video', title: '', description: '', url: '' })
+    setShowForm(false)
+    setSaving(false)
+    load()
+  }
+
+  async function del(id: string) {
+    await supabase.from('workshop_content').delete().eq('id', id)
+    setItems(prev => prev.filter(i => i.id !== id))
+  }
+
+  const typeLabel = { video: '🎬 סרטון', homework: '📝 שיעור בית', pdf: '📄 קובץ' }
+  const typeBg = { video: 'bg-mustard-50 text-mustard-700', homework: 'bg-purple-50 text-purple-700', pdf: 'bg-blue-50 text-blue-700' }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl w-full max-w-sm shadow-xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b border-sand-100 sticky top-0 bg-white rounded-t-3xl z-10">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-sand-800">תוכן הסדנה</h3>
+              <p className="text-xs text-sand-400 mt-0.5">{workshop.title}</p>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-sand-100 text-sand-400"><X className="w-4 h-4" /></button>
+          </div>
+        </div>
+
+        <div className="p-4 space-y-3">
+          <button
+            onClick={() => setShowForm(s => !s)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold text-white transition-colors"
+            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+          >
+            <Plus className="w-4 h-4" />
+            הוסף פריט
+          </button>
+
+          {showForm && (
+            <div className="bg-sand-50 rounded-2xl p-4 space-y-3">
+              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as WorkshopContent['type'] }))}
+                className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm bg-white focus:outline-none focus:border-mustard-400">
+                <option value="video">🎬 סרטון</option>
+                <option value="homework">📝 שיעור בית</option>
+                <option value="pdf">📄 קובץ / PDF</option>
+              </select>
+              <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="כותרת" className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="תיאור (אופציונלי)" rows={2}
+                className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
+              <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
+                placeholder="קישור (URL)" dir="ltr"
+                className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+              <div className="flex gap-2">
+                <button onClick={save} disabled={saving || !form.title.trim()}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                  {saving ? '...' : 'שמור'}
+                </button>
+                <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-xl text-sm bg-sand-100 text-sand-600">ביטול</button>
+              </div>
+            </div>
+          )}
+
+          {items.length === 0 && !showForm && (
+            <p className="text-center text-sand-400 text-sm py-6">אין תוכן עדיין. לחץ "הוסף פריט" כדי להתחיל.</p>
+          )}
+
+          {items.map((item, idx) => (
+            <div key={item.id} className="bg-white border border-sand-100 rounded-2xl p-3 flex items-center gap-3">
+              <span className={`text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0 ${typeBg[item.type]}`}>
+                {typeLabel[item.type]}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-sand-800 truncate">{item.title}</p>
+                {item.url && <p className="text-[10px] text-sand-400 truncate">{item.url}</p>}
+              </div>
+              <span className="text-[10px] text-sand-300 flex-shrink-0">#{idx + 1}</span>
+              <button onClick={() => del(item.id)} className="p-1.5 text-red-300 hover:text-red-500 flex-shrink-0">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Workshops Tab ────────────────────────────────────────────────────────────
 function WorkshopsTab() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Workshop | null>(null)
+  const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   const [form, setForm] = useState({ title: '', description: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
   const [uploadingImage, setUploadingImage] = useState(false)
 
@@ -1151,7 +1266,7 @@ function WorkshopsTab() {
       )}
 
       {workshops.map(w => (
-        <div key={w.id} className={`bg-white rounded-2xl p-4 shadow-sm ${!w.is_active ? 'opacity-50' : ''}`}>
+        <div key={w.id} className={`bg-white rounded-2xl p-4 shadow-sm space-y-2 ${!w.is_active ? 'opacity-50' : ''}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sand-800 text-sm truncate">{w.title}</p>
@@ -1165,8 +1280,16 @@ function WorkshopsTab() {
               <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
+          <button
+            onClick={() => setContentWorkshop(w)}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-mustard-50 text-mustard-700 hover:bg-mustard-100 transition-colors"
+          >
+            📂 ניהול תוכן
+          </button>
         </div>
       ))}
+
+      {contentWorkshop && <WorkshopContentModal workshop={contentWorkshop} onClose={() => setContentWorkshop(null)} />}
     </div>
   )
 }
