@@ -56,11 +56,15 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
       </nav>
     )
   }
+
+  // ── Admin nav ─────────────────────────────────────────────────────────────
   if (isAdminMode) {
     const adminItems: { id: AdminSection; label: string; icon: React.ReactNode }[] = [
-      { id: 'insights', label: 'דשבורד',  icon: <BarChart2 className="w-5 h-5" /> },
-      { id: 'users',    label: 'ניהול',   icon: <Users className="w-5 h-5" /> },
-      { id: 'forms',    label: 'טפסים',   icon: <span className="text-lg leading-none">📋</span> },
+      { id: 'insights',  label: 'BI',       icon: <BarChart2 className="w-4 h-4" /> },
+      { id: 'users',     label: 'משתמשים',  icon: <Users className="w-4 h-4" /> },
+      { id: 'workshops', label: 'סדנאות',   icon: <span className="text-base leading-none">🎓</span> },
+      { id: 'forms',     label: 'טפסים',    icon: <span className="text-base leading-none">📋</span> },
+      { id: 'leads',     label: 'לידים',    icon: <span className="text-base leading-none">📞</span> },
     ]
 
     return (
@@ -71,14 +75,19 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
             <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
             <span className="text-[10px] font-bold text-red-400 tracking-wide">ADMIN MODE</span>
           </div>
-          <button
-            onClick={onToggleUserView}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold transition-all"
-            style={{ background: '#2a2a4a', color: '#a0a0c0' }}
-          >
-            <Eye className="w-3 h-3" />
-            צפי כמשתמשת
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onToggleUserView}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold transition-all"
+              style={{ background: '#2a2a4a', color: '#a0a0c0' }}
+            >
+              <Eye className="w-3 h-3" />
+              צפי כמשתמשת
+            </button>
+            <button onClick={signOut} style={{ color: '#ff6060' }}>
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Admin tabs */}
@@ -89,7 +98,7 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
               <button
                 key={item.id}
                 onClick={() => onAdminSection(item.id)}
-                className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all"
+                className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-2xl transition-all"
                 style={active
                   ? { background: 'linear-gradient(135deg, #3a1a6e, #5a1a8e)', color: '#e0b0ff' }
                   : { color: '#6060a0' }
@@ -100,16 +109,6 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
               </button>
             )
           })}
-
-          {/* Logout */}
-          <button
-            onClick={signOut}
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all"
-            style={{ color: '#ff6060' }}
-          >
-            <LogOut className="w-5 h-5" />
-            <span className="text-[10px] font-medium">יציאה</span>
-          </button>
         </div>
       </nav>
     )
@@ -117,19 +116,19 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
 
   // ── User nav ──────────────────────────────────────────────────────────────
   const userItems: { id: Page; label: string; icon: React.ReactNode }[] = [
-    { id: 'dashboard',   label: 'בית',      icon: <Home className="w-5 h-5" /> },
-    { id: 'pro',         label: 'סרטונים',  icon: <PlayCircle className="w-5 h-5" /> },
-    { id: 'workshops',   label: 'מוצרים',   icon: <ShoppingBag className="w-5 h-5" /> },
-    { id: 'community',   label: 'קהילה',    icon: <span className="text-lg leading-none">🌸</span> },
-    { id: 'marketplace', label: 'שירותים',  icon: <span className="text-lg leading-none">🌿</span> },
+    { id: 'dashboard',   label: 'בית',     icon: <Home className="w-5 h-5" /> },
+    { id: 'pro',         label: 'סדנאות',  icon: <PlayCircle className="w-5 h-5" /> },
+    { id: 'workshops',   label: 'מוצרים',  icon: <ShoppingBag className="w-5 h-5" /> },
+    { id: 'community',   label: 'קהילה',   icon: <span className="text-lg leading-none">🌸</span> },
+    { id: 'marketplace', label: 'שירותים', icon: <span className="text-lg leading-none">🌿</span> },
   ]
 
   const pregnancyItems: { id: Page; label: string; icon: React.ReactNode }[] = [
-    { id: 'dashboard',   label: 'מעקב',     icon: <Home className="w-5 h-5" /> },
-    { id: 'pro',         label: 'סרטונים',  icon: <PlayCircle className="w-5 h-5" /> },
-    { id: 'workshops',   label: 'מוצרים',   icon: <ShoppingBag className="w-5 h-5" /> },
-    { id: 'community',   label: 'קהילה',    icon: <span className="text-lg leading-none">🌸</span> },
-    { id: 'marketplace', label: 'שירותים',  icon: <span className="text-lg leading-none">🌿</span> },
+    { id: 'dashboard',   label: 'מעקב',    icon: <Home className="w-5 h-5" /> },
+    { id: 'pro',         label: 'סדנאות',  icon: <PlayCircle className="w-5 h-5" /> },
+    { id: 'workshops',   label: 'מוצרים',  icon: <ShoppingBag className="w-5 h-5" /> },
+    { id: 'community',   label: 'קהילה',   icon: <span className="text-lg leading-none">🌸</span> },
+    { id: 'marketplace', label: 'שירותים', icon: <span className="text-lg leading-none">🌿</span> },
   ]
 
   const isPregnant = !!(profile?.user_mode === 'pregnant')
@@ -160,7 +159,6 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
             </button>
           )
         })}
-        {/* Logout */}
         <button
           onClick={signOut}
           className="flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-2xl transition-all text-red-300 hover:text-red-500"

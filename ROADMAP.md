@@ -15,10 +15,18 @@
 - Modal: select workshop, set start date + end date → upserts `purchased_workshops`
 - User gets instant access in the app upon save
 
-### ✅ Videos — Locked State
-- Clear locked screen when user has no active access
-- Message: "הגישה לסרטונים ניתנת לאחר רכישת סדנה פעילה"
-- No upgrade CTA — instructs user to contact Brenda directly
+### ✅ Workshops Tab (renamed from Videos)
+- Renamed "סרטונים" → "סדנאות" throughout nav and page title
+- Content filtering: users only see videos belonging to their active workshop's category
+- Admins and legacy `is_pro` users see all videos (unrestricted)
+- Clear locked screen when user has no active access; instructs user to contact Brenda
+
+### ✅ Admin — 5-Tab Navigation
+- Dedicated dark-mode admin nav: BI, משתמשים, סדנאות, טפסים, לידים
+- Removed obsolete Categories tab
+- "צפי כמשתמשת" toggle + logout in top bar
+- Fixed Delete User (missing RLS policy on user_profiles)
+- Edit/Extend access: each user's access row shows active/expired badge; admin can update end date or revoke
 
 ### ✅ Home Screen — Access Badge
 - When user has active access: gold banner showing "⭐ גישה לסדנה פתוחה עד [DATE]"
@@ -60,9 +68,9 @@
 ## Week 3 — May 3, 2026 · 📋 Planned
 
 ### Multi-Workshop Access
-- Users can have access to multiple workshops simultaneously
-- ProAreaPage filters videos by category matching the user's active workshops
-- Badge on home screen shows all active workshops
+- ✅ ProAreaPage filters videos by category matching the user's active workshops
+- Users can hold multiple active accesses simultaneously (already supported)
+- [ ] Badge on home screen showing all active workshop names
 
 ### Baby Development Milestones
 - Pre-seeded developmental milestones by age range

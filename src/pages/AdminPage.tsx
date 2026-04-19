@@ -5,30 +5,31 @@ import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Work
 import { useAuth } from '../contexts/AuthContext'
 import type { AdminSection } from '../App'
 
-type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'categories' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads'
+type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads'
 
 const APP_URL = 'https://mimoapp.vercel.app'
 
 // Map admin nav sections → internal tabs
 const SECTION_TAB: Record<AdminSection, Tab> = {
-  insights: 'insights',
-  users: 'users',
-  forms: 'forms',
+  insights:  'insights',
+  users:     'users',
+  workshops: 'workshops',
+  forms:     'forms',
+  leads:     'leads',
 }
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'users',      label: 'משתמשים',       icon: <Users className="w-3.5 h-3.5" /> },
-  { id: 'insights',   label: 'תובנות',         icon: <BarChart2 className="w-3.5 h-3.5" /> },
-  { id: 'tips',       label: 'טיפים',          icon: <Lightbulb className="w-3.5 h-3.5" /> },
-  { id: 'videos',     label: 'סרטונים',        icon: <Video className="w-3.5 h-3.5" /> },
-  { id: 'workshops',  label: 'מוצרים',         icon: <ShoppingBag className="w-3.5 h-3.5" /> },
-  { id: 'perks',      label: 'הטבות שותפים',   icon: <Gift className="w-3.5 h-3.5" /> },
-  { id: 'categories', label: 'קטגוריות',       icon: <LayoutGrid className="w-3.5 h-3.5" /> },
-  { id: 'pregnancy',  label: 'הריון',           icon: <span className="text-xs">🤰</span> },
-  { id: 'partners',   label: 'שירותים',        icon: <span className="text-xs">🌿</span> },
-  { id: 'leads',      label: 'לידים',          icon: <span className="text-xs">📞</span> },
-  { id: 'forms',      label: 'טפסים',          icon: <span className="text-xs">📋</span> },
-  { id: 'settings',   label: 'הגדרות',         icon: <Settings className="w-3.5 h-3.5" /> },
+  { id: 'users',     label: 'משתמשים',      icon: <Users className="w-3.5 h-3.5" /> },
+  { id: 'insights',  label: 'תובנות',        icon: <BarChart2 className="w-3.5 h-3.5" /> },
+  { id: 'workshops', label: 'סדנאות',        icon: <span className="text-xs">🎓</span> },
+  { id: 'videos',    label: 'סרטונים',       icon: <Video className="w-3.5 h-3.5" /> },
+  { id: 'tips',      label: 'טיפים',         icon: <Lightbulb className="w-3.5 h-3.5" /> },
+  { id: 'perks',     label: 'הטבות',         icon: <Gift className="w-3.5 h-3.5" /> },
+  { id: 'pregnancy', label: 'הריון',          icon: <span className="text-xs">🤰</span> },
+  { id: 'partners',  label: 'שירותים',       icon: <span className="text-xs">🌿</span> },
+  { id: 'leads',     label: 'לידים',         icon: <span className="text-xs">📞</span> },
+  { id: 'forms',     label: 'טפסים',         icon: <span className="text-xs">📋</span> },
+  { id: 'settings',  label: 'הגדרות',        icon: <Settings className="w-3.5 h-3.5" /> },
 ]
 
 export default function AdminPage({ defaultSection }: { defaultSection?: AdminSection }) {
@@ -89,7 +90,6 @@ export default function AdminPage({ defaultSection }: { defaultSection?: AdminSe
         {tab === 'users'      && <UsersTab />}
         {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <TipsTab />}
-        {tab === 'categories' && <CategoriesTab />}
         {tab === 'videos'     && <VideosTab />}
         {tab === 'workshops'  && <WorkshopsTab />}
         {tab === 'perks'      && <PerksTab />}
@@ -123,18 +123,32 @@ function LeadBadge({ status }: { status: string | null }) {
 // ─── Users Tab ───────────────────────────────────────────────────────────────
 type UserWithChildren = UserProfile & { childCount: number }
 
+type ExistingAccess = { id: string; workshop_id: string; access_start_date: string | null; access_end_date: string | null; workshops?: { title: string } | null }
+
 function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose: () => void }) {
   const [workshops, setWorkshops] = useState<{ id: string; title: string }[]>([])
+  const [existing, setExisting] = useState<ExistingAccess[]>([])
   const [workshopId, setWorkshopId] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
   const [endDate, setEndDate] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editEndDate, setEditEndDate] = useState('')
 
   useEffect(() => {
     supabase.from('workshops').select('id, title').eq('is_active', true).order('display_order')
       .then(({ data }) => setWorkshops(data ?? []))
+    loadExisting()
   }, [])
+
+  async function loadExisting() {
+    const { data } = await supabase
+      .from('purchased_workshops')
+      .select('id, workshop_id, access_start_date, access_end_date, workshops(title)')
+      .eq('user_id', user.id)
+    setExisting((data ?? []) as ExistingAccess[])
+  }
 
   async function save() {
     if (!workshopId || !startDate || !endDate) return
@@ -148,49 +162,95 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
     }, { onConflict: 'user_id,workshop_id' })
     setSaving(false)
     setSaved(true)
-    setTimeout(onClose, 1200)
+    loadExisting()
+    setTimeout(() => setSaved(false), 1500)
   }
 
+  async function saveEditAccess(id: string) {
+    await supabase.from('purchased_workshops').update({ access_end_date: editEndDate }).eq('id', id)
+    setEditingId(null)
+    loadExisting()
+  }
+
+  async function revokeAccess(id: string) {
+    await supabase.from('purchased_workshops').delete().eq('id', id)
+    setExisting(prev => prev.filter(e => e.id !== id))
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center p-0" onClick={onClose}>
+      <div className="bg-white rounded-t-3xl w-full max-w-sm shadow-xl space-y-4 p-6 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="text-center">
           <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-2">
             <span className="text-2xl">🎓</span>
           </div>
-          <h3 className="font-bold text-sand-800">הקצאת גישה לסדנה</h3>
+          <h3 className="font-bold text-sand-800">ניהול גישה לסדנאות</h3>
           <p className="text-xs text-sand-400 mt-1">{user.mother_name ?? user.email}</p>
         </div>
 
-        <div>
-          <label className="text-xs text-sand-500 mb-1 block">סדנה</label>
+        {/* Existing access */}
+        {existing.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-bold text-sand-500">גישות קיימות</p>
+            {existing.map(e => {
+              const active = e.access_end_date && e.access_end_date >= today
+              return (
+                <div key={e.id} className={`rounded-2xl p-3 space-y-2 ${active ? 'bg-green-50 border border-green-200' : 'bg-sand-50'}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-sand-800">{(e.workshops as { title: string } | null)?.title ?? '—'}</p>
+                      <p className="text-[10px] text-sand-400">
+                        {e.access_start_date} → {e.access_end_date}
+                        {active ? <span className="text-green-600 mr-1"> ✓ פעיל</span> : <span className="text-red-400 mr-1"> פג תוקף</span>}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button onClick={() => { setEditingId(e.id); setEditEndDate(e.access_end_date ?? '') }} className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg">✏️</button>
+                      <button onClick={() => revokeAccess(e.id)} className="text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg">✕</button>
+                    </div>
+                  </div>
+                  {editingId === e.id && (
+                    <div className="flex gap-2 items-center">
+                      <input type="date" value={editEndDate} onChange={ev => setEditEndDate(ev.target.value)} className="flex-1 px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none" />
+                      <button onClick={() => saveEditAccess(e.id)} className="px-3 py-1.5 rounded-xl text-xs text-white font-bold" style={{ background: '#C49438' }}>שמור</button>
+                      <button onClick={() => setEditingId(null)} className="px-2 py-1.5 rounded-xl text-xs bg-sand-100 text-sand-600">ביטול</button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* New access */}
+        <div className="space-y-3">
+          <p className="text-xs font-bold text-sand-500">הקצה גישה חדשה</p>
           <select value={workshopId} onChange={e => setWorkshopId(e.target.value)} className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400">
             <option value="">בחר סדנה...</option>
             {workshops.map(w => <option key={w.id} value={w.id}>{w.title}</option>)}
           </select>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-sand-500 mb-1 block">התחלה</label>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
+            </div>
+            <div>
+              <label className="text-xs text-sand-500 mb-1 block">סיום</label>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs text-sand-500 mb-1 block">תאריך התחלה</label>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
-          </div>
-          <div>
-            <label className="text-xs text-sand-500 mb-1 block">תאריך סיום</label>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
-          </div>
-        </div>
+        {saved && <p className="text-center text-green-600 font-semibold text-sm">✓ נשמר בהצלחה!</p>}
 
-        {saved ? (
-          <p className="text-center text-green-600 font-semibold text-sm">✓ גישה הוקצתה בהצלחה!</p>
-        ) : (
-          <div className="flex gap-2">
-            <button onClick={save} disabled={saving || !workshopId || !endDate} className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
-              {saving ? '...' : 'הקצה גישה'}
-            </button>
-            <button onClick={onClose} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
-          </div>
-        )}
+        <div className="flex gap-2 pb-2">
+          <button onClick={save} disabled={saving || !workshopId || !endDate} className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+            {saving ? '...' : 'הקצה גישה'}
+          </button>
+          <button onClick={onClose} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">סגור</button>
+        </div>
       </div>
     </div>
   )

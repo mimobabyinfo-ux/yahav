@@ -11,16 +11,39 @@ type VideoWithDetails = Video & {
 }
 
 export default function ProAreaPage() {
-  const { user, profile, hasActiveWorkshopAccess } = useAuth()
+  const { user, profile, hasActiveWorkshopAccess, purchasedWorkshops } = useAuth()
   const { track } = useTracker()
   const [videos, setVideos] = useState<VideoWithDetails[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [playingId, setPlayingId] = useState<string | null>(null)
+  const [activeCategoryIds, setActiveCategoryIds] = useState<string[] | null>(null)
 
   const fetchVideos = useCallback(async () => {
     if (!user) return
+
+    // Resolve active category IDs for filtering (skip for admins / legacy is_pro)
+    const isUnrestricted = profile?.is_admin || profile?.is_pro
+    if (!isUnrestricted && hasActiveWorkshopAccess) {
+      const today = new Date().toISOString().split('T')[0]
+      const activeIds = purchasedWorkshops
+        .filter(pw => pw.access_start_date && pw.access_end_date &&
+          pw.access_start_date <= today && pw.access_end_date >= today)
+        .map(pw => pw.workshop_id)
+
+      if (activeIds.length > 0) {
+        const { data: wshops } = await supabase
+          .from('workshops')
+          .select('category_id')
+          .in('id', activeIds)
+        const catIds = (wshops ?? []).map(w => w.category_id).filter(Boolean) as string[]
+        setActiveCategoryIds(catIds.length > 0 ? catIds : null)
+      }
+    } else {
+      setActiveCategoryIds(null)
+    }
+
     const { data: vids } = await supabase
       .from('videos')
       .select('*, content_categories(name), homework_tasks(*)')
@@ -44,7 +67,7 @@ export default function ProAreaPage() {
       }))
     )
     setLoading(false)
-  }, [user])
+  }, [user, profile, hasActiveWorkshopAccess, purchasedWorkshops])
 
   useEffect(() => {
     fetchVideos()
@@ -83,11 +106,14 @@ export default function ProAreaPage() {
     )
   }
 
-  const filtered = videos.filter(v =>
-    !search ||
-    v.title.toLowerCase().includes(search.toLowerCase()) ||
-    (v.description ?? '').toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = videos.filter(v => {
+    if (activeCategoryIds && !profile?.is_admin && !profile?.is_pro) {
+      if (!v.category_id || !activeCategoryIds.includes(v.category_id)) return false
+    }
+    return !search ||
+      v.title.toLowerCase().includes(search.toLowerCase()) ||
+      (v.description ?? '').toLowerCase().includes(search.toLowerCase())
+  })
 
   return (
     <div className="min-h-screen p-4 pb-24 relative" dir="rtl">
@@ -98,7 +124,7 @@ export default function ProAreaPage() {
 
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
         <div className="pt-2">
-          <h1 className="text-2xl font-bold text-sand-800">סרטונים</h1>
+          <h1 className="text-2xl font-bold text-sand-800">סדנאות</h1>
           <p className="text-sand-400 text-sm">תכנים מקצועיים עבורך</p>
         </div>
 
