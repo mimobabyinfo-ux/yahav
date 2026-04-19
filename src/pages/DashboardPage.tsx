@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LogOut, ChevronLeft, UserPlus, Copy, Check } from 'lucide-react'
+import { LogOut, ChevronLeft, UserPlus, Copy, Check, Gift } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
@@ -15,7 +15,7 @@ type Props = {
 const APP_BASE = 'https://mimoapp.vercel.app'
 
 export default function DashboardPage({ onNavigate }: Props) {
-  const { profile, signOut, selectedChild, children, family, createFamilyInvite, user, refreshProfile } = useAuth()
+  const { profile, signOut, selectedChild, children, family, createFamilyInvite, user, refreshProfile, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
@@ -112,13 +112,30 @@ export default function DashboardPage({ onNavigate }: Props) {
               </p>
             )}
           </div>
-          <button
-            onClick={signOut}
-            className="p-2 rounded-xl hover:bg-sand-100 text-sand-300 hover:text-sand-500 transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1 pt-1">
+            <button
+              onClick={() => onNavigate('benefits')}
+              className="p-2 rounded-xl hover:bg-mustard-50 text-sand-300 hover:text-mustard-500 transition-colors"
+              title="הטבות"
+            >
+              <Gift className="w-5 h-5" />
+            </button>
+            <button
+              onClick={signOut}
+              className="p-2 rounded-xl hover:bg-sand-100 text-sand-300 hover:text-sand-500 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+
+        {/* Active workshop access badge */}
+        {hasActiveWorkshopAccess && activeAccessUntil && (
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }}>
+            <span>⭐</span>
+            <span>גישה לסדנה פתוחה עד {new Date(activeAccessUntil).toLocaleDateString('he-IL')}</span>
+          </div>
+        )}
 
         {/* Child Switcher */}
         {children.length > 0 && <ChildSwitcher />}
@@ -214,12 +231,12 @@ export default function DashboardPage({ onNavigate }: Props) {
             <p className="text-xs text-sand-400 mt-0.5">סדנאות ורכישות</p>
           </button>
           <button
-            onClick={() => onNavigate('benefits')}
+            onClick={() => onNavigate('marketplace')}
             className="bg-white rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
           >
-            <span className="text-3xl block mb-2">🎁</span>
-            <p className="font-bold text-sand-800">הטבות</p>
-            <p className="text-xs text-sand-400 mt-0.5">הנחות ומבצעים</p>
+            <span className="text-3xl block mb-2">🌿</span>
+            <p className="font-bold text-sand-800">שירותים</p>
+            <p className="text-xs text-sand-400 mt-0.5">ליווי מקצועי</p>
           </button>
         </div>
 

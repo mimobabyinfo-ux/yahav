@@ -54,6 +54,8 @@ export type PurchasedWorkshop = {
   purchase_date: string
   amount_paid: number | null
   notes: string | null
+  access_start_date: string | null
+  access_end_date: string | null
   created_at: string
 }
 

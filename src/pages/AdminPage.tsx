@@ -123,6 +123,79 @@ function LeadBadge({ status }: { status: string | null }) {
 // ─── Users Tab ───────────────────────────────────────────────────────────────
 type UserWithChildren = UserProfile & { childCount: number }
 
+function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose: () => void }) {
+  const [workshops, setWorkshops] = useState<{ id: string; title: string }[]>([])
+  const [workshopId, setWorkshopId] = useState('')
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
+  const [endDate, setEndDate] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    supabase.from('workshops').select('id, title').eq('is_active', true).order('display_order')
+      .then(({ data }) => setWorkshops(data ?? []))
+  }, [])
+
+  async function save() {
+    if (!workshopId || !startDate || !endDate) return
+    setSaving(true)
+    await supabase.from('purchased_workshops').upsert({
+      user_id: user.id,
+      workshop_id: workshopId,
+      purchase_date: startDate,
+      access_start_date: startDate,
+      access_end_date: endDate,
+    }, { onConflict: 'user_id,workshop_id' })
+    setSaving(false)
+    setSaved(true)
+    setTimeout(onClose, 1200)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="text-center">
+          <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-2">
+            <span className="text-2xl">🎓</span>
+          </div>
+          <h3 className="font-bold text-sand-800">הקצאת גישה לסדנה</h3>
+          <p className="text-xs text-sand-400 mt-1">{user.mother_name ?? user.email}</p>
+        </div>
+
+        <div>
+          <label className="text-xs text-sand-500 mb-1 block">סדנה</label>
+          <select value={workshopId} onChange={e => setWorkshopId(e.target.value)} className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400">
+            <option value="">בחר סדנה...</option>
+            {workshops.map(w => <option key={w.id} value={w.id}>{w.title}</option>)}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-sand-500 mb-1 block">תאריך התחלה</label>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
+          </div>
+          <div>
+            <label className="text-xs text-sand-500 mb-1 block">תאריך סיום</label>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
+          </div>
+        </div>
+
+        {saved ? (
+          <p className="text-center text-green-600 font-semibold text-sm">✓ גישה הוקצתה בהצלחה!</p>
+        ) : (
+          <div className="flex gap-2">
+            <button onClick={save} disabled={saving || !workshopId || !endDate} className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              {saving ? '...' : 'הקצה גישה'}
+            </button>
+            <button onClick={onClose} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function UsersTab() {
   const [users, setUsers] = useState<UserWithChildren[]>([])
   const [search, setSearch] = useState('')
@@ -134,6 +207,7 @@ function UsersTab() {
   const [editUserMode, setEditUserMode] = useState<string>('')
   const [deleteUser, setDeleteUser] = useState<UserWithChildren | null>(null)
   const [saving, setSaving] = useState(false)
+  const [assignAccessUser, setAssignAccessUser] = useState<UserWithChildren | null>(null)
 
   const load = useCallback(async () => {
     const { data: profiles } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false })
@@ -272,6 +346,14 @@ function UsersTab() {
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Workshop access button */}
+          <button
+            onClick={() => setAssignAccessUser(u)}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+          >
+            🎓 הקצה גישה לסדנה
+          </button>
         </div>
       ))}
 
@@ -335,6 +417,11 @@ function UsersTab() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Assign Workshop Access Modal */}
+      {assignAccessUser && (
+        <AssignAccessModal user={assignAccessUser} onClose={() => setAssignAccessUser(null)} />
       )}
 
       {/* Delete Confirm Modal */}

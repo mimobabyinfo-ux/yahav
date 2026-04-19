@@ -12,7 +12,7 @@ type VideoWithDetails = Video & {
 }
 
 export default function ProAreaPage() {
-  const { user, profile } = useAuth()
+  const { user, profile, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
   const { track } = useTracker()
   const [videos, setVideos] = useState<VideoWithDetails[]>([])
   const [search, setSearch] = useState('')
@@ -62,34 +62,25 @@ export default function ProAreaPage() {
     await fetchVideos()
   }
 
-  if (!profile?.is_pro && !profile?.is_admin) {
+  const hasAccess = hasActiveWorkshopAccess || profile?.is_pro || profile?.is_admin
+
+  if (!hasAccess) {
     return (
-      <>
-        <div className="min-h-screen flex items-center justify-center p-6" dir="rtl">
-          <div className="text-center max-w-sm space-y-5">
-            <div
-              className="w-24 h-24 rounded-3xl mx-auto flex items-center justify-center shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-            >
-              <span className="text-5xl">⭐</span>
-            </div>
-            <h2 className="text-2xl font-black text-sand-800">תוכן Pro בלבד</h2>
-            <p className="text-sand-500 text-sm leading-relaxed">
-              שדרגי לחשבון Pro כדי לגשת לסרטונים ותכנים מקצועיים
-            </p>
-            <button
-              onClick={() => setPlayingId('upgrade')}
-              className="w-full py-4 rounded-2xl text-white font-bold shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-            >
-              שדרגי עכשיו ⭐
-            </button>
+      <div className="min-h-screen flex items-center justify-center p-6" dir="rtl">
+        <div className="text-center max-w-sm space-y-5">
+          <div
+            className="w-24 h-24 rounded-3xl mx-auto flex items-center justify-center shadow-lg"
+            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+          >
+            <span className="text-5xl">🔒</span>
           </div>
+          <h2 className="text-2xl font-black text-sand-800">הסרטונים נעולים</h2>
+          <p className="text-sand-500 text-sm leading-relaxed">
+            הגישה לסרטונים ניתנת לאחר רכישת סדנה פעילה.<br />
+            פנייה לברנדה לפתיחת גישה 💛
+          </p>
         </div>
-        {playingId === 'upgrade' && (
-          <UpgradeModal featureName="סרטונים" onClose={() => setPlayingId(null)} />
-        )}
-      </>
+      </div>
     )
   }
 

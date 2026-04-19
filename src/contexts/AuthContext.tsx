@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { supabase, UserProfile, Child, Family } from '../lib/supabase'
+import { supabase, UserProfile, Child, Family, PurchasedWorkshop } from '../lib/supabase'
 
 type AuthContextType = {
   user: User | null
@@ -19,6 +19,10 @@ type AuthContextType = {
   joinFamily: (code: string) => Promise<boolean>
   createFamilyInvite: (childId: string) => Promise<string | null>
   redeemFamilyInvite: (token: string) => Promise<boolean>
+  hasActiveWorkshopAccess: boolean
+  activeAccessUntil: string | null
+  purchasedWorkshops: PurchasedWorkshop[]
+  refreshPurchasedWorkshops: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -31,6 +35,27 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
   const [loading, setLoading] = useState(true)
   const [family, setFamily] = useState<Family | null>(null)
   const [familyMembers, setFamilyMembers] = useState<UserProfile[]>([])
+  const [purchasedWorkshops, setPurchasedWorkshops] = useState<PurchasedWorkshop[]>([])
+
+  async function fetchPurchasedWorkshops(userId: string) {
+    const { data } = await supabase
+      .from('purchased_workshops')
+      .select('*')
+      .eq('user_id', userId)
+    setPurchasedWorkshops((data ?? []) as PurchasedWorkshop[])
+  }
+
+  async function refreshPurchasedWorkshops() {
+    if (user) await fetchPurchasedWorkshops(user.id)
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  const activeAccess = purchasedWorkshops.find(
+    pw => pw.access_start_date && pw.access_end_date &&
+          pw.access_start_date <= today && pw.access_end_date >= today
+  )
+  const hasActiveWorkshopAccess = !!activeAccess
+  const activeAccessUntil = activeAccess?.access_end_date ?? null
 
   async function fetchProfile(userId: string) {
     const { data } = await supabase
@@ -231,11 +256,13 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       if (session?.user) {
         fetchProfile(session.user.id).then(prof => {
           fetchChildren(session.user.id, prof as UserProfile | null)
+          fetchPurchasedWorkshops(session.user.id)
         }).finally(() => setLoading(false))
       } else {
         setProfile(null)
         setChildren([])
         setSelectedChild(null)
+        setPurchasedWorkshops([])
         setLoading(false)
       }
     })
@@ -267,6 +294,8 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       loading, isGuest, signOut, refreshProfile, refreshChildren,
       family, familyMembers, createFamily, joinFamily,
       createFamilyInvite, redeemFamilyInvite,
+      hasActiveWorkshopAccess, activeAccessUntil,
+      purchasedWorkshops, refreshPurchasedWorkshops,
     }}>
       {reactChildren}
     </AuthContext.Provider>
