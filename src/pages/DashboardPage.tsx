@@ -15,7 +15,7 @@ type Props = {
 const APP_BASE = 'https://mimoapp.vercel.app'
 
 export default function DashboardPage({ onNavigate }: Props) {
-  const { profile, signOut, selectedChild, children, family, createFamilyInvite, user, refreshProfile, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
+  const { profile, signOut, selectedChild, children, family, createFamily, createFamilyInvite, user, refreshProfile, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
@@ -69,6 +69,9 @@ export default function DashboardPage({ onNavigate }: Props) {
   async function handleCreateInvite() {
     if (!selectedChild) return
     setInviteLoading(true)
+    if (!family) {
+      await createFamily(profile?.mother_name ?? 'המשפחה שלי')
+    }
     const token = await createFamilyInvite(selectedChild.id)
     setInviteLoading(false)
     if (token) setInviteLink(`${APP_BASE}?join=${token}`)
@@ -241,7 +244,7 @@ export default function DashboardPage({ onNavigate }: Props) {
         </div>
 
         {/* Family invite */}
-        {family && selectedChild && (
+        {selectedChild && (
           <div className="bg-white rounded-3xl p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-2xl bg-mustard-50 flex items-center justify-center flex-shrink-0">
