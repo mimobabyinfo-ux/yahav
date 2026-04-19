@@ -180,8 +180,8 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
   const today = new Date().toISOString().split('T')[0]
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center p-0" onClick={onClose}>
-      <div className="bg-white rounded-t-3xl w-full max-w-sm shadow-xl space-y-4 p-6 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl w-full max-w-sm shadow-xl space-y-4 p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="text-center">
           <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-2">
             <span className="text-2xl">🎓</span>
@@ -388,16 +388,6 @@ function UsersTab() {
             >
               <Pencil className="w-3.5 h-3.5" />
               ערוך
-            </button>
-            <button
-              onClick={() => upgradePro(u)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                u.is_pro
-                  ? 'bg-mustard-100 text-mustard-700'
-                  : 'bg-mustard-50 text-mustard-600 hover:bg-mustard-100'
-              }`}
-            >
-              ⭐ {u.is_pro ? 'בטל PRO' : 'PRO'}
             </button>
             <button
               onClick={() => setDeleteUser(u)}
