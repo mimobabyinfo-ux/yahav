@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { Search, Check, PlayCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase, Video, HomeworkTask } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import UpgradeModal from '../components/UpgradeModal'
 import { useTracker } from '../hooks/useTracker'
 
 type VideoWithDetails = Video & {
@@ -12,7 +11,7 @@ type VideoWithDetails = Video & {
 }
 
 export default function ProAreaPage() {
-  const { user, profile, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
+  const { user, profile, hasActiveWorkshopAccess } = useAuth()
   const { track } = useTracker()
   const [videos, setVideos] = useState<VideoWithDetails[]>([])
   const [search, setSearch] = useState('')

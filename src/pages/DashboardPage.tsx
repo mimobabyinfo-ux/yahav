@@ -133,7 +133,7 @@ export default function DashboardPage({ onNavigate }: Props) {
         {hasActiveWorkshopAccess && activeAccessUntil && (
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }}>
             <span>⭐</span>
-            <span>גישה לסדנה פתוחה עד {new Date(activeAccessUntil).toLocaleDateString('he-IL')}</span>
+            <span>גישה לסדנה פתוחה עד {new Date(activeAccessUntil + 'T12:00:00').toLocaleDateString('he-IL')}</span>
           </div>
         )}
 
