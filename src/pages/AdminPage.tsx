@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, ShoppingBag, Gift, LayoutGrid, Settings, MessageCircle, Mail, Phone } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
 import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -123,7 +123,7 @@ function LeadBadge({ status }: { status: string | null }) {
 // ─── Users Tab ───────────────────────────────────────────────────────────────
 type UserWithChildren = UserProfile & { childCount: number }
 
-type ExistingAccess = { id: string; workshop_id: string; access_start_date: string | null; access_end_date: string | null; workshops?: { title: string } | null }
+type ExistingAccess = { id: string; workshop_id: string; access_start_date: string | null; access_end_date: string | null; workshops?: { title: string }[] | { title: string } | null }
 
 function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose: () => void }) {
   const [workshops, setWorkshops] = useState<{ id: string; title: string }[]>([])
@@ -842,84 +842,6 @@ function TipsTab() {
   )
 }
 
-// ─── Categories Tab ───────────────────────────────────────────────────────────
-function CategoriesTab() {
-  const [cats, setCats] = useState<ContentCategory[]>([])
-  const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<ContentCategory | null>(null)
-  const [form, setForm] = useState({ name: '', slug: '', category_type: 'both' as ContentCategory['category_type'] })
-
-  const load = useCallback(() => {
-    supabase.from('content_categories').select('*').order('display_order')
-      .then(({ data }) => setCats(data ?? []))
-  }, [])
-  useEffect(() => { load() }, [load])
-
-  async function save() {
-    if (!form.name.trim()) return
-    if (editing) {
-      await supabase.from('content_categories').update(form).eq('id', editing.id)
-    } else {
-      const maxOrder = cats.length > 0 ? Math.max(...cats.map(c => c.display_order)) : 0
-      await supabase.from('content_categories').insert({ ...form, display_order: maxOrder + 1, is_active: true })
-    }
-    setForm({ name: '', slug: '', category_type: 'both' }); setEditing(null); setShowForm(false); load()
-  }
-
-  async function del(id: string) {
-    await supabase.from('content_categories').delete().eq('id', id); load()
-  }
-
-  async function toggle(cat: ContentCategory) {
-    await supabase.from('content_categories').update({ is_active: !cat.is_active }).eq('id', cat.id); load()
-  }
-
-  return (
-    <div className="space-y-3">
-      <button
-        onClick={() => { setShowForm(true); setEditing(null); setForm({ name: '', slug: '', category_type: 'both' }) }}
-        className="w-full flex items-center justify-center gap-2 bg-mustard-500 text-white font-semibold py-3 rounded-2xl hover:bg-mustard-600 transition-colors"
-      >
-        <Plus className="w-4 h-4" />
-        קטגוריה חדשה
-      </button>
-
-      {(showForm || editing) && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-          <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="שם הקטגוריה" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
-          <input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} placeholder="slug (אנגלית)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
-          <select value={form.category_type} onChange={e => setForm(f => ({ ...f, category_type: e.target.value as ContentCategory['category_type'] }))} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white">
-            <option value="video">סרטונים</option>
-            <option value="workshop">סדנאות</option>
-            <option value="both">שניהם</option>
-          </select>
-          <div className="flex gap-2">
-            <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold">שמירה</button>
-            <button onClick={() => { setShowForm(false); setEditing(null) }} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
-          </div>
-        </div>
-      )}
-
-      {cats.map(cat => (
-        <div key={cat.id} className={`bg-white rounded-2xl p-4 shadow-sm ${!cat.is_active ? 'opacity-50' : ''}`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-sand-800 text-sm">{cat.name}</p>
-              <p className="text-xs text-sand-400">{cat.slug} · {cat.category_type}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => toggle(cat)} className="text-sand-400 hover:text-mustard-500">
-                {cat.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
-              </button>
-              <button onClick={() => { setEditing(cat); setForm({ name: cat.name, slug: cat.slug, category_type: cat.category_type }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
-              <button onClick={() => del(cat.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 // ─── Videos Tab ───────────────────────────────────────────────────────────────
 function VideosTab() {
