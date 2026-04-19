@@ -38,6 +38,14 @@
 - Edit existing forms inline (✏️ button)
 - Forms grouped by folders (📁) in admin
 
+### ✅ Workshop Content System
+- New `workshop_content` table: items per workshop with type (video/homework/pdf)
+- Admin: type-first content flow — Video: drag-drop MP4 upload, PDF: file upload, Homework: task list builder
+- File uploads go to `workshop-content` Supabase storage bucket (public read, admin write)
+- User folder view: workshop cards → tap opens content grouped by סרטונים / שיעורי בית / קבצים
+- Homework checkboxes with progress bar, persisted in `user_homework_progress` table
+- Data migration: all existing videos auto-linked to סדנת עיסוי תינוקות workshop
+
 ### ✅ Form Submissions
 - Fixed anonymous submissions (public forms no longer require login)
 - Delete individual submissions from admin

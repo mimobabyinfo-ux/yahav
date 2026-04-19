@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
 import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent } from '../lib/supabase'
@@ -1041,9 +1041,18 @@ function VideosTab() {
 // ─── Workshop Content Modal ───────────────────────────────────────────────────
 function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClose: () => void }) {
   const [items, setItems] = useState<WorkshopContent[]>([])
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ type: 'video' as WorkshopContent['type'], title: '', description: '', url: '' })
+  const [showAdd, setShowAdd] = useState(false)
+  const [selType, setSelType] = useState<WorkshopContent['type'] | null>(null)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [url, setUrl] = useState('')
+  const [tasks, setTasks] = useState<string[]>([])
+  const [newTask, setNewTask] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadPct, setUploadPct] = useState(0)
+  const [dragOver, setDragOver] = useState(false)
   const [saving, setSaving] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(() => {
     supabase.from('workshop_content').select('*').eq('workshop_id', workshop.id).order('display_order')
@@ -1051,97 +1060,229 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
   }, [workshop.id])
   useEffect(() => { load() }, [load])
 
+  function resetForm() {
+    setSelType(null); setTitle(''); setDescription(''); setUrl('')
+    setTasks([]); setNewTask(''); setShowAdd(false)
+  }
+
+  async function uploadFile(file: File) {
+    setUploading(true); setUploadPct(0)
+    const ext = file.name.split('.').pop()
+    const path = `${workshop.id}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('workshop-content').upload(path, file, { upsert: true })
+    if (error) { setUploading(false); return null }
+    const { data } = supabase.storage.from('workshop-content').getPublicUrl(path)
+    setUploading(false); setUploadPct(100)
+    return data.publicUrl
+  }
+
+  async function handleFile(file: File) {
+    const publicUrl = await uploadFile(file)
+    if (publicUrl) setUrl(publicUrl)
+    if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''))
+  }
+
   async function save() {
-    if (!form.title.trim()) return
+    if (!title.trim() || !selType) return
     setSaving(true)
     const maxOrder = items.length > 0 ? Math.max(...items.map(i => i.display_order)) : 0
     await supabase.from('workshop_content').insert({
       workshop_id: workshop.id,
-      type: form.type,
-      title: form.title,
-      description: form.description || null,
-      url: form.url || null,
+      type: selType,
+      title,
+      description: description || null,
+      url: url || null,
+      tasks_json: selType === 'homework' && tasks.length > 0 ? tasks : null,
       display_order: maxOrder + 1,
     })
-    setForm({ type: 'video', title: '', description: '', url: '' })
-    setShowForm(false)
     setSaving(false)
+    resetForm()
     load()
   }
 
-  async function del(id: string) {
-    await supabase.from('workshop_content').delete().eq('id', id)
-    setItems(prev => prev.filter(i => i.id !== id))
+  async function del(item: WorkshopContent) {
+    // Delete storage file if it's from our bucket
+    if (item.url?.includes('workshop-content')) {
+      const path = item.url.split('/workshop-content/')[1]
+      if (path) await supabase.storage.from('workshop-content').remove([path])
+    }
+    await supabase.from('workshop_content').delete().eq('id', item.id)
+    setItems(prev => prev.filter(i => i.id !== item.id))
   }
 
   const typeLabel = { video: '🎬 סרטון', homework: '📝 שיעור בית', pdf: '📄 קובץ' }
-  const typeBg = { video: 'bg-mustard-50 text-mustard-700', homework: 'bg-purple-50 text-purple-700', pdf: 'bg-blue-50 text-blue-700' }
+  const typeBg   = { video: 'bg-mustard-50 text-mustard-700', homework: 'bg-purple-50 text-purple-700', pdf: 'bg-blue-50 text-blue-700' }
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-sm shadow-xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="p-5 border-b border-sand-100 sticky top-0 bg-white rounded-t-3xl z-10">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-sand-800">תוכן הסדנה</h3>
-              <p className="text-xs text-sand-400 mt-0.5">{workshop.title}</p>
-            </div>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-sand-100 text-sand-400"><X className="w-4 h-4" /></button>
+      <div className="bg-white rounded-3xl w-full max-w-sm shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="p-5 border-b border-sand-100 sticky top-0 bg-white rounded-t-3xl z-10 flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-sand-800">תוכן הסדנה</h3>
+            <p className="text-xs text-sand-400 mt-0.5">{workshop.title}</p>
           </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-sand-100 text-sand-400"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="p-4 space-y-3">
-          <button
-            onClick={() => setShowForm(s => !s)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold text-white transition-colors"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-          >
-            <Plus className="w-4 h-4" />
-            הוסף פריט
-          </button>
 
-          {showForm && (
+          {/* Add button */}
+          {!showAdd && (
+            <button onClick={() => setShowAdd(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold text-white"
+              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              <Plus className="w-4 h-4" /> הוסף פריט
+            </button>
+          )}
+
+          {/* Add form */}
+          {showAdd && (
             <div className="bg-sand-50 rounded-2xl p-4 space-y-3">
-              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as WorkshopContent['type'] }))}
-                className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm bg-white focus:outline-none focus:border-mustard-400">
-                <option value="video">🎬 סרטון</option>
-                <option value="homework">📝 שיעור בית</option>
-                <option value="pdf">📄 קובץ / PDF</option>
-              </select>
-              <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="כותרת" className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
-              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="תיאור (אופציונלי)" rows={2}
-                className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
-              <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
-                placeholder="קישור (URL)" dir="ltr"
-                className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
-              <div className="flex gap-2">
-                <button onClick={save} disabled={saving || !form.title.trim()}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
-                  {saving ? '...' : 'שמור'}
-                </button>
-                <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-xl text-sm bg-sand-100 text-sand-600">ביטול</button>
-              </div>
+
+              {/* Step 1: pick type */}
+              {!selType ? (
+                <>
+                  <p className="text-xs font-bold text-sand-600 mb-1">בחרי סוג תוכן</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['video', 'homework', 'pdf'] as const).map(t => (
+                      <button key={t} onClick={() => setSelType(t)}
+                        className="flex flex-col items-center gap-1 py-3 rounded-2xl border-2 border-sand-200 hover:border-mustard-400 hover:bg-mustard-50 transition-all">
+                        <span className="text-xl">{t === 'video' ? '🎬' : t === 'homework' ? '📝' : '📄'}</span>
+                        <span className="text-[10px] font-semibold text-sand-600">
+                          {t === 'video' ? 'סרטון' : t === 'homework' ? 'שיעור בית' : 'PDF / קובץ'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={resetForm} className="w-full py-2 rounded-xl text-xs text-sand-400 hover:text-sand-600">ביטול</button>
+                </>
+              ) : (
+                <>
+                  {/* Type badge + back */}
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-xl ${typeBg[selType]}`}>{typeLabel[selType]}</span>
+                    <button onClick={() => setSelType(null)} className="text-xs text-sand-400 hover:text-sand-600">שנה סוג</button>
+                  </div>
+
+                  {/* Title */}
+                  <input value={title} onChange={e => setTitle(e.target.value)}
+                    placeholder="כותרת *" className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+
+                  {/* Description */}
+                  <textarea value={description} onChange={e => setDescription(e.target.value)}
+                    placeholder="תיאור (אופציונלי)" rows={2}
+                    className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
+
+                  {/* Video: drag-drop zone */}
+                  {selType === 'video' && (
+                    <div>
+                      <div
+                        className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer ${dragOver ? 'border-mustard-500 bg-mustard-50' : 'border-sand-200 hover:border-mustard-300'}`}
+                        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={async e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) await handleFile(f) }}
+                        onClick={() => fileRef.current?.click()}
+                      >
+                        {uploading ? (
+                          <div className="space-y-2">
+                            <div className="w-full bg-sand-200 rounded-full h-1.5"><div className="bg-mustard-500 h-1.5 rounded-full transition-all" style={{ width: `${uploadPct}%` }} /></div>
+                            <p className="text-xs text-sand-500">מעלה...</p>
+                          </div>
+                        ) : url ? (
+                          <div className="space-y-1">
+                            <p className="text-xs text-green-600 font-semibold">✓ הועלה בהצלחה</p>
+                            <p className="text-[10px] text-sand-400 truncate">{url}</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <p className="text-2xl">🎬</p>
+                            <p className="text-xs font-semibold text-sand-600">גרור MP4 לכאן</p>
+                            <p className="text-[10px] text-sand-400">או לחץ לבחירה</p>
+                          </div>
+                        )}
+                      </div>
+                      <input ref={fileRef} type="file" accept="video/mp4,video/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+                      <p className="text-[10px] text-sand-400 mt-1.5 text-center">או הדבק קישור URL:</p>
+                      <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." dir="ltr"
+                        className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 mt-1" />
+                    </div>
+                  )}
+
+                  {/* PDF: file upload */}
+                  {selType === 'pdf' && (
+                    <div>
+                      <label className={`flex items-center justify-center gap-2 w-full py-3 rounded-2xl border-2 border-dashed cursor-pointer transition-all ${uploading ? 'border-sand-200 bg-sand-50' : 'border-sand-200 hover:border-mustard-300'}`}>
+                        {uploading ? <span className="text-xs text-sand-400">מעלה...</span> : url ? (
+                          <span className="text-xs text-green-600 font-semibold">✓ הועלה · {url.split('/').pop()}</span>
+                        ) : (
+                          <><span className="text-xl">📄</span><span className="text-xs font-semibold text-sand-600">בחר קובץ PDF</span></>
+                        )}
+                        <input type="file" accept=".pdf,application/pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+                      </label>
+                      <p className="text-[10px] text-sand-400 mt-1.5 text-center">או הדבק קישור URL:</p>
+                      <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." dir="ltr"
+                        className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 mt-1" />
+                    </div>
+                  )}
+
+                  {/* Homework: task list builder */}
+                  {selType === 'homework' && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-sand-600">משימות</p>
+                      {tasks.map((t, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2 border border-sand-100">
+                          <span className="text-xs text-mustard-500 font-bold w-4 flex-shrink-0">{i + 1}.</span>
+                          <span className="flex-1 text-xs text-sand-700">{t}</span>
+                          <button onClick={() => setTasks(prev => prev.filter((_, j) => j !== i))} className="text-red-300 hover:text-red-500"><X className="w-3 h-3" /></button>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <input value={newTask} onChange={e => setNewTask(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter' && newTask.trim()) { setTasks(p => [...p, newTask.trim()]); setNewTask('') } }}
+                          placeholder="הוסף משימה..." className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400" />
+                        <button onClick={() => { if (newTask.trim()) { setTasks(p => [...p, newTask.trim()]); setNewTask('') } }}
+                          className="px-3 py-2 rounded-xl text-xs text-white font-bold" style={{ background: '#D4AA52' }}>+</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Save / Cancel */}
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={save} disabled={saving || !title.trim() || (selType === 'homework' && tasks.length === 0)}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+                      style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                      {saving ? '...' : 'שמור'}
+                    </button>
+                    <button onClick={resetForm} className="px-4 py-2.5 rounded-xl text-sm bg-sand-100 text-sand-600">ביטול</button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
-          {items.length === 0 && !showForm && (
-            <p className="text-center text-sand-400 text-sm py-6">אין תוכן עדיין. לחץ "הוסף פריט" כדי להתחיל.</p>
+          {/* Items list */}
+          {items.length === 0 && !showAdd && (
+            <p className="text-center text-sand-400 text-sm py-6">אין תוכן עדיין</p>
           )}
 
           {items.map((item, idx) => (
-            <div key={item.id} className="bg-white border border-sand-100 rounded-2xl p-3 flex items-center gap-3">
-              <span className={`text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0 ${typeBg[item.type]}`}>
+            <div key={item.id} className="bg-white border border-sand-100 rounded-2xl p-3 flex items-start gap-3">
+              <span className={`text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0 mt-0.5 ${typeBg[item.type]}`}>
                 {typeLabel[item.type]}
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-sand-800 truncate">{item.title}</p>
-                {item.url && <p className="text-[10px] text-sand-400 truncate">{item.url}</p>}
+                {item.type === 'homework' && item.tasks_json && (
+                  <p className="text-[10px] text-sand-400">{item.tasks_json.length} משימות</p>
+                )}
+                {item.url && item.type !== 'homework' && (
+                  <p className="text-[10px] text-sand-400 truncate">{item.url}</p>
+                )}
               </div>
-              <span className="text-[10px] text-sand-300 flex-shrink-0">#{idx + 1}</span>
-              <button onClick={() => del(item.id)} className="p-1.5 text-red-300 hover:text-red-500 flex-shrink-0">
+              <span className="text-[10px] text-sand-300 flex-shrink-0 mt-0.5">#{idx + 1}</span>
+              <button onClick={() => del(item)} className="p-1.5 text-red-300 hover:text-red-500 flex-shrink-0">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>

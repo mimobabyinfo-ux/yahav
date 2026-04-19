@@ -145,9 +145,19 @@ export type WorkshopContent = {
   title: string
   description: string | null
   url: string | null
+  tasks_json: string[] | null
   display_order: number
   is_active: boolean
   created_at: string
+}
+
+export type UserHomeworkProgress = {
+  id: string
+  user_id: string
+  content_id: string
+  task_index: number
+  completed: boolean
+  completed_at: string | null
 }
 
 export type PartnerPerk = {

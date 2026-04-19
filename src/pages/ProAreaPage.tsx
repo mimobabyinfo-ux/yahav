@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ChevronRight, PlayCircle, BookOpen, FileText, Lock } from 'lucide-react'
+import { ChevronRight, PlayCircle, BookOpen, FileText, Lock, CheckSquare, Square } from 'lucide-react'
 import { supabase, Workshop, WorkshopContent, PurchasedWorkshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
@@ -15,6 +15,8 @@ export default function ProAreaPage() {
   const [loading, setLoading] = useState(true)
   const [contentLoading, setContentLoading] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
+  // homework progress: "contentId:taskIndex"
+  const [doneKeys, setDoneKeys] = useState<Set<string>>(new Set())
 
   const fetchActive = useCallback(async () => {
     if (!user) return
@@ -59,8 +61,37 @@ export default function ProAreaPage() {
       .eq('workshop_id', aw.workshop_id)
       .eq('is_active', true)
       .order('display_order')
-    setContent(data ?? [])
+    const items = data ?? []
+    setContent(items)
+
+    // Load homework progress
+    if (user && items.some(i => i.type === 'homework')) {
+      const ids = items.filter(i => i.type === 'homework').map(i => i.id)
+      const { data: prog } = await supabase
+        .from('user_homework_progress')
+        .select('content_id, task_index, completed')
+        .eq('user_id', user.id)
+        .in('content_id', ids)
+      const keys = new Set(
+        (prog ?? []).filter(p => p.completed).map(p => `${p.content_id}:${p.task_index}`)
+      )
+      setDoneKeys(keys)
+    }
     setContentLoading(false)
+  }
+
+  async function toggleTask(contentId: string, taskIndex: number) {
+    if (!user) return
+    const key = `${contentId}:${taskIndex}`
+    const isNowDone = !doneKeys.has(key)
+    setDoneKeys(prev => { const s = new Set(prev); isNowDone ? s.add(key) : s.delete(key); return s })
+    await supabase.from('user_homework_progress').upsert({
+      user_id: user.id,
+      content_id: contentId,
+      task_index: taskIndex,
+      completed: isNowDone,
+      completed_at: isNowDone ? new Date().toISOString() : null,
+    }, { onConflict: 'user_id,content_id,task_index' })
   }
 
   const hasAccess = hasActiveWorkshopAccess || profile?.is_pro || profile?.is_admin
@@ -161,24 +192,55 @@ export default function ProAreaPage() {
                     <h2 className="font-bold text-sand-700 text-sm">שיעורי בית</h2>
                     <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-md font-semibold">{homework.length}</span>
                   </div>
-                  <div className="space-y-2">
-                    {homework.map((item, i) => (
-                      <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-start gap-3">
-                        <div className="w-7 h-7 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-xs font-bold text-purple-600">{i + 1}</span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-sand-800 text-sm">{item.title}</p>
-                          {item.description && <p className="text-xs text-sand-400 mt-1 leading-relaxed">{item.description}</p>}
+                  <div className="space-y-3">
+                    {homework.map(item => {
+                      const taskList = item.tasks_json ?? []
+                      const doneCount = taskList.filter((_, i) => doneKeys.has(`${item.id}:${i}`)).length
+                      return (
+                        <div key={item.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                          <div className="p-4 border-b border-sand-50">
+                            <div className="flex items-center justify-between">
+                              <p className="font-bold text-sand-800 text-sm">{item.title}</p>
+                              {taskList.length > 0 && (
+                                <span className="text-[10px] font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-lg">
+                                  {doneCount}/{taskList.length}
+                                </span>
+                              )}
+                            </div>
+                            {item.description && <p className="text-xs text-sand-400 mt-1 leading-relaxed">{item.description}</p>}
+                            {taskList.length > 0 && (
+                              <div className="mt-1.5 h-1 bg-sand-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-purple-400 rounded-full transition-all"
+                                  style={{ width: `${(doneCount / taskList.length) * 100}%` }} />
+                              </div>
+                            )}
+                          </div>
+                          {taskList.length > 0 && (
+                            <div className="divide-y divide-sand-50">
+                              {taskList.map((task, i) => {
+                                const done = doneKeys.has(`${item.id}:${i}`)
+                                return (
+                                  <button key={i} onClick={() => toggleTask(item.id, i)}
+                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sand-50 transition-colors text-right">
+                                    {done
+                                      ? <CheckSquare className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                                      : <Square className="w-4 h-4 text-sand-300 flex-shrink-0" />
+                                    }
+                                    <span className={`text-sm flex-1 text-right ${done ? 'line-through text-sand-300' : 'text-sand-700'}`}>{task}</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
                           {item.url && (
-                            <a href={item.url} target="_blank" rel="noopener noreferrer"
-                              className="inline-block mt-2 text-xs text-mustard-600 font-medium underline">
-                              פתח קישור ←
-                            </a>
+                            <div className="px-4 py-3 border-t border-sand-50">
+                              <a href={item.url} target="_blank" rel="noopener noreferrer"
+                                className="text-xs text-mustard-600 font-medium">פתח קישור ←</a>
+                            </div>
                           )}
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </section>
               )}
