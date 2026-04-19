@@ -52,7 +52,7 @@ export default function ProAreaPage() {
   async function openWorkshop(aw: ActiveWorkshop) {
     setSelected(aw)
     setContentLoading(true)
-    track('workshop_open', { workshop_id: aw.workshop_id, title: aw.workshop?.title })
+    track('workshop_open', { workshop_id: aw.workshop_id, title: aw.workshop?.title ?? null })
     const { data } = await supabase
       .from('workshop_content')
       .select('*')
