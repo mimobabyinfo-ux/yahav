@@ -283,11 +283,6 @@ function UsersTab() {
     return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
   })
 
-  async function upgradePro(u: UserWithChildren) {
-    await supabase.from('user_profiles').update({ is_pro: !u.is_pro }).eq('id', u.id)
-    setUsers(prev => prev.map(p => p.id === u.id ? { ...p, is_pro: !p.is_pro } : p))
-  }
-
   async function saveEdit() {
     if (!editUser || !editName.trim()) return
     setSaving(true)

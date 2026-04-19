@@ -12,6 +12,7 @@ type EventType =
   | 'video_end'
   | 'coupon_copy'
   | 'session_end'
+  | 'workshop_open'
 
 type EventData = Record<string, string | number | boolean | null>
 
