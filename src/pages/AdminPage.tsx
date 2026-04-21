@@ -16,6 +16,12 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
   workshops: 'workshops',
   forms:     'forms',
   leads:     'leads',
+  tips:      'tips',
+  videos:    'videos',
+  perks:     'perks',
+  pregnancy: 'pregnancy',
+  partners:  'partners',
+  settings:  'settings',
 }
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [

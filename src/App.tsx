@@ -23,7 +23,7 @@ import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
 
 export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'contact' | 'services' | 'community' | 'marketplace'
-export type AdminSection = 'insights' | 'users' | 'workshops' | 'forms' | 'leads'
+export type AdminSection = 'insights' | 'users' | 'workshops' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'settings'
 
 // Detect public URLs
 const publicFormId = new URLSearchParams(window.location.search).get('form')

@@ -1,4 +1,4 @@
-import { BarChart2, Users, LogOut, Eye, ShieldAlert } from 'lucide-react'
+import { BarChart2, Users, LogOut, Eye, ShieldAlert, Video, Lightbulb, Gift, Settings } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import type { AdminSection } from '../App'
 
@@ -13,8 +13,14 @@ const NAV: { id: AdminSection; label: string; icon?: React.ReactNode; emoji?: st
   { id: 'insights',  label: 'BI & Analytics', icon: <BarChart2 className="w-4 h-4" /> },
   { id: 'users',     label: 'משתמשים',         icon: <Users className="w-4 h-4" /> },
   { id: 'workshops', label: 'סדנאות',           emoji: '🎓' },
+  { id: 'videos',    label: 'סרטונים',          icon: <Video className="w-4 h-4" /> },
+  { id: 'tips',      label: 'טיפים יומיים',     icon: <Lightbulb className="w-4 h-4" /> },
+  { id: 'perks',     label: 'הטבות',            icon: <Gift className="w-4 h-4" /> },
   { id: 'forms',     label: 'טפסים',            emoji: '📋' },
   { id: 'leads',     label: 'לידים & CRM',      emoji: '📞' },
+  { id: 'pregnancy', label: 'הריון',             emoji: '🤰' },
+  { id: 'partners',  label: 'שירותים',           emoji: '🌿' },
+  { id: 'settings',  label: 'הגדרות',            icon: <Settings className="w-4 h-4" /> },
 ]
 
 export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView }: Props) {
