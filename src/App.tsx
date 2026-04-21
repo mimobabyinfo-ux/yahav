@@ -129,10 +129,24 @@ function AppInner() {
 
   if (isAdminMode) {
     return (
-      <>
-        {/* ── Mobile admin (unchanged) ── */}
-        <div className="lg:hidden min-h-screen pb-20" style={{ background: '#1a1a2e' }}>
+      <div className="min-h-screen lg:flex lg:flex-row-reverse" dir="rtl">
+        {/* Sidebar — desktop only */}
+        <div className="hidden lg:block">
+          <AdminSidebar
+            section={adminSection}
+            onSection={navigateAdmin}
+            viewAsUser={viewAsUser}
+            onToggleUserView={toggleUserView}
+          />
+        </div>
+
+        {/* Main content — single render */}
+        <main className="flex-1 min-h-screen pb-20 lg:pb-0 lg:overflow-y-auto admin-main-bg">
           {renderPage()}
+        </main>
+
+        {/* Bottom nav — mobile only */}
+        <div className="lg:hidden">
           <BottomNav
             currentPage={currentPage} onNavigate={navigate}
             isAdminMode={true} isGuest={false}
@@ -141,21 +155,8 @@ function AppInner() {
           />
         </div>
 
-        {/* ── Desktop admin (sidebar layout) ── */}
-        <div className="hidden lg:flex flex-row-reverse min-h-screen" style={{ background: '#f4f4f8' }} dir="rtl">
-          <AdminSidebar
-            section={adminSection}
-            onSection={navigateAdmin}
-            viewAsUser={viewAsUser}
-            onToggleUserView={toggleUserView}
-          />
-          <main className="flex-1 min-h-screen overflow-y-auto" style={{ background: '#f4f4f8' }}>
-            {renderPage()}
-          </main>
-        </div>
-
         <FormTriggerModal />
-      </>
+      </div>
     )
   }
 

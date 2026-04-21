@@ -26,6 +26,16 @@ body {
   position: relative;
 }
 
+@media (min-width: 1024px) {
+  #root {
+    max-width: 100%;
+    margin: 0;
+  }
+}
+
+.admin-main-bg { background: #1a1a2e; }
+@media (min-width: 1024px) { .admin-main-bg { background: #f4f4f8; } }
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 4px;

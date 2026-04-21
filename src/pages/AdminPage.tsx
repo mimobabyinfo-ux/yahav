@@ -108,14 +108,14 @@ export default function AdminPage({ defaultSection }: { defaultSection?: AdminSe
       <div className="hidden lg:block px-8 py-6">
         {tab === 'users'      && <UsersTabDesktop />}
         {tab === 'leads'      && <LeadsTabDesktop />}
+        {tab === 'workshops'  && <WorkshopsTabDesktop />}
+        {tab === 'forms'      && <FormsTabDesktop />}
         {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <TipsTab />}
         {tab === 'videos'     && <VideosTab />}
-        {tab === 'workshops'  && <WorkshopsTab />}
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'partners'   && <PartnersTab />}
-        {tab === 'forms'      && <FormsTab />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
     </div>
@@ -852,6 +852,366 @@ function LeadsTabDesktop() {
             </div>
           )}
           <p className="text-xs text-gray-400">הצטרף: {drawer.created_at ? new Date(drawer.created_at).toLocaleDateString('he-IL') : '—'}</p>
+        </aside>
+      )}
+    </div>
+  )
+}
+
+// ─── Workshops Desktop Table ──────────────────────────────────────────────────
+function WorkshopsTabDesktop() {
+  const [workshops, setWorkshops] = useState<Workshop[]>([])
+  const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
+  const [drawer, setDrawer] = useState<Workshop | null>(null)
+  const [form, setForm] = useState({ title: '', description: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
+  const [editing, setEditing] = useState<Workshop | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(() => {
+    supabase.from('workshops').select('*').order('display_order')
+      .then(({ data }) => setWorkshops(data ?? []))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  async function toggle(w: Workshop) {
+    await supabase.from('workshops').update({ is_active: !w.is_active }).eq('id', w.id); load()
+  }
+
+  async function del(id: string) {
+    await supabase.from('workshops').delete().eq('id', id); load()
+  }
+
+  function openEdit(w: Workshop) {
+    setEditing(w)
+    setForm({ title: w.title, description: w.description ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '' })
+    setDrawer(w)
+  }
+
+  async function saveEdit() {
+    if (!editing || !form.title.trim()) return
+    setSaving(true)
+    await supabase.from('workshops').update({
+      title: form.title, description: form.description || null,
+      price: form.price ? parseFloat(form.price) : null,
+      payment_link: form.payment_link || null, image_url: form.image_url || null,
+      video_url: form.video_url || null,
+      stock_quantity: form.stock_quantity ? parseInt(form.stock_quantity) : null,
+      whatsapp_number: form.whatsapp_number || null,
+    }).eq('id', editing.id)
+    setSaving(false); setDrawer(null); setEditing(null); load()
+  }
+
+  return (
+    <div className="flex gap-6" dir="rtl">
+      <div className="flex-1 min-w-0 space-y-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-bold text-gray-800">סדנאות ({workshops.length})</h2>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
+                <th className="px-6 py-3">שם</th>
+                <th className="px-4 py-3">מחיר</th>
+                <th className="px-4 py-3">סטטוס</th>
+                <th className="px-4 py-3">פעולות</th>
+              </tr>
+            </thead>
+            <tbody>
+              {workshops.map(w => (
+                <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors group">
+                  <td className="px-6 py-3">
+                    <div className="flex items-center gap-3">
+                      {w.image_url
+                        ? <img src={w.image_url} className="w-9 h-9 rounded-xl object-cover" alt="" />
+                        : <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center text-lg">🎓</div>
+                      }
+                      <div>
+                        <p className="font-semibold text-gray-800">{w.title}</p>
+                        {w.description && <p className="text-xs text-gray-400 truncate max-w-xs">{w.description}</p>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">{w.price != null ? `₪${w.price}` : '—'}</td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => toggle(w)} className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${w.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {w.is_active ? 'פעיל' : 'לא פעיל'}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100">📂 תוכן</button>
+                      <button onClick={() => openEdit(w)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => del(w.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {workshops.length === 0 && <p className="text-center text-gray-400 text-sm py-12">אין סדנאות</p>}
+        </div>
+      </div>
+
+      {/* Edit drawer */}
+      {drawer && editing && (
+        <aside className="w-80 shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3 self-start sticky top-24" dir="rtl">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-gray-800">עריכת סדנה</h3>
+            <button onClick={() => setDrawer(null)} className="text-gray-400"><X className="w-4 h-4" /></button>
+          </div>
+          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="שם הסדנה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
+          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-purple-400" />
+          <div className="grid grid-cols-2 gap-2">
+            <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="מחיר (₪)" type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
+            <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מלאי" type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
+          </div>
+          <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור תשלום" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
+          <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="URL תמונה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
+          <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="WhatsApp" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
+          <div className="flex gap-2 pt-2">
+            <button onClick={saveEdit} disabled={saving} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}>
+              {saving ? '...' : 'שמור'}
+            </button>
+            <button onClick={() => setDrawer(null)} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm">ביטול</button>
+          </div>
+        </aside>
+      )}
+
+      {contentWorkshop && <WorkshopContentModal workshop={contentWorkshop} onClose={() => setContentWorkshop(null)} />}
+    </div>
+  )
+}
+
+// ─── Forms Desktop Layout ─────────────────────────────────────────────────────
+function FormsTabDesktop() {
+  const [forms, setForms] = useState<FormRecord[]>([])
+  const [selected, setSelected] = useState<FormRecord | null>(null)
+  const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [loadingSubs, setLoadingSubs] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [editingForm, setEditingForm] = useState<FormRecord | null>(null)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [folder, setFolder] = useState('')
+  const [fields, setFields] = useState<FormField[]>([])
+  const [saving, setSaving] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
+  const [triggerType, setTriggerType] = useState('after_video_views')
+  const [triggerCount, setTriggerCount] = useState('3')
+
+  const load = useCallback(() => {
+    supabase.from('forms').select('*').order('created_at', { ascending: false })
+      .then(({ data }) => setForms((data ?? []) as FormRecord[]))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  async function loadSubmissions(form: FormRecord) {
+    setSelected(form); setLoadingSubs(true)
+    const { data } = await supabase.from('form_submissions')
+      .select('*, user_profiles(mother_name, email)').eq('form_id', form.id)
+      .order('created_at', { ascending: false })
+    setSubmissions((data ?? []) as Submission[])
+    setLoadingSubs(false)
+  }
+
+  function copyFormLink(formId: string) {
+    navigator.clipboard.writeText(`${APP_URL}/?form=${formId}`)
+    setCopiedId(formId); setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  async function toggleForm(form: FormRecord) {
+    await supabase.from('forms').update({ is_active: !form.is_active }).eq('id', form.id); load()
+  }
+
+  async function deleteForm(id: string) {
+    await supabase.from('forms').delete().eq('id', id)
+    if (selected?.id === id) setSelected(null)
+    load()
+  }
+
+  async function deleteSubmission(id: string) {
+    await supabase.from('form_submissions').delete().eq('id', id)
+    setSubmissions(s => s.filter(x => x.id !== id))
+  }
+
+  function startEdit(form: FormRecord) {
+    setEditingForm(form); setTitle(form.title); setDescription(form.description ?? '')
+    setFolder(form.folder ?? ''); setFields(form.fields_json.map(f => ({ ...f })))
+    setShowCreate(false)
+  }
+
+  function addField() { setFields(f => [...f, { id: crypto.randomUUID(), type: 'text', label: '', required: false }]) }
+  function updateField(id: string, patch: Partial<FormField>) { setFields(f => f.map(field => field.id === id ? { ...field, ...patch } : field)) }
+  function removeField(id: string) { setFields(f => f.filter(field => field.id !== id)) }
+  function moveField(id: string, dir: -1 | 1) {
+    setFields(f => {
+      const idx = f.findIndex(field => field.id === id); if (idx < 0) return f
+      const next = idx + dir; if (next < 0 || next >= f.length) return f
+      const arr = [...f]; [arr[idx], arr[next]] = [arr[next], arr[idx]]; return arr
+    })
+  }
+
+  async function saveForm() {
+    if (!title.trim() || fields.length === 0) return
+    setSaving(true)
+    if (editingForm) {
+      await supabase.from('forms').update({ title: title.trim(), description: description || null, folder: folder.trim() || null, fields_json: fields }).eq('id', editingForm.id)
+      setEditingForm(null); setTitle(''); setDescription(''); setFolder(''); setFields([])
+    } else {
+      await supabase.from('forms').insert({ title: title.trim(), description: description || null, folder: folder.trim() || null, fields_json: fields, trigger_rule: { type: triggerType, count: parseInt(triggerCount) || 3 }, is_active: true })
+      setTitle(''); setDescription(''); setFields([]); setShowCreate(false)
+    }
+    setSaving(false); load()
+  }
+
+  const fieldTypes = [
+    { value: 'text', label: 'שדה טקסט' }, { value: 'textarea', label: 'טקסט ארוך' },
+    { value: 'select', label: 'בחירה מרשימה' }, { value: 'rating', label: 'דירוג 1-5' },
+    { value: 'info', label: '📋 בלוק טקסט' }, { value: 'link', label: '🔗 לינק' },
+  ]
+
+  return (
+    <div className="flex gap-6" dir="rtl">
+      {/* Left: form list */}
+      <div className="flex-1 min-w-0 space-y-4">
+        <button
+          onClick={() => { setShowCreate(!showCreate); setEditingForm(null) }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold"
+          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+        >
+          <Plus className="w-4 h-4" /> טופס חדש
+        </button>
+
+        {/* Create / Edit form panel */}
+        {(showCreate || editingForm) && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
+            <p className="text-xs font-bold text-gray-500">{editingForm ? `✏️ עריכת: ${editingForm.title}` : '➕ טופס חדש'}</p>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
+            <input value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
+            <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="📁 תיקייה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
+            {!editingForm && (
+              <div className="flex gap-2">
+                <select value={triggerType} onChange={e => setTriggerType(e.target.value)} className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none">
+                  <option value="after_video_views">אחרי X צפיות</option>
+                  <option value="after_days">אחרי X ימים</option>
+                  <option value="manual">ידני</option>
+                </select>
+                <input type="number" value={triggerCount} onChange={e => setTriggerCount(e.target.value)} className="w-16 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none" min="1" />
+              </div>
+            )}
+            {/* Fields */}
+            <div className="space-y-2">
+              {fields.map((field, idx) => (
+                <div key={field.id} className="border border-gray-200 rounded-xl p-3 space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
+                      {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-gray-400 disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-gray-400 disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => removeField(field.id)} className="p-1 text-red-400"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                  {field.type !== 'link' && (
+                    <input value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" />
+                  )}
+                  {field.type === 'select' && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
+                  {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
+                  {!['info', 'link'].includes(field.type) && (
+                    <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
+                      <input type="checkbox" checked={field.required ?? false} onChange={e => updateField(field.id, { required: e.target.checked })} />
+                      חובה
+                    </label>
+                  )}
+                </div>
+              ))}
+              <button onClick={addField} className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-yellow-400 hover:text-yellow-600 transition-colors">
+                + הוסף שאלה
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                {saving ? '...' : 'שמור טופס'}
+              </button>
+              <button onClick={() => { setShowCreate(false); setEditingForm(null); setTitle(''); setDescription(''); setFields([]) }} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm">ביטול</button>
+            </div>
+          </div>
+        )}
+
+        {/* Forms table */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
+                <th className="px-6 py-3">שם</th>
+                <th className="px-4 py-3">תיקייה</th>
+                <th className="px-4 py-3">סטטוס</th>
+                <th className="px-4 py-3">פעולות</th>
+              </tr>
+            </thead>
+            <tbody>
+              {forms.map(f => (
+                <tr key={f.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors group cursor-pointer ${selected?.id === f.id ? 'bg-yellow-50' : ''}`} onClick={() => loadSubmissions(f)}>
+                  <td className="px-6 py-3">
+                    <p className="font-semibold text-gray-800">{f.title}</p>
+                    {f.description && <p className="text-xs text-gray-400 truncate max-w-xs">{f.description}</p>}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{f.folder ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <button onClick={e => { e.stopPropagation(); toggleForm(f) }} className={`text-xs px-2.5 py-1 rounded-lg font-semibold ${f.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {f.is_active ? 'פעיל' : 'כבוי'}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => copyFormLink(f.id)} className="px-2 py-1 rounded-lg text-xs bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600">{copiedId === f.id ? '✓' : '🔗'}</button>
+                      <button onClick={() => startEdit(f)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => deleteForm(f.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {forms.length === 0 && <p className="text-center text-gray-400 text-sm py-12">אין טפסים</p>}
+        </div>
+      </div>
+
+      {/* Right: submissions panel */}
+      {selected && (
+        <aside className="w-96 shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 self-start sticky top-24" dir="rtl">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-gray-800">{selected.title}</h3>
+              <p className="text-xs text-gray-400 mt-0.5">{submissions.length} תשובות</p>
+            </div>
+            <button onClick={() => setSelected(null)} className="text-gray-400"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="max-h-[70vh] overflow-y-auto p-4 space-y-3">
+            {loadingSubs && <p className="text-center text-gray-400 text-sm py-8">טוען...</p>}
+            {!loadingSubs && submissions.length === 0 && <p className="text-center text-gray-400 text-sm py-8">אין תשובות עדיין</p>}
+            {submissions.map(s => (
+              <div key={s.id} className="border border-gray-100 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-700">
+                    {(s.user_profiles as { mother_name: string | null; email: string } | undefined)?.mother_name
+                      ?? (s.user_profiles as { mother_name: string | null; email: string } | undefined)?.email
+                      ?? 'אנונימי'}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-gray-400">{new Date(s.created_at).toLocaleDateString('he-IL')}</p>
+                    <button onClick={() => deleteSubmission(s.id)} className="p-1 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3" /></button>
+                  </div>
+                </div>
+                {Object.entries(s.responses_json).map(([key, val]) => (
+                  <div key={key} className="border-t border-gray-50 pt-1.5">
+                    <p className="text-[10px] text-gray-400">{key}</p>
+                    <p className="text-xs text-gray-700">{val}</p>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </aside>
       )}
     </div>
