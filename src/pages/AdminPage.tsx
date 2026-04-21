@@ -362,7 +362,6 @@ function UsersTab() {
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-bold text-sand-800 text-sm truncate">{u.mother_name ?? '—'}</p>
                 {u.is_admin && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-bold">ADMIN</span>}
-                {u.is_pro && <span className="text-[10px] bg-mustard-100 text-mustard-700 px-1.5 py-0.5 rounded-md font-bold">PRO</span>}
                 {u.user_mode === 'pregnant' && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-bold">🤰 הריון</span>}
                 <LeadBadge status={u.lead_status} />
               </div>
@@ -1224,7 +1223,7 @@ type RetentionRow = { cohort_week: string; total_users: number; day1: number; da
 type User360 = UserProfile & { childCount: number; logCount: number; activityCount: number; lead_status: string | null; staff_notes: string | null }
 
 function InsightsTab() {
-  const [stats, setStats] = useState({ users: 0, pro: 0, pregnant: 0, moms: 0, children: 0, logs: 0 })
+  const [stats, setStats] = useState({ users: 0, pregnant: 0, moms: 0, children: 0, logs: 0 })
   const [videoPerf, setVideoPerf] = useState<VideoPerf[]>([])
   const [retention, setRetention] = useState<RetentionRow[]>([])
   const [user360Id, setUser360Id] = useState<string | null>(null)
@@ -1244,7 +1243,6 @@ function InsightsTab() {
       setAllUsers(users ?? [])
       setStats({
         users: users?.length ?? 0,
-        pro: users?.filter(u => u.is_pro).length ?? 0,
         pregnant: users?.filter(u => u.user_mode === 'pregnant').length ?? 0,
         moms: users?.filter(u => u.user_mode === 'mom').length ?? 0,
         children: children?.length ?? 0,
@@ -1275,7 +1273,6 @@ function InsightsTab() {
 
   const statCards = [
     { label: 'סה"כ משתמשות', value: stats.users,    emoji: '👩',  color: '#EFF6FF' },
-    { label: 'מנויות PRO',    value: stats.pro,      emoji: '⭐',  color: '#FFFBEB' },
     { label: 'בהריון',        value: stats.pregnant, emoji: '🤰',  color: '#F5F3FF' },
     { label: 'אמהות',         value: stats.moms,     emoji: '👶',  color: '#F0FDF4' },
     { label: 'ילדים',         value: stats.children, emoji: '🍼',  color: '#FFF7ED' },
@@ -1365,7 +1362,6 @@ function InsightsTab() {
               <p className="text-xs text-sand-400">{user360.email}</p>
             </div>
             <div className="flex gap-1.5">
-              {user360.is_pro && <span className="text-[10px] bg-mustard-100 text-mustard-700 px-2 py-0.5 rounded-full font-bold">PRO</span>}
               {user360.is_admin && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">ADMIN</span>}
             </div>
           </div>
