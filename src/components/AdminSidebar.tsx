@@ -9,7 +9,7 @@ type Props = {
   onToggleUserView: () => void
 }
 
-const NAV: { id: AdminSection; label: string; icon: React.ReactNode; emoji?: string }[] = [
+const NAV: { id: AdminSection; label: string; icon?: React.ReactNode; emoji?: string }[] = [
   { id: 'insights',  label: 'BI & Analytics', icon: <BarChart2 className="w-4 h-4" /> },
   { id: 'users',     label: 'משתמשים',         icon: <Users className="w-4 h-4" /> },
   { id: 'workshops', label: 'סדנאות',           emoji: '🎓' },

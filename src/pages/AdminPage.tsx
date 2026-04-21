@@ -754,7 +754,7 @@ function LeadsTabDesktop() {
 
   async function updateStatus(id: string, status: string) {
     await supabase.from('user_profiles').update({ lead_status: status || null }).eq('id', id)
-    setLeads(prev => prev.map(u => u.id === id ? { ...u, lead_status: status || null } : u))
+    setLeads(prev => prev.map(u => u.id === id ? { ...u, lead_status: (status || null) as UserProfile['lead_status'] } : u))
   }
 
   return (
