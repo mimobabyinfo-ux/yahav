@@ -30,7 +30,7 @@ export default function FormTriggerModal() {
   const [submitted, setSubmitted] = useState(false)
 
   const checkTriggers = useCallback(async () => {
-    if (!user || !profile) return
+    if (!user || !profile || profile.is_admin) return
 
     // Load active forms
     const { data: forms } = await supabase
