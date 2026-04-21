@@ -17,6 +17,7 @@ import CommunityPage from './pages/CommunityPage'
 import PublicFormPage from './pages/PublicFormPage'
 import PublicBabyPage from './pages/PublicBabyPage'
 import GuestJoinPage from './pages/GuestJoinPage'
+import PublicPartnerPage from './pages/PublicPartnerPage'
 import BottomNav from './components/BottomNav'
 import AdminSidebar from './components/AdminSidebar'
 import MimoLogo from './components/MimoLogo'
@@ -29,6 +30,7 @@ export type AdminSection = 'insights' | 'users' | 'workshops' | 'forms' | 'leads
 const publicFormId = new URLSearchParams(window.location.search).get('form')
 const publicBabyToken = new URLSearchParams(window.location.search).get('baby')
 const joinToken = new URLSearchParams(window.location.search).get('join')
+const isPartnerPage = new URLSearchParams(window.location.search).has('partner')
 
 function AppInner() {
   const { user, profile, loading, isGuest } = useAuth()
@@ -70,6 +72,7 @@ function AppInner() {
   if (publicFormId) return <PublicFormPage formId={publicFormId} />
   if (publicBabyToken) return <PublicBabyPage token={publicBabyToken} />
   if (joinToken && !user) return <GuestJoinPage token={joinToken} />
+  if (isPartnerPage) return <PublicPartnerPage />
 
   if (loading) {
     return (
