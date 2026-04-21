@@ -170,19 +170,22 @@ export default function PublicFormPage({ formId }: { formId: string }) {
                 )}
 
                 {field.type === 'select' && (
-                  <div className="flex flex-wrap gap-2">
-                    {(field.options ?? []).map(opt => (
-                      <button
-                        key={opt}
-                        onClick={() => setAnswers(a => ({ ...a, [field.label]: opt }))}
-                        className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
-                        style={answers[field.label] === opt
-                          ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }
-                          : { background: '#F5F0E8', color: '#9B8E80' }}
-                      >
-                        {opt}
-                      </button>
-                    ))}
+                  <div className="border border-sand-200 rounded-2xl overflow-hidden">
+                    {(field.options ?? []).map((opt, i) => {
+                      const selected = answers[field.label] === opt
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => setAnswers(a => ({ ...a, [field.label]: opt }))}
+                          className={`w-full flex items-center gap-3 px-4 py-3.5 text-right transition-colors ${i > 0 ? 'border-t border-sand-100' : ''} ${selected ? 'bg-mustard-50' : 'hover:bg-sand-50'}`}
+                        >
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected ? 'border-mustard-500' : 'border-sand-300'}`}>
+                            {selected && <div className="w-2.5 h-2.5 rounded-full bg-mustard-500" />}
+                          </div>
+                          <span className={`text-sm flex-1 text-right ${selected ? 'font-semibold text-sand-800' : 'text-sand-600'}`}>{opt}</span>
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
 

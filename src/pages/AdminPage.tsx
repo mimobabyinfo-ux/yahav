@@ -1637,6 +1637,45 @@ function AssignFormModal({ form, onClose }: { form: FormRecord; onClose: () => v
   )
 }
 
+// ─── Options Tag Input ────────────────────────────────────────────────────────
+function OptionsTagInput({ options, onChange }: { options: string[]; onChange: (opts: string[]) => void }) {
+  const [input, setInput] = useState('')
+
+  function add() {
+    const val = input.trim()
+    if (!val || options.includes(val)) return
+    onChange([...options, val])
+    setInput('')
+  }
+
+  function remove(i: number) {
+    onChange(options.filter((_, j) => j !== i))
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((opt, i) => (
+          <span key={i} className="flex items-center gap-1 bg-mustard-50 text-mustard-700 text-xs font-medium px-2.5 py-1 rounded-xl">
+            {opt}
+            <button type="button" onClick={() => remove(i)} className="text-mustard-400 hover:text-red-400 leading-none">×</button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-1.5">
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add() } }}
+          placeholder="הקלד אפשרות ← Enter להוספה"
+          className="flex-1 px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white"
+        />
+        <button type="button" onClick={add} className="px-3 py-1.5 rounded-xl text-xs text-white font-bold" style={{ background: '#D4AA52' }}>+</button>
+      </div>
+    </div>
+  )
+}
+
 function FormsTab() {
   const [forms, setForms] = useState<FormRecord[]>([])
   const [showCreate, setShowCreate] = useState(false)
@@ -1885,7 +1924,10 @@ function FormsTab() {
                   )}
 
                   {field.type === 'select' && (
-                    <input value={field.options?.join(', ') ?? ''} onChange={e => updateField(field.id, { options: e.target.value.split(',').map(s => s.trim()) })} placeholder="אפשרויות מופרדות בפסיק" className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white" />
+                    <OptionsTagInput
+                      options={field.options ?? []}
+                      onChange={opts => updateField(field.id, { options: opts })}
+                    />
                   )}
 
                   {/* required toggle — not applicable for info/link */}
