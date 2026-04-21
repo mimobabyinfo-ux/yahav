@@ -741,36 +741,140 @@ function UsersTabDesktop() {
 
 // ─── Leads Desktop Table ──────────────────────────────────────────────────────
 function LeadsTabDesktop() {
-  const [leads, setLeads] = useState<UserProfile[]>([])
+  // Partner leads (WhatsApp / callback)
+  const [partnerLeads, setPartnerLeads] = useState<LeadWithDetails[]>([])
+  const [filterType, setFilterType] = useState<'all' | 'whatsapp' | 'callback'>('all')
+  const [loadingLeads, setLoadingLeads] = useState(true)
+
+  // CRM user profiles
+  const [crmUsers, setCrmUsers] = useState<UserProfile[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [drawer, setDrawer] = useState<UserProfile | null>(null)
 
-  const load = useCallback(async () => {
-    const { data } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false })
-    setLeads(data ?? [])
+  useEffect(() => {
+    async function loadLeads() {
+      const { data: rawLeads } = await supabase.from('partner_leads').select('*').order('created_at', { ascending: false })
+      if (!rawLeads || rawLeads.length === 0) { setPartnerLeads([]); setLoadingLeads(false); return }
+      const userIds = [...new Set(rawLeads.map((l: PartnerLead) => l.user_id).filter(Boolean))] as string[]
+      const partnerIds = [...new Set(rawLeads.map((l: PartnerLead) => l.partner_id).filter(Boolean))] as string[]
+      const [{ data: profiles }, { data: partners }] = await Promise.all([
+        supabase.from('user_profiles').select('id, mother_name, phone_number').in('id', userIds),
+        supabase.from('service_partners').select('id, title').in('id', partnerIds),
+      ])
+      const profileMap: Record<string, { mother_name: string | null; phone_number: string | null }> = {}
+      ;(profiles ?? []).forEach((p: { id: string; mother_name: string | null; phone_number: string | null }) => { profileMap[p.id] = p })
+      const partnerMap: Record<string, string> = {}
+      ;(partners ?? []).forEach((p: { id: string; title: string }) => { partnerMap[p.id] = p.title })
+      setPartnerLeads(rawLeads.map((l: PartnerLead) => ({
+        ...l,
+        user_name: l.contact_name ?? (l.user_id ? profileMap[l.user_id]?.mother_name ?? null : null),
+        user_phone: l.contact_phone ?? (l.user_id ? profileMap[l.user_id]?.phone_number ?? null : null),
+        partner_title: l.partner_id ? (partnerMap[l.partner_id] ?? null) : null,
+      })))
+      setLoadingLeads(false)
+    }
+    loadLeads()
+    supabase.from('user_profiles').select('*').order('created_at', { ascending: false }).then(({ data }) => setCrmUsers(data ?? []))
   }, [])
-  useEffect(() => { load() }, [load])
 
-  const filtered = leads.filter(u => {
+  const filteredLeads = partnerLeads.filter(l => filterType === 'all' || l.action_type === filterType)
+  const filteredCrm = crmUsers.filter(u => {
     if (statusFilter !== 'all' && u.lead_status !== statusFilter) return false
     return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
   })
 
   async function updateStatus(id: string, status: string) {
     await supabase.from('user_profiles').update({ lead_status: status || null }).eq('id', id)
-    setLeads(prev => prev.map(u => u.id === id ? { ...u, lead_status: (status || null) as UserProfile['lead_status'] } : u))
+    setCrmUsers(prev => prev.map(u => u.id === id ? { ...u, lead_status: (status || null) as UserProfile['lead_status'] } : u))
   }
 
   return (
-    <div className="flex gap-6" dir="rtl">
-      <div className="flex-1 min-w-0">
-        {/* Toolbar */}
+    <div className="space-y-8" dir="rtl">
+
+      {/* ── Section 1: Partner Leads ── */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-bold text-gray-800 text-lg">לידים מהשיתופי פעולה</h2>
+            <p className="text-xs text-gray-400 mt-0.5">פניות WA ובקשות התקשרות ממשתמשות</p>
+          </div>
+          <div className="flex gap-1.5">
+            {(['all', 'whatsapp', 'callback'] as const).map(t => (
+              <button key={t} onClick={() => setFilterType(t)}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${filterType === t ? 'text-white' : 'bg-white text-gray-500 border border-gray-200'}`}
+                style={filterType === t ? { background: 'linear-gradient(135deg, #22c55e, #16a34a)' } : {}}>
+                {t === 'all' ? 'הכל' : t === 'whatsapp' ? '💬 WhatsApp' : '📞 טלפון'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loadingLeads ? (
+          <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" /></div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
+                  <th className="px-6 py-3">שם</th>
+                  <th className="px-4 py-3">טלפון</th>
+                  <th className="px-4 py-3">שירות</th>
+                  <th className="px-4 py-3">סוג</th>
+                  <th className="px-4 py-3">תאריך</th>
+                  <th className="px-4 py-3">פעולות</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLeads.map(l => (
+                  <tr key={l.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors group">
+                    <td className="px-6 py-3 font-semibold text-gray-800">{l.user_name ?? '—'}</td>
+                    <td className="px-4 py-3 text-green-600 font-semibold text-xs">{l.user_phone ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">🌿 {l.partner_title ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] px-2 py-1 rounded-lg font-bold ${l.action_type === 'whatsapp' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {l.action_type === 'whatsapp' ? '💬 WhatsApp' : '📞 התקשרות'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                      {new Date(l.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {l.user_phone && (
+                          <a href={`https://wa.me/${l.user_phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg hover:bg-green-50 text-gray-400 hover:text-green-600">
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        {l.user_phone && (
+                          <a href={`tel:${l.user_phone}`}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600">
+                            <Phone className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredLeads.length === 0 && <p className="text-center text-gray-400 text-sm py-12">אין לידים</p>}
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 2: CRM User Profiles ── */}
+      <div>
         <div className="flex items-center gap-3 mb-4">
-          <div className="relative flex-1 max-w-xs">
+          <div className="flex-1">
+            <h2 className="font-bold text-gray-800 text-lg">CRM משתמשות</h2>
+            <p className="text-xs text-gray-400 mt-0.5">ניהול סטטוס וניהול קשר עם משתמשות</p>
+          </div>
+          <div className="relative max-w-xs">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="חיפוש..."
-              className="w-full pr-9 pl-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 shadow-sm" />
+              className="w-full pr-9 pl-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none shadow-sm" />
           </div>
           <div className="flex gap-1.5">
             {['all', 'new_lead', 'active_workshop', 'post_service'].map(s => (
@@ -781,84 +885,70 @@ function LeadsTabDesktop() {
               </button>
             ))}
           </div>
-          <span className="text-sm text-gray-400 mr-auto">{filtered.length} רשומות</span>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
-          <table className="w-full text-right" dir="rtl">
-            <thead>
-              <tr style={{ background: '#f8f8fb' }}>
-                {['שם', 'אימייל', 'טלפון', 'סטטוס', 'הצטרף', 'הערות', 'פעולות'].map(h => (
-                  <th key={h} className="px-4 py-3 text-xs font-bold text-gray-500 text-right">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.map(u => (
-                <tr key={u.id} className="hover:bg-gray-50 transition-colors group">
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-800">{u.mother_name ?? '—'}</td>
-                  <td className="px-4 py-3 text-xs text-gray-500 max-w-[160px] truncate">{u.email}</td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{(u as unknown as { phone?: string }).phone ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <select value={u.lead_status ?? ''} onChange={e => updateStatus(u.id, e.target.value)}
-                      className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-mustard-400">
-                      <option value="">ללא סטטוס</option>
-                      <option value="new_lead">ליד חדש</option>
-                      <option value="active_workshop">בסדנה פעילה</option>
-                      <option value="post_service">לאחר שירות</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
-                    {u.created_at ? new Date(u.created_at).toLocaleDateString('he-IL') : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-400 max-w-[160px] truncate">
-                    {u.staff_notes ?? '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setDrawer(u)}
-                        className="p-1.5 rounded-lg hover:bg-mustard-50 text-gray-400 hover:text-mustard-600">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <a href={`https://wa.me/${u.email.replace(/\D/g, '')}?text=${encodeURIComponent(`היי ${u.mother_name ?? ''}!`)}`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg hover:bg-green-50 text-gray-400 hover:text-green-600">
-                        <MessageCircle className="w-3.5 h-3.5" />
-                      </a>
-                      <a href={`mailto:${u.email}`}
-                        className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600">
-                        <Mail className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  </td>
+        <div className="flex gap-6">
+          <div className="flex-1 min-w-0 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
+                  <th className="px-6 py-3">שם</th>
+                  <th className="px-4 py-3">אימייל</th>
+                  <th className="px-4 py-3">סטטוס</th>
+                  <th className="px-4 py-3">הצטרפה</th>
+                  <th className="px-4 py-3">פעולות</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <p className="text-center text-gray-400 text-sm py-12">לא נמצאו רשומות</p>
+              </thead>
+              <tbody>
+                {filteredCrm.map(u => (
+                  <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors group">
+                    <td className="px-6 py-3 font-semibold text-gray-800">{u.mother_name ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px] truncate">{u.email}</td>
+                    <td className="px-4 py-3">
+                      <select value={u.lead_status ?? ''} onChange={e => updateStatus(u.id, e.target.value)}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-mustard-400">
+                        <option value="">ללא סטטוס</option>
+                        <option value="new_lead">ליד חדש</option>
+                        <option value="active_workshop">בסדנה פעילה</option>
+                        <option value="post_service">לאחר שירות</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                      {u.created_at ? new Date(u.created_at).toLocaleDateString('he-IL') : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setDrawer(u)} className="p-1.5 rounded-lg hover:bg-mustard-50 text-gray-400 hover:text-mustard-600">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <a href={`mailto:${u.email}`} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600">
+                          <Mail className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredCrm.length === 0 && <p className="text-center text-gray-400 text-sm py-12">לא נמצאו רשומות</p>}
+          </div>
+
+          {drawer && (
+            <aside className="w-72 shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3 self-start sticky top-24" dir="rtl">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-gray-800">פרטי משתמשת</h3>
+                <button onClick={() => setDrawer(null)} className="text-gray-400"><X className="w-4 h-4" /></button>
+              </div>
+              <p className="font-semibold text-gray-800">{drawer.mother_name ?? '—'}</p>
+              <p className="text-xs text-gray-500">{drawer.email}</p>
+              <LeadBadge status={drawer.lead_status} />
+              {drawer.staff_notes && <div className="bg-gray-50 rounded-xl p-3"><p className="text-xs text-gray-600">{drawer.staff_notes}</p></div>}
+              <p className="text-xs text-gray-400">הצטרפה: {drawer.created_at ? new Date(drawer.created_at).toLocaleDateString('he-IL') : '—'}</p>
+            </aside>
           )}
         </div>
       </div>
 
-      {/* Lead drawer */}
-      {drawer && (
-        <aside className="w-72 shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3 self-start sticky top-24" dir="rtl">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-gray-800">פרטי ליד</h3>
-            <button onClick={() => setDrawer(null)} className="text-gray-400"><X className="w-4 h-4" /></button>
-          </div>
-          <p className="font-semibold text-gray-800">{drawer.mother_name ?? '—'}</p>
-          <p className="text-xs text-gray-500">{drawer.email}</p>
-          <LeadBadge status={drawer.lead_status} />
-          {drawer.staff_notes && (
-            <div className="bg-gray-50 rounded-xl p-3">
-              <p className="text-xs text-gray-600">{drawer.staff_notes}</p>
-            </div>
-          )}
-          <p className="text-xs text-gray-400">הצטרף: {drawer.created_at ? new Date(drawer.created_at).toLocaleDateString('he-IL') : '—'}</p>
-        </aside>
-      )}
     </div>
   )
 }
