@@ -18,6 +18,7 @@ import PublicFormPage from './pages/PublicFormPage'
 import PublicBabyPage from './pages/PublicBabyPage'
 import GuestJoinPage from './pages/GuestJoinPage'
 import BottomNav from './components/BottomNav'
+import AdminSidebar from './components/AdminSidebar'
 import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
 
@@ -120,22 +121,52 @@ function AppInner() {
     }
   }
 
+  const toggleUserView = () => {
+    const next = !viewAsUser
+    setViewAsUser(next)
+    setCurrentPage(next ? 'dashboard' : 'admin')
+  }
+
+  if (isAdminMode) {
+    return (
+      <>
+        {/* ── Mobile admin (unchanged) ── */}
+        <div className="lg:hidden min-h-screen pb-20" style={{ background: '#1a1a2e' }}>
+          {renderPage()}
+          <BottomNav
+            currentPage={currentPage} onNavigate={navigate}
+            isAdminMode={true} isGuest={false}
+            adminSection={adminSection} onAdminSection={navigateAdmin}
+            viewAsUser={viewAsUser} onToggleUserView={toggleUserView}
+          />
+        </div>
+
+        {/* ── Desktop admin (sidebar layout) ── */}
+        <div className="hidden lg:flex flex-row-reverse min-h-screen" style={{ background: '#f4f4f8' }} dir="rtl">
+          <AdminSidebar
+            section={adminSection}
+            onSection={navigateAdmin}
+            viewAsUser={viewAsUser}
+            onToggleUserView={toggleUserView}
+          />
+          <main className="flex-1 min-h-screen overflow-y-auto" style={{ background: '#f4f4f8' }}>
+            {renderPage()}
+          </main>
+        </div>
+
+        <FormTriggerModal />
+      </>
+    )
+  }
+
   return (
-    <div className="min-h-screen pb-20" style={{ background: isAdminMode ? '#1a1a2e' : '#FAF8F4' }}>
+    <div className="min-h-screen pb-20" style={{ background: '#FAF8F4' }}>
       {renderPage()}
       <BottomNav
-        currentPage={currentPage}
-        onNavigate={navigate}
-        isAdminMode={isAdminMode}
-        isGuest={isGuest}
-        adminSection={adminSection}
-        onAdminSection={navigateAdmin}
-        viewAsUser={viewAsUser}
-        onToggleUserView={() => {
-          const next = !viewAsUser
-          setViewAsUser(next)
-          setCurrentPage(next ? 'dashboard' : 'admin')
-        }}
+        currentPage={currentPage} onNavigate={navigate}
+        isAdminMode={false} isGuest={isGuest}
+        adminSection={adminSection} onAdminSection={navigateAdmin}
+        viewAsUser={viewAsUser} onToggleUserView={toggleUserView}
       />
       <FormTriggerModal />
     </div>

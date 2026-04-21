@@ -49,10 +49,12 @@ export default function AdminPage({ defaultSection }: { defaultSection?: AdminSe
     )
   }
 
+  const tabLabel = TABS.find(t => t.id === tab)?.label ?? ''
+
   return (
-    <div className="min-h-screen pb-24" dir="rtl">
-      {/* Admin Header */}
-      <div className="bg-white border-b border-sand-100 shadow-sm px-4 pt-5 pb-3">
+    <div className="min-h-screen pb-24 lg:pb-6" dir="rtl">
+      {/* ── Mobile header (hidden on desktop, sidebar handles nav) ── */}
+      <div className="lg:hidden bg-white border-b border-sand-100 shadow-sm px-4 pt-5 pb-3">
         <div className="max-w-sm mx-auto">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
@@ -63,30 +65,32 @@ export default function AdminPage({ defaultSection }: { defaultSection?: AdminSe
               <p className="text-xs text-sand-400">Mimo CMS</p>
             </div>
           </div>
-
-          {/* Tab scroll */}
           <div className="flex gap-1.5 overflow-x-auto scroll-hide pb-1">
             {TABS.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${
-                  tab === t.id
-                    ? 'text-white shadow-md'
-                    : 'bg-sand-50 text-sand-500 hover:bg-sand-100'
-                }`}
-                style={tab === t.id ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
-              >
-                {t.icon}
-                {t.label}
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${tab === t.id ? 'text-white shadow-md' : 'bg-sand-50 text-sand-500 hover:bg-sand-100'}`}
+                style={tab === t.id ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
+                {t.icon}{t.label}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Tab content */}
-      <div className="max-w-sm mx-auto px-4 pt-4 space-y-4">
+      {/* ── Desktop header (slim top bar) ── */}
+      <div className="hidden lg:flex items-center justify-between px-8 py-4 bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div>
+          <h2 className="text-lg font-bold text-gray-800">{tabLabel}</h2>
+          <p className="text-xs text-gray-400">Mimo CMS · Admin Panel</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-red-400 font-bold">
+          <ShieldAlert className="w-3.5 h-3.5" />
+          ADMIN MODE
+        </div>
+      </div>
+
+      {/* ── Mobile content ── */}
+      <div className="lg:hidden max-w-sm mx-auto px-4 pt-4 space-y-4">
         {tab === 'users'      && <UsersTab />}
         {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <TipsTab />}
@@ -96,6 +100,21 @@ export default function AdminPage({ defaultSection }: { defaultSection?: AdminSe
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'partners'   && <PartnersTab />}
         {tab === 'leads'      && <LeadsTab />}
+        {tab === 'forms'      && <FormsTab />}
+        {tab === 'settings'   && <SettingsTab />}
+      </div>
+
+      {/* ── Desktop content ── */}
+      <div className="hidden lg:block px-8 py-6">
+        {tab === 'users'      && <UsersTabDesktop />}
+        {tab === 'leads'      && <LeadsTabDesktop />}
+        {tab === 'insights'   && <InsightsTab />}
+        {tab === 'tips'       && <TipsTab />}
+        {tab === 'videos'     && <VideosTab />}
+        {tab === 'workshops'  && <WorkshopsTab />}
+        {tab === 'perks'      && <PerksTab />}
+        {tab === 'pregnancy'  && <PregnancyAdminTab />}
+        {tab === 'partners'   && <PartnersTab />}
         {tab === 'forms'      && <FormsTab />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
@@ -488,6 +507,352 @@ function UsersTab() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Users Desktop Table ──────────────────────────────────────────────────────
+function UsersTabDesktop() {
+  const [users, setUsers] = useState<UserWithChildren[]>([])
+  const [search, setSearch] = useState('')
+  const [modeFilter, setModeFilter] = useState<'all' | 'pregnant' | 'mom'>('all')
+  const [drawer, setDrawer] = useState<UserWithChildren | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editLeadStatus, setEditLeadStatus] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editUserMode, setEditUserMode] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [assignAccessUser, setAssignAccessUser] = useState<UserWithChildren | null>(null)
+  const [deleteUser, setDeleteUser] = useState<UserWithChildren | null>(null)
+
+  const load = useCallback(async () => {
+    const { data: profiles } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false })
+    const { data: children } = await supabase.from('children').select('user_id')
+    const countMap: Record<string, number> = {}
+    children?.forEach(c => { countMap[c.user_id] = (countMap[c.user_id] ?? 0) + 1 })
+    setUsers((profiles ?? []).map(p => ({ ...p, childCount: countMap[p.id] ?? 0 })))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const filtered = users.filter(u => {
+    if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
+    return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
+  })
+
+  function openDrawer(u: UserWithChildren) {
+    setDrawer(u)
+    setEditName(u.mother_name ?? '')
+    setEditLeadStatus(u.lead_status ?? '')
+    setEditNotes(u.staff_notes ?? '')
+    setEditUserMode(u.user_mode ?? '')
+  }
+
+  async function saveDrawer() {
+    if (!drawer) return
+    setSaving(true)
+    const ls = (editLeadStatus || null) as 'new_lead' | 'active_workshop' | 'post_service' | null
+    const updates = { mother_name: editName, display_name: editName, lead_status: ls, staff_notes: editNotes || null, user_mode: (editUserMode || null) as 'pregnant' | 'mom' | null }
+    await supabase.from('user_profiles').update(updates).eq('id', drawer.id)
+    setUsers(prev => prev.map(p => p.id === drawer.id ? { ...p, ...updates } : p))
+    setSaving(false)
+    setDrawer(null)
+  }
+
+  async function confirmDelete() {
+    if (!deleteUser) return
+    await supabase.from('user_profiles').delete().eq('id', deleteUser.id)
+    setUsers(prev => prev.filter(p => p.id !== deleteUser.id))
+    setDeleteUser(null)
+  }
+
+  return (
+    <div className="flex gap-6 h-full" dir="rtl">
+      {/* ── Table ── */}
+      <div className="flex-1 min-w-0">
+        {/* Toolbar */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="חיפוש לפי שם / אימייל..."
+              className="w-full pr-9 pl-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-800 focus:outline-none focus:border-mustard-400 shadow-sm" />
+          </div>
+          <div className="flex gap-1.5">
+            {(['all', 'mom', 'pregnant'] as const).map(m => (
+              <button key={m} onClick={() => setModeFilter(m)}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${modeFilter === m ? 'text-white' : 'bg-white text-gray-500 border border-gray-200'}`}
+                style={modeFilter === m ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
+                {m === 'all' ? 'הכל' : m === 'mom' ? '👶 אמהות' : '🤰 הריון'}
+              </button>
+            ))}
+          </div>
+          <span className="text-sm text-gray-400 mr-auto">{filtered.length} משתמשות</span>
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+          <table className="w-full text-right" dir="rtl">
+            <thead>
+              <tr style={{ background: '#f8f8fb' }}>
+                {['שם', 'אימייל', 'מצב', 'סטטוס CRM', 'ילדים', 'הצטרף', 'פעולות'].map(h => (
+                  <th key={h} className="px-4 py-3 text-xs font-bold text-gray-500 text-right whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map(u => (
+                <tr key={u.id} className="hover:bg-gray-50 transition-colors group">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-mustard-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-mustard-700">
+                        {(u.mother_name ?? u.email)[0]?.toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 whitespace-nowrap">{u.mother_name ?? '—'}</p>
+                        {u.is_admin && <span className="text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold">ADMIN</span>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px] truncate">{u.email}</td>
+                  <td className="px-4 py-3">
+                    {u.user_mode === 'pregnant'
+                      ? <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-lg font-bold">🤰 הריון</span>
+                      : u.user_mode === 'mom'
+                      ? <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-lg font-bold">👶 אמא</span>
+                      : <span className="text-[10px] text-gray-400">—</span>
+                    }
+                  </td>
+                  <td className="px-4 py-3"><LeadBadge status={u.lead_status} /></td>
+                  <td className="px-4 py-3 text-sm text-gray-600 text-center">{u.childCount || '—'}</td>
+                  <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                    {u.created_at ? new Date(u.created_at).toLocaleDateString('he-IL') : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => openDrawer(u)} title="ערוך"
+                        className="p-1.5 rounded-lg hover:bg-mustard-50 text-gray-400 hover:text-mustard-600">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => setAssignAccessUser(u)} title="גישה לסדנה"
+                        className="p-1.5 rounded-lg hover:bg-purple-50 text-gray-400 hover:text-purple-600 text-xs">
+                        🎓
+                      </button>
+                      <a href={`mailto:${u.email}`}
+                        className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600">
+                        <Mail className="w-3.5 h-3.5" />
+                      </a>
+                      <button onClick={() => setDeleteUser(u)} title="מחק"
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && (
+            <p className="text-center text-gray-400 text-sm py-12">לא נמצאו משתמשות</p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Side Drawer ── */}
+      {drawer && (
+        <aside className="w-80 shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4 self-start sticky top-24" dir="rtl">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-gray-800">עריכת משתמשת</h3>
+            <button onClick={() => setDrawer(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-mustard-100 flex items-center justify-center text-xl font-bold text-mustard-700 mx-auto">
+            {(drawer.mother_name ?? drawer.email)[0]?.toUpperCase()}
+          </div>
+          <p className="text-xs text-center text-gray-400 -mt-2">{drawer.email}</p>
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block font-medium">שם</label>
+              <input value={editName} onChange={e => setEditName(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block font-medium">סטטוס CRM</label>
+              <select value={editLeadStatus} onChange={e => setEditLeadStatus(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white">
+                <option value="">ללא סטטוס</option>
+                <option value="new_lead">ליד חדש</option>
+                <option value="active_workshop">בסדנה פעילה</option>
+                <option value="post_service">לאחר שירות</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block font-medium">מצב</label>
+              <select value={editUserMode} onChange={e => setEditUserMode(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white">
+                <option value="">לא הוגדר</option>
+                <option value="mom">אמא</option>
+                <option value="pregnant">בהריון</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block font-medium">הערות סטאף</label>
+              <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
+            </div>
+          </div>
+
+          <button onClick={saveDrawer} disabled={saving}
+            className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+            {saving ? 'שומר...' : 'שמור שינויים'}
+          </button>
+          <button onClick={() => setAssignAccessUser(drawer)}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold bg-purple-50 text-purple-700">
+            🎓 ניהול גישה לסדנאות
+          </button>
+        </aside>
+      )}
+
+      {assignAccessUser && <AssignAccessModal user={assignAccessUser} onClose={() => setAssignAccessUser(null)} />}
+      {deleteUser && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setDeleteUser(null)}>
+          <div className="bg-white rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="text-center">
+              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><Trash2 className="w-6 h-6 text-red-500" /></div>
+              <h3 className="font-bold text-sand-800">מחיקת משתמשת</h3>
+              <p className="text-sm text-sand-500 mt-1">האם למחוק את <strong>{deleteUser.mother_name ?? deleteUser.email}</strong>?</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={confirmDelete} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold text-sm">מחק</button>
+              <button onClick={() => setDeleteUser(null)} className="flex-1 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Leads Desktop Table ──────────────────────────────────────────────────────
+function LeadsTabDesktop() {
+  const [leads, setLeads] = useState<UserProfile[]>([])
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [drawer, setDrawer] = useState<UserProfile | null>(null)
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false })
+    setLeads(data ?? [])
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const filtered = leads.filter(u => {
+    if (statusFilter !== 'all' && u.lead_status !== statusFilter) return false
+    return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
+  })
+
+  async function updateStatus(id: string, status: string) {
+    await supabase.from('user_profiles').update({ lead_status: status || null }).eq('id', id)
+    setLeads(prev => prev.map(u => u.id === id ? { ...u, lead_status: status || null } : u))
+  }
+
+  return (
+    <div className="flex gap-6" dir="rtl">
+      <div className="flex-1 min-w-0">
+        {/* Toolbar */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="חיפוש..."
+              className="w-full pr-9 pl-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 shadow-sm" />
+          </div>
+          <div className="flex gap-1.5">
+            {['all', 'new_lead', 'active_workshop', 'post_service'].map(s => (
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${statusFilter === s ? 'text-white' : 'bg-white text-gray-500 border border-gray-200'}`}
+                style={statusFilter === s ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
+                {s === 'all' ? 'הכל' : s === 'new_lead' ? 'ליד חדש' : s === 'active_workshop' ? 'בסדנה' : 'לאחר שירות'}
+              </button>
+            ))}
+          </div>
+          <span className="text-sm text-gray-400 mr-auto">{filtered.length} רשומות</span>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+          <table className="w-full text-right" dir="rtl">
+            <thead>
+              <tr style={{ background: '#f8f8fb' }}>
+                {['שם', 'אימייל', 'טלפון', 'סטטוס', 'הצטרף', 'הערות', 'פעולות'].map(h => (
+                  <th key={h} className="px-4 py-3 text-xs font-bold text-gray-500 text-right">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map(u => (
+                <tr key={u.id} className="hover:bg-gray-50 transition-colors group">
+                  <td className="px-4 py-3 text-sm font-semibold text-gray-800">{u.mother_name ?? '—'}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500 max-w-[160px] truncate">{u.email}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500">{(u as unknown as { phone?: string }).phone ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <select value={u.lead_status ?? ''} onChange={e => updateStatus(u.id, e.target.value)}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-mustard-400">
+                      <option value="">ללא סטטוס</option>
+                      <option value="new_lead">ליד חדש</option>
+                      <option value="active_workshop">בסדנה פעילה</option>
+                      <option value="post_service">לאחר שירות</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                    {u.created_at ? new Date(u.created_at).toLocaleDateString('he-IL') : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-400 max-w-[160px] truncate">
+                    {u.staff_notes ?? '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => setDrawer(u)}
+                        className="p-1.5 rounded-lg hover:bg-mustard-50 text-gray-400 hover:text-mustard-600">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <a href={`https://wa.me/${u.email.replace(/\D/g, '')}?text=${encodeURIComponent(`היי ${u.mother_name ?? ''}!`)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="p-1.5 rounded-lg hover:bg-green-50 text-gray-400 hover:text-green-600">
+                        <MessageCircle className="w-3.5 h-3.5" />
+                      </a>
+                      <a href={`mailto:${u.email}`}
+                        className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600">
+                        <Mail className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && (
+            <p className="text-center text-gray-400 text-sm py-12">לא נמצאו רשומות</p>
+          )}
+        </div>
+      </div>
+
+      {/* Lead drawer */}
+      {drawer && (
+        <aside className="w-72 shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3 self-start sticky top-24" dir="rtl">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-gray-800">פרטי ליד</h3>
+            <button onClick={() => setDrawer(null)} className="text-gray-400"><X className="w-4 h-4" /></button>
+          </div>
+          <p className="font-semibold text-gray-800">{drawer.mother_name ?? '—'}</p>
+          <p className="text-xs text-gray-500">{drawer.email}</p>
+          <LeadBadge status={drawer.lead_status} />
+          {drawer.staff_notes && (
+            <div className="bg-gray-50 rounded-xl p-3">
+              <p className="text-xs text-gray-600">{drawer.staff_notes}</p>
+            </div>
+          )}
+          <p className="text-xs text-gray-400">הצטרף: {drawer.created_at ? new Date(drawer.created_at).toLocaleDateString('he-IL') : '—'}</p>
+        </aside>
       )}
     </div>
   )
