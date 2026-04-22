@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
@@ -9,6 +9,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [signupSent, setSignupSent] = useState(false)
+  const [subtitle, setSubtitle] = useState('מרכז התפתחות לתינוקות')
+
+  useEffect(() => {
+    supabase.from('global_settings').select('setting_value')
+      .eq('setting_key', 'app_subtitle').single()
+      .then(({ data }) => { if (data?.setting_value) setSubtitle(data.setting_value) })
+  }, [])
 
   async function handleGoogle() {
     setError('')
@@ -86,7 +93,7 @@ export default function LoginPage() {
 
         {/* Subtitle */}
         <p style={{ color: '#B8AB98', fontSize: '0.95rem', marginTop: '-12px' }}>
-          מרכז התפתחות לתינוקות
+          {subtitle}
         </p>
 
         {/* Card */}
@@ -98,13 +105,15 @@ export default function LoginPage() {
             {mode === 'login' ? 'התחברות' : 'הרשמה'}
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
             <div>
               <label className="block text-sm text-right mb-1.5" style={{ color: '#9B8E80' }}>
                 אימייל
               </label>
               <input
                 type="email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="email@example.com"
@@ -127,6 +136,8 @@ export default function LoginPage() {
               </label>
               <input
                 type="password"
+                name="password"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••"

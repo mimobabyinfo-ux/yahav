@@ -26,12 +26,12 @@ const CITIES = [
   'יבנה', 'יהוד', 'ירושלים',
   'כפר סבא', 'כרמיאל',
   'לוד',
-  'מודיעין', 'מעלה אדומים',
+  'מזכרת בתיה', 'מודיעין', 'מעלה אדומים',
   'נהריה', 'נס ציונה', 'נצרת', 'נצרת עילית', 'נתיבות', 'נתניה',
   'עכו', 'עפולה',
   'פתח תקווה',
   'צפת',
-  "קריית אתא", "קריית ביאליק", "קריית גת", "קריית מוצקין", "קריית שמונה",
+  'קריית אתא', 'קריית ביאליק', 'קריית גת', 'קריית מוצקין', 'קריית שמונה',
   'ראש העין', 'ראשון לציון', 'רחובות', 'רמלה', 'רמת גן', 'רמת השרון', 'רעננה',
   'תל אביב', 'תל מונד',
   'אחר',
@@ -45,6 +45,8 @@ export default function OnboardingPage() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [area, setArea] = useState('')
+  const [citySearch, setCitySearch] = useState('')
+  const [showCities, setShowCities] = useState(false)
   const [phone, setPhone] = useState('')
   const [showPhone, setShowPhone] = useState(false)
   const [dueDate, setDueDate] = useState('')
@@ -165,14 +167,33 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            {/* City dropdown */}
-            <div>
+            {/* City combobox */}
+            <div className="relative">
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">עיר / אזור <span className="text-red-400">*</span></label>
-              <select value={area} onChange={e => setArea(e.target.value)} required
-                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 appearance-none">
-                <option value="">בחרי עיר...</option>
-                {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <input
+                type="text"
+                value={citySearch}
+                onChange={e => { setCitySearch(e.target.value); setArea(''); setShowCities(true) }}
+                onFocus={() => setShowCities(true)}
+                onBlur={() => setTimeout(() => setShowCities(false), 150)}
+                placeholder="חיפוש עיר..."
+                autoComplete="off"
+                className={`w-full px-4 py-3.5 border-2 rounded-2xl focus:outline-none bg-white text-sand-800 ${area ? 'border-mustard-400' : 'border-sand-200 focus:border-mustard-400'}`}
+              />
+              {showCities && (
+                <div className="absolute top-full right-0 left-0 z-50 bg-white border-2 border-mustard-200 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto">
+                  {CITIES.filter(c => !citySearch || c.includes(citySearch)).map(c => (
+                    <button key={c} type="button"
+                      onMouseDown={() => { setArea(c); setCitySearch(c); setShowCities(false) }}
+                      className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-800 border-b border-sand-50 last:border-0 transition-colors">
+                      {c}
+                    </button>
+                  ))}
+                  {CITIES.filter(c => !citySearch || c.includes(citySearch)).length === 0 && (
+                    <p className="text-center text-sand-400 text-sm py-3">לא נמצאו תוצאות</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Phone — required */}

@@ -48,7 +48,7 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
           </button>
         </div>
 
-        <div className="p-5 pt-3 space-y-4">
+        <div className="p-5 pt-3 pb-8 space-y-4">
           {/* Logo + Partner name */}
           <div className="flex items-center gap-4">
             {perk.logo_url ? (

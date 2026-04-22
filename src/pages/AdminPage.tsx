@@ -2881,16 +2881,18 @@ function FormsTab() {
 function OwnerSettingsSection() {
   const [name, setName] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
+  const [subtitle, setSubtitle] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     supabase.from('global_settings')
       .select('setting_key, setting_value')
-      .in('setting_key', ['owner_name', 'owner_whatsapp'])
+      .in('setting_key', ['owner_name', 'owner_whatsapp', 'app_subtitle'])
       .then(({ data }) => {
         setName(data?.find(r => r.setting_key === 'owner_name')?.setting_value ?? 'ברנדה')
         setWhatsapp(data?.find(r => r.setting_key === 'owner_whatsapp')?.setting_value ?? '972527506227')
+        setSubtitle(data?.find(r => r.setting_key === 'app_subtitle')?.setting_value ?? 'מרכז התפתחות לתינוקות')
       })
   }, [])
 
@@ -2899,6 +2901,7 @@ function OwnerSettingsSection() {
     await supabase.from('global_settings').upsert([
       { setting_key: 'owner_name', setting_value: name, setting_type: 'text', category: 'owner', description: 'שם בעלת העסק' },
       { setting_key: 'owner_whatsapp', setting_value: whatsapp, setting_type: 'text', category: 'owner', description: 'מספר WhatsApp של בעלת העסק' },
+      { setting_key: 'app_subtitle', setting_value: subtitle, setting_type: 'text', category: 'owner', description: 'כיתוב מתחת ללוגו במסך הכניסה' },
     ], { onConflict: 'setting_key' })
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -2918,6 +2921,10 @@ function OwnerSettingsSection() {
         <div>
           <label className="text-xs font-semibold text-sand-500 mb-1 block">מספר WhatsApp (עם קוד מדינה, ללא +)</label>
           <input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} dir="ltr" placeholder="972527506227" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-sand-500 mb-1 block">כיתוב מתחת ללוגו (מסך כניסה)</label>
+          <input value={subtitle} onChange={e => setSubtitle(e.target.value)} placeholder="מרכז התפתחות לתינוקות" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
         </div>
         <button onClick={save} disabled={saving} className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
           {saved ? '✓ נשמר!' : saving ? '...' : 'שמור'}
