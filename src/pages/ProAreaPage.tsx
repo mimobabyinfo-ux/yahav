@@ -195,7 +195,7 @@ export default function ProAreaPage() {
               className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
               style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
             >
-              🎓 {nextWorkshop ? nextWorkshop.title : 'הסדנה הבאה'}
+              🎓 לסדנה הבאה
             </button>
           </div>
 
@@ -377,10 +377,8 @@ export default function ProAreaPage() {
                 </div>
 
                 {(nextWorkshop ?? selected.workshop)?.description && (
-                  <div className="space-y-1.5">
-                    {((nextWorkshop ?? selected.workshop)!.description!).split(' | ').map((segment, i) => (
-                      <p key={i} className="text-sm text-sand-600 leading-relaxed">{segment.trim()}</p>
-                    ))}
+                  <div className="text-sm text-sand-600 leading-relaxed whitespace-pre-line">
+                    {(nextWorkshop ?? selected.workshop)!.description}
                   </div>
                 )}
 
