@@ -973,7 +973,7 @@ function WorkshopsTabDesktop() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   const [drawer, setDrawer] = useState<Workshop | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '' })
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -993,7 +993,7 @@ function WorkshopsTabDesktop() {
 
   function openEdit(w: Workshop) {
     setEditing(w)
-    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '' })
+    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '' })
     setDrawer(w)
   }
 
@@ -1009,6 +1009,7 @@ function WorkshopsTabDesktop() {
       stock_quantity: form.stock_quantity ? parseInt(form.stock_quantity) : null,
       whatsapp_number: form.whatsapp_number || null,
       next_workshop_id: form.next_workshop_id || null,
+      workshop_type: form.workshop_type || null,
     }).eq('id', editing.id)
     setSaving(false); setDrawer(null); setEditing(null); load()
   }
@@ -1083,6 +1084,15 @@ function WorkshopsTabDesktop() {
           <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="URL תמונה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
           <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} placeholder="קישור סרטון (URL)" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
           <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="WhatsApp" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">קטגוריה (בחנות)</label>
+            <select value={form.workshop_type} onChange={e => setForm(f => ({ ...f, workshop_type: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white">
+              <option value="">ללא קטגוריה</option>
+              <option value="הריון">🤰 הריון</option>
+              <option value="תינוקות">תינוקות</option>
+              <option value="אימהות">אימהות</option>
+            </select>
+          </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">הסדנה הבאה בסדרה</label>
             <select value={form.next_workshop_id} onChange={e => setForm(f => ({ ...f, next_workshop_id: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white">
@@ -2144,7 +2154,7 @@ function WorkshopsTab() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '' })
   const [uploadingImage, setUploadingImage] = useState(false)
 
   async function uploadImage(file: File): Promise<string | null> {
@@ -2185,6 +2195,7 @@ function WorkshopsTab() {
       stock_quantity: form.stock_quantity ? parseInt(form.stock_quantity) : null,
       whatsapp_number: form.whatsapp_number || null,
       next_workshop_id: form.next_workshop_id || null,
+      workshop_type: form.workshop_type || null,
     }
     if (editing) {
       await supabase.from('workshops').update(payload).eq('id', editing.id)
@@ -2192,7 +2203,7 @@ function WorkshopsTab() {
       const maxOrder = workshops.length > 0 ? Math.max(...workshops.map(w => w.display_order)) : 0
       await supabase.from('workshops').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '' })
+    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '' })
     setEditing(null); setShowForm(false); load()
   }
 
@@ -2243,6 +2254,15 @@ function WorkshopsTab() {
             <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="מספר WhatsApp" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
           </div>
           <div>
+            <label className="text-xs text-sand-500 mb-1 block">קטגוריה (בחנות)</label>
+            <select value={form.workshop_type} onChange={e => setForm(f => ({ ...f, workshop_type: e.target.value }))} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white">
+              <option value="">ללא קטגוריה</option>
+              <option value="הריון">🤰 הריון</option>
+              <option value="תינוקות">תינוקות</option>
+              <option value="אימהות">אימהות</option>
+            </select>
+          </div>
+          <div>
             <label className="text-xs text-sand-500 mb-1 block">הסדנה הבאה בסדרה</label>
             <select value={form.next_workshop_id} onChange={e => setForm(f => ({ ...f, next_workshop_id: e.target.value }))} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white">
               <option value="">ללא המשך</option>
@@ -2269,7 +2289,7 @@ function WorkshopsTab() {
               <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
                 {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
               </button>
-              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
               <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>

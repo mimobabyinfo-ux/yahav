@@ -377,9 +377,11 @@ export default function ProAreaPage() {
                 </div>
 
                 {(nextWorkshop ?? selected.workshop)?.description && (
-                  <p className="text-sm text-sand-600 leading-relaxed">
-                    {(nextWorkshop ?? selected.workshop)!.description}
-                  </p>
+                  <div className="space-y-1.5">
+                    {((nextWorkshop ?? selected.workshop)!.description!).split(' | ').map((segment, i) => (
+                      <p key={i} className="text-sm text-sand-600 leading-relaxed">{segment.trim()}</p>
+                    ))}
+                  </div>
                 )}
 
                 {nextWorkshopContent.length > 0 && (
