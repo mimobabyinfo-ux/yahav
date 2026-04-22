@@ -13,9 +13,28 @@ type Baby = {
 }
 
 const genderOptions = [
-  { value: 'girl',  label: 'בת 👧' },
-  { value: 'boy',   label: 'בן 👦' },
-  { value: 'other', label: 'אחר 👶' },
+  { value: 'girl', label: 'בת 👧' },
+  { value: 'boy',  label: 'בן 👦' },
+]
+
+const CITIES = [
+  'אילת', 'אור יהודה', 'אור עקיבא', 'אריאל', 'אשדוד', 'אשקלון',
+  'באר שבע', 'בית שאן', 'בית שמש', 'בני ברק', 'בת ים',
+  'גבעת שמואל', 'גבעתיים', 'גדרה',
+  'הוד השרון', 'הרצליה', 'חדרה', 'חולון', 'חיפה',
+  'טבריה', 'טירת כרמל',
+  'יבנה', 'יהוד', 'ירושלים',
+  'כפר סבא', 'כרמיאל',
+  'לוד',
+  'מודיעין', 'מעלה אדומים',
+  'נהריה', 'נס ציונה', 'נצרת', 'נצרת עילית', 'נתיבות', 'נתניה',
+  'עכו', 'עפולה',
+  'פתח תקווה',
+  'צפת',
+  "קריית אתא", "קריית ביאליק", "קריית גת", "קריית מוצקין", "קריית שמונה",
+  'ראש העין', 'ראשון לציון', 'רחובות', 'רמלה', 'רמת גן', 'רמת השרון', 'רעננה',
+  'תל אביב', 'תל מונד',
+  'אחר',
 ]
 
 const emptyBaby = (): Baby => ({ name: '', dob: '', gender: 'girl' })
@@ -23,7 +42,8 @@ const emptyBaby = (): Baby => ({ name: '', dob: '', gender: 'girl' })
 export default function OnboardingPage() {
   const { user, refreshProfile, refreshChildren } = useAuth()
   const [mode, setMode] = useState<Mode>('mom')
-  const [motherName, setMotherName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [area, setArea] = useState('')
   const [phone, setPhone] = useState('')
   const [showPhone, setShowPhone] = useState(false)
@@ -36,23 +56,30 @@ export default function OnboardingPage() {
     setBabies(prev => prev.map((b, i) => i === idx ? { ...b, ...patch } : b))
   }
 
-  function addBaby() {
-    setBabies(prev => [...prev, emptyBaby()])
-  }
-
-  function removeBaby(idx: number) {
-    setBabies(prev => prev.filter((_, i) => i !== idx))
-  }
+  function addBaby() { setBabies(prev => [...prev, emptyBaby()]) }
+  function removeBaby(idx: number) { setBabies(prev => prev.filter((_, i) => i !== idx)) }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!user) return
+
+    if (!firstName.trim()) { setError('אנא הכניסי שם פרטי'); return }
+    if (!lastName.trim()) { setError('אנא הכניסי שם משפחה'); return }
+    if (!area) { setError('אנא בחרי עיר / אזור'); return }
+    if (!phone.trim()) { setError('אנא הכניסי מספר טלפון'); return }
+
+    if (mode === 'pregnant') {
+      if (!dueDate) { setError('אנא הכניסי תאריך לידה משוער'); return }
+    }
+
     if (mode === 'mom') {
       if (babies.some(b => !b.name.trim())) { setError('אנא מלאי שם לכל תינוק/ת'); return }
       if (babies.some(b => !b.dob)) { setError('אנא מלאי תאריך לידה לכל תינוק/ת'); return }
     }
+
     setError('')
     setLoading(true)
+    const motherName = `${firstName.trim()} ${lastName.trim()}`
     try {
       const { error: profileError } = await supabase.from('user_profiles').upsert({
         id: user.id,
@@ -62,7 +89,7 @@ export default function OnboardingPage() {
         baby_dob: mode === 'mom' ? babies[0].dob || null : null,
         baby_gender: mode === 'mom' ? babies[0].gender : null,
         display_name: motherName,
-        area: area.trim() || null,
+        area: area || null,
         phone_number: phone.trim() || null,
         community_consent: showPhone,
         lead_status: 'new_lead',
@@ -109,67 +136,58 @@ export default function OnboardingPage() {
           <div className="bg-white rounded-3xl shadow-sm p-4">
             <p className="text-xs font-semibold text-sand-600 mb-3 text-center">איפה את בתהליך?</p>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setMode('pregnant')}
-                className={`flex-1 py-3 rounded-2xl text-sm font-bold border-2 transition-all ${mode === 'pregnant' ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}
-              >
+              <button type="button" onClick={() => setMode('pregnant')}
+                className={`flex-1 py-3 rounded-2xl text-sm font-bold border-2 transition-all ${mode === 'pregnant' ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}>
                 🤰 בהיריון
               </button>
-              <button
-                type="button"
-                onClick={() => setMode('mom')}
-                className={`flex-1 py-3 rounded-2xl text-sm font-bold border-2 transition-all ${mode === 'mom' ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}
-              >
+              <button type="button" onClick={() => setMode('mom')}
+                className={`flex-1 py-3 rounded-2xl text-sm font-bold border-2 transition-all ${mode === 'mom' ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}>
                 👶 כבר אמא
               </button>
             </div>
           </div>
 
-          {/* Mother name + area */}
+          {/* Mother details */}
           <div className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1.5">שמך</label>
-              <input
-                type="text"
-                value={motherName}
-                onChange={e => setMotherName(e.target.value)}
-                placeholder="מה שמך?"
-                required
-                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
-              />
+            {/* Name — split */}
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם פרטי <span className="text-red-400">*</span></label>
+                <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
+                  placeholder="שם פרטי" required
+                  className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 text-sm" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם משפחה <span className="text-red-400">*</span></label>
+                <input type="text" value={lastName} onChange={e => setLastName(e.target.value)}
+                  placeholder="שם משפחה" required
+                  className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 text-sm" />
+              </div>
             </div>
+
+            {/* City dropdown */}
             <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                עיר / אזור <span className="text-sand-400 font-normal">(לחיפוש בקהילה)</span>
-              </label>
-              <input
-                type="text"
-                value={area}
-                onChange={e => setArea(e.target.value)}
-                placeholder="למשל: תל אביב, ירושלים, חיפה..."
-                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
-              />
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">עיר / אזור <span className="text-red-400">*</span></label>
+              <select value={area} onChange={e => setArea(e.target.value)} required
+                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 appearance-none">
+                <option value="">בחרי עיר...</option>
+                {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
+
+            {/* Phone — required */}
             <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                מספר טלפון <span className="text-sand-400 font-normal">(אופציונלי)</span>
-              </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="050-0000000"
-                dir="ltr"
-                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
-              />
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">מספר טלפון <span className="text-red-400">*</span></label>
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                placeholder="050-0000000" required dir="ltr"
+                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
             </div>
+
+            {/* Community consent */}
             <label className="flex items-start gap-3 cursor-pointer pt-1">
-              <div
-                onClick={() => setShowPhone(v => !v)}
+              <div onClick={() => setShowPhone(v => !v)}
                 className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${showPhone ? 'border-mustard-500' : 'border-sand-300'}`}
-                style={showPhone ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
-              >
+                style={showPhone ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
                 {showPhone && <Check className="w-3 h-3 text-white" />}
               </div>
               <span className="text-xs text-sand-600 leading-relaxed">
@@ -178,19 +196,15 @@ export default function OnboardingPage() {
             </label>
           </div>
 
-          {/* Due date — pregnant only */}
+          {/* Due date — pregnant only, required */}
           {mode === 'pregnant' && (
             <div className="bg-white rounded-3xl shadow-sm p-5">
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                תאריך לידה משוער <span className="text-sand-400 font-normal">(אופציונלי)</span>
+                תאריך לידה משוער <span className="text-red-400">*</span>
               </label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={e => setDueDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
-              />
+              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]} required
+                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
             </div>
           )}
 
@@ -202,91 +216,62 @@ export default function OnboardingPage() {
                   {babies.length > 1 ? `תינוק/ת ${idx + 1}` : 'פרטי התינוק/ת'}
                 </h3>
                 {babies.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeBaby(idx)}
-                    className="p-1.5 rounded-xl text-red-400 hover:bg-red-50 transition-colors"
-                  >
+                  <button type="button" onClick={() => removeBaby(idx)}
+                    className="p-1.5 rounded-xl text-red-400 hover:bg-red-50 transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>
 
-              {/* Baby name */}
               <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם התינוק/ת</label>
-                <input
-                  type="text"
-                  value={baby.name}
-                  onChange={e => updateBaby(idx, { name: e.target.value })}
-                  placeholder="שם התינוק שלך"
-                  required
-                  className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
-                />
+                <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם התינוק/ת <span className="text-red-400">*</span></label>
+                <input type="text" value={baby.name} onChange={e => updateBaby(idx, { name: e.target.value })}
+                  placeholder="שם התינוק שלך" required
+                  className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
               </div>
 
-              {/* Gender */}
               <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-1.5">מין התינוק/ת</label>
+                <label className="block text-xs font-semibold text-sand-600 mb-1.5">מין התינוק/ת <span className="text-red-400">*</span></label>
                 <div className="flex gap-2">
                   {genderOptions.map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
+                    <button key={opt.value} type="button"
                       onClick={() => updateBaby(idx, { gender: opt.value as Baby['gender'] })}
                       className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-all ${
-                        baby.gender === opt.value
-                          ? 'border-mustard-400 bg-mustard-50 text-mustard-700'
-                          : 'border-sand-200 text-sand-500'
-                      }`}
-                    >
+                        baby.gender === opt.value ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'
+                      }`}>
                       {opt.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Birthday */}
               <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                  תאריך לידה <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={baby.dob}
-                  onChange={e => updateBaby(idx, { dob: e.target.value })}
-                  max={new Date().toISOString().split('T')[0]}
-                  required
-                  className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
-                />
+                <label className="block text-xs font-semibold text-sand-600 mb-1.5">תאריך לידה <span className="text-red-400">*</span></label>
+                <input type="date" value={baby.dob} onChange={e => updateBaby(idx, { dob: e.target.value })}
+                  max={new Date().toISOString().split('T')[0]} required
+                  className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
               </div>
             </div>
           ))}
 
           {/* Add another baby — mom only */}
           {mode === 'mom' && (
-            <button
-              type="button"
-              onClick={addBaby}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-dashed border-mustard-300 text-mustard-600 font-semibold text-sm hover:bg-mustard-50 transition-colors"
-            >
+            <button type="button" onClick={addBaby}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-dashed border-mustard-300 text-mustard-600 font-semibold text-sm hover:bg-mustard-50 transition-colors">
               <Plus className="w-4 h-4" />
               הוסיפי תינוק/ת נוסף/ת
             </button>
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-3 text-sm text-red-600">
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-3 text-sm text-red-600 text-center">
               {error}
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
+          <button type="submit" disabled={loading}
             className="w-full text-white font-bold py-4 rounded-2xl transition-all shadow-lg disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-          >
+            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
             {loading ? 'שומרת...' : 'בואי נתחיל! 🎉'}
           </button>
         </form>
