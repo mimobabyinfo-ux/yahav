@@ -119,6 +119,7 @@ export default function WorkshopsPage() {
       .from('workshops')
       .select('*')
       .eq('is_active', true)
+      .not('workshop_type', 'is', null)
       .order('display_order')
       .then(({ data }) => {
         setWorkshops((data ?? []) as WorkshopExt[])

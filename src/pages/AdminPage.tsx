@@ -1085,9 +1085,9 @@ function WorkshopsTabDesktop() {
           <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} placeholder="קישור סרטון (URL)" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
           <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="WhatsApp" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">קטגוריה (בחנות)</label>
+            <label className="text-xs text-gray-500 mb-1 block">קטגוריה — מוצרים בחנות <span className="text-purple-400">(ללא קטגוריה = סדנה דיגיטלית בלבד)</span></label>
             <select value={form.workshop_type} onChange={e => setForm(f => ({ ...f, workshop_type: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white">
-              <option value="">ללא קטגוריה</option>
+              <option value="">סדנה דיגיטלית (לא מוצגת בחנות)</option>
               <option value="הריון">🤰 הריון</option>
               <option value="תינוקות">תינוקות</option>
               <option value="אימהות">אימהות</option>
@@ -2254,9 +2254,9 @@ function WorkshopsTab() {
             <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="מספר WhatsApp" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
           </div>
           <div>
-            <label className="text-xs text-sand-500 mb-1 block">קטגוריה (בחנות)</label>
+            <label className="text-xs text-sand-500 mb-1 block">קטגוריה — מוצרים בחנות <span className="text-mustard-600">(ללא = סדנה דיגיטלית בלבד)</span></label>
             <select value={form.workshop_type} onChange={e => setForm(f => ({ ...f, workshop_type: e.target.value }))} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white">
-              <option value="">ללא קטגוריה</option>
+              <option value="">סדנה דיגיטלית (לא מוצגת בחנות)</option>
               <option value="הריון">🤰 הריון</option>
               <option value="תינוקות">תינוקות</option>
               <option value="אימהות">אימהות</option>
