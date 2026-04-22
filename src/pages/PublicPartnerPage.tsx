@@ -1,6 +1,6 @@
+import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import MimoLogo from '../components/MimoLogo'
 
-const WHATSAPP_NUMBER = '972527506227' // replace with your actual number
 const WHATSAPP_MSG = encodeURIComponent('היי! ראיתי את המצגת של Mimo ואשמח לשמוע עוד על שיתוף פעולה 🌸')
 
 const STATS = [
@@ -58,6 +58,7 @@ const TESTIMONIALS = [
 ]
 
 export default function PublicPartnerPage() {
+  const { ownerWhatsapp } = useOwnerSettings()
   const bg = 'linear-gradient(160deg, #FDF8F2 0%, #F5EDE0 100%)'
 
   return (
@@ -80,7 +81,7 @@ export default function PublicPartnerPage() {
             </p>
           </div>
           <a
-            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`}
+            href={`https://wa.me/${ownerWhatsapp}?text=${WHATSAPP_MSG}`}
             target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2.5 px-8 py-4 rounded-2xl text-white font-bold text-base shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
             style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)' }}
@@ -238,7 +239,7 @@ export default function PublicPartnerPage() {
           ההצטרפות פשוטה, מהירה ובלי התחייבות.
         </p>
         <a
-          href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`}
+          href={`https://wa.me/${ownerWhatsapp}?text=${WHATSAPP_MSG}`}
           target="_blank" rel="noopener noreferrer"
           className="inline-flex items-center gap-2.5 px-10 py-4 rounded-2xl text-white font-bold text-base shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 active:scale-95"
           style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)' }}

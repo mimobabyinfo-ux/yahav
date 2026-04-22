@@ -973,7 +973,7 @@ function WorkshopsTabDesktop() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   const [drawer, setDrawer] = useState<Workshop | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '' })
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -993,7 +993,7 @@ function WorkshopsTabDesktop() {
 
   function openEdit(w: Workshop) {
     setEditing(w)
-    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '' })
+    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '' })
     setDrawer(w)
   }
 
@@ -1008,6 +1008,7 @@ function WorkshopsTabDesktop() {
       video_url: form.video_url || null,
       stock_quantity: form.stock_quantity ? parseInt(form.stock_quantity) : null,
       whatsapp_number: form.whatsapp_number || null,
+      next_workshop_id: form.next_workshop_id || null,
     }).eq('id', editing.id)
     setSaving(false); setDrawer(null); setEditing(null); load()
   }
@@ -1081,6 +1082,15 @@ function WorkshopsTabDesktop() {
           <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור תשלום" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
           <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="URL תמונה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
           <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="WhatsApp" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">הסדנה הבאה בסדרה</label>
+            <select value={form.next_workshop_id} onChange={e => setForm(f => ({ ...f, next_workshop_id: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white">
+              <option value="">ללא המשך</option>
+              {workshops.filter(w => w.id !== editing?.id).map(w => (
+                <option key={w.id} value={w.id}>{w.title}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex gap-2 pt-2">
             <button onClick={saveEdit} disabled={saving} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}>
               {saving ? '...' : 'שמור'}
@@ -2133,7 +2143,7 @@ function WorkshopsTab() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '' })
   const [uploadingImage, setUploadingImage] = useState(false)
 
   async function uploadImage(file: File): Promise<string | null> {
@@ -2173,6 +2183,7 @@ function WorkshopsTab() {
       currency: 'ILS',
       stock_quantity: form.stock_quantity ? parseInt(form.stock_quantity) : null,
       whatsapp_number: form.whatsapp_number || null,
+      next_workshop_id: form.next_workshop_id || null,
     }
     if (editing) {
       await supabase.from('workshops').update(payload).eq('id', editing.id)
@@ -2180,7 +2191,7 @@ function WorkshopsTab() {
       const maxOrder = workshops.length > 0 ? Math.max(...workshops.map(w => w.display_order)) : 0
       await supabase.from('workshops').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
+    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '' })
     setEditing(null); setShowForm(false); load()
   }
 
@@ -2230,6 +2241,15 @@ function WorkshopsTab() {
             <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מלאי (יחידות)" type="number" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
             <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="מספר WhatsApp" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
           </div>
+          <div>
+            <label className="text-xs text-sand-500 mb-1 block">הסדנה הבאה בסדרה</label>
+            <select value={form.next_workshop_id} onChange={e => setForm(f => ({ ...f, next_workshop_id: e.target.value }))} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white">
+              <option value="">ללא המשך</option>
+              {workshops.filter(w => w.id !== editing?.id).map(w => (
+                <option key={w.id} value={w.id}>{w.title}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex gap-2">
             <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold">שמירה</button>
             <button onClick={() => { setShowForm(false); setEditing(null) }} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
@@ -2248,7 +2268,7 @@ function WorkshopsTab() {
               <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
                 {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
               </button>
-              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
               <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
@@ -2857,71 +2877,52 @@ function FormsTab() {
   )
 }
 
-// ─── Plan Features Tab (inside Settings) ─────────────────────────────────────
-const PLAN_FEATURES = [
-  { key: 'feature_daily_insights',   label: 'תובנות יומיות' },
-  { key: 'feature_expert_chat',      label: "צ'אט עם מומחות" },
-  { key: 'feature_advanced_stats',   label: 'סטטיסטיקות מתקדמות' },
-  { key: 'feature_videos',           label: 'סרטונים מקצועיים' },
-  { key: 'feature_multiple_children',label: 'ריבוי ילדים' },
-]
-
-function PlanFeaturesSection() {
-  const [features, setFeatures] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState<string | null>(null)
+// ─── Owner Settings Section (inside Settings) ─────────────────────────────────
+function OwnerSettingsSection() {
+  const [name, setName] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     supabase.from('global_settings')
       .select('setting_key, setting_value')
-      .eq('category', 'plan_features')
+      .in('setting_key', ['owner_name', 'owner_whatsapp'])
       .then(({ data }) => {
-        const map: Record<string, string> = {}
-        data?.forEach(d => { map[d.setting_key] = d.setting_value ?? 'pro' })
-        setFeatures(map)
+        setName(data?.find(r => r.setting_key === 'owner_name')?.setting_value ?? 'ברנדה')
+        setWhatsapp(data?.find(r => r.setting_key === 'owner_whatsapp')?.setting_value ?? '972527506227')
       })
   }, [])
 
-  async function toggle(key: string) {
-    const current = features[key] ?? 'pro'
-    const next = current === 'pro' ? 'lite' : 'pro'
-    setSaving(key)
-    await supabase.from('global_settings').upsert({
-      setting_key: key,
-      setting_value: next,
-      setting_type: 'text',
-      category: 'plan_features',
-      description: PLAN_FEATURES.find(f => f.key === key)?.label ?? key,
-    }, { onConflict: 'setting_key' })
-    setFeatures(f => ({ ...f, [key]: next }))
-    setSaving(null)
+  async function save() {
+    setSaving(true)
+    await supabase.from('global_settings').upsert([
+      { setting_key: 'owner_name', setting_value: name, setting_type: 'text', category: 'owner', description: 'שם בעלת העסק' },
+      { setting_key: 'owner_whatsapp', setting_value: whatsapp, setting_type: 'text', category: 'owner', description: 'מספר WhatsApp של בעלת העסק' },
+    ], { onConflict: 'setting_key' })
+    setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
   }
 
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-sand-100">
-        <h3 className="font-bold text-sand-800 text-sm">פיצ'רים לפי תוכנית</h3>
-        <p className="text-xs text-sand-400 mt-0.5">בחרי אילו פיצ'רים זמינים ל-Lite ואילו ל-Pro בלבד</p>
+        <h3 className="font-bold text-sand-800 text-sm">פרטי בעלת העסק</h3>
+        <p className="text-xs text-sand-400 mt-0.5">מופיע בכפתורי WhatsApp ובהודעות אוטומטיות</p>
       </div>
-      {PLAN_FEATURES.map(f => {
-        const isPro = (features[f.key] ?? 'pro') === 'pro'
-        return (
-          <div key={f.key} className="flex items-center justify-between px-4 py-3 border-b border-sand-50 last:border-0">
-            <div>
-              <p className="text-sm font-semibold text-sand-700">{f.label}</p>
-              <p className="text-xs text-sand-400">{isPro ? 'Pro בלבד' : 'כולל Lite'}</p>
-            </div>
-            <button
-              onClick={() => toggle(f.key)}
-              disabled={saving === f.key}
-              className={`relative w-12 h-6 rounded-full transition-colors ${isPro ? 'bg-mustard-400' : 'bg-sand-200'} disabled:opacity-50`}
-            >
-              <span
-                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${isPro ? 'right-0.5' : 'left-0.5'}`}
-              />
-            </button>
-          </div>
-        )
-      })}
+      <div className="p-4 space-y-3">
+        <div>
+          <label className="text-xs font-semibold text-sand-500 mb-1 block">שם</label>
+          <input value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-sand-500 mb-1 block">מספר WhatsApp (עם קוד מדינה, ללא +)</label>
+          <input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} dir="ltr" placeholder="972527506227" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+        </div>
+        <button onClick={save} disabled={saving} className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+          {saved ? '✓ נשמר!' : saving ? '...' : 'שמור'}
+        </button>
+      </div>
     </div>
   )
 }
@@ -2973,8 +2974,8 @@ function SettingsTab() {
 
   return (
     <div className="space-y-3">
-      {/* Plan Features */}
-      <PlanFeaturesSection />
+      {/* Owner Settings */}
+      <OwnerSettingsSection />
 
       <button
         onClick={() => { setShowForm(true); setEditing(null) }}

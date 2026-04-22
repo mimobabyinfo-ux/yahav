@@ -3,18 +3,21 @@ import { ChevronRight, PlayCircle, BookOpen, FileText, Lock, CheckSquare, Square
 import { supabase, Workshop, WorkshopContent, PurchasedWorkshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
+import { useOwnerSettings } from '../hooks/useOwnerSettings'
 
 type ActiveWorkshop = PurchasedWorkshop & { workshop: Workshop | null }
 
 export default function ProAreaPage() {
   const { user, profile, hasActiveWorkshopAccess, purchasedWorkshops } = useAuth()
   const { track } = useTracker()
+  const { ownerName, ownerWhatsapp } = useOwnerSettings()
   const [activeWorkshops, setActiveWorkshops] = useState<ActiveWorkshop[]>([])
   const [selected, setSelected] = useState<ActiveWorkshop | null>(null)
   const [content, setContent] = useState<WorkshopContent[]>([])
   const [loading, setLoading] = useState(true)
   const [contentLoading, setContentLoading] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
+  const [nextWorkshop, setNextWorkshop] = useState<Workshop | null>(null)
   // homework progress: "contentId:taskIndex"
   const [doneKeys, setDoneKeys] = useState<Set<string>>(new Set())
 
@@ -53,6 +56,7 @@ export default function ProAreaPage() {
 
   async function openWorkshop(aw: ActiveWorkshop) {
     setSelected(aw)
+    setNextWorkshop(null)
     setContentLoading(true)
     track('workshop_open', { workshop_id: aw.workshop_id, title: aw.workshop?.title ?? null })
     const { data } = await supabase
@@ -63,6 +67,16 @@ export default function ProAreaPage() {
       .order('display_order')
     const items = data ?? []
     setContent(items)
+
+    // Load next workshop if linked
+    if (aw.workshop?.next_workshop_id) {
+      const { data: nw } = await supabase
+        .from('workshops')
+        .select('*')
+        .eq('id', aw.workshop.next_workshop_id)
+        .single()
+      setNextWorkshop(nw ?? null)
+    }
 
     // Load homework progress
     if (user && items.some(i => i.type === 'homework')) {
@@ -94,7 +108,7 @@ export default function ProAreaPage() {
     }, { onConflict: 'user_id,content_id,task_index' })
   }
 
-  const hasAccess = hasActiveWorkshopAccess || profile?.is_pro || profile?.is_admin
+  const hasAccess = hasActiveWorkshopAccess || profile?.is_admin
 
   // Retention banner: show if any workshop was assigned 7+ days ago
   const retentionWorkshop = activeWorkshops.find(aw => {
@@ -149,18 +163,36 @@ export default function ProAreaPage() {
 
         <div className="p-4 space-y-5 max-w-sm mx-auto">
 
-          {/* ── Message Michal + Book next workshop ── */}
+          {/* ── Message owner + Book next workshop ── */}
           <div className="grid grid-cols-2 gap-2">
             <a
-              href={`https://wa.me/972527506227?text=${encodeURIComponent(`היי מיכל! אני ${profile?.mother_name ?? ''} מסדנת "${selected.workshop?.title ?? 'הסדנה'}". רציתי לשאול...`)}`}
+              href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי ${ownerName}! אני ${profile?.mother_name ?? ''} מסדנת "${selected.workshop?.title ?? 'הסדנה'}". רציתי לשאול...`)}`}
               target="_blank" rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold"
               style={{ background: '#E8F5E9', color: '#2E7D32' }}
             >
               <MessageCircle className="w-4 h-4" />
-              שאלי את מיכל
+              שאלי את {ownerName}
             </a>
-            {selected.workshop?.payment_link ? (
+            {nextWorkshop?.payment_link ? (
+              <a
+                href={nextWorkshop.payment_link}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+              >
+                🎓 {nextWorkshop.title}
+              </a>
+            ) : nextWorkshop ? (
+              <a
+                href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי ${ownerName}! סיימתי את "${selected.workshop?.title ?? 'הסדנה'}" ואשמח להירשם ל"${nextWorkshop.title}" 🙏`)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+              >
+                🎓 {nextWorkshop.title}
+              </a>
+            ) : selected.workshop?.payment_link ? (
               <a
                 href={selected.workshop.payment_link}
                 target="_blank" rel="noopener noreferrer"
@@ -171,7 +203,7 @@ export default function ProAreaPage() {
               </a>
             ) : (
               <a
-                href={`https://wa.me/972527506227?text=${encodeURIComponent(`היי מיכל! סיימתי את "${selected.workshop?.title ?? 'הסדנה'}" ואשמח לשמוע מה הסדנה הבאה 🙏`)}`}
+                href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי ${ownerName}! סיימתי את "${selected.workshop?.title ?? 'הסדנה'}" ואשמח לשמוע מה הסדנה הבאה 🙏`)}`}
                 target="_blank" rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
                 style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}

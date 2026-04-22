@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
-import { ExternalLink, MessageCircle, ShoppingBag, Star, X, Sparkles, CreditCard, Zap } from 'lucide-react'
+import { ExternalLink, MessageCircle, ShoppingBag, Star, X, Sparkles, CreditCard } from 'lucide-react'
 import { supabase, Workshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-
-const WA_NUMBER = '972559904274'
+import { useOwnerSettings } from '../hooks/useOwnerSettings'
 
 type WorkshopExt = Workshop & { whatsapp_number?: string }
 
 // ── Product detail modal ──────────────────────────────────────────────────────
-function ProductModal({ ws, onClose }: { ws: WorkshopExt; onClose: () => void }) {
+function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose: () => void; ownerWhatsapp: string }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={onClose}>
       <div
@@ -60,7 +59,7 @@ function ProductModal({ ws, onClose }: { ws: WorkshopExt; onClose: () => void })
           {/* Action buttons */}
           <div className="flex gap-3 pt-2">
             <a
-              href={`https://wa.me/${ws.whatsapp_number ?? WA_NUMBER}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
+              href={`https://wa.me/${ws.whatsapp_number ?? ownerWhatsapp}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-2xl text-sm transition-all"
@@ -106,6 +105,7 @@ type PurchasedRow = {
 
 export default function WorkshopsPage() {
   const { profile, user } = useAuth()
+  const { ownerWhatsapp } = useOwnerSettings()
   const isPregnant = profile?.user_mode === 'pregnant'
   const [workshops, setWorkshops] = useState<WorkshopExt[]>([])
   const [purchases, setPurchases] = useState<PurchasedRow[]>([])
@@ -135,8 +135,6 @@ export default function WorkshopsPage() {
       .order('purchase_date', { ascending: false })
       .then(({ data }) => setPurchases((data ?? []) as PurchasedRow[]))
   }, [user])
-
-  const isPro = profile?.is_pro || profile?.is_admin
 
   const filtered = category === 'all'
     ? workshops
@@ -194,26 +192,6 @@ export default function WorkshopsPage() {
       <div className="max-w-sm mx-auto px-4 pt-4 space-y-3">
         {tab === 'store' ? (
           <>
-            {!isPro && (
-              <a
-                href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent('היי! אני רוצה לשדרג לחברות Pro 🌟')}`}
-                target="_blank" rel="noopener noreferrer"
-                className="block rounded-3xl p-4 mb-1"
-                style={{ background: 'linear-gradient(135deg, #4A3F35, #3a302a)' }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
-                    <Zap className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-white text-sm">שדרגי לחברות Pro</p>
-                    <p className="text-xs" style={{ color: '#C49438' }}>גישה לכל הסרטונים והתכנים הבלעדיים</p>
-                  </div>
-                  <span className="text-white text-xs font-bold px-3 py-1.5 rounded-xl" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>שלחי הודעה →</span>
-                </div>
-              </a>
-            )}
-
             {loading ? (
               <div className="text-center py-12">
                 <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
@@ -259,7 +237,7 @@ export default function WorkshopsPage() {
                       </div>
                     </div>
                     <div className="flex gap-2 px-4 pb-4" onClick={e => e.stopPropagation()}>
-                      <a href={`https://wa.me/${ws.whatsapp_number ?? WA_NUMBER}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
+                      <a href={`https://wa.me/${ws.whatsapp_number ?? ownerWhatsapp}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
                         target="_blank" rel="noopener noreferrer"
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white"
                         style={{ background: '#4A3F35' }}>
@@ -305,7 +283,7 @@ export default function WorkshopsPage() {
                       <span className="text-sm font-bold text-mustard-600">₪{p.workshops.price}</span>
                     )}
                   </div>
-                  <a href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(`היי! יש לי שאלה לגבי: ${p.workshops.title}`)}`}
+                  <a href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי! יש לי שאלה לגבי: ${p.workshops.title}`)}`}
                     target="_blank" rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-2.5 rounded-2xl text-sm transition-all">
                     <MessageCircle className="w-4 h-4" /> צרי קשר על הסדנה
@@ -317,7 +295,7 @@ export default function WorkshopsPage() {
         )}
       </div>
 
-      {selected && <ProductModal ws={selected} onClose={() => setSelected(null)} />}
+      {selected && <ProductModal ws={selected} onClose={() => setSelected(null)} ownerWhatsapp={ownerWhatsapp} />}
     </div>
   )
 }
