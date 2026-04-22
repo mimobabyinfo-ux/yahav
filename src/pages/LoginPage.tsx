@@ -2,10 +2,19 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
+function moveSessionToSessionStorage() {
+  const key = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.includes('auth-token'))
+  if (key) {
+    sessionStorage.setItem(key, localStorage.getItem(key)!)
+    localStorage.removeItem(key)
+  }
+}
+
 export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [signupSent, setSignupSent] = useState(false)
@@ -43,6 +52,7 @@ export default function LoginPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
+        if (!rememberMe) moveSessionToSessionStorage()
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'שגיאה, נסי שוב'
@@ -154,6 +164,18 @@ export default function LoginPage() {
                 onBlur={e => (e.target.style.borderColor = '#E5DDD2')}
               />
             </div>
+
+            {mode === 'login' && (
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded accent-mustard-500"
+                />
+                <span className="text-sm" style={{ color: '#9B8E80' }}>זכרי אותי</span>
+              </label>
+            )}
 
             {error && (
               <div className="rounded-2xl p-3 text-sm text-center" style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>
