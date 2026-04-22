@@ -22,6 +22,7 @@ import BottomNav from './components/BottomNav'
 import AdminSidebar from './components/AdminSidebar'
 import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
+import InstallPrompt from './components/InstallPrompt'
 
 export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'contact' | 'services' | 'community' | 'marketplace'
 export type AdminSection = 'insights' | 'users' | 'workshops' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'settings'
@@ -173,6 +174,7 @@ function AppInner() {
         viewAsUser={viewAsUser} onToggleUserView={toggleUserView}
       />
       <FormTriggerModal />
+      <InstallPrompt />
     </div>
   )
 }

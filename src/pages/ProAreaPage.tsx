@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ChevronRight, PlayCircle, BookOpen, FileText, Lock, CheckSquare, Square } from 'lucide-react'
+import { ChevronRight, PlayCircle, BookOpen, FileText, Lock, CheckSquare, Square, MessageCircle } from 'lucide-react'
 import { supabase, Workshop, WorkshopContent, PurchasedWorkshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
@@ -96,6 +96,16 @@ export default function ProAreaPage() {
 
   const hasAccess = hasActiveWorkshopAccess || profile?.is_pro || profile?.is_admin
 
+  // Retention banner: show if any workshop was assigned 7+ days ago
+  const retentionWorkshop = activeWorkshops.find(aw => {
+    if (!aw.access_start_date) return false
+    const days = (Date.now() - new Date(aw.access_start_date).getTime()) / (1000 * 60 * 60 * 24)
+    return days >= 7
+  })
+  const [reminderDismissed, setReminderDismissed] = useState(() =>
+    localStorage.getItem('reminder-dismissed') === new Date().toISOString().split('T')[0]
+  )
+
   if (!hasAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6" dir="rtl">
@@ -138,6 +148,49 @@ export default function ProAreaPage() {
         </div>
 
         <div className="p-4 space-y-5 max-w-sm mx-auto">
+
+          {/* ── Message Michal + Book next workshop ── */}
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href={`https://wa.me/972527506227?text=${encodeURIComponent(`היי מיכל! אני ${profile?.mother_name ?? ''} מסדנת "${selected.workshop?.title ?? 'הסדנה'}". רציתי לשאול...`)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold"
+              style={{ background: '#E8F5E9', color: '#2E7D32' }}
+            >
+              <MessageCircle className="w-4 h-4" />
+              שאלי את מיכל
+            </a>
+            {selected.workshop?.payment_link ? (
+              <a
+                href={selected.workshop.payment_link}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+              >
+                🎓 הסדנה הבאה
+              </a>
+            ) : (
+              <a
+                href={`https://wa.me/972527506227?text=${encodeURIComponent(`היי מיכל! סיימתי את "${selected.workshop?.title ?? 'הסדנה'}" ואשמח לשמוע מה הסדנה הבאה 🙏`)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+              >
+                🎓 הסדנה הבאה
+              </a>
+            )}
+          </div>
+
+          {/* ── Workshop summary (if exists) ── */}
+          {selected.workshop?.summary && (
+            <div className="bg-mustard-50 rounded-2xl p-4 border border-mustard-100">
+              <p className="text-xs font-bold text-mustard-700 mb-2">📝 תמצית הסדנה</p>
+              <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-line">
+                {selected.workshop?.summary}
+              </p>
+            </div>
+          )}
+
           {contentLoading ? (
             <div className="flex justify-center py-16">
               <div className="w-7 h-7 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin" />
@@ -284,6 +337,24 @@ export default function ProAreaPage() {
           <h1 className="text-2xl font-bold text-sand-800">סדנאות</h1>
           <p className="text-sand-400 text-sm">תכנים מקצועיים עבורך</p>
         </div>
+
+        {retentionWorkshop && !reminderDismissed && (
+          <div className="bg-gradient-to-l from-mustard-50 to-sand-50 rounded-2xl p-4 border border-mustard-100 flex items-start gap-3">
+            <span className="text-2xl flex-shrink-0">🌸</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-sand-800">היי! לא ראינו אותך בסדנה זמן מה</p>
+              <p className="text-xs text-sand-500 mt-0.5 leading-relaxed">
+                {retentionWorkshop.workshop?.title} מחכה לך — גם 10 דקות יכולות לשנות הרבה 💛
+              </p>
+              <button onClick={() => openWorkshop(retentionWorkshop)}
+                className="mt-2 text-xs font-bold text-mustard-700 underline underline-offset-2">
+                המשיכי לצפות ←
+              </button>
+            </div>
+            <button onClick={() => { setReminderDismissed(true); localStorage.setItem('reminder-dismissed', new Date().toISOString().split('T')[0]) }}
+              className="text-sand-300 hover:text-sand-500 flex-shrink-0 text-lg leading-none">✕</button>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-16">

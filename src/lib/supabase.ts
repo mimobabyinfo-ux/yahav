@@ -124,6 +124,7 @@ export type Workshop = {
   id: string
   title: string
   description: string | null
+  summary: string | null
   workshop_type: string | null
   image_url: string | null
   video_url: string | null

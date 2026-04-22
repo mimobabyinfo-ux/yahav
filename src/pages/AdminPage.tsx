@@ -158,6 +158,7 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
   const [endDate, setEndDate] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [waLink, setWaLink] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editEndDate, setEditEndDate] = useState('')
 
@@ -188,6 +189,13 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
     setSaving(false)
     setSaved(true)
     loadExisting()
+    const workshopTitle = workshops.find(w => w.id === workshopId)?.title ?? 'הסדנה'
+    const userName = user.mother_name ?? user.email
+    const phone = user.phone_number?.replace(/\D/g, '') ?? ''
+    if (phone) {
+      const msg = encodeURIComponent(`היי ${userName}! 🎉\nהגישה שלך ל${workshopTitle} פעילה כעת.\nהיכנסי לאפליקציית Mimo > הסדנאות שלי לצפייה 🌸`)
+      setWaLink(`https://wa.me/${phone.startsWith('972') ? phone : '972' + phone.replace(/^0/, '')}?text=${msg}`)
+    }
     setTimeout(() => setSaved(false), 1500)
   }
 
@@ -269,6 +277,13 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
         </div>
 
         {saved && <p className="text-center text-green-600 font-semibold text-sm">✓ נשמר בהצלחה!</p>}
+        {waLink && (
+          <a href={waLink} target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-white font-bold text-sm"
+            style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)' }}>
+            💬 שלחי הודעת WhatsApp לאישור
+          </a>
+        )}
 
         <div className="flex gap-2 pb-2">
           <button onClick={save} disabled={saving || !workshopId || !endDate} className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
@@ -978,7 +993,7 @@ function WorkshopsTabDesktop() {
 
   function openEdit(w: Workshop) {
     setEditing(w)
-    setForm({ title: w.title, description: w.description ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '' })
+    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '' })
     setDrawer(w)
   }
 
@@ -987,6 +1002,7 @@ function WorkshopsTabDesktop() {
     setSaving(true)
     await supabase.from('workshops').update({
       title: form.title, description: form.description || null,
+      summary: form.summary || null,
       price: form.price ? parseFloat(form.price) : null,
       payment_link: form.payment_link || null, image_url: form.image_url || null,
       video_url: form.video_url || null,
@@ -1057,6 +1073,7 @@ function WorkshopsTabDesktop() {
           </div>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="שם הסדנה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-purple-400" />
+          <textarea value={form.summary} onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} placeholder="סיכום / נקודות מפתח (מוצג בכרטיס הסדנה)" rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-purple-400" />
           <div className="grid grid-cols-2 gap-2">
             <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="מחיר (₪)" type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
             <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מלאי" type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
@@ -2116,7 +2133,7 @@ function WorkshopsTab() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
   const [uploadingImage, setUploadingImage] = useState(false)
 
   async function uploadImage(file: File): Promise<string | null> {
@@ -2148,6 +2165,7 @@ function WorkshopsTab() {
     const payload = {
       title: form.title,
       description: form.description || null,
+      summary: form.summary || null,
       price: form.price ? parseFloat(form.price) : null,
       payment_link: form.payment_link || null,
       image_url: form.image_url || null,
@@ -2162,7 +2180,7 @@ function WorkshopsTab() {
       const maxOrder = workshops.length > 0 ? Math.max(...workshops.map(w => w.display_order)) : 0
       await supabase.from('workshops').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ title: '', description: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
+    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
     setEditing(null); setShowForm(false); load()
   }
 
@@ -2188,6 +2206,7 @@ function WorkshopsTab() {
         <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="שם הסדנה" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור" rows={2} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none" />
+          <textarea value={form.summary} onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} placeholder="סיכום / נקודות מפתח (מוצג בכרטיס הסדנה)" rows={3} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none" />
           <div className="flex gap-2">
             <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="מחיר (₪)" type="number" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
             <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור רישום" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
@@ -2229,7 +2248,7 @@ function WorkshopsTab() {
               <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
                 {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
               </button>
-              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
               <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
