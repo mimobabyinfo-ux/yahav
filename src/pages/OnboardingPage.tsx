@@ -219,13 +219,13 @@ export default function OnboardingPage() {
 
           {/* Due date — pregnant only, required */}
           {mode === 'pregnant' && (
-            <div className="bg-white rounded-3xl shadow-sm p-5">
+            <div className="bg-white rounded-3xl shadow-sm p-5 overflow-hidden">
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
                 תאריך לידה משוער <span className="text-red-400">*</span>
               </label>
               <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]} required
-                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
+                min={new Date().toISOString().split('T')[0]} required dir="ltr"
+                className="w-full max-w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
             </div>
           )}
 
@@ -266,11 +266,11 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              <div>
+              <div className="overflow-hidden">
                 <label className="block text-xs font-semibold text-sand-600 mb-1.5">תאריך לידה <span className="text-red-400">*</span></label>
                 <input type="date" value={baby.dob} onChange={e => updateBaby(idx, { dob: e.target.value })}
-                  max={new Date().toISOString().split('T')[0]} required
-                  className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
+                  max={new Date().toISOString().split('T')[0]} required dir="ltr"
+                  className="w-full max-w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
               </div>
             </div>
           ))}
