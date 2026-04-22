@@ -110,7 +110,7 @@ function AppInner() {
     }
     switch (currentPage) {
       case 'dashboard':  return <DashboardPage onNavigate={setCurrentPage} />
-      case 'journal':    return <JournalPage />
+      case 'journal':    return isPregnant ? <PregnancyDashboard onNavigate={setCurrentPage} /> : <JournalPage />
       case 'benefits':   return <BenefitsPage />
       case 'workshops':  return <WorkshopsPage />
       case 'pro':        return <ProAreaPage />
