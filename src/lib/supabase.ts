@@ -133,6 +133,7 @@ export type Workshop = {
   price: number | null
   currency: string | null
   payment_link: string | null
+  next_workshop_id: string | null
   display_order: number
   is_active: boolean
   created_at: string
