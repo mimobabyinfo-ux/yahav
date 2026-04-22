@@ -973,7 +973,7 @@ function WorkshopsTabDesktop() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   const [drawer, setDrawer] = useState<Workshop | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '' })
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [saving, setSaving] = useState(false)
 
