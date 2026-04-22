@@ -22,8 +22,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     supabase.from('global_settings').select('setting_value')
-      .eq('setting_key', 'app_subtitle').single()
-      .then(({ data }) => { if (data?.setting_value) setSubtitle(data.setting_value) })
+      .eq('setting_key', 'app_subtitle').limit(1)
+      .then(({ data }) => { const v = data?.[0]?.setting_value; if (v) setSubtitle(v) })
   }, [])
 
   async function handleGoogle() {
