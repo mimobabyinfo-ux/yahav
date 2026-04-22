@@ -87,13 +87,11 @@ function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose
   )
 }
 
-const CATEGORIES = [
-  { key: 'all',      label: 'הכל' },
-  { key: 'הריון',   label: '🤰 הריון' },
-  { key: 'תינוקות', label: 'תינוקות' },
-  { key: 'אימהות',  label: 'אימהות' },
-  { key: 'ביי',     label: 'ביי' },
-]
+const CATEGORY_LABELS: Record<string, string> = {
+  'הריון':   '🤰 הריון',
+  'תינוקות': 'תינוקות',
+  'אימהות':  'אימהות',
+}
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 type PurchasedRow = {
@@ -137,9 +135,14 @@ export default function WorkshopsPage() {
       .then(({ data }) => setPurchases((data ?? []) as PurchasedRow[]))
   }, [user])
 
+  // Only show category chips that have at least one workshop
+  const activeCategories = Object.keys(CATEGORY_LABELS).filter(cat =>
+    workshops.some(w => w.workshop_type === cat)
+  )
+
   const filtered = category === 'all'
     ? workshops
-    : workshops.filter(w => (w.workshop_type ?? '').includes(category))
+    : workshops.filter(w => w.workshop_type === category)
 
   return (
     <div className="min-h-screen pb-28" dir="rtl">
@@ -174,7 +177,7 @@ export default function WorkshopsPage() {
         {/* Category filters — store only */}
         {tab === 'store' && (
           <div className="max-w-sm mx-auto flex gap-2 mt-4 overflow-x-auto scroll-hide pb-1">
-            {CATEGORIES.map(c => (
+            {[{ key: 'all', label: 'הכל' }, ...activeCategories.map(k => ({ key: k, label: CATEGORY_LABELS[k] }))].map(c => (
               <button
                 key={c.key}
                 onClick={() => setCategory(c.key)}
