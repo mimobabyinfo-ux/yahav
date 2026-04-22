@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ChevronRight, PlayCircle, BookOpen, FileText, Lock, CheckSquare, Square, MessageCircle } from 'lucide-react'
+import { ChevronRight, PlayCircle, BookOpen, FileText, Lock, CheckSquare, Square, MessageCircle, X } from 'lucide-react'
 import { supabase, Workshop, WorkshopContent, PurchasedWorkshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
@@ -18,6 +18,8 @@ export default function ProAreaPage() {
   const [contentLoading, setContentLoading] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
   const [nextWorkshop, setNextWorkshop] = useState<Workshop | null>(null)
+  const [showNextModal, setShowNextModal] = useState(false)
+  const [nextWorkshopContent, setNextWorkshopContent] = useState<WorkshopContent[]>([])
   // homework progress: "contentId:taskIndex"
   const [doneKeys, setDoneKeys] = useState<Set<string>>(new Set())
 
@@ -92,6 +94,20 @@ export default function ProAreaPage() {
       setDoneKeys(keys)
     }
     setContentLoading(false)
+  }
+
+  async function openNextModal() {
+    if (!nextWorkshop) return
+    track('next_workshop_modal_open', { workshop_id: nextWorkshop.id, title: nextWorkshop.title })
+    setShowNextModal(true)
+    if (nextWorkshopContent.length === 0) {
+      const { data } = await supabase
+        .from('workshop_content')
+        .select('*')
+        .eq('workshop_id', nextWorkshop.id)
+        .eq('is_active', true)
+      setNextWorkshopContent(data ?? [])
+    }
   }
 
   async function toggleTask(contentId: string, taskIndex: number) {
@@ -174,43 +190,13 @@ export default function ProAreaPage() {
               <MessageCircle className="w-4 h-4" />
               שאלי את {ownerName}
             </a>
-            {nextWorkshop?.payment_link ? (
-              <a
-                href={nextWorkshop.payment_link}
-                target="_blank" rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
-                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-              >
-                🎓 {nextWorkshop.title}
-              </a>
-            ) : nextWorkshop ? (
-              <a
-                href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי ${ownerName}! סיימתי את "${selected.workshop?.title ?? 'הסדנה'}" ואשמח להירשם ל"${nextWorkshop.title}" 🙏`)}`}
-                target="_blank" rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
-                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-              >
-                🎓 {nextWorkshop.title}
-              </a>
-            ) : selected.workshop?.payment_link ? (
-              <a
-                href={selected.workshop.payment_link}
-                target="_blank" rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
-                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-              >
-                🎓 הסדנה הבאה
-              </a>
-            ) : (
-              <a
-                href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי ${ownerName}! סיימתי את "${selected.workshop?.title ?? 'הסדנה'}" ואשמח לשמוע מה הסדנה הבאה 🙏`)}`}
-                target="_blank" rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
-                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
-              >
-                🎓 הסדנה הבאה
-              </a>
-            )}
+            <button
+              onClick={openNextModal}
+              className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
+              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            >
+              🎓 {nextWorkshop ? nextWorkshop.title : 'הסדנה הבאה'}
+            </button>
           </div>
 
           {/* ── Workshop summary (if exists) ── */}
@@ -357,6 +343,90 @@ export default function ProAreaPage() {
             </>
           )}
         </div>
+
+        {/* ── Next Workshop Modal ── */}
+        {showNextModal && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" dir="rtl">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowNextModal(false)} />
+            <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl max-h-[85vh] overflow-y-auto pb-8">
+              <button
+                onClick={() => setShowNextModal(false)}
+                className="absolute top-4 left-4 p-2 rounded-xl hover:bg-sand-100 text-sand-400 z-10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {(nextWorkshop ?? selected.workshop)?.image_url && (
+                <img
+                  src={(nextWorkshop ?? selected.workshop)!.image_url!}
+                  alt=""
+                  className="w-full h-44 object-cover rounded-t-3xl"
+                />
+              )}
+
+              <div className="p-5 space-y-4">
+                <div>
+                  <h2 className="text-xl font-bold text-sand-800">
+                    {nextWorkshop ? nextWorkshop.title : 'הסדנה הבאה'}
+                  </h2>
+                  {(nextWorkshop ?? selected.workshop)?.price != null && (
+                    <p className="text-mustard-600 font-bold text-lg mt-1">
+                      ₪{(nextWorkshop ?? selected.workshop)!.price}
+                    </p>
+                  )}
+                </div>
+
+                {(nextWorkshop ?? selected.workshop)?.description && (
+                  <p className="text-sm text-sand-600 leading-relaxed">
+                    {(nextWorkshop ?? selected.workshop)!.description}
+                  </p>
+                )}
+
+                {nextWorkshopContent.length > 0 && (
+                  <div className="bg-sand-50 rounded-2xl p-4 space-y-2">
+                    <p className="text-xs font-bold text-sand-600 mb-1">מה כלול בסדנה:</p>
+                    {(() => {
+                      const vids = nextWorkshopContent.filter(c => c.type === 'video').length
+                      const hw   = nextWorkshopContent.filter(c => c.type === 'homework').length
+                      const pdfs = nextWorkshopContent.filter(c => c.type === 'pdf').length
+                      return (
+                        <>
+                          {vids > 0 && <p className="text-sm text-sand-700">🎬 {vids} סרטונים</p>}
+                          {hw   > 0 && <p className="text-sm text-sand-700">📝 {hw} שיעורי בית</p>}
+                          {pdfs > 0 && <p className="text-sm text-sand-700">📄 {pdfs} קבצים</p>}
+                        </>
+                      )
+                    })()}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-3 pt-2">
+                  {(nextWorkshop?.payment_link ?? selected.workshop?.payment_link) ? (
+                    <a
+                      href={nextWorkshop?.payment_link ?? selected.workshop?.payment_link!}
+                      target="_blank" rel="noopener noreferrer"
+                      onClick={() => track('next_workshop_payment_click', { workshop_id: nextWorkshop?.id ?? selected.workshop_id })}
+                      className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-white font-bold text-base"
+                      style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                    >
+                      להרשמה ותשלום ←
+                    </a>
+                  ) : null}
+                  <a
+                    href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`שלום ${ownerName}, יש לי שאלה לגבי סדנת ${nextWorkshop?.title ?? selected.workshop?.title ?? 'הסדנה הבאה'}`)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    onClick={() => track('next_workshop_question_click', { workshop_id: nextWorkshop?.id ?? selected.workshop_id })}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm"
+                    style={{ background: '#E8F5E9', color: '#2E7D32' }}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    יש לי שאלה
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

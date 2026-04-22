@@ -13,6 +13,12 @@ type EventType =
   | 'coupon_copy'
   | 'session_end'
   | 'workshop_open'
+  | 'next_workshop_modal_open'
+  | 'next_workshop_payment_click'
+  | 'next_workshop_question_click'
+  | 'perk_view'
+  | 'perk_copy_code'
+  | 'perk_visit_link'
 
 type EventData = Record<string, string | number | boolean | null>
 
