@@ -233,14 +233,6 @@ export default function DashboardPage({ onNavigate }: Props) {
             <p className="font-bold text-sand-800">מוצרים</p>
             <p className="text-xs text-sand-400 mt-0.5">סדנאות ורכישות</p>
           </button>
-          <button
-            onClick={() => onNavigate('marketplace')}
-            className="bg-white rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
-          >
-            <span className="text-3xl block mb-2">🌿</span>
-            <p className="font-bold text-sand-800">שירותים</p>
-            <p className="text-xs text-sand-400 mt-0.5">ליווי מקצועי</p>
-          </button>
         </div>
 
         {/* Family invite */}

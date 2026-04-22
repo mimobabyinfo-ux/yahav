@@ -116,19 +116,19 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
 
   // ── User nav ──────────────────────────────────────────────────────────────
   const userItems: { id: Page; label: string; icon: React.ReactNode }[] = [
-    { id: 'dashboard',   label: 'בית',      icon: <Home className="w-5 h-5" /> },
-    { id: 'journal',     label: 'יומן',     icon: <BookOpen className="w-5 h-5" /> },
-    { id: 'pro',         label: 'סדנאות',   icon: <PlayCircle className="w-5 h-5" /> },
-    { id: 'community',   label: 'קהילה',    icon: <span className="text-lg leading-none">🌸</span> },
-    { id: 'marketplace', label: 'שירותים',  icon: <ShoppingBag className="w-5 h-5" /> },
+    { id: 'dashboard',  label: 'בית',     icon: <Home className="w-5 h-5" /> },
+    { id: 'journal',    label: 'יומן',    icon: <BookOpen className="w-5 h-5" /> },
+    { id: 'pro',        label: 'סדנאות',  icon: <PlayCircle className="w-5 h-5" /> },
+    { id: 'community',  label: 'קהילה',   icon: <span className="text-lg leading-none">🌸</span> },
+    { id: 'workshops',  label: 'מוצרים',  icon: <ShoppingBag className="w-5 h-5" /> },
   ]
 
   const pregnancyItems: { id: Page; label: string; icon: React.ReactNode }[] = [
-    { id: 'dashboard',   label: 'מעקב',     icon: <Home className="w-5 h-5" /> },
-    { id: 'journal',     label: 'יומן',     icon: <BookOpen className="w-5 h-5" /> },
-    { id: 'pro',         label: 'סדנאות',   icon: <PlayCircle className="w-5 h-5" /> },
-    { id: 'community',   label: 'קהילה',    icon: <span className="text-lg leading-none">🌸</span> },
-    { id: 'marketplace', label: 'שירותים',  icon: <ShoppingBag className="w-5 h-5" /> },
+    { id: 'dashboard',  label: 'מעקב',    icon: <Home className="w-5 h-5" /> },
+    { id: 'journal',    label: 'יומן',    icon: <BookOpen className="w-5 h-5" /> },
+    { id: 'pro',        label: 'סדנאות',  icon: <PlayCircle className="w-5 h-5" /> },
+    { id: 'community',  label: 'קהילה',   icon: <span className="text-lg leading-none">🌸</span> },
+    { id: 'workshops',  label: 'מוצרים',  icon: <ShoppingBag className="w-5 h-5" /> },
   ]
 
   const isPregnant = !!(profile?.user_mode === 'pregnant')
