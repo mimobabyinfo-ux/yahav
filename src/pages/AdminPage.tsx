@@ -1221,7 +1221,7 @@ function FormsTabDesktop() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
             <p className="text-xs font-bold text-gray-500">{editingForm ? `✏️ עריכת: ${editingForm.title}` : '➕ טופס חדש'}</p>
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
-            <input value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
+            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400 resize-none leading-relaxed" />
             <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="📁 תיקייה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
             {!editingForm && (
               <div className="flex gap-2">
