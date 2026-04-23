@@ -1246,7 +1246,7 @@ function FormsTabDesktop() {
                     <button onClick={() => removeField(field.id)} className="p-1 text-red-400"><X className="w-3.5 h-3.5" /></button>
                   </div>
                   {field.type !== 'link' && (
-                    <input value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" />
+                    <textarea value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" rows={2} className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none resize-none leading-relaxed" />
                   )}
                   {field.type === 'select' && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
                   {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
@@ -2798,7 +2798,7 @@ function FormsTab() {
 
                   {/* regular fields: label input */}
                   {field.type !== 'info' && field.type !== 'link' && (
-                    <input value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white" />
+                    <textarea value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" rows={2} className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white resize-none leading-relaxed" />
                   )}
 
                   {field.type === 'select' && (

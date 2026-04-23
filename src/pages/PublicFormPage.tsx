@@ -130,7 +130,7 @@ export default function PublicFormPage({ formId }: { formId: string }) {
             /* ── Regular input fields ── */
             return (
               <div key={field.id}>
-                <label className="block text-sm font-semibold text-sand-700 mb-2">
+                <label className="block text-sm font-semibold text-sand-700 mb-2 whitespace-pre-line leading-relaxed">
                   {field.label}
                   {field.required && <span className="text-red-500 mr-1">*</span>}
                 </label>
