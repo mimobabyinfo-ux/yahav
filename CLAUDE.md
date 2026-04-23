@@ -13,7 +13,7 @@ Before building any new feature, ask: "Does this help get the first 50 active us
 - Push notifications (using WhatsApp instead)
 - Native iOS/Android apps (staying on PWA)
 - Professionals marketplace visibility in nav (currently hidden, intentional)
-- Any feature that competes with Michal's WhatsApp-based guidance — WhatsApp is the support channel, not the app
+- Any feature that competes with the owner's WhatsApp-based guidance — WhatsApp is the support channel, not the app
 
 ## How to Work With Me
 
@@ -32,7 +32,7 @@ Before building any new feature, ask: "Does this help get the first 50 active us
 
 ## What Is Mimo?
 
-Mimo is a Hebrew-language mobile-first web app (PWA) for pregnant women and new mothers in Israel. It combines a baby tracking journal, curated workshops, community, and a services directory — all in one place. The app is operated by Michal, who personally guides users through workshops via WhatsApp.
+Mimo is a Hebrew-language mobile-first web app (PWA) for pregnant women and new mothers in Israel. It combines a baby tracking journal, curated workshops, a product store, community, and a services directory — all in one place. The app is operated by a business owner who personally guides users through workshops via WhatsApp.
 
 ---
 
@@ -43,13 +43,30 @@ Mimo is a Hebrew-language mobile-first web app (PWA) for pregnant women and new 
 | Frontend | React 18 + TypeScript + Vite |
 | Styling | Tailwind CSS (RTL, dir="rtl") |
 | Database | Supabase (PostgreSQL + RLS) |
-| Auth | Supabase Auth (email/password) |
+| Auth | Supabase Auth (email/password + Google OAuth) |
 | Storage | Supabase Storage (images bucket) |
 | PWA | vite-plugin-pwa + Workbox |
-| Analytics | Custom `useTracker` hook → `analytics_events` table |
+| Analytics | Custom `useTracker` hook → `user_activities` table |
 | Fonts | Nunito (Google Fonts) |
 
 The app runs at a fixed 480px max-width on mobile, full-width on desktop (admin mode only).
+
+---
+
+## Owner / Business Settings
+
+All owner-specific strings are stored in `global_settings` and editable from Admin → הגדרות:
+
+| Key | Default | Where used |
+|---|---|---|
+| `owner_name` | ברנדה | WhatsApp CTAs ("שאלי את X") throughout the app |
+| `owner_whatsapp` | 972527506227 | All WhatsApp links (ProAreaPage, WorkshopsPage, PublicPartnerPage) |
+| `app_subtitle` | מרכז התפתחות לתינוקות | Tagline below logo on login screen |
+
+These are read via the `useOwnerSettings` hook (`src/hooks/useOwnerSettings.ts`).
+**Never hardcode the owner's name or phone number.** Always use the hook or query `global_settings` directly.
+
+> **DB note:** `global_settings` requires a UNIQUE constraint on `setting_key` for upserts to work correctly. If settings don't save, check for duplicate rows. The login page reads `app_subtitle` with `.limit(1)` (not `.single()`) to handle this gracefully.
 
 ---
 
@@ -57,7 +74,7 @@ The app runs at a fixed 480px max-width on mobile, full-width on desktop (admin 
 
 | Type | Description |
 |---|---|
-| **Pregnant** (`user_mode: 'pregnant'`) | Gets pregnancy dashboard, checklist, weekly guide |
+| **Pregnant** (`user_mode: 'pregnant'`) | Gets pregnancy dashboard, checklist, weekly guide. No journal tab until baby is born. |
 | **Mom** (`user_mode: 'mom'`) | Gets baby tracking dashboard |
 | **Admin** (`is_admin: true`) | Full admin panel on desktop |
 | **Guest** | Joins via family invite link, sees journal only |
@@ -66,15 +83,15 @@ The app runs at a fixed 480px max-width on mobile, full-width on desktop (admin 
 
 ## Pages & Navigation
 
-Bottom nav (mobile) has 5 tabs:
+Bottom nav (mobile) — 5 tabs:
 
 | Tab | Mom | Pregnant |
 |---|---|---|
 | 1 | בית (Dashboard) | בית (Pregnancy Dashboard) |
-| 2 | יומן (Journal) | יומן |
-| 3 | סדנאות | סדנאות |
+| 2 | יומן (Journal) | *(no journal tab — pregnant users don't see it)* |
+| 3 | סדנאות (ProAreaPage) | סדנאות |
 | 4 | קהילה | קהילה |
-| 5 | מוצרים (Workshops/Products) | מוצרים |
+| 5 | מוצרים (WorkshopsPage) | מוצרים |
 
 ### Special URL routes (no login required)
 - `?form=<id>` — Public form page
@@ -120,26 +137,45 @@ Features:
 
 ---
 
-## Workshops / "My Workshops" (`ProAreaPage`)
+## Digital Workshops / "My Workshops" (`ProAreaPage`)
 
-Access controlled via `purchased_workshops` table (start/end date).
+**Accessed via "סדנאות" tab.** Access controlled via `purchased_workshops` table (start/end date).
+
+Workshops that appear here: `workshops` records where `workshop_type IS NULL` (digital-only) OR any workshop the user has purchased access to.
 
 Features:
 - Workshop folder list (card with image, title, access expiry)
-- Retention reminder banner: shown 7+ days after access assigned (dismissible per day)
+- Retention reminder banner: shown 7+ days after access assigned (dismissible per day via localStorage)
 - Per-workshop content view:
   - **Videos** — inline player (`<video>`)
   - **Homework** — checklist with progress bar, persisted in `user_homework_progress`
   - **PDFs** — link-out
   - Workshop summary / key takeaways block
-  - "שאלי את מיכל" WhatsApp button (pre-filled with user + workshop name)
-  - "הסדנה הבאה" CTA (uses `payment_link` if set, else WA to Michal)
+  - "שאלי את [owner]" WhatsApp button (pre-filled with user + workshop name)
+  - "לסדנה הבאה" CTA — opens an in-app info modal (NOT a direct link). Modal shows: image, title, price, description (whitespace-pre-line), content counts, two buttons: "להרשמה ותשלום" (payment_link) + "יש לי שאלה" (WA). Analytics: `next_workshop_modal_open`, `next_workshop_payment_click`, `next_workshop_question_click`.
 - Admin sees all active workshops without access gates
 
-### Workshop content stored in:
-- `workshops` — master list (title, description, summary, image, price, payment_link, video_url)
-- `workshop_content` — items per workshop (video / homework / pdf)
-- `purchased_workshops` — per-user access with dates
+### Workshop series linking
+`workshops.next_workshop_id` — nullable FK to another workshop. Set in admin to link a "next workshop" CTA inside the digital workshop view.
+
+---
+
+## Product Store (`WorkshopsPage`)
+
+**Accessed via "מוצרים" tab.** Shows in-person workshops and physical products for prospective customers.
+
+**Which workshops appear here:** only `workshops` records where `workshop_type IS NOT NULL` (i.e., has a category set).
+
+- Category filter chips are **dynamic** — only categories with at least one active product appear
+- Valid categories: `הריון` / `תינוקות` / `אימהות`
+- Each card: image, title, description, price, "רכישה" (payment_link) + "וואטסאפ" buttons
+- "הרכישות שלי" tab shows the user's `purchased_workshops`
+
+### How to control what appears in the store (Admin)
+In Admin → סדנאות / מוצרים → edit a workshop:
+- **Set a category** (הריון/תינוקות/אימהות) → workshop appears in the מוצרים store
+- **No category** → workshop is digital only, appears in "סדנאות" (ProAreaPage) for registered users
+- To remove a category chip from the store: unset the category from all workshops in that category
 
 ---
 
@@ -153,14 +189,6 @@ Partner perks for users:
 
 ---
 
-## Services (`MyServicesPage`)
-
-User's personal services dashboard:
-- Partner leads they submitted (WhatsApp / callback requests)
-- History of service contacts
-
----
-
 ## Services Marketplace (`ServicesMarketplacePage`)
 
 Browse service partners (doulas, lactation consultants, etc.):
@@ -168,7 +196,7 @@ Browse service partners (doulas, lactation consultants, etc.):
 - WhatsApp or callback CTA per partner
 - Leads saved to `partner_leads` table
 
-> **Note:** Marketplace is currently hidden from nav (replaced with מוצרים/Workshops tab). Accessible programmatically.
+> **Note:** Marketplace is currently hidden from nav. Accessible programmatically.
 
 ---
 
@@ -182,30 +210,33 @@ User community features (available to both moms and pregnant users):
 
 ## Admin Panel (`AdminPage`)
 
-Desktop-first layout: sidebar + main content area.
+Desktop-first layout: sidebar + main content area. Mobile: bottom nav with top 5 sections.
 
-### Admin Sections (11 tabs):
+### Admin Sections
 
 | Tab | What it manages |
 |---|---|
 | **BI & Analytics** | Event counts, DAU, user counts, top events |
 | **Users** | User table with search, edit, lead status, assign workshop access |
-| **Workshops** | CRUD workshops + content manager per workshop |
+| **סדנאות / מוצרים** | CRUD workshops + content manager. Category field controls store vs digital separation. |
 | **Videos** | Standalone video library (categories, tags, thumbnails) |
 | **Daily Tips** | CRUD daily tips (`daily_tips` table) |
 | **Perks** | CRUD partner perks + analytics view |
 | **Forms** | Form builder + submission viewer |
 | **Leads & CRM** | Partner leads (WA/callback) + user CRM lead status |
 | **Pregnancy** | Weekly guide editor + checklist editor |
-| **Services** | Service partner CRUD |
-| **Settings** | Global settings (`global_settings` table) |
+| **Services** | Service partner CRUD (`service_partners` table) |
+| **Settings** | Owner name, WhatsApp, login tagline (`global_settings`) |
+
+### Workshop Editor Fields (Admin)
+title, description, summary, price (₪), payment_link, image_url, video_url, whatsapp_number, **workshop_type** (store category), next_workshop_id (series link)
 
 ### Workshop Assignment Flow
 1. Admin finds user in Users tab
 2. Clicks "הקצה גישה" → modal opens
 3. Select workshop + start/end date
 4. Save → record created in `purchased_workshops`
-5. Green "שלחי הודעת WhatsApp" button appears → pre-filled WA message to user's phone number confirming access
+5. Green "שלחי הודעת WhatsApp" button appears → pre-filled WA message to user's phone confirming access
 
 ---
 
@@ -216,8 +247,8 @@ Desktop-first layout: sidebar + main content area.
 | `user_profiles` | Extended user data (name, baby info, mode, lead_status) |
 | `children` | Child records per user |
 | `families` | Family groups (invite code) |
-| `workshops` | Workshop catalog |
-| `workshop_content` | Content items per workshop |
+| `workshops` | Workshop catalog — used by BOTH ProAreaPage and WorkshopsPage |
+| `workshop_content` | Content items per workshop (video / homework / pdf) |
 | `purchased_workshops` | Per-user workshop access (with dates) |
 | `user_homework_progress` | Checklist completion per user per content item |
 | `daily_log_entries` | Journal entries |
@@ -230,11 +261,34 @@ Desktop-first layout: sidebar + main content area.
 | `daily_tips` | Rotating tips |
 | `forms` | Custom form definitions (JSON fields) |
 | `form_submissions` | User form responses |
-| `analytics_events` | All tracked events |
+| `user_activities` | All tracked analytics events |
 | `pregnancy_weekly_guides` | Weekly content for pregnant users |
 | `pregnancy_checklist_items` | Medical/buying checklist templates |
 | `user_pregnancy_items` | Per-user checklist completion |
-| `global_settings` | Admin-editable key/value config |
+| `global_settings` | Admin-editable key/value config (owner_name, owner_whatsapp, app_subtitle) |
+
+---
+
+## Onboarding (`OnboardingPage`)
+
+Shown after first login (no profile yet). Collects:
+- שם פרטי + שם משפחה (combined into `mother_name`)
+- עיר — searchable combobox (not a plain select). Type to filter. `area` field.
+- טלפון — required
+- Community consent checkbox (show phone to other moms)
+- Mode: pregnant or mom
+- If pregnant: due date (required, `dir="ltr"` input)
+- If mom: baby name, DOB (`dir="ltr"` input), gender (girl/boy only — no "other")
+
+---
+
+## Login (`LoginPage`)
+
+- Reads `app_subtitle` from `global_settings` for the tagline (fallback: hardcoded default)
+- Uses `.limit(1)` not `.single()` when reading settings (handles duplicate rows gracefully)
+- "זכרי אותי" checkbox (default: checked). When unchecked: moves Supabase auth token from localStorage to sessionStorage after login so session clears on browser close.
+- Google OAuth button present (requires Supabase OAuth config)
+- `autocomplete` attributes set for browser password saving
 
 ---
 
@@ -244,16 +298,14 @@ Desktop-first layout: sidebar + main content area.
 - Service worker: Workbox, autoUpdate
 - Caching: CacheFirst for Google Fonts, NetworkFirst for Supabase API
 - Icons: `/icons/icon-192.png`, `/icons/icon-512.png`
-- `InstallPrompt` component:
-  - Android: `beforeinstallprompt` → native install button
-  - iOS: Step-by-step Safari share instructions
-  - Dismissible, stored in localStorage
+- `InstallPrompt` component: Android native prompt + iOS Safari instructions
+- **Note:** After deploys, users may need hard refresh (Ctrl+Shift+R) to bypass PWA cache
 
 ---
 
 ## Analytics Events
 
-Tracked via `useTracker` hook → `analytics_events` table:
+Tracked via `useTracker` hook → `user_activities` table:
 
 | Event | Trigger |
 |---|---|
@@ -263,22 +315,18 @@ Tracked via `useTracker` hook → `analytics_events` table:
 | `perk_view` | Perk card viewed |
 | `perk_copy_code` | Discount code copied |
 | `perk_visit_link` | Action link clicked |
+| `next_workshop_modal_open` | "לסדנה הבאה" clicked |
+| `next_workshop_payment_click` | Payment link clicked inside modal |
+| `next_workshop_question_click` | WhatsApp question link clicked inside modal |
 
 ---
 
 ## Business Model
 
-- **Workshops**: sold individually, access granted manually by admin
-- **Services marketplace**: leads → Michal's team follows up
+- **Workshops / Products**: sold individually via external payment_link, access granted manually by admin
+- **Services marketplace**: leads → owner follows up
 - **Partner perks**: brand partnerships
 - No subscription / PRO tier currently active
-
----
-
-## Contact / Support
-
-- Michal's WhatsApp: `972527506227`
-- All "ask Michal" WA links pre-fill messages with user name + context
 
 ---
 
@@ -288,3 +336,4 @@ Tracked via `useTracker` hook → `analytics_events` table:
 - Push notifications (handled via WhatsApp)
 - Video hosting (uses direct URL / Supabase storage links)
 - Professionals marketplace visible in nav (hidden, accessible programmatically)
+- Journal tab for pregnant users (shown only after baby is born / mode switches to mom)
