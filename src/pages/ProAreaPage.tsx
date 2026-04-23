@@ -147,7 +147,7 @@ export default function ProAreaPage() {
           <h2 className="text-2xl font-black text-sand-800">הסדנאות נעולות</h2>
           <p className="text-sand-500 text-sm leading-relaxed">
             הגישה לסדנאות ניתנת לאחר רכישה.<br />
-            פנייה לברנדה לפתיחת גישה 💛
+            פנייה ל{ownerName} לפתיחת גישה 💛
           </p>
         </div>
       </div>
