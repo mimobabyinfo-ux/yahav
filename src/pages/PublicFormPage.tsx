@@ -170,12 +170,12 @@ export default function PublicFormPage({ formId }: { formId: string }) {
                 )}
 
                 {field.type === 'date' && (
-                  <div dir="ltr">
+                  <div dir="ltr" className="overflow-hidden">
                     <input
                       type="date"
                       value={answers[field.label] ?? ''}
                       onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                      className={`w-full px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none transition-colors ${errors[field.label] ? 'border-red-300 bg-red-50' : 'border-sand-200 focus:border-mustard-400'}`}
+                      className={`w-full max-w-full box-border px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none transition-colors ${errors[field.label] ? 'border-red-300 bg-red-50' : 'border-sand-200 focus:border-mustard-400'}`}
                     />
                   </div>
                 )}
