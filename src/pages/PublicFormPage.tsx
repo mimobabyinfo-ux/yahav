@@ -177,12 +177,12 @@ export default function PublicFormPage({ formId }: { formId: string }) {
                         <button
                           key={opt}
                           onClick={() => setAnswers(a => ({ ...a, [field.label]: opt }))}
-                          className={`w-full flex items-center gap-3 px-4 py-3.5 text-right transition-colors ${i > 0 ? 'border-t border-sand-100' : ''} ${selected ? 'bg-mustard-50' : 'hover:bg-sand-50'}`}
+                          className={`w-full flex items-start gap-3 px-4 py-4 text-right transition-colors ${i > 0 ? 'border-t border-sand-100' : ''} ${selected ? 'bg-mustard-50' : 'hover:bg-sand-50'}`}
                         >
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected ? 'border-mustard-500' : 'border-sand-300'}`}>
+                          <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected ? 'border-mustard-500' : 'border-sand-300'}`}>
                             {selected && <div className="w-2.5 h-2.5 rounded-full bg-mustard-500" />}
                           </div>
-                          <span className={`text-sm flex-1 text-right ${selected ? 'font-semibold text-sand-800' : 'text-sand-600'}`}>{opt}</span>
+                          <span className={`text-sm flex-1 text-right leading-relaxed whitespace-pre-line ${selected ? 'font-semibold text-sand-800' : 'text-sand-600'}`}>{opt}</span>
                         </button>
                       )
                     })}

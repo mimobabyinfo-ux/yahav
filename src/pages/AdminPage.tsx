@@ -2519,7 +2519,7 @@ function OptionsTagInput({ options, onChange }: { options: string[]; onChange: (
   const [input, setInput] = useState('')
 
   function add() {
-    const val = input.trim()
+    const val = input.replace(/^\n+|\n+$/g, '') // trim leading/trailing newlines only
     if (!val || options.includes(val)) return
     onChange([...options, val])
     setInput('')
@@ -2531,23 +2531,24 @@ function OptionsTagInput({ options, onChange }: { options: string[]; onChange: (
 
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-col gap-1.5">
         {options.map((opt, i) => (
-          <span key={i} className="flex items-center gap-1 bg-mustard-50 text-mustard-700 text-xs font-medium px-2.5 py-1 rounded-xl">
-            {opt}
-            <button type="button" onClick={() => remove(i)} className="text-mustard-400 hover:text-red-400 leading-none">×</button>
+          <span key={i} className="flex items-start gap-1 bg-mustard-50 text-mustard-700 text-xs font-medium px-2.5 py-1.5 rounded-xl">
+            <span className="flex-1 whitespace-pre-line leading-relaxed">{opt}</span>
+            <button type="button" onClick={() => remove(i)} className="text-mustard-400 hover:text-red-400 leading-none flex-shrink-0 mt-0.5">×</button>
           </span>
         ))}
       </div>
-      <div className="flex gap-1.5">
-        <input
+      <div className="flex gap-1.5 items-start">
+        <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add() } }}
-          placeholder="הקלד אפשרות ← Enter להוספה"
-          className="flex-1 px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white"
+          onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); add() } }}
+          placeholder={"הקלד אפשרות\nEnter = שורה חדשה\nCtrl+Enter = הוסף"}
+          rows={3}
+          className="flex-1 px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white resize-none leading-relaxed"
         />
-        <button type="button" onClick={add} className="px-3 py-1.5 rounded-xl text-xs text-white font-bold" style={{ background: '#D4AA52' }}>+</button>
+        <button type="button" onClick={add} className="px-3 py-2 rounded-xl text-xs text-white font-bold flex-shrink-0" style={{ background: '#D4AA52' }}>+</button>
       </div>
     </div>
   )
