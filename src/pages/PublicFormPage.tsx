@@ -4,7 +4,7 @@ import MimoLogo from '../components/MimoLogo'
 
 type FormField = {
   id: string
-  type: 'text' | 'textarea' | 'select' | 'rating' | 'info' | 'link'
+  type: 'text' | 'textarea' | 'select' | 'rating' | 'date' | 'info' | 'link'
   label: string
   options?: string[]
   required?: boolean
@@ -17,7 +17,7 @@ type FormRecord = {
   fields_json: FormField[]
 }
 
-const INPUT_TYPES = new Set(['text', 'textarea', 'select', 'rating'])
+const INPUT_TYPES = new Set(['text', 'textarea', 'select', 'rating', 'date'])
 
 export default function PublicFormPage({ formId }: { formId: string }) {
   const [form, setForm] = useState<FormRecord | null>(null)
@@ -166,6 +166,17 @@ export default function PublicFormPage({ formId }: { formId: string }) {
                         {n}
                       </button>
                     ))}
+                  </div>
+                )}
+
+                {field.type === 'date' && (
+                  <div dir="ltr">
+                    <input
+                      type="date"
+                      value={answers[field.label] ?? ''}
+                      onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
+                      className={`w-full px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none transition-colors ${errors[field.label] ? 'border-red-300 bg-red-50' : 'border-sand-200 focus:border-mustard-400'}`}
+                    />
                   </div>
                 )}
 
