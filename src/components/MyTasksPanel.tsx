@@ -3,7 +3,7 @@ import { X, ClipboardList } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
-type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating'; label: string; options?: string[] }
+type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating' | 'date' | 'info' | 'link'; label: string; options?: string[]; required?: boolean }
 type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[] }
 type AssignedTask = {
   id: string
@@ -44,6 +44,8 @@ export default function MyTasksPanel() {
     await supabase.from('form_assignments').update({ is_completed: true }).eq('id', activeTask.id)
     setSubmitting(false)
     setSubmitted(true)
+    const linkField = activeTask.forms.fields_json.find(f => f.type === 'link')
+    if (linkField?.options?.[0]) window.open(linkField.options[0], '_blank', 'noopener,noreferrer')
     setTimeout(() => {
       setSubmitted(false)
       setActiveTask(null)
@@ -102,54 +104,72 @@ export default function MyTasksPanel() {
               </div>
             ) : (
               <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
-                {activeTask.forms.fields_json.map(field => (
-                  <div key={field.id}>
-                    <label className="block text-sm font-semibold text-sand-700 mb-1.5">{field.label}</label>
-                    {field.type === 'text' && (
-                      <input
-                        value={answers[field.label] ?? ''}
-                        onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                        className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
-                      />
-                    )}
-                    {field.type === 'textarea' && (
-                      <textarea
-                        rows={3}
-                        value={answers[field.label] ?? ''}
-                        onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                        className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none"
-                      />
-                    )}
-                    {field.type === 'rating' && (
-                      <div className="flex gap-2">
-                        {[1, 2, 3, 4, 5].map(n => (
-                          <button
-                            key={n}
-                            onClick={() => setAnswers(a => ({ ...a, [field.label]: String(n) }))}
-                            className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${answers[field.label] === String(n) ? 'text-white shadow-md' : 'bg-sand-100 text-sand-600 hover:bg-mustard-100 hover:text-mustard-700'}`}
-                            style={answers[field.label] === String(n) ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
-                          >
-                            {n}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {field.type === 'select' && (
-                      <div className="flex flex-wrap gap-2">
-                        {(field.options ?? []).map(opt => (
-                          <button
-                            key={opt}
-                            onClick={() => setAnswers(a => ({ ...a, [field.label]: opt }))}
-                            className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${answers[field.label] === opt ? 'text-white shadow-sm' : 'bg-sand-100 text-sand-600 hover:bg-mustard-50 hover:text-mustard-700'}`}
-                            style={answers[field.label] === opt ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                {activeTask.forms.fields_json.map(field => {
+                  if (field.type === 'link') return null
+                  if (field.type === 'info') return (
+                    <div key={field.id} className="bg-sand-50 rounded-2xl p-4">
+                      <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-line">{field.label}</p>
+                    </div>
+                  )
+                  return (
+                    <div key={field.id}>
+                      <label className="block text-sm font-semibold text-sand-700 mb-1.5">{field.label}</label>
+                      {field.type === 'text' && (
+                        <input
+                          value={answers[field.label] ?? ''}
+                          onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
+                          className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+                        />
+                      )}
+                      {field.type === 'textarea' && (
+                        <textarea
+                          rows={3}
+                          value={answers[field.label] ?? ''}
+                          onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
+                          className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none"
+                        />
+                      )}
+                      {field.type === 'date' && (
+                        <div dir="ltr" className="overflow-hidden">
+                          <input
+                            type="date"
+                            value={answers[field.label] ?? ''}
+                            onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
+                            className="w-full max-w-full box-border px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+                          />
+                        </div>
+                      )}
+                      {field.type === 'rating' && (
+                        <div className="flex gap-2">
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <button
+                              key={n}
+                              onClick={() => setAnswers(a => ({ ...a, [field.label]: String(n) }))}
+                              className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${answers[field.label] === String(n) ? 'text-white shadow-md' : 'bg-sand-100 text-sand-600 hover:bg-mustard-100 hover:text-mustard-700'}`}
+                              style={answers[field.label] === String(n) ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+                            >
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {field.type === 'select' && (
+                        <div className="flex flex-wrap gap-2">
+                          {(field.options ?? []).map(opt => (
+                            <button
+                              key={opt}
+                              onClick={() => setAnswers(a => ({ ...a, [field.label]: opt }))}
+                              className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${answers[field.label] === opt ? 'text-white shadow-sm' : 'bg-sand-100 text-sand-600 hover:bg-mustard-50 hover:text-mustard-700'}`}
+                              style={answers[field.label] === opt ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
                 <button
                   onClick={submit}
                   disabled={submitting}

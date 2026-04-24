@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { supabase, PregnancyChecklistItem, PregnancyWeeklyGuide, UserPregnancyItem, UserReminder } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import MyTasksPanel from '../components/MyTasksPanel'
 import type { Page } from '../App'
 
 type Props = { onNavigate: (page: Page) => void }
@@ -481,6 +482,9 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
       </div>
 
       <div className="max-w-sm mx-auto px-4 pt-4 space-y-3">
+        {/* ── Assigned tasks ── */}
+        <MyTasksPanel />
+
         {/* ── Weekly Guide Card ── */}
         {guide && week && <WeekGuideCard guide={guide} week={week} />}
 
