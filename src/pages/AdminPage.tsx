@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
 import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent } from '../lib/supabase'
@@ -1198,6 +1198,29 @@ function FormsTabDesktop() {
     setSaving(false); load()
   }
 
+  const isDirty = useMemo(() => {
+    if (!editingForm) return title.trim().length > 0 || fields.length > 0
+    return (
+      title !== editingForm.title ||
+      description !== (editingForm.description ?? '') ||
+      folder !== (editingForm.folder ?? '') ||
+      JSON.stringify(fields) !== JSON.stringify(editingForm.fields_json)
+    )
+  }, [editingForm, title, description, folder, fields])
+
+  const saveFormRef = useRef(saveForm)
+  useEffect(() => { saveFormRef.current = saveForm })
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's' && (showCreate || editingForm)) {
+        e.preventDefault()
+        saveFormRef.current()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showCreate, editingForm])
+
   const fieldTypes = [
     { value: 'text', label: 'שדה טקסט' }, { value: 'textarea', label: 'טקסט ארוך' },
     { value: 'select', label: 'בחירה מרשימה' }, { value: 'rating', label: 'דירוג 1-5' },
@@ -1219,55 +1242,78 @@ function FormsTabDesktop() {
 
         {/* Create / Edit form panel */}
         {(showCreate || editingForm) && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
-            <p className="text-xs font-bold text-gray-500">{editingForm ? `✏️ עריכת: ${editingForm.title}` : '➕ טופס חדש'}</p>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
-            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400 resize-none leading-relaxed" />
-            <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="📁 תיקייה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
-            {!editingForm && (
-              <div className="flex gap-2">
-                <select value={triggerType} onChange={e => setTriggerType(e.target.value)} className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none">
-                  <option value="after_video_views">אחרי X צפיות</option>
-                  <option value="after_days">אחרי X ימים</option>
-                  <option value="manual">ידני</option>
-                </select>
-                <input type="number" value={triggerCount} onChange={e => setTriggerCount(e.target.value)} className="w-16 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none" min="1" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+            {/* Sticky save header */}
+            <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-5 py-3 flex items-center justify-between rounded-t-2xl shadow-sm">
+              <p className="text-xs font-bold text-gray-500 truncate max-w-[200px]">
+                {editingForm ? `✏️ ${editingForm.title}` : '➕ טופס חדש'}
+              </p>
+              <div className="flex gap-2 items-center flex-shrink-0">
+                {isDirty && <span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" title="שינויים לא שמורים" />}
+                <button
+                  onClick={saveForm}
+                  disabled={saving || !title.trim() || fields.length === 0}
+                  className="px-3 py-1.5 rounded-lg text-white text-xs font-bold disabled:opacity-50 transition-all"
+                  style={{ background: isDirty ? 'linear-gradient(135deg, #D4AA52, #C49438)' : '#9CA3AF' }}
+                  title="Ctrl/Cmd+S"
+                >
+                  {saving ? '...' : 'שמור'}
+                </button>
+                <button onClick={() => { setShowCreate(false); setEditingForm(null); setTitle(''); setDescription(''); setFields([]) }} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs">ביטול</button>
               </div>
-            )}
-            {/* Fields */}
-            <div className="space-y-2">
-              {fields.map((field, idx) => (
-                <div key={field.id} className="border border-gray-200 rounded-xl p-3 space-y-2">
-                  <div className="flex gap-2 items-center">
-                    <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
-                      {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
-                    <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-gray-400 disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-gray-400 disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => removeField(field.id)} className="p-1 text-red-400"><X className="w-3.5 h-3.5" /></button>
-                  </div>
-                  {field.type !== 'link' && (
-                    <textarea value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" rows={2} className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none resize-none leading-relaxed" />
-                  )}
-                  {field.type === 'select' && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
-                  {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
-                  {!['info', 'link'].includes(field.type) && (
-                    <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
-                      <input type="checkbox" checked={field.required ?? false} onChange={e => updateField(field.id, { required: e.target.checked })} />
-                      חובה
-                    </label>
-                  )}
-                </div>
-              ))}
-              <button onClick={addField} className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-yellow-400 hover:text-yellow-600 transition-colors">
-                + הוסף שאלה
-              </button>
             </div>
-            <div className="flex gap-2">
-              <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
-                {saving ? '...' : 'שמור טופס'}
-              </button>
-              <button onClick={() => { setShowCreate(false); setEditingForm(null); setTitle(''); setDescription(''); setFields([]) }} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm">ביטול</button>
+
+            {/* Body */}
+            <div className="p-5 space-y-3">
+              <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
+              <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400 resize-none leading-relaxed" />
+              <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="📁 תיקייה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
+              {!editingForm && (
+                <div className="flex gap-2">
+                  <select value={triggerType} onChange={e => setTriggerType(e.target.value)} className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none">
+                    <option value="after_video_views">אחרי X צפיות</option>
+                    <option value="after_days">אחרי X ימים</option>
+                    <option value="manual">ידני</option>
+                  </select>
+                  <input type="number" value={triggerCount} onChange={e => setTriggerCount(e.target.value)} className="w-16 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none" min="1" />
+                </div>
+              )}
+              {/* Fields */}
+              <div className="space-y-2">
+                {fields.map((field, idx) => (
+                  <div key={field.id} className="border border-gray-200 rounded-xl p-3 space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
+                        {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                      </select>
+                      <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-gray-400 disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-gray-400 disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => removeField(field.id)} className="p-1 text-red-400"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                    {field.type !== 'link' && (
+                      <textarea value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" rows={2} className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none resize-none leading-relaxed" />
+                    )}
+                    {field.type === 'select' && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
+                    {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
+                    {!['info', 'link'].includes(field.type) && (
+                      <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
+                        <input type="checkbox" checked={field.required ?? false} onChange={e => updateField(field.id, { required: e.target.checked })} />
+                        חובה
+                      </label>
+                    )}
+                  </div>
+                ))}
+                <button onClick={addField} className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-yellow-400 hover:text-yellow-600 transition-colors">
+                  + הוסף שאלה
+                </button>
+              </div>
+              {/* Bottom save — convenience duplicate */}
+              <div className="flex gap-2 pt-1">
+                <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                  {saving ? '...' : 'שמור טופס'}
+                </button>
+                <button onClick={() => { setShowCreate(false); setEditingForm(null); setTitle(''); setDescription(''); setFields([]) }} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm">ביטול</button>
+              </div>
             </div>
           </div>
         )}
@@ -2657,6 +2703,29 @@ function FormsTab() {
     setSaving(false); load()
   }
 
+  const isDirty = useMemo(() => {
+    if (!editingForm) return title.trim().length > 0 || fields.length > 0
+    return (
+      title !== editingForm.title ||
+      description !== (editingForm.description ?? '') ||
+      folder !== (editingForm.folder ?? '') ||
+      JSON.stringify(fields) !== JSON.stringify(editingForm.fields_json)
+    )
+  }, [editingForm, title, description, folder, fields])
+
+  const saveFormRef = useRef(saveForm)
+  useEffect(() => { saveFormRef.current = saveForm })
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's' && (showCreate || editingForm)) {
+        e.preventDefault()
+        saveFormRef.current()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showCreate, editingForm])
+
   async function toggleForm(form: FormRecord) {
     await supabase.from('forms').update({ is_active: !form.is_active }).eq('id', form.id)
     load()
@@ -2739,106 +2808,128 @@ function FormsTab() {
       </button>
 
       {(showCreate || editingForm) && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-          {editingForm && <p className="text-xs font-bold text-mustard-600">✏️ עריכת טופס: {editingForm.title}</p>}
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
-          <input value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
-          <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="📁 תיקייה (למשל: סדנת עיסוי, הרשמות)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
-
-          {/* Trigger — only for new forms */}
-          {!editingForm && (
-            <div className="flex gap-2 items-center">
-              <select value={triggerType} onChange={e => setTriggerType(e.target.value)} className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm bg-white focus:outline-none focus:border-mustard-400">
-                <option value="after_video_views">אחרי X צפיות בסרטון</option>
-                <option value="after_days">אחרי X ימים</option>
-                <option value="manual">ידני</option>
-              </select>
-              <input type="number" value={triggerCount} onChange={e => setTriggerCount(e.target.value)} className="w-16 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" min="1" />
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          {/* Sticky save header */}
+          <div className="sticky top-0 z-10 bg-white border-b border-sand-100 px-4 py-3 flex items-center justify-between shadow-sm">
+            <p className="text-xs font-bold text-mustard-600 truncate max-w-[160px]">
+              {editingForm ? `✏️ ${editingForm.title}` : '➕ טופס חדש'}
+            </p>
+            <div className="flex gap-2 items-center flex-shrink-0">
+              {isDirty && <span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" title="שינויים לא שמורים" />}
+              <button
+                onClick={saveForm}
+                disabled={saving || !title.trim() || fields.length === 0}
+                className="px-3 py-1.5 rounded-xl text-white text-xs font-bold disabled:opacity-50 transition-all"
+                style={{ background: isDirty ? 'linear-gradient(135deg, #D4AA52, #C49438)' : '#9CA3AF' }}
+              >
+                {saving ? '...' : 'שמור'}
+              </button>
+              <button onClick={() => { setShowCreate(false); cancelEdit() }} className="p-1.5 bg-sand-100 rounded-xl"><X className="w-4 h-4 text-sand-500" /></button>
             </div>
-          )}
-
-          {/* Fields */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-sand-500">שדות הטופס ({fields.length})</p>
-            {fields.map((field, idx) => (
-              <div key={field.id} className="flex gap-2 items-start bg-sand-50 rounded-xl p-2">
-                <span className="text-xs text-sand-400 pt-2.5 w-5 text-center">{idx + 1}</span>
-                <div className="flex-1 space-y-1.5">
-                  <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs bg-white focus:outline-none">
-                    {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-
-                  {/* info: label = the display text */}
-                  {field.type === 'info' && (
-                    <textarea
-                      rows={3}
-                      value={field.label}
-                      onChange={e => updateField(field.id, { label: e.target.value })}
-                      placeholder="טקסט שיוצג בטופס (תאריכים, פרטים, הנחיות...)"
-                      className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white resize-none"
-                    />
-                  )}
-
-                  {/* link: label = display text above button, options[0] = URL */}
-                  {field.type === 'link' && (
-                    <>
-                      <input
-                        value={field.label}
-                        onChange={e => updateField(field.id, { label: e.target.value })}
-                        placeholder="טקסט מעל הכפתור (למשל: נא לבצע תשלום בלינק)"
-                        className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
-                      />
-                      <input
-                        value={field.options?.[0] ?? ''}
-                        onChange={e => updateField(field.id, { options: [e.target.value] })}
-                        placeholder="כתובת הלינק (https://...)"
-                        className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
-                        dir="ltr"
-                      />
-                    </>
-                  )}
-
-                  {/* regular fields: label input */}
-                  {field.type !== 'info' && field.type !== 'link' && (
-                    <textarea value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" rows={2} className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white resize-none leading-relaxed" />
-                  )}
-
-                  {field.type === 'select' && (
-                    <OptionsTagInput
-                      options={field.options ?? []}
-                      onChange={opts => updateField(field.id, { options: opts })}
-                    />
-                  )}
-
-                  {/* required toggle — not applicable for info/link */}
-                  {field.type !== 'info' && field.type !== 'link' && (
-                    <button
-                      type="button"
-                      onClick={() => updateField(field.id, { required: !field.required })}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all w-fit ${field.required ? 'bg-red-100 text-red-600' : 'bg-sand-100 text-sand-400'}`}
-                    >
-                      <span>{field.required ? '★' : '☆'}</span>
-                      {field.required ? 'חובה' : 'לא חובה'}
-                    </button>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1 mt-1">
-                  <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▲</button>
-                  <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▼</button>
-                  <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400"><X className="w-4 h-4" /></button>
-                </div>
-              </div>
-            ))}
-            <button onClick={addField} className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-semibold text-mustard-600 bg-mustard-50 hover:bg-mustard-100">
-              <Plus className="w-3.5 h-3.5" /> הוסף שדה
-            </button>
           </div>
 
-          <div className="flex gap-2">
-            <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: '#C49438' }}>
-              {saving ? 'שומר...' : editingForm ? 'שמור שינויים' : 'צור טופס'}
-            </button>
-            <button onClick={() => { setShowCreate(false); cancelEdit() }} className="px-4 py-2.5 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
+          {/* Body */}
+          <div className="p-4 space-y-3">
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+            <input value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+            <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="📁 תיקייה (למשל: סדנת עיסוי, הרשמות)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+
+            {/* Trigger — only for new forms */}
+            {!editingForm && (
+              <div className="flex gap-2 items-center">
+                <select value={triggerType} onChange={e => setTriggerType(e.target.value)} className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm bg-white focus:outline-none focus:border-mustard-400">
+                  <option value="after_video_views">אחרי X צפיות בסרטון</option>
+                  <option value="after_days">אחרי X ימים</option>
+                  <option value="manual">ידני</option>
+                </select>
+                <input type="number" value={triggerCount} onChange={e => setTriggerCount(e.target.value)} className="w-16 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" min="1" />
+              </div>
+            )}
+
+            {/* Fields */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-sand-500">שדות הטופס ({fields.length})</p>
+              {fields.map((field, idx) => (
+                <div key={field.id} className="flex gap-2 items-start bg-sand-50 rounded-xl p-2">
+                  <span className="text-xs text-sand-400 pt-2.5 w-5 text-center">{idx + 1}</span>
+                  <div className="flex-1 space-y-1.5">
+                    <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs bg-white focus:outline-none">
+                      {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+
+                    {/* info: label = the display text */}
+                    {field.type === 'info' && (
+                      <textarea
+                        rows={3}
+                        value={field.label}
+                        onChange={e => updateField(field.id, { label: e.target.value })}
+                        placeholder="טקסט שיוצג בטופס (תאריכים, פרטים, הנחיות...)"
+                        className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white resize-none"
+                      />
+                    )}
+
+                    {/* link: label = display text above button, options[0] = URL */}
+                    {field.type === 'link' && (
+                      <>
+                        <input
+                          value={field.label}
+                          onChange={e => updateField(field.id, { label: e.target.value })}
+                          placeholder="טקסט מעל הכפתור (למשל: נא לבצע תשלום בלינק)"
+                          className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
+                        />
+                        <input
+                          value={field.options?.[0] ?? ''}
+                          onChange={e => updateField(field.id, { options: [e.target.value] })}
+                          placeholder="כתובת הלינק (https://...)"
+                          className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
+                          dir="ltr"
+                        />
+                      </>
+                    )}
+
+                    {/* regular fields: label input */}
+                    {field.type !== 'info' && field.type !== 'link' && (
+                      <textarea value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" rows={2} className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white resize-none leading-relaxed" />
+                    )}
+
+                    {field.type === 'select' && (
+                      <OptionsTagInput
+                        options={field.options ?? []}
+                        onChange={opts => updateField(field.id, { options: opts })}
+                      />
+                    )}
+
+                    {/* required toggle — not applicable for info/link */}
+                    {field.type !== 'info' && field.type !== 'link' && (
+                      <button
+                        type="button"
+                        onClick={() => updateField(field.id, { required: !field.required })}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all w-fit ${field.required ? 'bg-red-100 text-red-600' : 'bg-sand-100 text-sand-400'}`}
+                      >
+                        <span>{field.required ? '★' : '☆'}</span>
+                        {field.required ? 'חובה' : 'לא חובה'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 mt-1">
+                    <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▲</button>
+                    <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▼</button>
+                    <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400"><X className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={addField} className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-semibold text-mustard-600 bg-mustard-50 hover:bg-mustard-100">
+                <Plus className="w-3.5 h-3.5" /> הוסף שדה
+              </button>
+            </div>
+
+            {/* Bottom save — convenience duplicate */}
+            <div className="flex gap-2 pt-1">
+              <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                {saving ? 'שומר...' : editingForm ? 'שמור שינויים' : 'צור טופס'}
+              </button>
+              <button onClick={() => { setShowCreate(false); cancelEdit() }} className="px-4 py-2.5 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
+            </div>
           </div>
         </div>
       )}
