@@ -2709,64 +2709,198 @@ function PerksTab() {
 type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating' | 'date' | 'info' | 'link'; label: string; options?: string[]; required?: boolean }
 type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[]; trigger_rule: { type: string; count: number } | null; is_active: boolean; public_link_enabled: boolean; folder: string | null; created_at: string }
 type Submission = { id: string; user_id: string; responses_json: Record<string, string>; created_at: string; user_profiles?: { mother_name: string | null; email: string } }
-type Assignment = { id: string; user_id: string; is_completed: boolean; user_profiles?: { mother_name: string | null; email: string } }
+type Assignment = { id: string; user_id: string; user_profiles?: { mother_name: string | null; email: string } }
 
 function AssignFormModal({ form, onClose }: { form: FormRecord; onClose: () => void }) {
-  const [users, setUsers] = useState<UserProfile[]>([])
-  const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([])
+  const [existing, setExisting] = useState<Assignment[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
+  const [taskTitle, setTaskTitle] = useState(form.title)
+  const [taskDesc, setTaskDesc] = useState(form.description ?? '')
+  const [dueDate, setDueDate] = useState('')
+  const [showOptional, setShowOptional] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.from('user_profiles').select('*').order('mother_name').then(({ data }) => setUsers(data ?? []))
+    supabase.from('user_profiles').select('*').order('mother_name').then(({ data }) => setAllUsers(data ?? []))
     supabase.from('form_assignments')
       .select('*, user_profiles(mother_name, email)')
       .eq('form_id', form.id)
-      .then(({ data }) => setAssignments((data ?? []) as Assignment[]))
+      .then(({ data }) => setExisting((data ?? []) as Assignment[]))
   }, [form.id])
 
-  const assignedIds = new Set(assignments.map(a => a.user_id))
+  const existingUserIds = new Set(existing.map(a => a.user_id))
 
-  async function toggle(userId: string) {
-    if (assignedIds.has(userId)) {
-      await supabase.from('form_assignments').delete().eq('form_id', form.id).eq('user_id', userId)
-      setAssignments(a => a.filter(x => x.user_id !== userId))
-    } else {
-      const { data } = await supabase.from('form_assignments').insert({ form_id: form.id, user_id: userId }).select('*, user_profiles(mother_name, email)').single()
-      if (data) setAssignments(a => [...a, data as Assignment])
-    }
+  function toggleSelect(userId: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(userId) ? next.delete(userId) : next.add(userId)
+      return next
+    })
   }
 
-  const filtered = users.filter(u => !search || (u.mother_name ?? '').includes(search) || u.email.includes(search))
+  async function removeAssignment(id: string) {
+    await supabase.from('form_assignments').delete().eq('id', id)
+    setExisting(a => a.filter(x => x.id !== id))
+  }
+
+  async function save() {
+    if (selectedIds.size === 0) return
+    setSaving(true); setSaveError(null)
+    const rows = Array.from(selectedIds).map(userId => ({
+      form_id: form.id,
+      user_id: userId,
+      title: taskTitle.trim() || form.title,
+      ...(taskDesc.trim() ? { description: taskDesc.trim() } : {}),
+      ...(dueDate ? { due_date: dueDate } : {}),
+    }))
+    const { data, error } = await supabase
+      .from('form_assignments')
+      .insert(rows)
+      .select('*, user_profiles(mother_name, email)')
+    if (error) {
+      setSaveError(error.message)
+      setSaving(false)
+      return
+    }
+    setExisting(a => [...a, ...(data ?? []) as Assignment[]])
+    setSelectedIds(new Set())
+    setTaskTitle(form.title); setTaskDesc(form.description ?? ''); setDueDate(''); setShowOptional(false)
+    setSaving(false)
+  }
+
+  const filterable = allUsers.filter(u => !existingUserIds.has(u.id))
+  const filtered = filterable.filter(u => !search || (u.mother_name ?? '').includes(search) || u.email.includes(search))
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end p-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-sm mx-auto shadow-2xl overflow-hidden max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b border-sand-100">
+      <div className="bg-white rounded-3xl w-full max-w-sm mx-auto shadow-2xl overflow-hidden max-h-[88vh] flex flex-col" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-sand-100 flex-shrink-0">
           <h3 className="font-bold text-sand-800">שייך טופס למשתמשות</h3>
           <p className="text-xs text-sand-400 mt-0.5">{form.title}</p>
         </div>
-        <div className="p-4 border-b border-sand-100">
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="חפש..." className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1">
+
+          {/* Existing assignments */}
+          {existing.length > 0 && (
+            <div className="px-4 pt-4 pb-2 space-y-1.5 border-b border-sand-100">
+              <p className="text-xs font-bold text-sand-500 mb-2">הוקצה כבר ל-{existing.length} משתמשות</p>
+              {existing.map(a => {
+                const up = a.user_profiles as { mother_name: string | null; email: string } | undefined
+                return (
+                  <div key={a.id} className="flex items-center justify-between px-3 py-2 bg-mustard-50 rounded-xl">
+                    <div>
+                      <p className="text-sm font-semibold text-sand-800">{up?.mother_name ?? up?.email ?? '—'}</p>
+                      {up?.mother_name && <p className="text-xs text-sand-400">{up.email}</p>}
+                    </div>
+                    <button onClick={() => removeAssignment(a.id)} className="text-xs text-sand-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">הסר</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* User selection list */}
+          <div className="p-4 space-y-2">
+            <p className="text-xs font-bold text-sand-500">בחרי משתמשות להקצות</p>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="חפש לפי שם או אימייל..."
+              className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+            />
+            <div className="space-y-1.5">
+              {filtered.map(u => (
+                <button
+                  key={u.id}
+                  onClick={() => toggleSelect(u.id)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 transition-all text-right ${selectedIds.has(u.id) ? 'border-mustard-400 bg-mustard-50' : 'border-sand-200 bg-white hover:border-sand-300'}`}
+                >
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-sand-800">{u.mother_name ?? '—'}</p>
+                    <p className="text-xs text-sand-400">{u.email}</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedIds.has(u.id) ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
+                    {selectedIds.has(u.id) && <Check className="w-3 h-3 text-white" />}
+                  </div>
+                </button>
+              ))}
+              {filtered.length === 0 && filterable.length === 0 && (
+                <p className="text-xs text-sand-400 text-center py-4">כל המשתמשות כבר מוקצות לטופס זה</p>
+              )}
+              {filtered.length === 0 && filterable.length > 0 && (
+                <p className="text-xs text-sand-400 text-center py-4">לא נמצאו תוצאות</p>
+              )}
+            </div>
+          </div>
+
+          {/* Optional fields — shown after selecting users */}
+          {selectedIds.size > 0 && (
+            <div className="px-4 pb-4 border-t border-sand-100 pt-3 space-y-2">
+              <button onClick={() => setShowOptional(p => !p)} className="text-xs text-mustard-600 font-semibold">
+                {showOptional ? '▲ הסתר הגדרות' : '▼ כותרת ותיאור מותאמים (אופציונלי)'}
+              </button>
+              {showOptional && (
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <p className="text-xs text-sand-500 mb-1">כותרת המשימה</p>
+                    <input
+                      value={taskTitle}
+                      onChange={e => setTaskTitle(e.target.value)}
+                      placeholder={form.title}
+                      className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs text-sand-500 mb-1">תיאור (אופציונלי)</p>
+                    <textarea
+                      value={taskDesc}
+                      onChange={e => setTaskDesc(e.target.value)}
+                      rows={2}
+                      className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 resize-none"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs text-sand-500 mb-1">תאריך יעד (אופציונלי)</p>
+                    <input
+                      type="date"
+                      value={dueDate}
+                      onChange={e => setDueDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {saveError && (
+            <div className="mx-4 mb-4 px-3 py-2 bg-red-50 rounded-xl">
+              <p className="text-xs text-red-600">{saveError}</p>
+            </div>
+          )}
         </div>
-        <div className="overflow-y-auto flex-1 p-4 space-y-2">
-          {filtered.map(u => (
+
+        {/* Footer */}
+        <div className="p-4 border-t border-sand-100 flex gap-2 flex-shrink-0">
+          <button onClick={onClose} className="flex-1 py-3 rounded-2xl bg-sand-100 text-sand-700 font-semibold text-sm">סגור</button>
+          {selectedIds.size > 0 && (
             <button
-              key={u.id}
-              onClick={() => toggle(u.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 transition-all text-right ${assignedIds.has(u.id) ? 'border-mustard-400 bg-mustard-50' : 'border-sand-200 bg-white'}`}
+              onClick={save}
+              disabled={saving}
+              className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
             >
-              <div>
-                <p className="text-sm font-semibold text-sand-800">{u.mother_name ?? '—'}</p>
-                <p className="text-xs text-sand-400">{u.email}</p>
-              </div>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${assignedIds.has(u.id) ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
-                {assignedIds.has(u.id) && <Check className="w-3 h-3 text-white" />}
-              </div>
+              {saving ? '...' : `הקצה ל-${selectedIds.size}`}
             </button>
-          ))}
-        </div>
-        <div className="p-4 border-t border-sand-100">
-          <button onClick={onClose} className="w-full py-3 rounded-2xl bg-sand-100 text-sand-700 font-semibold text-sm">סגור</button>
+          )}
         </div>
       </div>
     </div>

@@ -8,6 +8,9 @@ type FormRecord = { id: string; title: string; description: string | null; field
 type AssignedTask = {
   id: string
   form_id: string
+  title: string | null
+  description: string | null
+  due_date: string | null
   is_completed: boolean
   forms: FormRecord
 }
@@ -74,10 +77,17 @@ export default function MyTasksPanel() {
             <button
               key={task.id}
               onClick={() => { setActiveTask(task); setAnswers({}) }}
-              className="w-full flex items-center justify-between px-4 py-3 bg-mustard-50 rounded-2xl text-right hover:bg-mustard-100 transition-colors"
+              className="w-full flex items-start justify-between px-4 py-3 bg-mustard-50 rounded-2xl text-right hover:bg-mustard-100 transition-colors gap-2"
             >
-              <span className="text-sm font-semibold text-sand-800">{task.forms.title}</span>
-              <span className="text-xs bg-mustard-400 text-white px-2 py-0.5 rounded-lg">מלאי</span>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-sand-800">{task.title || task.forms.title}</p>
+                {task.due_date && (
+                  <p className="text-xs text-sand-400 mt-0.5">
+                    יעד: {new Date(task.due_date + 'T12:00:00').toLocaleDateString('he-IL')}
+                  </p>
+                )}
+              </div>
+              <span className="text-xs bg-mustard-400 text-white px-2 py-0.5 rounded-lg flex-shrink-0 mt-0.5">מלאי</span>
             </button>
           ))}
         </div>
@@ -89,8 +99,15 @@ export default function MyTasksPanel() {
           <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100">
               <div>
-                <h3 className="font-bold text-sand-800">{activeTask.forms.title}</h3>
-                {activeTask.forms.description && <p className="text-xs text-sand-400 mt-0.5">{activeTask.forms.description}</p>}
+                <h3 className="font-bold text-sand-800">{activeTask.title || activeTask.forms.title}</h3>
+                {(activeTask.description || activeTask.forms.description) && (
+                  <p className="text-xs text-sand-400 mt-0.5">{activeTask.description || activeTask.forms.description}</p>
+                )}
+                {activeTask.due_date && (
+                  <p className="text-xs text-mustard-600 font-medium mt-0.5">
+                    יעד: {new Date(activeTask.due_date + 'T12:00:00').toLocaleDateString('he-IL')}
+                  </p>
+                )}
               </div>
               <button onClick={() => setActiveTask(null)} className="p-1.5 text-sand-300 hover:text-sand-600">
                 <X className="w-5 h-5" />
