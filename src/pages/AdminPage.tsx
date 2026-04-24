@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical } from 'lucide-react'
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
 import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -1116,6 +1119,28 @@ function WorkshopsTabDesktop() {
   )
 }
 
+// ─── Drag-and-drop sortable row (shared by desktop + mobile) ─────────────────
+function SortableRow({ id, children }: { id: string; children: (dragHandle: React.ReactNode) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
+  const dragHandle = (
+    <button
+      {...listeners}
+      {...attributes}
+      className="cursor-grab active:cursor-grabbing p-1 text-gray-300 hover:text-gray-400 touch-none"
+      title="גרור לשינוי סדר"
+      onClick={e => e.preventDefault()}
+    >
+      <GripVertical className="w-3.5 h-3.5" />
+    </button>
+  )
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children(dragHandle)}
+    </div>
+  )
+}
+
 // ─── Forms Desktop Layout ─────────────────────────────────────────────────────
 function FormsTabDesktop() {
   const [forms, setForms] = useState<FormRecord[]>([])
@@ -1193,6 +1218,20 @@ function FormsTabDesktop() {
       const idx = f.findIndex(field => field.id === id); if (idx < 0) return f
       const next = idx + dir; if (next < 0 || next >= f.length) return f
       const arr = [...f]; [arr[idx], arr[next]] = [arr[next], arr[idx]]; return arr
+    })
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  )
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setFields(f => {
+      const oldIdx = f.findIndex(fi => fi.id === active.id)
+      const newIdx = f.findIndex(fi => fi.id === over.id)
+      return arrayMove(f, oldIdx, newIdx)
     })
   }
 
@@ -1290,51 +1329,60 @@ function FormsTabDesktop() {
                 </div>
               )}
               {/* Fields */}
-              <div>
-                {fields.map((field, idx) => (
-                  <div key={field.id}>
-                    {/* Insert-above divider (hover to reveal) */}
-                    <button onClick={() => insertFieldAt(idx)} className="group w-full flex items-center gap-2 py-1 mb-1 opacity-30 hover:opacity-100 transition-opacity">
-                      <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
-                      <span className="text-[10px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
-                      <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
-                    </button>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                  <div>
+                    {fields.map((field, idx) => (
+                      <SortableRow key={field.id} id={field.id}>
+                        {(dragHandle) => (
+                          <div>
+                            {/* Insert-above divider (hover to reveal) */}
+                            <button onClick={() => insertFieldAt(idx)} className="group w-full flex items-center gap-2 py-1 mb-1 opacity-30 hover:opacity-100 transition-opacity">
+                              <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
+                              <span className="text-[10px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
+                              <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
+                            </button>
 
-                    <div className="border border-gray-200 rounded-xl p-3 space-y-2 mb-0">
-                      <div className="flex gap-2 items-center">
-                        <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
-                          {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                        </select>
-                        <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-gray-400 disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-gray-400 disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => removeField(field.id)} className="p-1 text-red-400"><X className="w-3.5 h-3.5" /></button>
-                      </div>
-                      {field.type !== 'link' && (
-                        <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" rows={2} className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none resize-none leading-relaxed" />
-                      )}
-                      {field.type === 'select' && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
-                      {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
-                      {!['info', 'link'].includes(field.type) && (
-                        <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
-                          <input type="checkbox" checked={field.required ?? false} onChange={e => updateField(field.id, { required: e.target.checked })} />
-                          חובה
-                        </label>
-                      )}
-                    </div>
+                            <div className="border border-gray-200 rounded-xl p-3 space-y-2 mb-0">
+                              <div className="flex gap-2 items-center">
+                                <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
+                                  {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                </select>
+                                {dragHandle}
+                                <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-gray-400 disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-gray-400 disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => removeField(field.id)} className="p-1 text-red-400"><X className="w-3.5 h-3.5" /></button>
+                              </div>
+                              {field.type !== 'link' && (
+                                <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" rows={2} className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none resize-none leading-relaxed" />
+                              )}
+                              {field.type === 'select' && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
+                              {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
+                              {!['info', 'link'].includes(field.type) && (
+                                <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
+                                  <input type="checkbox" checked={field.required ?? false} onChange={e => updateField(field.id, { required: e.target.checked })} />
+                                  חובה
+                                </label>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </SortableRow>
+                    ))}
+                    {/* Insert-after-last divider */}
+                    {fields.length > 0 && (
+                      <button onClick={() => insertFieldAt(fields.length)} className="group w-full flex items-center gap-2 py-1 my-1 opacity-30 hover:opacity-100 transition-opacity">
+                        <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
+                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
+                        <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
+                      </button>
+                    )}
+                    <button onClick={addField} className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-yellow-400 hover:text-yellow-600 transition-colors mt-1">
+                      + הוסף שאלה
+                    </button>
                   </div>
-                ))}
-                {/* Insert-after-last divider */}
-                {fields.length > 0 && (
-                  <button onClick={() => insertFieldAt(fields.length)} className="group w-full flex items-center gap-2 py-1 my-1 opacity-30 hover:opacity-100 transition-opacity">
-                    <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
-                    <span className="text-[10px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
-                    <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
-                  </button>
-                )}
-                <button onClick={addField} className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-yellow-400 hover:text-yellow-600 transition-colors mt-1">
-                  + הוסף שאלה
-                </button>
-              </div>
+                </SortableContext>
+              </DndContext>
               {/* Bottom save — convenience duplicate */}
               <div className="flex gap-2 pt-1">
                 <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
@@ -2717,6 +2765,20 @@ function FormsTab() {
     })
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  )
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setFields(f => {
+      const oldIdx = f.findIndex(fi => fi.id === active.id)
+      const newIdx = f.findIndex(fi => fi.id === over.id)
+      return arrayMove(f, oldIdx, newIdx)
+    })
+  }
+
   async function saveForm() {
     if (!title.trim() || fields.length === 0) return
     setSaving(true)
@@ -2886,98 +2948,107 @@ function FormsTab() {
             )}
 
             {/* Fields */}
-            <div>
-              <p className="text-xs font-semibold text-sand-500 mb-2">שדות הטופס ({fields.length})</p>
-              {fields.map((field, idx) => (
-                <div key={field.id}>
-                  {/* Insert-above divider */}
-                  <button onClick={() => insertFieldAt(idx)} className="group w-full flex items-center gap-2 py-1 mb-1 opacity-40 hover:opacity-100 transition-opacity">
-                    <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
-                    <span className="text-[10px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
-                    <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                <div>
+                  <p className="text-xs font-semibold text-sand-500 mb-2">שדות הטופס ({fields.length})</p>
+                  {fields.map((field, idx) => (
+                    <SortableRow key={field.id} id={field.id}>
+                      {(dragHandle) => (
+                        <div>
+                          {/* Insert-above divider */}
+                          <button onClick={() => insertFieldAt(idx)} className="group w-full flex items-center gap-2 py-1 mb-1 opacity-40 hover:opacity-100 transition-opacity">
+                            <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                            <span className="text-[10px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
+                            <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                          </button>
+
+                          <div className="flex gap-2 items-start bg-sand-50 rounded-xl p-2 mb-0">
+                            <span className="text-xs text-sand-400 pt-2.5 w-5 text-center">{idx + 1}</span>
+                            <div className="flex-1 space-y-1.5">
+                              <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs bg-white focus:outline-none">
+                                {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                              </select>
+
+                              {/* info: label = the display text */}
+                              {field.type === 'info' && (
+                                <textarea
+                                  rows={3}
+                                  value={field.label}
+                                  onChange={e => updateField(field.id, { label: e.target.value })}
+                                  placeholder="טקסט שיוצג בטופס (תאריכים, פרטים, הנחיות...)"
+                                  className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white resize-none"
+                                />
+                              )}
+
+                              {/* link: label = display text above button, options[0] = URL */}
+                              {field.type === 'link' && (
+                                <>
+                                  <input
+                                    value={field.label}
+                                    onChange={e => updateField(field.id, { label: e.target.value })}
+                                    placeholder="טקסט מעל הכפתור (למשל: נא לבצע תשלום בלינק)"
+                                    className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
+                                  />
+                                  <input
+                                    value={field.options?.[0] ?? ''}
+                                    onChange={e => updateField(field.id, { options: [e.target.value] })}
+                                    placeholder="כתובת הלינק (https://...)"
+                                    className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
+                                    dir="ltr"
+                                  />
+                                </>
+                              )}
+
+                              {/* regular fields: label input */}
+                              {field.type !== 'info' && field.type !== 'link' && (
+                                <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" rows={2} className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white resize-none leading-relaxed" />
+                              )}
+
+                              {field.type === 'select' && (
+                                <OptionsTagInput
+                                  options={field.options ?? []}
+                                  onChange={opts => updateField(field.id, { options: opts })}
+                                />
+                              )}
+
+                              {/* required toggle — not applicable for info/link */}
+                              {field.type !== 'info' && field.type !== 'link' && (
+                                <button
+                                  type="button"
+                                  onClick={() => updateField(field.id, { required: !field.required })}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all w-fit ${field.required ? 'bg-red-100 text-red-600' : 'bg-sand-100 text-sand-400'}`}
+                                >
+                                  <span>{field.required ? '★' : '☆'}</span>
+                                  {field.required ? 'חובה' : 'לא חובה'}
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1 mt-1">
+                              {dragHandle}
+                              <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▲</button>
+                              <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▼</button>
+                              <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400"><X className="w-4 h-4" /></button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </SortableRow>
+                  ))}
+                  {/* Insert-after-last divider */}
+                  {fields.length > 0 && (
+                    <button onClick={() => insertFieldAt(fields.length)} className="group w-full flex items-center gap-2 py-1 my-1 opacity-40 hover:opacity-100 transition-opacity">
+                      <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                      <span className="text-[10px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
+                      <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                    </button>
+                  )}
+                  <button onClick={addField} className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-semibold text-mustard-600 bg-mustard-50 hover:bg-mustard-100 mt-1">
+                    <Plus className="w-3.5 h-3.5" /> הוסף שדה
                   </button>
-
-                  <div className="flex gap-2 items-start bg-sand-50 rounded-xl p-2 mb-0">
-                    <span className="text-xs text-sand-400 pt-2.5 w-5 text-center">{idx + 1}</span>
-                    <div className="flex-1 space-y-1.5">
-                      <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs bg-white focus:outline-none">
-                        {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                      </select>
-
-                      {/* info: label = the display text */}
-                      {field.type === 'info' && (
-                        <textarea
-                          rows={3}
-                          value={field.label}
-                          onChange={e => updateField(field.id, { label: e.target.value })}
-                          placeholder="טקסט שיוצג בטופס (תאריכים, פרטים, הנחיות...)"
-                          className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white resize-none"
-                        />
-                      )}
-
-                      {/* link: label = display text above button, options[0] = URL */}
-                      {field.type === 'link' && (
-                        <>
-                          <input
-                            value={field.label}
-                            onChange={e => updateField(field.id, { label: e.target.value })}
-                            placeholder="טקסט מעל הכפתור (למשל: נא לבצע תשלום בלינק)"
-                            className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
-                          />
-                          <input
-                            value={field.options?.[0] ?? ''}
-                            onChange={e => updateField(field.id, { options: [e.target.value] })}
-                            placeholder="כתובת הלינק (https://...)"
-                            className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
-                            dir="ltr"
-                          />
-                        </>
-                      )}
-
-                      {/* regular fields: label input */}
-                      {field.type !== 'info' && field.type !== 'link' && (
-                        <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" rows={2} className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white resize-none leading-relaxed" />
-                      )}
-
-                      {field.type === 'select' && (
-                        <OptionsTagInput
-                          options={field.options ?? []}
-                          onChange={opts => updateField(field.id, { options: opts })}
-                        />
-                      )}
-
-                      {/* required toggle — not applicable for info/link */}
-                      {field.type !== 'info' && field.type !== 'link' && (
-                        <button
-                          type="button"
-                          onClick={() => updateField(field.id, { required: !field.required })}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all w-fit ${field.required ? 'bg-red-100 text-red-600' : 'bg-sand-100 text-sand-400'}`}
-                        >
-                          <span>{field.required ? '★' : '☆'}</span>
-                          {field.required ? 'חובה' : 'לא חובה'}
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1 mt-1">
-                      <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▲</button>
-                      <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▼</button>
-                      <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400"><X className="w-4 h-4" /></button>
-                    </div>
-                  </div>
                 </div>
-              ))}
-              {/* Insert-after-last divider */}
-              {fields.length > 0 && (
-                <button onClick={() => insertFieldAt(fields.length)} className="group w-full flex items-center gap-2 py-1 my-1 opacity-40 hover:opacity-100 transition-opacity">
-                  <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
-                  <span className="text-[10px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
-                  <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
-                </button>
-              )}
-              <button onClick={addField} className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-semibold text-mustard-600 bg-mustard-50 hover:bg-mustard-100 mt-1">
-                <Plus className="w-3.5 h-3.5" /> הוסף שדה
-              </button>
-            </div>
+              </SortableContext>
+            </DndContext>
 
             {/* Bottom save — convenience duplicate */}
             <div className="flex gap-2 pt-1">
