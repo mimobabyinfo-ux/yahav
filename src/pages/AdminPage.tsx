@@ -1174,7 +1174,18 @@ function FormsTabDesktop() {
     setShowCreate(false)
   }
 
+  const [focusFieldId, setFocusFieldId] = useState<string | null>(null)
   function addField() { setFields(f => [...f, { id: crypto.randomUUID(), type: 'text', label: '', required: false }]) }
+  function insertFieldAt(idx: number) {
+    const newId = crypto.randomUUID()
+    setFields(f => { const arr = [...f]; arr.splice(idx, 0, { id: newId, type: 'text', label: '', required: false }); return arr })
+    setFocusFieldId(newId)
+  }
+  useEffect(() => {
+    if (!focusFieldId) return
+    const el = document.querySelector(`[data-focusid="${focusFieldId}"]`) as HTMLTextAreaElement | null
+    el?.focus(); setFocusFieldId(null)
+  }, [focusFieldId, fields])
   function updateField(id: string, patch: Partial<FormField>) { setFields(f => f.map(field => field.id === id ? { ...field, ...patch } : field)) }
   function removeField(id: string) { setFields(f => f.filter(field => field.id !== id)) }
   function moveField(id: string, dir: -1 | 1) {
@@ -1279,31 +1290,48 @@ function FormsTabDesktop() {
                 </div>
               )}
               {/* Fields */}
-              <div className="space-y-2">
+              <div>
                 {fields.map((field, idx) => (
-                  <div key={field.id} className="border border-gray-200 rounded-xl p-3 space-y-2">
-                    <div className="flex gap-2 items-center">
-                      <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
-                        {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                      </select>
-                      <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-gray-400 disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-gray-400 disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => removeField(field.id)} className="p-1 text-red-400"><X className="w-3.5 h-3.5" /></button>
+                  <div key={field.id}>
+                    {/* Insert-above divider (hover to reveal) */}
+                    <button onClick={() => insertFieldAt(idx)} className="group w-full flex items-center gap-2 py-1 mb-1 opacity-30 hover:opacity-100 transition-opacity">
+                      <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
+                      <span className="text-[10px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
+                      <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
+                    </button>
+
+                    <div className="border border-gray-200 rounded-xl p-3 space-y-2 mb-0">
+                      <div className="flex gap-2 items-center">
+                        <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
+                          {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        </select>
+                        <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-gray-400 disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-gray-400 disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => removeField(field.id)} className="p-1 text-red-400"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                      {field.type !== 'link' && (
+                        <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" rows={2} className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none resize-none leading-relaxed" />
+                      )}
+                      {field.type === 'select' && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
+                      {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
+                      {!['info', 'link'].includes(field.type) && (
+                        <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
+                          <input type="checkbox" checked={field.required ?? false} onChange={e => updateField(field.id, { required: e.target.checked })} />
+                          חובה
+                        </label>
+                      )}
                     </div>
-                    {field.type !== 'link' && (
-                      <textarea value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" rows={2} className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none resize-none leading-relaxed" />
-                    )}
-                    {field.type === 'select' && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
-                    {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
-                    {!['info', 'link'].includes(field.type) && (
-                      <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
-                        <input type="checkbox" checked={field.required ?? false} onChange={e => updateField(field.id, { required: e.target.checked })} />
-                        חובה
-                      </label>
-                    )}
                   </div>
                 ))}
-                <button onClick={addField} className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-yellow-400 hover:text-yellow-600 transition-colors">
+                {/* Insert-after-last divider */}
+                {fields.length > 0 && (
+                  <button onClick={() => insertFieldAt(fields.length)} className="group w-full flex items-center gap-2 py-1 my-1 opacity-30 hover:opacity-100 transition-opacity">
+                    <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
+                    <span className="text-[10px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
+                    <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
+                  </button>
+                )}
+                <button onClick={addField} className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-yellow-400 hover:text-yellow-600 transition-colors mt-1">
                   + הוסף שאלה
                 </button>
               </div>
@@ -2654,9 +2682,20 @@ function FormsTab() {
   }, [])
   useEffect(() => { load() }, [load])
 
+  const [focusFieldId, setFocusFieldId] = useState<string | null>(null)
   function addField() {
     setFields(f => [...f, { id: crypto.randomUUID(), type: 'text', label: '', required: false }])
   }
+  function insertFieldAt(idx: number) {
+    const newId = crypto.randomUUID()
+    setFields(f => { const arr = [...f]; arr.splice(idx, 0, { id: newId, type: 'text', label: '', required: false }); return arr })
+    setFocusFieldId(newId)
+  }
+  useEffect(() => {
+    if (!focusFieldId) return
+    const el = document.querySelector(`[data-focusid="${focusFieldId}"]`) as HTMLTextAreaElement | null
+    el?.focus(); setFocusFieldId(null)
+  }, [focusFieldId, fields])
 
   function updateField(id: string, patch: Partial<FormField>) {
     setFields(f => f.map(field => field.id === id ? { ...field, ...patch } : field))
@@ -2847,78 +2886,95 @@ function FormsTab() {
             )}
 
             {/* Fields */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-sand-500">שדות הטופס ({fields.length})</p>
+            <div>
+              <p className="text-xs font-semibold text-sand-500 mb-2">שדות הטופס ({fields.length})</p>
               {fields.map((field, idx) => (
-                <div key={field.id} className="flex gap-2 items-start bg-sand-50 rounded-xl p-2">
-                  <span className="text-xs text-sand-400 pt-2.5 w-5 text-center">{idx + 1}</span>
-                  <div className="flex-1 space-y-1.5">
-                    <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs bg-white focus:outline-none">
-                      {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
+                <div key={field.id}>
+                  {/* Insert-above divider */}
+                  <button onClick={() => insertFieldAt(idx)} className="group w-full flex items-center gap-2 py-1 mb-1 opacity-40 hover:opacity-100 transition-opacity">
+                    <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                    <span className="text-[10px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
+                    <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                  </button>
 
-                    {/* info: label = the display text */}
-                    {field.type === 'info' && (
-                      <textarea
-                        rows={3}
-                        value={field.label}
-                        onChange={e => updateField(field.id, { label: e.target.value })}
-                        placeholder="טקסט שיוצג בטופס (תאריכים, פרטים, הנחיות...)"
-                        className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white resize-none"
-                      />
-                    )}
+                  <div className="flex gap-2 items-start bg-sand-50 rounded-xl p-2 mb-0">
+                    <span className="text-xs text-sand-400 pt-2.5 w-5 text-center">{idx + 1}</span>
+                    <div className="flex-1 space-y-1.5">
+                      <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs bg-white focus:outline-none">
+                        {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                      </select>
 
-                    {/* link: label = display text above button, options[0] = URL */}
-                    {field.type === 'link' && (
-                      <>
-                        <input
+                      {/* info: label = the display text */}
+                      {field.type === 'info' && (
+                        <textarea
+                          rows={3}
                           value={field.label}
                           onChange={e => updateField(field.id, { label: e.target.value })}
-                          placeholder="טקסט מעל הכפתור (למשל: נא לבצע תשלום בלינק)"
-                          className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
+                          placeholder="טקסט שיוצג בטופס (תאריכים, פרטים, הנחיות...)"
+                          className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white resize-none"
                         />
-                        <input
-                          value={field.options?.[0] ?? ''}
-                          onChange={e => updateField(field.id, { options: [e.target.value] })}
-                          placeholder="כתובת הלינק (https://...)"
-                          className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
-                          dir="ltr"
+                      )}
+
+                      {/* link: label = display text above button, options[0] = URL */}
+                      {field.type === 'link' && (
+                        <>
+                          <input
+                            value={field.label}
+                            onChange={e => updateField(field.id, { label: e.target.value })}
+                            placeholder="טקסט מעל הכפתור (למשל: נא לבצע תשלום בלינק)"
+                            className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
+                          />
+                          <input
+                            value={field.options?.[0] ?? ''}
+                            onChange={e => updateField(field.id, { options: [e.target.value] })}
+                            placeholder="כתובת הלינק (https://...)"
+                            className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
+                            dir="ltr"
+                          />
+                        </>
+                      )}
+
+                      {/* regular fields: label input */}
+                      {field.type !== 'info' && field.type !== 'link' && (
+                        <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" rows={2} className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white resize-none leading-relaxed" />
+                      )}
+
+                      {field.type === 'select' && (
+                        <OptionsTagInput
+                          options={field.options ?? []}
+                          onChange={opts => updateField(field.id, { options: opts })}
                         />
-                      </>
-                    )}
+                      )}
 
-                    {/* regular fields: label input */}
-                    {field.type !== 'info' && field.type !== 'link' && (
-                      <textarea value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" rows={2} className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white resize-none leading-relaxed" />
-                    )}
-
-                    {field.type === 'select' && (
-                      <OptionsTagInput
-                        options={field.options ?? []}
-                        onChange={opts => updateField(field.id, { options: opts })}
-                      />
-                    )}
-
-                    {/* required toggle — not applicable for info/link */}
-                    {field.type !== 'info' && field.type !== 'link' && (
-                      <button
-                        type="button"
-                        onClick={() => updateField(field.id, { required: !field.required })}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all w-fit ${field.required ? 'bg-red-100 text-red-600' : 'bg-sand-100 text-sand-400'}`}
-                      >
-                        <span>{field.required ? '★' : '☆'}</span>
-                        {field.required ? 'חובה' : 'לא חובה'}
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-1 mt-1">
-                    <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▲</button>
-                    <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▼</button>
-                    <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400"><X className="w-4 h-4" /></button>
+                      {/* required toggle — not applicable for info/link */}
+                      {field.type !== 'info' && field.type !== 'link' && (
+                        <button
+                          type="button"
+                          onClick={() => updateField(field.id, { required: !field.required })}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all w-fit ${field.required ? 'bg-red-100 text-red-600' : 'bg-sand-100 text-sand-400'}`}
+                        >
+                          <span>{field.required ? '★' : '☆'}</span>
+                          {field.required ? 'חובה' : 'לא חובה'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1 mt-1">
+                      <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▲</button>
+                      <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▼</button>
+                      <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400"><X className="w-4 h-4" /></button>
+                    </div>
                   </div>
                 </div>
               ))}
-              <button onClick={addField} className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-semibold text-mustard-600 bg-mustard-50 hover:bg-mustard-100">
+              {/* Insert-after-last divider */}
+              {fields.length > 0 && (
+                <button onClick={() => insertFieldAt(fields.length)} className="group w-full flex items-center gap-2 py-1 my-1 opacity-40 hover:opacity-100 transition-opacity">
+                  <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                  <span className="text-[10px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
+                  <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                </button>
+              )}
+              <button onClick={addField} className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-semibold text-mustard-600 bg-mustard-50 hover:bg-mustard-100 mt-1">
                 <Plus className="w-3.5 h-3.5" /> הוסף שדה
               </button>
             </div>
