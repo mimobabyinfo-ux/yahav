@@ -1531,11 +1531,13 @@ function FormsTabDesktop() {
                     </button>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => copyFormLink(f.id)} className="px-2 py-1 rounded-lg text-xs bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600">{copiedId === f.id ? '✓' : '🔗'}</button>
-                      <button onClick={() => { setAssignForm(f) }} className="px-2 py-1 rounded-lg text-xs bg-purple-50 text-purple-600 hover:bg-purple-100">👥</button>
-                      <button onClick={() => startEdit(f)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => deleteForm(f.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={e => { e.stopPropagation(); setAssignForm(f) }} className="px-2 py-1 rounded-lg text-xs bg-purple-50 text-purple-600 hover:bg-purple-100 flex-shrink-0">👥 שייך</button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => copyFormLink(f.id)} className="px-2 py-1 rounded-lg text-xs bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600">{copiedId === f.id ? '✓' : '🔗'}</button>
+                        <button onClick={() => startEdit(f)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => deleteForm(f.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
                     </div>
                   </td>
                 </tr>
