@@ -7,6 +7,7 @@ type Props = {
   onSection: (s: AdminSection) => void
   viewAsUser: boolean
   onToggleUserView: () => void
+  unreadForms?: number
 }
 
 const NAV: { id: AdminSection; label: string; icon?: React.ReactNode; emoji?: string }[] = [
@@ -23,7 +24,7 @@ const NAV: { id: AdminSection; label: string; icon?: React.ReactNode; emoji?: st
   { id: 'settings',  label: 'הגדרות',            icon: <Settings className="w-4 h-4" /> },
 ]
 
-export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView }: Props) {
+export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView, unreadForms = 0 }: Props) {
   const { signOut, profile } = useAuth()
 
   return (
@@ -72,7 +73,12 @@ export default function AdminSidebar({ section, onSection, viewAsUser, onToggleU
                 : item.icon
               }
               <span>{item.label}</span>
-              {active && <div className="mr-auto w-1.5 h-1.5 rounded-full bg-purple-400" />}
+              {item.id === 'forms' && unreadForms > 0 && (
+                <span className="mr-auto min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {unreadForms > 99 ? '99+' : unreadForms}
+                </span>
+              )}
+              {active && item.id !== 'forms' && <div className="mr-auto w-1.5 h-1.5 rounded-full bg-purple-400" />}
             </button>
           )
         })}

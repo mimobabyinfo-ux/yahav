@@ -337,3 +337,16 @@ Tracked via `useTracker` hook → `user_activities` table:
 - Video hosting (uses direct URL / Supabase storage links)
 - Professionals marketplace visible in nav (hidden, accessible programmatically)
 - Journal tab for pregnant users (shown only after baby is born / mode switches to mom)
+
+---
+
+## Deferred Decisions
+
+### WhatsApp notification on form submission (April 2026)
+**Decision:** Not implemented. Using an unread-badge counter in the admin nav instead.
+
+**Why deferred:** There is no existing server-side WhatsApp API integration. Every WhatsApp interaction is a client-side `wa.me/` link. Adding real server-side notifications would require a paid WhatsApp Business API account (Green API ~$5/mo, Twilio, or 360dialog) plus a Supabase Edge Function webhook. At current scale (single owner, low form volume) the badge is sufficient — the owner checks admin regularly.
+
+**When to revisit:** If submission volume grows or the owner starts missing important responses, implement via Supabase Edge Function + Green API. The badge counter (`forms_last_seen` localStorage key + `form_submissions.created_at` query in `App.tsx`) can remain as a fallback.
+
+**Implementation reference:** Badge state lives in `App.tsx` (`unreadForms` state, `clearFormsBadge()`), passed as props to `AdminSidebar` (desktop) and `AdminPage` (mobile). localStorage key: `forms_last_seen`.

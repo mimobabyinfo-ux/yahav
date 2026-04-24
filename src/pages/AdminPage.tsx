@@ -41,7 +41,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'settings',  label: 'הגדרות',        icon: <Settings className="w-3.5 h-3.5" /> },
 ]
 
-export default function AdminPage({ defaultSection }: { defaultSection?: AdminSection }) {
+export default function AdminPage({ defaultSection, unreadForms = 0, onFormsViewed }: { defaultSection?: AdminSection; unreadForms?: number; onFormsViewed?: () => void }) {
   const { profile } = useAuth()
   const [tab, setTab] = useState<Tab>(defaultSection ? SECTION_TAB[defaultSection] : 'insights')
 
@@ -49,6 +49,11 @@ export default function AdminPage({ defaultSection }: { defaultSection?: AdminSe
   useEffect(() => {
     if (defaultSection) setTab(SECTION_TAB[defaultSection])
   }, [defaultSection])
+
+  // Clear badge whenever the forms tab is active
+  useEffect(() => {
+    if (tab === 'forms') onFormsViewed?.()
+  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!profile?.is_admin) {
     return (
@@ -77,9 +82,14 @@ export default function AdminPage({ defaultSection }: { defaultSection?: AdminSe
           <div className="flex gap-1.5 overflow-x-auto scroll-hide pb-1">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${tab === t.id ? 'text-white shadow-md' : 'bg-sand-50 text-sand-500 hover:bg-sand-100'}`}
+                className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${tab === t.id ? 'text-white shadow-md' : 'bg-sand-50 text-sand-500 hover:bg-sand-100'}`}
                 style={tab === t.id ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
                 {t.icon}{t.label}
+                {t.id === 'forms' && unreadForms > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-[3px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {unreadForms > 99 ? '99+' : unreadForms}
+                  </span>
+                )}
               </button>
             ))}
           </div>

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTracker } from './hooks/useTracker'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { supabase } from './lib/supabase'
 import LoginPage from './pages/LoginPage'
 import OnboardingPage from './pages/OnboardingPage'
 import DashboardPage from './pages/DashboardPage'
@@ -33,11 +34,14 @@ const publicBabyToken = new URLSearchParams(window.location.search).get('baby')
 const joinToken = new URLSearchParams(window.location.search).get('join')
 const isPartnerPage = new URLSearchParams(window.location.search).has('partner')
 
+const FORMS_LS_KEY = 'forms_last_seen'
+
 function AppInner() {
   const { user, profile, loading, isGuest } = useAuth()
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
   const [adminSection, setAdminSection] = useState<AdminSection>('insights')
   const [viewAsUser, setViewAsUser] = useState(false)
+  const [unreadForms, setUnreadForms] = useState(0)
   const { track } = useTracker()
 
   useEffect(() => {
@@ -61,6 +65,22 @@ function AppInner() {
     }
   }, [isGuest]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fetch unread form submissions count (badge)
+  useEffect(() => {
+    if (!profile?.is_admin || viewAsUser) return
+    const lastSeen = localStorage.getItem(FORMS_LS_KEY) ?? '1970-01-01T00:00:00Z'
+    supabase
+      .from('form_submissions')
+      .select('id', { count: 'exact', head: true })
+      .gt('created_at', lastSeen)
+      .then(({ count }) => setUnreadForms(count ?? 0))
+  }, [profile?.is_admin, viewAsUser])
+
+  const clearFormsBadge = useCallback(() => {
+    localStorage.setItem(FORMS_LS_KEY, new Date().toISOString())
+    setUnreadForms(0)
+  }, [])
+
   function navigate(page: Page) {
     setCurrentPage(page)
   }
@@ -68,6 +88,7 @@ function AppInner() {
   function navigateAdmin(section: AdminSection) {
     setAdminSection(section)
     setCurrentPage('admin')
+    if (section === 'forms') clearFormsBadge()
   }
 
   if (publicFormId) return <PublicFormPage formId={publicFormId} />
@@ -114,7 +135,7 @@ function AppInner() {
       case 'benefits':   return <BenefitsPage />
       case 'workshops':  return <WorkshopsPage />
       case 'pro':        return <ProAreaPage />
-      case 'admin':      return <AdminPage defaultSection={adminSection} />
+      case 'admin':      return <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} />
       case 'contact':    return <ContactPage />
       case 'services':   return <MyServicesPage />
       case 'marketplace': return <ServicesMarketplacePage />
@@ -141,6 +162,7 @@ function AppInner() {
             onSection={navigateAdmin}
             viewAsUser={viewAsUser}
             onToggleUserView={toggleUserView}
+            unreadForms={unreadForms}
           />
         </div>
 
