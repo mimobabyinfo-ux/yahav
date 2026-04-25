@@ -15,60 +15,18 @@ type Props = {
 const APP_BASE = 'https://mimoapp.vercel.app'
 
 export default function DashboardPage({ onNavigate }: Props) {
-  const { profile, selectedChild, children, family, createFamily, createFamilyInvite, user, refreshProfile, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
+  const { profile, selectedChild, children, family, createFamily, createFamilyInvite, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
-  const [lastFeedingAt, setLastFeedingAt] = useState<Date | null>(null)
-  const [now, setNow] = useState(new Date())
 
   useEffect(() => {
     fetchTip()
     fetchPerks()
-    const timer = setInterval(() => setNow(new Date()), 60_000)
-    return () => clearInterval(timer)
   }, [])
-
-  // Pull most recent feeding entry from the journal — refresh on user/child change and every minute.
-  useEffect(() => {
-    if (!user) return
-    let cancelled = false
-    async function loadLastFeeding() {
-      if (!user) return
-      let q = supabase
-        .from('daily_log_entries')
-        .select('entry_date, entry_time')
-        .eq('entry_type', 'feeding')
-        .order('entry_date', { ascending: false })
-        .order('entry_time', { ascending: false })
-        .limit(1)
-      if (selectedChild) q = q.eq('child_id', selectedChild.id)
-      else q = q.eq('user_id', user.id)
-      const { data } = await q
-      if (cancelled) return
-      const row = data?.[0]
-      if (row?.entry_date && row?.entry_time) {
-        // entry_time may come back as "HH:MM" or "HH:MM:SS" — normalize to "HH:MM:SS"
-        const t = row.entry_time.length === 5 ? `${row.entry_time}:00` : row.entry_time
-        const dt = new Date(`${row.entry_date}T${t}`)
-        setLastFeedingAt(isNaN(dt.getTime()) ? null : dt)
-      } else {
-        setLastFeedingAt(null)
-      }
-    }
-    loadLastFeeding()
-    const t = setInterval(loadLastFeeding, 60_000)
-    return () => { cancelled = true; clearInterval(t) }
-  }, [user, selectedChild])
-
-  async function saveFeedingInterval(hours: number) {
-    if (!user) return
-    await supabase.from('user_profiles').update({ feeding_interval_hours: hours }).eq('id', user.id)
-    refreshProfile()
-  }
 
   async function fetchTip() {
     const { data } = await supabase
@@ -160,109 +118,6 @@ export default function DashboardPage({ onNavigate }: Props) {
 
         {/* Child Switcher */}
         {children.length > 0 && <ChildSwitcher />}
-
-        {/* Next feeding card */}
-        {selectedChild && (() => {
-          const intervalHours = profile?.feeding_interval_hours ?? 3
-          const intervalMs = intervalHours * 3600 * 1000
-          // Treat any invalid Date as "no last feeding" — defensive guard in case a malformed
-          // entry_time slips past the loader. Avoids the white-screen RangeError class of bug.
-          const validLast = lastFeedingAt && !isNaN(lastFeedingAt.getTime()) ? lastFeedingAt : null
-          // Compare LOCAL dates, not UTC (toISOString returns UTC and would mis-bucket
-          // late-night entries in Israel timezone).
-          const localDateStr = (d: Date) => {
-            const y = d.getFullYear()
-            const m = String(d.getMonth() + 1).padStart(2, '0')
-            const day = String(d.getDate()).padStart(2, '0')
-            return `${y}-${m}-${day}`
-          }
-          const todayStr = localDateStr(new Date())
-          const loggedToday = !!(validLast && localDateStr(validLast) === todayStr)
-          const elapsedMs = validLast ? now.getTime() - validLast.getTime() : null
-          const remainingMs = elapsedMs != null ? intervalMs - elapsedMs : null
-
-          // 4 states: no entry today / overdue / soon (within 15min) / normal
-          let status: 'none' | 'overdue' | 'soon' | 'normal' = 'none'
-          if (validLast && elapsedMs != null && remainingMs != null) {
-            if (remainingMs <= 0) status = 'overdue'
-            else if (remainingMs <= 15 * 60 * 1000) status = 'soon'
-            else status = 'normal'
-          }
-
-          function formatRemaining(ms: number) {
-            const totalMin = Math.round(ms / 60000)
-            if (totalMin < 60) return `${totalMin} דקות`
-            const h = Math.floor(totalMin / 60)
-            const m = totalMin % 60
-            if (m === 0) return `${h} שעות`
-            return `${h} שעות ו-${m} דקות`
-          }
-          function formatElapsed(ms: number) {
-            const totalMin = Math.round(ms / 60000)
-            if (totalMin < 60) return `${totalMin} דקות`
-            const h = Math.round(totalMin / 60 * 10) / 10
-            return `${h} שעות`
-          }
-
-          return (
-            <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 ${status === 'overdue' ? 'bg-orange-100' : 'bg-mustard-50'}`}>
-                  🍼
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-sand-800">מעקב האכלה</p>
-                  <p className="text-xs text-sand-400">
-                    {loggedToday
-                      ? `האכלה אחרונה: ${validLast!.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`
-                      : 'רשמי האכלה ביומן כדי לעקוב'}
-                  </p>
-                </div>
-              </div>
-              {/* TODO: Reconsider whether feeding interval setting belongs on dashboard vs. journal page */}
-              <div>
-                <p className="text-xs text-sand-400 mb-1.5">מרווח בין האכלות</p>
-                <div className="flex gap-1.5 flex-wrap">
-                  {[2, 2.5, 3, 3.5, 4].map(h => (
-                    <button
-                      key={h}
-                      onClick={() => saveFeedingInterval(h)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${intervalHours === h ? 'text-white shadow-sm' : 'bg-sand-100 text-sand-500'}`}
-                      style={intervalHours === h ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
-                    >
-                      {h}ש׳
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Feeding interval status indicator */}
-              <div className="pt-1">
-                {!loggedToday && (
-                  <p className="text-xs text-sand-400">עוד לא תועדה האכלה היום</p>
-                )}
-                {status === 'normal' && remainingMs != null && (
-                  <p className="text-xs text-sand-600">
-                    ההאכלה הבאה בעוד {formatRemaining(remainingMs)}
-                  </p>
-                )}
-                {status === 'soon' && (
-                  <p className="text-xs font-semibold text-mustard-700">
-                    ההאכלה הבאה: בקרוב
-                  </p>
-                )}
-                {status === 'overdue' && elapsedMs != null && (
-                  <div className="rounded-xl px-3 py-2" style={{ background: '#FFF4E6', border: '1px solid #F5C77E' }}>
-                    <p className="text-sm font-bold" style={{ color: '#C2410C' }}>🍼 הגיע זמן ההאכלה</p>
-                    <p className="text-xs mt-0.5" style={{ color: '#9A3412' }}>
-                      (חלפו {formatElapsed(elapsedMs)} מההאכלה האחרונה)
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )
-        })()}
 
         {/* Assigned tasks */}
         <MyTasksPanel />

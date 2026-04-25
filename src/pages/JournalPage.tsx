@@ -11,6 +11,7 @@ import DailySummary from '../components/DailySummary'
 import LogEntryModal from '../components/LogEntryModal'
 import QuickActionButtons from '../components/QuickActionButtons'
 import ChildSwitcher from '../components/ChildSwitcher'
+import FeedingIntervalCard from '../components/FeedingIntervalCard'
 
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 type ViewMode = 'day' | 'week' | 'month'
@@ -357,6 +358,9 @@ export default function JournalPage() {
 
         {/* Child Switcher */}
         <ChildSwitcher />
+
+        {/* Feeding interval tracker */}
+        <FeedingIntervalCard />
 
         {/* View mode tabs */}
         <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
