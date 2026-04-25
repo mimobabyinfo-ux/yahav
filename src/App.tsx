@@ -20,6 +20,7 @@ import PublicBabyPage from './pages/PublicBabyPage'
 import GuestJoinPage from './pages/GuestJoinPage'
 import PublicPartnerPage from './pages/PublicPartnerPage'
 import PublicRegisterPage from './pages/PublicRegisterPage'
+import ThankYouPage from './pages/ThankYouPage'
 import BottomNav from './components/BottomNav'
 import AdminSidebar from './components/AdminSidebar'
 import MimoLogo from './components/MimoLogo'
@@ -35,6 +36,7 @@ const publicBabyToken = new URLSearchParams(window.location.search).get('baby')
 const joinToken = new URLSearchParams(window.location.search).get('join')
 const isPartnerPage = new URLSearchParams(window.location.search).has('partner')
 const isRegisterPage = new URLSearchParams(window.location.search).has('register')
+const isThanksPage = new URLSearchParams(window.location.search).has('thanks')
 
 const FORMS_LS_KEY = 'forms_last_seen'
 const REGS_LS_KEY = 'registrations_last_seen'
@@ -118,6 +120,7 @@ function AppInner() {
   if (joinToken && !user) return <GuestJoinPage token={joinToken} />
   if (isPartnerPage) return <PublicPartnerPage />
   if (isRegisterPage) return <PublicRegisterPage />
+  if (isThanksPage) return <ThankYouPage />
 
   if (loading) {
     return (

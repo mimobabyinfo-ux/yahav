@@ -3581,6 +3581,71 @@ function OwnerSettingsSection() {
   )
 }
 
+// ─── Thank-You Page Settings (inside Settings) ────────────────────────────────
+function ThankYouSettingsSection() {
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [waLink, setWaLink] = useState('')
+  const [igLink, setIgLink] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    supabase.from('global_settings')
+      .select('setting_key, setting_value')
+      .in('setting_key', ['thank_you_title', 'thank_you_body', 'whatsapp_community_link', 'instagram_link'])
+      .then(({ data }) => {
+        const get = (k: string) => data?.find(r => r.setting_key === k)?.setting_value ?? ''
+        setTitle(get('thank_you_title') || 'ברוכה הבאה למימו 🐣')
+        setBody(get('thank_you_body') || `מחכה לפגוש אותך ואת הבייבי שלך.\nפרטים נוספים יישלחו בקבוצת ווטסאפ ייעודית לקראת מועד המפגש.\nאני כאן בשבילך לכל שאלה, התייעצות או כל דבר קטן 🤍\nבאהבה, ברנדה`)
+        setWaLink(get('whatsapp_community_link'))
+        setIgLink(get('instagram_link'))
+      })
+  }, [])
+
+  async function save() {
+    setSaving(true)
+    await supabase.from('global_settings').upsert([
+      { setting_key: 'thank_you_title', setting_value: title, setting_type: 'text', category: 'thanks', description: 'כותרת בעמוד התודה אחרי תשלום' },
+      { setting_key: 'thank_you_body', setting_value: body, setting_type: 'text', category: 'thanks', description: 'גוף הטקסט בעמוד התודה אחרי תשלום' },
+      { setting_key: 'whatsapp_community_link', setting_value: waLink, setting_type: 'url', category: 'thanks', description: 'קישור לקהילת WhatsApp של מימו' },
+      { setting_key: 'instagram_link', setting_value: igLink, setting_type: 'url', category: 'thanks', description: 'קישור לאינסטגרם של מימו' },
+    ], { onConflict: 'setting_key' })
+    setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="px-4 py-3 border-b border-sand-100">
+        <h3 className="font-bold text-sand-800 text-sm">עמוד תודה אחרי תשלום <span className="text-sand-400 font-normal">(?thanks)</span></h3>
+        <p className="text-xs text-sand-400 mt-0.5">מוצג לאמא אחרי שמורנינג מפנה אותה חזרה לאפליקציה</p>
+      </div>
+      <div className="p-4 space-y-3">
+        <div>
+          <label className="text-xs font-semibold text-sand-500 mb-1 block">כותרת</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="ברוכה הבאה למימו 🐣" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-sand-500 mb-1 block">גוף הטקסט</label>
+          <textarea value={body} onChange={e => setBody(e.target.value)} rows={5} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-sand-500 mb-1 block">קישור לקהילת WhatsApp</label>
+          <input value={waLink} onChange={e => setWaLink(e.target.value)} dir="ltr" placeholder="https://chat.whatsapp.com/..." className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-sand-500 mb-1 block">קישור לאינסטגרם</label>
+          <input value={igLink} onChange={e => setIgLink(e.target.value)} dir="ltr" placeholder="https://instagram.com/..." className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+        </div>
+        <button onClick={save} disabled={saving} className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+          {saved ? '✓ נשמר!' : saving ? '...' : 'שמור'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
 function SettingsTab() {
   const [settings, setSettings] = useState<GlobalSetting[]>([])
@@ -3630,6 +3695,9 @@ function SettingsTab() {
     <div className="space-y-3">
       {/* Owner Settings */}
       <OwnerSettingsSection />
+
+      {/* Thank-You Page Settings */}
+      <ThankYouSettingsSection />
 
       <button
         onClick={() => { setShowForm(true); setEditing(null) }}
