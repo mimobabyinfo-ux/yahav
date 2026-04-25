@@ -24,8 +24,17 @@ export default function PublicRegisterPage() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [selected, setSelected] = useState<string>('')
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+
+  function toggleExpand(id: string) {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
 
   useEffect(() => {
     document.title = 'הרשמה לסדנאות מימו'
@@ -172,12 +181,15 @@ export default function PublicRegisterPage() {
             <div className="space-y-2">
               {orderedWorkshops.map(w => {
                 const active = selected === w.id
+                const isExpanded = expanded.has(w.id)
                 return (
-                  <button
+                  <div
                     key={w.id}
-                    type="button"
                     onClick={() => setSelected(w.id)}
-                    className={`w-full text-right p-3 rounded-2xl border-2 transition-all ${active ? 'border-mustard-400 bg-mustard-50' : 'border-sand-200 bg-white hover:border-mustard-200'}`}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(w.id) } }}
+                    className={`w-full text-right p-3 rounded-2xl border-2 transition-all cursor-pointer ${active ? 'border-mustard-400 bg-mustard-50' : 'border-sand-200 bg-white hover:border-mustard-200'}`}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${active ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
@@ -186,11 +198,22 @@ export default function PublicRegisterPage() {
                       {w.image_url && <img src={w.image_url} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />}
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sand-800 text-sm">{w.title}</p>
-                        {w.description && <p className="text-xs text-sand-400 truncate">{w.description}</p>}
                         {w.price != null && <p className="text-xs font-bold text-mustard-600 mt-0.5">₪{w.price}</p>}
                       </div>
+                      {w.description && (
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); toggleExpand(w.id) }}
+                          className="flex-shrink-0 text-[11px] text-mustard-600 hover:text-mustard-700 px-2 py-1 rounded-lg hover:bg-mustard-50 transition-colors"
+                        >
+                          {isExpanded ? 'פחות ↑' : 'פרטים ↓'}
+                        </button>
+                      )}
                     </div>
-                  </button>
+                    {isExpanded && w.description && (
+                      <p className="mt-2 pt-2 border-t border-sand-100 text-xs text-sand-500 leading-relaxed whitespace-pre-line">{w.description}</p>
+                    )}
+                  </div>
                 )
               })}
             </div>
