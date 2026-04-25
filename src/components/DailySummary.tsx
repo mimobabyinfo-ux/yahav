@@ -73,7 +73,7 @@ export default function DailySummary({ entries }: Props) {
             ))}
           </div>
         </div>
-        <div className="relative h-5 rounded-xl overflow-hidden" style={{ background: '#F3F0EB' }}>
+        <div className="relative h-5 rounded-xl overflow-hidden" dir="ltr" style={{ background: '#F3F0EB' }}>
           {colorSegments.map((seg, i) => (
             <div
               key={i}
@@ -95,7 +95,7 @@ export default function DailySummary({ entries }: Props) {
             />
           ))}
         </div>
-        <div className="flex justify-between text-[9px] text-sand-300 mt-0.5 px-0.5">
+        <div className="flex justify-between text-[9px] text-sand-300 mt-0.5 px-0.5" dir="ltr">
           <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
         </div>
       </div>
