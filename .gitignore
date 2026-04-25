@@ -35,3 +35,6 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Claude Code permission cache — may contain commands with embedded secrets
+.claude/settings.local.json
