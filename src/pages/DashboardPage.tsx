@@ -51,7 +51,10 @@ export default function DashboardPage({ onNavigate }: Props) {
       if (cancelled) return
       const row = data?.[0]
       if (row?.entry_date && row?.entry_time) {
-        setLastFeedingAt(new Date(`${row.entry_date}T${row.entry_time}:00`))
+        // entry_time may come back as "HH:MM" or "HH:MM:SS" — normalize to "HH:MM:SS"
+        const t = row.entry_time.length === 5 ? `${row.entry_time}:00` : row.entry_time
+        const dt = new Date(`${row.entry_date}T${t}`)
+        setLastFeedingAt(isNaN(dt.getTime()) ? null : dt)
       } else {
         setLastFeedingAt(null)
       }
