@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { getBabyAge, entryTypeEmoji, entryTypeLabel } from '../utils/dateUtils'
+import { getBabyAge, entryTypeEmoji, entryTypeLabel, formatDate } from '../utils/dateUtils'
 import MimoLogo from '../components/MimoLogo'
 
 type BabyInfo = {
@@ -44,8 +44,8 @@ export default function PublicBabyPage({ token }: Props) {
       }
       setBaby(child)
 
-      // Fetch today's entries
-      const today = new Date().toISOString().split('T')[0]
+      // Fetch today's entries (Israel calendar day — matches what the parent app stores)
+      const today = formatDate(new Date())
       const { data: todayEntries } = await supabase
         .from('daily_log_entries')
         .select('id, entry_date, entry_time, entry_type, notes')
@@ -57,7 +57,7 @@ export default function PublicBabyPage({ token }: Props) {
       if (!todayEntries || todayEntries.length === 0) {
         const threeDaysAgo = new Date()
         threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-        const from = threeDaysAgo.toISOString().split('T')[0]
+        const from = formatDate(threeDaysAgo)
         const { data: recentEntries } = await supabase
           .from('daily_log_entries')
           .select('id, entry_date, entry_time, entry_type, notes')
@@ -78,7 +78,7 @@ export default function PublicBabyPage({ token }: Props) {
 
   const genderEmoji = baby?.gender === 'boy' ? '👶🏻' : baby?.gender === 'girl' ? '👧' : '👶'
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = formatDate(new Date())
   const todayEntries = entries.filter(e => e.entry_date === today)
 
   const countType = (type: string) => todayEntries.filter(e => e.entry_type === type).length

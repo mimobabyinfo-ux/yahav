@@ -4,6 +4,7 @@ import { supabase, Workshop, WorkshopContent, PurchasedWorkshop } from '../lib/s
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
+import { formatDate } from '../utils/dateUtils'
 
 type ActiveWorkshop = PurchasedWorkshop & { workshop: Workshop | null }
 
@@ -25,7 +26,7 @@ export default function ProAreaPage() {
 
   const fetchActive = useCallback(async () => {
     if (!user) return
-    const today = new Date().toISOString().split('T')[0]
+    const today = formatDate(new Date())
 
     // For admins show all workshops; for users show only active access
     if (profile?.is_admin) {
@@ -133,7 +134,7 @@ export default function ProAreaPage() {
     return days >= 7
   })
   const [reminderDismissed, setReminderDismissed] = useState(() =>
-    localStorage.getItem('reminder-dismissed') === new Date().toISOString().split('T')[0]
+    localStorage.getItem('reminder-dismissed') === formatDate(new Date())
   )
 
   if (!hasAccess) {
@@ -453,7 +454,7 @@ export default function ProAreaPage() {
                 המשיכי לצפות ←
               </button>
             </div>
-            <button onClick={() => { setReminderDismissed(true); localStorage.setItem('reminder-dismissed', new Date().toISOString().split('T')[0]) }}
+            <button onClick={() => { setReminderDismissed(true); localStorage.setItem('reminder-dismissed', formatDate(new Date())) }}
               className="text-sand-300 hover:text-sand-500 flex-shrink-0 text-lg leading-none">✕</button>
           </div>
         )}
