@@ -6,6 +6,7 @@ import {
 import { supabase, PregnancyChecklistItem, PregnancyWeeklyGuide, UserPregnancyItem, UserReminder } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MyTasksPanel from '../components/MyTasksPanel'
+import { formatDate } from '../utils/dateUtils'
 import type { Page } from '../App'
 
 type Props = { onNavigate: (page: Page) => void }
@@ -271,7 +272,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
   // Graduation
   const [graduating, setGraduating] = useState(false)
   const [babyName, setBabyName] = useState('')
-  const [babyDob, setBabyDob] = useState(new Date().toISOString().split('T')[0])
+  const [babyDob, setBabyDob] = useState(formatDate(new Date()))
   const [babyGender, setBabyGender] = useState<'girl' | 'boy' | 'other'>('girl')
   const [saving, setSaving] = useState(false)
 
@@ -787,7 +788,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">תאריך לידה</label>
               <input type="date" value={babyDob} onChange={e => setBabyDob(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
+                max={formatDate(new Date())}
                 className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 text-sm" />
             </div>
             <div className="flex gap-2">

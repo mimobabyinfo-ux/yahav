@@ -16,6 +16,12 @@ export function formatTime(date: Date): string {
   return date.toLocaleTimeString('en-GB', { timeZone: ISRAEL_TZ, hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
+// Hour of day (0-23) in Israel timezone — for greeting / time-of-day branching.
+export function getIsraelHour(date: Date = new Date()): number {
+  const hh = date.toLocaleString('en-GB', { timeZone: ISRAEL_TZ, hour: '2-digit', hour12: false })
+  return parseInt(hh, 10)
+}
+
 export function formatDisplayDate(dateStr: string): string {
   const todayStr = formatDate(new Date())
   // Anchor at noon to dodge any DST edge when shifting by ±1 day.

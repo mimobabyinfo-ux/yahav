@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ChevronLeft, UserPlus, Copy, Check, Settings as SettingsIcon } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { getBabyAge } from '../utils/dateUtils'
+import { getBabyAge, getIsraelHour } from '../utils/dateUtils'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import MyTasksPanel from '../components/MyTasksPanel'
@@ -69,7 +69,7 @@ export default function DashboardPage({ onNavigate }: Props) {
   }
 
   const greeting = () => {
-    const h = new Date().getHours()
+    const h = getIsraelHour()
     if (h < 5) return 'לילה טוב'
     if (h < 12) return 'בוקר טוב'
     if (h < 17) return 'צהריים טובים'
