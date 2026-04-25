@@ -164,7 +164,8 @@ export default function PublicRegisterPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-sand-600 mb-1.5">בחירת סדנה</label>
+            <label className="block text-xs font-semibold text-sand-600 mb-0.5">בחירת מוצר</label>
+            <p className="text-xs text-sand-400 mb-2">את כל המוצרים ניתן לקנות גם כמתנת לידה</p>
             {orderedWorkshops.length === 0 && (
               <div className="text-center text-sand-400 text-sm py-6">אין סדנאות זמינות כרגע</div>
             )}
