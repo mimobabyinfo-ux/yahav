@@ -1,4 +1,6 @@
-import { ArrowRight, LogOut } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowRight, LogOut, Plus, Check, X } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
 
@@ -16,7 +18,33 @@ function exitSettings() {
 }
 
 export default function UserSettingsPage() {
-  const { user, profile, children, signOut } = useAuth()
+  const { user, profile, children, signOut, refreshChildren } = useAuth()
+  const [showAdd, setShowAdd] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newDob, setNewDob] = useState('')
+  const [newGender, setNewGender] = useState<'girl' | 'boy' | 'other'>('girl')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
+  async function addChild(e: React.FormEvent) {
+    e.preventDefault()
+    if (!user) return
+    setSaveError('')
+    if (!newName.trim()) { setSaveError('נא למלא שם'); return }
+    if (!newDob) { setSaveError('נא לבחור תאריך לידה'); return }
+    setSaving(true)
+    const { error } = await supabase.from('children').insert({
+      user_id: user.id,
+      name: newName.trim(),
+      dob: newDob,
+      gender: newGender,
+    })
+    setSaving(false)
+    if (error) { setSaveError('שגיאה בשמירה — נסי שוב'); return }
+    await refreshChildren()
+    setNewName(''); setNewDob(''); setNewGender('girl')
+    setShowAdd(false)
+  }
 
   return (
     <div className="min-h-screen p-5 pb-12" dir="rtl" style={{ background: '#FAF8F4' }}>
@@ -81,6 +109,75 @@ export default function UserSettingsPage() {
               </div>
             ))}
           </div>
+
+          {showAdd ? (
+            <form onSubmit={addChild} className="space-y-2.5 pt-1">
+              <div>
+                <label className="block text-[11px] font-semibold text-sand-500 mb-1">שם <span className="text-red-400">*</span></label>
+                <input
+                  autoFocus
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  placeholder="שם התינוק/ת"
+                  className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-sand-500 mb-1">תאריך לידה <span className="text-red-400">*</span></label>
+                <div dir="ltr">
+                  <input
+                    type="date"
+                    value={newDob}
+                    onChange={e => setNewDob(e.target.value)}
+                    max={new Date().toISOString().slice(0, 10)}
+                    className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-sand-500 mb-1">מגדר</label>
+                <div className="flex gap-2">
+                  {(['girl', 'boy', 'other'] as const).map(g => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setNewGender(g)}
+                      className={`flex-1 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${newGender === g ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}
+                    >
+                      {g === 'girl' ? 'בת 👧' : g === 'boy' ? 'בן 👶🏻' : 'אחר 👶'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                >
+                  {saving ? '...' : <><Check className="w-4 h-4" /> שמירה</>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowAdd(false); setSaveError('') }}
+                  className="px-3 py-2.5 rounded-xl bg-sand-100 text-sand-600 text-sm"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowAdd(true)}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-semibold text-mustard-700 bg-mustard-50 hover:bg-mustard-100 border-2 border-dashed border-mustard-200 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              הוסף תינוק/ת
+            </button>
+          )}
         </section>
 
         {/* יציאה */}
