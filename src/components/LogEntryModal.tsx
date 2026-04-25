@@ -254,7 +254,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
                         : 'border-sand-200 text-sand-600'
                     }`}
                   >
-                    {t === 'wet' ? 'רטוב' : t === 'dirty' ? 'מלוכלך' : 'שניהם'}
+                    {t === 'wet' ? 'פיפי' : t === 'dirty' ? 'קקי' : 'שניהם'}
                   </button>
                 ))}
               </div>
