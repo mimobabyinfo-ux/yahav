@@ -48,7 +48,9 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
   // Diaper
   const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both'>('wet')
 
-  async function handleSave() {
+  async function handleSave(e?: React.MouseEvent) {
+    // Defensive: block bubbling/default in case anything wraps this in a form-like context.
+    if (e) { e.preventDefault(); e.stopPropagation() }
     if (!user || savingRef.current) return
     savingRef.current = true
     setSaving(true)
@@ -305,6 +307,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
         {/* Sticky save button */}
         <div className="px-5 pb-5 pt-3 flex-shrink-0 border-t border-sand-100">
           <button
+            type="button"
             onClick={handleSave}
             disabled={saving}
             className="w-full bg-gradient-to-r from-mustard-500 to-mustard-600 hover:from-mustard-600 hover:to-mustard-700 text-white font-semibold py-4 rounded-2xl transition-all shadow-lg disabled:opacity-50"
