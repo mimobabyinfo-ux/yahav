@@ -992,11 +992,13 @@ function LeadsTabDesktop() {
 }
 
 // ─── Workshops Desktop Table ──────────────────────────────────────────────────
+const EMPTY_WORKSHOP_FORM = { title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false }
+
 function WorkshopsTabDesktop() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
-  const [drawer, setDrawer] = useState<Workshop | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false })
+  const [drawer, setDrawer] = useState<'create' | 'edit' | null>(null)
+  const [form, setForm] = useState({ ...EMPTY_WORKSHOP_FORM })
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -1014,28 +1016,48 @@ function WorkshopsTabDesktop() {
     await supabase.from('workshops').delete().eq('id', id); load()
   }
 
+  function openCreate() {
+    setEditing(null)
+    setForm({ ...EMPTY_WORKSHOP_FORM })
+    setDrawer('create')
+  }
+
   function openEdit(w: Workshop) {
     setEditing(w)
     setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false })
-    setDrawer(w)
+    setDrawer('edit')
+  }
+
+  function closeDrawer() {
+    setDrawer(null); setEditing(null); setForm({ ...EMPTY_WORKSHOP_FORM })
   }
 
   async function saveEdit() {
-    if (!editing || !form.title.trim()) return
+    if (!form.title.trim()) return
     setSaving(true)
-    await supabase.from('workshops').update({
-      title: form.title, description: form.description || null,
+    const payload = {
+      title: form.title,
+      description: form.description || null,
       summary: form.summary || null,
       price: form.price ? parseFloat(form.price) : null,
-      payment_link: form.payment_link || null, image_url: form.image_url || null,
+      payment_link: form.payment_link || null,
+      image_url: form.image_url || null,
       video_url: form.video_url || null,
       stock_quantity: form.stock_quantity ? parseInt(form.stock_quantity) : null,
       whatsapp_number: form.whatsapp_number || null,
       next_workshop_id: form.next_workshop_id || null,
       workshop_type: form.workshop_type || null,
       public_registration: form.public_registration,
-    }).eq('id', editing.id)
-    setSaving(false); setDrawer(null); setEditing(null); load()
+    }
+    if (editing) {
+      await supabase.from('workshops').update(payload).eq('id', editing.id)
+    } else {
+      const maxOrder = workshops.length > 0 ? Math.max(...workshops.map(w => w.display_order)) : 0
+      await supabase.from('workshops').insert({ ...payload, currency: 'ILS', display_order: maxOrder + 1, is_active: true })
+    }
+    setSaving(false)
+    closeDrawer()
+    load()
   }
 
   return (
@@ -1044,6 +1066,14 @@ function WorkshopsTabDesktop() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-bold text-gray-800">סדנאות ({workshops.length})</h2>
+            <button
+              onClick={openCreate}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold text-white"
+              style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}
+            >
+              <Plus className="w-4 h-4" />
+              סדנה חדשה
+            </button>
           </div>
           <table className="w-full text-sm">
             <thead>
@@ -1090,12 +1120,12 @@ function WorkshopsTabDesktop() {
         </div>
       </div>
 
-      {/* Edit drawer */}
-      {drawer && editing && (
+      {/* Create / Edit drawer */}
+      {drawer && (
         <aside className="w-80 shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3 self-start sticky top-24" dir="rtl">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-gray-800">עריכת סדנה</h3>
-            <button onClick={() => setDrawer(null)} className="text-gray-400"><X className="w-4 h-4" /></button>
+            <h3 className="font-bold text-gray-800">{drawer === 'create' ? 'סדנה חדשה' : 'עריכת סדנה'}</h3>
+            <button onClick={closeDrawer} className="text-gray-400"><X className="w-4 h-4" /></button>
           </div>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="שם הסדנה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-purple-400" />
@@ -1137,9 +1167,9 @@ function WorkshopsTabDesktop() {
           </label>
           <div className="flex gap-2 pt-2">
             <button onClick={saveEdit} disabled={saving} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}>
-              {saving ? '...' : 'שמור'}
+              {saving ? '...' : drawer === 'create' ? 'יצירה' : 'שמור'}
             </button>
-            <button onClick={() => setDrawer(null)} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm">ביטול</button>
+            <button onClick={closeDrawer} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm">ביטול</button>
           </div>
         </aside>
       )}
