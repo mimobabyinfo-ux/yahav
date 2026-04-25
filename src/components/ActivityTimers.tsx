@@ -115,8 +115,14 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
     await supabase.from('active_timers').delete().eq('id', timer.id)
     await loadTimers()
     onEntrySaved()
-    } finally {
+    // Intentionally do NOT remove from stoppingRef on success.
+    // The timer row is deleted, so this id cannot be passed to stopTimer again.
+    // Removing it earlier opens a window where a delayed click could re-fire
+    // before loadTimers() removes the button from the DOM.
+    } catch (err) {
+      // On error, allow the user to retry.
       stoppingRef.current.delete(timer.id)
+      throw err
     }
   }
 

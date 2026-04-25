@@ -100,9 +100,14 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
 
       onSaved()
       onClose()
-    } finally {
+      // Intentionally do NOT reset savingRef here — modal is unmounting.
+      // Resetting before React unmounts opens a window where a delayed
+      // mobile "ghost click" (~300ms after touchstart) can re-enter handleSave.
+    } catch (err) {
+      // Only reset on error so the user can retry.
       setSaving(false)
       savingRef.current = false
+      throw err
     }
   }
 
