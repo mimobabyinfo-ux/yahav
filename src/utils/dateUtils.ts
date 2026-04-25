@@ -1,23 +1,35 @@
-// Date formatting and calculation utilities
+// Date formatting and calculation utilities.
+// All "today/yesterday/tomorrow" logic and YYYY-MM-DD strings use Israel timezone
+// (Asia/Jerusalem), regardless of the browser's local timezone. The app is Israel-only;
+// this avoids day-shift bugs when the device is set to a different timezone or when
+// UTC and local cross midnight in opposite directions.
+
+const ISRAEL_TZ = 'Asia/Jerusalem'
 
 export function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0]
+  // 'en-CA' formats as YYYY-MM-DD; timeZone forces the Israel calendar day.
+  return date.toLocaleDateString('en-CA', { timeZone: ISRAEL_TZ })
 }
 
 export function formatTime(date: Date): string {
-  return date.toTimeString().slice(0, 5)
+  // 24-hour HH:MM in Israel timezone.
+  return date.toLocaleTimeString('en-GB', { timeZone: ISRAEL_TZ, hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 export function formatDisplayDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00')
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
+  const todayStr = formatDate(new Date())
+  // Anchor at noon to dodge any DST edge when shifting by ±1 day.
+  const anchor = new Date(todayStr + 'T12:00:00')
+  const yesterdayStr = formatDate(new Date(anchor.getTime() - 86400000))
+  const tomorrowStr  = formatDate(new Date(anchor.getTime() + 86400000))
 
-  if (formatDate(date) === formatDate(today)) return 'היום'
-  if (formatDate(date) === formatDate(yesterday)) return 'אתמול'
+  if (dateStr === todayStr)     return 'היום'
+  if (dateStr === yesterdayStr) return 'אתמול'
+  if (dateStr === tomorrowStr)  return 'מחר'
 
-  return date.toLocaleDateString('he-IL', {
+  // Fall back to a Hebrew weekday + day + month label.
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', {
+    timeZone: ISRAEL_TZ,
     weekday: 'long',
     day: 'numeric',
     month: 'long',
