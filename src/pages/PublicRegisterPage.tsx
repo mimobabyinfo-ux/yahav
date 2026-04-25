@@ -2,8 +2,6 @@ import { useEffect, useState, useMemo } from 'react'
 import { supabase, Workshop } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
-const ISRAELI_PHONE = /^05\d-?\d{7}$/
-
 function isValidEmail(s: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
 }
