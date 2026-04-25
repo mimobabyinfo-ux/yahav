@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Play, Square, RefreshCw } from 'lucide-react'
 import { supabase, ActiveTimer } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -21,6 +21,7 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
   const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([])
   const [elapsed, setElapsed] = useState<Record<string, string>>({})
   const [breastSide, setBreastSide] = useState<'left' | 'right' | 'both'>('right')
+  const stoppingRef = useRef<Set<string>>(new Set())
 
   const loadTimers = useCallback(async () => {
     if (!user) return
@@ -64,6 +65,9 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
 
   async function stopTimer(timer: ActiveTimer) {
     if (!user) return
+    if (stoppingRef.current.has(timer.id)) return
+    stoppingRef.current.add(timer.id)
+    try {
     const start = new Date(timer.start_time)
     const now = new Date()
     const durationSecs = Math.round((now.getTime() - start.getTime()) / 1000)
@@ -111,6 +115,9 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
     await supabase.from('active_timers').delete().eq('id', timer.id)
     await loadTimers()
     onEntrySaved()
+    } finally {
+      stoppingRef.current.delete(timer.id)
+    }
   }
 
   async function switchBreastSide(timer: ActiveTimer) {

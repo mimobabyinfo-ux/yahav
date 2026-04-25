@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatTime } from '../utils/dateUtils'
@@ -27,6 +27,7 @@ const TYPE_LABELS: Record<EntryType, string> = {
 export default function LogEntryModal({ entryType, date, onClose, onSaved }: Props) {
   const { user, selectedChild } = useAuth()
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [time, setTime] = useState(formatTime(new Date()))
   const [notes, setNotes] = useState('')
 
@@ -48,7 +49,8 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
   const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both'>('wet')
 
   async function handleSave() {
-    if (!user) return
+    if (!user || savingRef.current) return
+    savingRef.current = true
     setSaving(true)
     try {
       const now = new Date()
@@ -100,6 +102,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
       onClose()
     } finally {
       setSaving(false)
+      savingRef.current = false
     }
   }
 
