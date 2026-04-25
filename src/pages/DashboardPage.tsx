@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LogOut, ChevronLeft, UserPlus, Copy, Check, Gift } from 'lucide-react'
+import { ChevronLeft, UserPlus, Copy, Check } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
@@ -15,7 +15,7 @@ type Props = {
 const APP_BASE = 'https://mimoapp.vercel.app'
 
 export default function DashboardPage({ onNavigate }: Props) {
-  const { profile, signOut, selectedChild, children, family, createFamily, createFamilyInvite, user, refreshProfile, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
+  const { profile, selectedChild, children, family, createFamily, createFamilyInvite, user, refreshProfile, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
@@ -114,21 +114,6 @@ export default function DashboardPage({ onNavigate }: Props) {
                 {selectedChild.dob && ` · ${getBabyAge(selectedChild.dob)}`}
               </p>
             )}
-          </div>
-          <div className="flex items-center gap-1 pt-1">
-            <button
-              onClick={() => onNavigate('benefits')}
-              className="p-2 rounded-xl hover:bg-mustard-50 text-sand-300 hover:text-mustard-500 transition-colors"
-              title="הטבות"
-            >
-              <Gift className="w-5 h-5" />
-            </button>
-            <button
-              onClick={signOut}
-              className="p-2 rounded-xl hover:bg-sand-100 text-sand-300 hover:text-sand-500 transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
           </div>
         </div>
 
