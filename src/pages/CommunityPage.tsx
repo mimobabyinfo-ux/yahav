@@ -146,7 +146,7 @@ export default function CommunityPage() {
     return true
   })
 
-  const genderEmoji = (g: string | null) => g === 'boy' ? '👦' : g === 'girl' ? '👧' : '👶'
+  const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏻' : g === 'girl' ? '👧' : '👶'
 
   return (
     <div className="min-h-screen p-4 pb-28 relative" dir="rtl">

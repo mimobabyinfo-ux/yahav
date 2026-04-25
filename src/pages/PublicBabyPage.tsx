@@ -76,7 +76,7 @@ export default function PublicBabyPage({ token }: Props) {
     load()
   }, [token])
 
-  const genderEmoji = baby?.gender === 'boy' ? '👦' : baby?.gender === 'girl' ? '👧' : '👶'
+  const genderEmoji = baby?.gender === 'boy' ? '👶🏻' : baby?.gender === 'girl' ? '👧' : '👶'
 
   const today = new Date().toISOString().split('T')[0]
   const todayEntries = entries.filter(e => e.entry_date === today)

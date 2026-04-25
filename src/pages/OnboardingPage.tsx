@@ -14,7 +14,7 @@ type Baby = {
 
 const genderOptions = [
   { value: 'girl', label: 'בת 👧' },
-  { value: 'boy',  label: 'בן 👦' },
+  { value: 'boy',  label: 'בן 👶🏻' },
 ]
 
 const CITIES = [

@@ -794,7 +794,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
               {(['girl', 'boy', 'other'] as const).map(g => (
                 <button key={g} onClick={() => setBabyGender(g)}
                   className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-all ${babyGender === g ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}>
-                  {g === 'girl' ? 'בת 👧' : g === 'boy' ? 'בן 👦' : 'אחר 👶'}
+                  {g === 'girl' ? 'בת 👧' : g === 'boy' ? 'בן 👶🏻' : 'אחר 👶'}
                 </button>
               ))}
             </div>

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/Users/YahavAdmon/yahav add src/components/FormTriggerModal.tsx)",
+      "Bash(git -C /c/Users/YahavAdmon/yahav commit -m \"Skip form triggers for admin users\")",
+      "Bash(git -C /c/Users/YahavAdmon/yahav add src/pages/AdminPage.tsx src/pages/PublicFormPage.tsx src/components/FormTriggerModal.tsx)",
+      "Bash(git -C /c/Users/YahavAdmon/yahav commit -m ' *)"
+    ]
+  }
+}

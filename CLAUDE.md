@@ -23,6 +23,17 @@ Before building any new feature, ask: "Does this help get the first 50 active us
 - After each feature, give me a short changelog
 - If something contradicts this brief, flag it — don't silently do it your way
 
+## Quality Gate Before Declaring Features Complete
+
+Before saying "feature is ready" or "all tasks done":
+
+1. **Run `npm run build` locally.** Not `npm run dev`. The production build catches TypeScript errors that dev mode hides.
+2. **Test in a real browser.** Open the deployed/local URL, click every new button, fill every new form, navigate every new flow. "I wrote the code" is not "I tested it."
+3. **For features with admin + user sides:** test both sides end-to-end with separate browser windows or incognito mode.
+4. **Report what you actually tested.** Instead of "feature complete," say "I built X. I tested Y, Z, W. I did not test [list]."
+
+If you skip these steps, expect the user to find the bug you would have found in 30 seconds.
+
 ---
 
 # Mimo App — Full Product Brief

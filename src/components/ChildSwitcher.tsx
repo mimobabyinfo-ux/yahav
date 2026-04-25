@@ -29,7 +29,7 @@ export default function ChildSwitcher() {
     setSaving(false)
   }
 
-  const genderEmoji = (g: string | null) => g === 'boy' ? '👦' : g === 'girl' ? '👧' : '👶'
+  const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏻' : g === 'girl' ? '👧' : '👶'
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto scroll-hide pb-1">
@@ -67,7 +67,7 @@ export default function ChildSwitcher() {
             className="text-sm outline-none bg-transparent text-sand-600"
           >
             <option value="girl">👧</option>
-            <option value="boy">👦</option>
+            <option value="boy">👶🏻</option>
             <option value="other">👶</option>
           </select>
           <button onClick={addChild} disabled={saving || !newName.trim()} className="text-mustard-600 disabled:opacity-40">

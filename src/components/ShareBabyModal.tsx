@@ -13,7 +13,7 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
 
   const baby = selectedChild
   const age = baby?.dob ? getBabyAge(baby.dob) : null
-  const genderEmoji = baby?.gender === 'boy' ? '👦' : baby?.gender === 'girl' ? '👧' : '👶'
+  const genderEmoji = baby?.gender === 'boy' ? '👶🏻' : baby?.gender === 'girl' ? '👧' : '👶'
 
   const liveLink = baby?.share_token
     ? `${APP_BASE}?baby=${baby.share_token}`
