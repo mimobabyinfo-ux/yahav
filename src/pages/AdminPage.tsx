@@ -1001,6 +1001,27 @@ function WorkshopsTabDesktop() {
   const [form, setForm] = useState({ ...EMPTY_WORKSHOP_FORM })
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+
+  async function uploadImage(file: File): Promise<string | null> {
+    const ext = file.name.split('.').pop()
+    const path = `workshops/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('images').upload(path, file, { upsert: true })
+    if (error) { alert('שגיאה בהעלאה: ' + error.message); return null }
+    const { data } = supabase.storage.from('images').getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  async function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { alert('הקובץ גדול מ-5MB. נסי תמונה קטנה יותר.'); e.target.value = ''; return }
+    setUploadingImage(true)
+    const url = await uploadImage(file)
+    if (url) setForm(f => ({ ...f, image_url: url }))
+    setUploadingImage(false)
+    e.target.value = ''
+  }
 
   const load = useCallback(() => {
     supabase.from('workshops').select('*').order('display_order')
@@ -1135,7 +1156,27 @@ function WorkshopsTabDesktop() {
             <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מלאי" type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
           </div>
           <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור תשלום" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
-          <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="URL תמונה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
+          {/* Image upload + URL fallback */}
+          <div className="space-y-1.5">
+            <label className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${uploadingImage ? 'bg-gray-100 text-gray-400' : 'bg-purple-50 text-purple-700 hover:bg-purple-100'}`}>
+              {uploadingImage ? 'מעלה תמונה...' : (form.image_url ? '🖼️ החלפת תמונה' : '🖼️ העלאת תמונה (PNG/JPG/WEBP, עד 5MB)')}
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleImageFile} disabled={uploadingImage} />
+            </label>
+            {form.image_url && (
+              <div className="relative">
+                <img src={form.image_url} alt="preview" className="w-full h-28 object-cover rounded-xl" />
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, image_url: '' }))}
+                  className="absolute top-1 left-1 w-6 h-6 bg-black/50 text-white rounded-full text-xs flex items-center justify-center hover:bg-black/70"
+                  title="הסרת תמונה"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="או הדבק קישור URL..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-500 focus:outline-none focus:border-purple-400" dir="ltr" />
+          </div>
           <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} placeholder="קישור סרטון (URL)" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
           <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="WhatsApp" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
           <div>
@@ -2478,10 +2519,12 @@ function WorkshopsTab() {
   async function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > 5 * 1024 * 1024) { alert('הקובץ גדול מ-5MB. נסי תמונה קטנה יותר.'); e.target.value = ''; return }
     setUploadingImage(true)
     const url = await uploadImage(file)
     if (url) setForm(f => ({ ...f, image_url: url }))
     setUploadingImage(false)
+    e.target.value = ''
   }
 
   const load = useCallback(() => {
