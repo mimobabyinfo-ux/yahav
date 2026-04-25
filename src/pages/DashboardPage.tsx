@@ -22,21 +22,44 @@ export default function DashboardPage({ onNavigate }: Props) {
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
-  const [nextFeedingTime, setNextFeedingTime] = useState<Date | null>(null)
+  const [lastFeedingAt, setLastFeedingAt] = useState<Date | null>(null)
   const [now, setNow] = useState(new Date())
 
   useEffect(() => {
     fetchTip()
     fetchPerks()
-    const stored = localStorage.getItem('next_feeding_time')
-    if (stored) setNextFeedingTime(new Date(stored))
-    const timer = setInterval(() => {
-      setNow(new Date())
-      const s = localStorage.getItem('next_feeding_time')
-      if (s) setNextFeedingTime(new Date(s))
-    }, 30000)
+    const timer = setInterval(() => setNow(new Date()), 60_000)
     return () => clearInterval(timer)
   }, [])
+
+  // Pull most recent feeding entry from the journal — refresh on user/child change and every minute.
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    async function loadLastFeeding() {
+      if (!user) return
+      let q = supabase
+        .from('daily_log_entries')
+        .select('entry_date, entry_time')
+        .eq('entry_type', 'feeding')
+        .order('entry_date', { ascending: false })
+        .order('entry_time', { ascending: false })
+        .limit(1)
+      if (selectedChild) q = q.eq('child_id', selectedChild.id)
+      else q = q.eq('user_id', user.id)
+      const { data } = await q
+      if (cancelled) return
+      const row = data?.[0]
+      if (row?.entry_date && row?.entry_time) {
+        setLastFeedingAt(new Date(`${row.entry_date}T${row.entry_time}:00`))
+      } else {
+        setLastFeedingAt(null)
+      }
+    }
+    loadLastFeeding()
+    const t = setInterval(loadLastFeeding, 60_000)
+    return () => { cancelled = true; clearInterval(t) }
+  }, [user, selectedChild])
 
   async function saveFeedingInterval(hours: number) {
     if (!user) return
@@ -130,29 +153,47 @@ export default function DashboardPage({ onNavigate }: Props) {
 
         {/* Next feeding card */}
         {selectedChild && (() => {
-          const overdue = nextFeedingTime && now >= nextFeedingTime
-          const minutesLeft = nextFeedingTime && !overdue
-            ? Math.round((nextFeedingTime.getTime() - now.getTime()) / 60000)
-            : null
-          const nextStr = nextFeedingTime
-            ? nextFeedingTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
-            : null
           const intervalHours = profile?.feeding_interval_hours ?? 3
+          const intervalMs = intervalHours * 3600 * 1000
+          const todayStr = new Date().toISOString().slice(0, 10)
+          const loggedToday = !!(lastFeedingAt && lastFeedingAt.toISOString().slice(0, 10) === todayStr)
+          const elapsedMs = lastFeedingAt ? now.getTime() - lastFeedingAt.getTime() : null
+          const remainingMs = elapsedMs != null ? intervalMs - elapsedMs : null
+
+          // 4 states: no entry today / overdue / soon (within 15min) / normal
+          let status: 'none' | 'overdue' | 'soon' | 'normal' = 'none'
+          if (lastFeedingAt && elapsedMs != null && remainingMs != null) {
+            if (remainingMs <= 0) status = 'overdue'
+            else if (remainingMs <= 15 * 60 * 1000) status = 'soon'
+            else status = 'normal'
+          }
+
+          function formatRemaining(ms: number) {
+            const totalMin = Math.round(ms / 60000)
+            if (totalMin < 60) return `${totalMin} דקות`
+            const h = Math.floor(totalMin / 60)
+            const m = totalMin % 60
+            if (m === 0) return `${h} שעות`
+            return `${h} שעות ו-${m} דקות`
+          }
+          function formatElapsed(ms: number) {
+            const totalMin = Math.round(ms / 60000)
+            if (totalMin < 60) return `${totalMin} דקות`
+            const h = Math.round(totalMin / 60 * 10) / 10
+            return `${h} שעות`
+          }
+
           return (
             <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 ${overdue ? 'bg-orange-100' : 'bg-mustard-50'}`}>
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 ${status === 'overdue' ? 'bg-orange-100' : 'bg-mustard-50'}`}>
                   🍼
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-sand-800">
-                    {overdue ? 'הגיע זמן להאכיל!' : nextStr ? `האכלה הבאה בשעה ${nextStr}` : 'מעקב האכלה'}
-                  </p>
+                  <p className="text-sm font-bold text-sand-800">מעקב האכלה</p>
                   <p className="text-xs text-sand-400">
-                    {overdue
-                      ? 'עבר הזמן מאז ההאכלה האחרונה'
-                      : minutesLeft != null
-                      ? `עוד ${minutesLeft < 60 ? `${minutesLeft} דקות` : `${Math.round(minutesLeft / 60 * 10) / 10} שעות`}`
+                    {loggedToday
+                      ? `האכלה אחרונה: ${lastFeedingAt!.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`
                       : 'רשמי האכלה ביומן כדי לעקוב'}
                   </p>
                 </div>
@@ -172,6 +213,31 @@ export default function DashboardPage({ onNavigate }: Props) {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Feeding interval status indicator */}
+              <div className="pt-1">
+                {!loggedToday && (
+                  <p className="text-xs text-sand-400">עוד לא תועדה האכלה היום</p>
+                )}
+                {status === 'normal' && remainingMs != null && (
+                  <p className="text-xs text-sand-600">
+                    ההאכלה הבאה בעוד {formatRemaining(remainingMs)}
+                  </p>
+                )}
+                {status === 'soon' && (
+                  <p className="text-xs font-semibold text-mustard-700">
+                    ההאכלה הבאה: בקרוב
+                  </p>
+                )}
+                {status === 'overdue' && elapsedMs != null && (
+                  <div className="rounded-xl px-3 py-2" style={{ background: '#FFF4E6', border: '1px solid #F5C77E' }}>
+                    <p className="text-sm font-bold" style={{ color: '#C2410C' }}>🍼 הגיע זמן ההאכלה</p>
+                    <p className="text-xs mt-0.5" style={{ color: '#9A3412' }}>
+                      (חלפו {formatElapsed(elapsedMs)} מההאכלה האחרונה)
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )
