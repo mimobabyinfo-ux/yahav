@@ -6,6 +6,7 @@ import { getBabyAge, getIsraelHour } from '../utils/dateUtils'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import MyTasksPanel from '../components/MyTasksPanel'
+import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import type { Page } from '../App'
 
 type Props = {
@@ -16,6 +17,7 @@ const APP_BASE = 'https://mimoapp.vercel.app'
 
 export default function DashboardPage({ onNavigate }: Props) {
   const { profile, selectedChild, children, family, createFamily, createFamilyInvite, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
+  const { ownerWhatsapp } = useOwnerSettings()
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
@@ -250,7 +252,7 @@ export default function DashboardPage({ onNavigate }: Props) {
               <p className="text-xs text-sand-400">אנחנו כאן בשבילך</p>
             </div>
             <a
-              href="https://wa.me/972559904274"
+              href={`https://wa.me/${ownerWhatsapp}`}
               target="_blank"
               rel="noopener noreferrer"
               className="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors"
