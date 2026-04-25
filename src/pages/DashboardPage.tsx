@@ -165,14 +165,25 @@ export default function DashboardPage({ onNavigate }: Props) {
         {selectedChild && (() => {
           const intervalHours = profile?.feeding_interval_hours ?? 3
           const intervalMs = intervalHours * 3600 * 1000
-          const todayStr = new Date().toISOString().slice(0, 10)
-          const loggedToday = !!(lastFeedingAt && lastFeedingAt.toISOString().slice(0, 10) === todayStr)
-          const elapsedMs = lastFeedingAt ? now.getTime() - lastFeedingAt.getTime() : null
+          // Treat any invalid Date as "no last feeding" — defensive guard in case a malformed
+          // entry_time slips past the loader. Avoids the white-screen RangeError class of bug.
+          const validLast = lastFeedingAt && !isNaN(lastFeedingAt.getTime()) ? lastFeedingAt : null
+          // Compare LOCAL dates, not UTC (toISOString returns UTC and would mis-bucket
+          // late-night entries in Israel timezone).
+          const localDateStr = (d: Date) => {
+            const y = d.getFullYear()
+            const m = String(d.getMonth() + 1).padStart(2, '0')
+            const day = String(d.getDate()).padStart(2, '0')
+            return `${y}-${m}-${day}`
+          }
+          const todayStr = localDateStr(new Date())
+          const loggedToday = !!(validLast && localDateStr(validLast) === todayStr)
+          const elapsedMs = validLast ? now.getTime() - validLast.getTime() : null
           const remainingMs = elapsedMs != null ? intervalMs - elapsedMs : null
 
           // 4 states: no entry today / overdue / soon (within 15min) / normal
           let status: 'none' | 'overdue' | 'soon' | 'normal' = 'none'
-          if (lastFeedingAt && elapsedMs != null && remainingMs != null) {
+          if (validLast && elapsedMs != null && remainingMs != null) {
             if (remainingMs <= 0) status = 'overdue'
             else if (remainingMs <= 15 * 60 * 1000) status = 'soon'
             else status = 'normal'
@@ -203,7 +214,7 @@ export default function DashboardPage({ onNavigate }: Props) {
                   <p className="text-sm font-bold text-sand-800">מעקב האכלה</p>
                   <p className="text-xs text-sand-400">
                     {loggedToday
-                      ? `האכלה אחרונה: ${lastFeedingAt!.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`
+                      ? `האכלה אחרונה: ${validLast!.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`
                       : 'רשמי האכלה ביומן כדי לעקוב'}
                   </p>
                 </div>

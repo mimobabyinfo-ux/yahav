@@ -34,6 +34,17 @@ Before saying "feature is ready" or "all tasks done":
 
 If you skip these steps, expect the user to find the bug you would have found in 30 seconds.
 
+### Build success ≠ runtime success
+
+A clean `npm run build` only proves the code **compiles**. It does NOT prove the page **renders**. TypeScript and the bundler do not run your component, do not exercise React render, do not call `Date.toISOString()` on an actual value. A page can build successfully and crash with a white screen on first paint.
+
+For any feature that affects user-facing pages, you must:
+1. Open the actual page in a browser (incognito/hard-refresh to bypass PWA cache),
+2. Observe it render successfully,
+3. Click through every relevant flow (including edge cases: empty data, missing fields, brand-new user, no entries yet),
+
+before claiming the feature is complete. If you cannot do this from your environment, say so explicitly — do NOT claim "tested" when only the build was checked.
+
 ---
 
 # Mimo App — Full Product Brief
