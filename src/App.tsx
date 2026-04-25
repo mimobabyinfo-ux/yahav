@@ -21,6 +21,7 @@ import GuestJoinPage from './pages/GuestJoinPage'
 import PublicPartnerPage from './pages/PublicPartnerPage'
 import PublicRegisterPage from './pages/PublicRegisterPage'
 import ThankYouPage from './pages/ThankYouPage'
+import UserSettingsPage from './pages/UserSettingsPage'
 import BottomNav from './components/BottomNav'
 import AdminSidebar from './components/AdminSidebar'
 import MimoLogo from './components/MimoLogo'
@@ -37,6 +38,7 @@ const joinToken = new URLSearchParams(window.location.search).get('join')
 const isPartnerPage = new URLSearchParams(window.location.search).has('partner')
 const isRegisterPage = new URLSearchParams(window.location.search).has('register')
 const isThanksPage = new URLSearchParams(window.location.search).has('thanks')
+const isSettingsPage = new URLSearchParams(window.location.search).has('settings')
 
 const FORMS_LS_KEY = 'forms_last_seen'
 const REGS_LS_KEY = 'registrations_last_seen'
@@ -137,6 +139,9 @@ function AppInner() {
 
   if (!user) return <LoginPage />
   if (!profile && !isGuest) return <OnboardingPage />
+
+  // Authenticated user settings — accessible from any role except guest
+  if (isSettingsPage && !isGuest) return <UserSettingsPage />
 
   // Guests see ONLY the journal — no nav, no other pages
   if (isGuest) {

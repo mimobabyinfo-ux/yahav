@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, UserPlus, Copy, Check } from 'lucide-react'
+import { ChevronLeft, UserPlus, Copy, Check, Settings as SettingsIcon } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
@@ -138,6 +138,13 @@ export default function DashboardPage({ onNavigate }: Props) {
               </p>
             )}
           </div>
+          <a
+            href="?settings"
+            className="p-2 rounded-xl text-sand-300 hover:text-mustard-500 hover:bg-mustard-50 transition-colors mt-1"
+            title="הגדרות"
+          >
+            <SettingsIcon className="w-5 h-5" />
+          </a>
         </div>
 
         {/* Active workshop access badge */}
