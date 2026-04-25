@@ -172,6 +172,7 @@ export default function DashboardPage({ onNavigate }: Props) {
                   </p>
                 </div>
               </div>
+              {/* TODO: Reconsider whether feeding interval setting belongs on dashboard vs. journal page */}
               <div>
                 <p className="text-xs text-sand-400 mb-1.5">מרווח בין האכלות</p>
                 <div className="flex gap-1.5 flex-wrap">
