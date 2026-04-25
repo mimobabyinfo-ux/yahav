@@ -1675,12 +1675,19 @@ function FormsTabDesktop() {
                         <button onClick={() => deleteSubmission(s.id)} className="p-1 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3" /></button>
                       </div>
                     </div>
-                    {Object.entries(s.responses_json).map(([key, val]) => (
-                      <div key={key} className="border-t border-gray-50 pt-1.5">
-                        <p className="text-[10px] text-gray-400">{key}</p>
-                        <p className="text-xs text-gray-700">{val}</p>
-                      </div>
-                    ))}
+                    {/* Iterate fields in canonical question order — NOT JSONB key insertion order. */}
+                    {selected.fields_json
+                      .filter(f => f.type !== 'info' && f.type !== 'link')
+                      .map(field => {
+                        const val = s.responses_json[field.label]
+                        if (val === undefined || val === '' || val === null) return null
+                        return (
+                          <div key={field.id} className="border-t border-gray-50 pt-1.5">
+                            <p className="text-[10px] text-gray-400">{field.label}</p>
+                            <p className="text-xs text-gray-700">{String(val)}</p>
+                          </div>
+                        )
+                      })}
                   </div>
                 ))}
               </>
@@ -3271,12 +3278,19 @@ function FormsTab() {
                     </button>
                   </div>
                 </div>
-                {Object.entries(s.responses_json).map(([key, val]) => (
-                  <div key={key} className="border-t border-sand-50 pt-1.5">
-                    <p className="text-xs text-sand-400">{key}</p>
-                    <p className="text-sm text-sand-800">{val}</p>
-                  </div>
-                ))}
+                {/* Iterate fields in canonical question order — NOT JSONB key insertion order. */}
+                {viewSubmissions.fields_json
+                  .filter(f => f.type !== 'info' && f.type !== 'link')
+                  .map(field => {
+                    const val = s.responses_json[field.label]
+                    if (val === undefined || val === '' || val === null) return null
+                    return (
+                      <div key={field.id} className="border-t border-sand-50 pt-1.5">
+                        <p className="text-xs text-sand-400">{field.label}</p>
+                        <p className="text-sm text-sand-800">{String(val)}</p>
+                      </div>
+                    )
+                  })}
               </div>
             ))}
             {submissions.length === 0 && <p className="text-center text-sand-400 text-sm py-8">אין תשובות עדיין</p>}
