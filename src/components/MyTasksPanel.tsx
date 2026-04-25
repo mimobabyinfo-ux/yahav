@@ -11,7 +11,7 @@ type AssignedTask = {
   title: string | null
   description: string | null
   due_date: string | null
-  is_completed: boolean
+  completed_at: string | null
   forms: FormRecord
 }
 
@@ -25,13 +25,19 @@ export default function MyTasksPanel() {
 
   const load = useCallback(async () => {
     if (!user) return
-    const { data } = await supabase
+    const { data: assignments } = await supabase
       .from('form_assignments')
-      .select('*, forms(*)')
+      .select('id, form_id, title, description, due_date, assigned_at, completed_at')
       .eq('user_id', user.id)
-      .eq('is_completed', false)
-      .order('created_at', { ascending: false })
-    setTasks((data ?? []) as AssignedTask[])
+      .is('completed_at', null)
+      .order('assigned_at', { ascending: false })
+    if (!assignments?.length) { setTasks([]); return }
+
+    const formIds = [...new Set(assignments.map(a => a.form_id))]
+    const { data: forms } = await supabase.from('forms').select('*').in('id', formIds)
+    const formsMap = Object.fromEntries((forms ?? []).map(f => [f.id, f]))
+
+    setTasks(assignments.map(a => ({ ...a, forms: formsMap[a.form_id] })) as AssignedTask[])
   }, [user])
 
   useEffect(() => { load() }, [load])
@@ -44,7 +50,7 @@ export default function MyTasksPanel() {
       user_id: user.id,
       responses_json: answers,
     })
-    await supabase.from('form_assignments').update({ is_completed: true }).eq('id', activeTask.id)
+    await supabase.from('form_assignments').update({ completed_at: new Date().toISOString() }).eq('id', activeTask.id)
     setSubmitting(false)
     setSubmitted(true)
     const linkField = activeTask.forms.fields_json.find(f => f.type === 'link')

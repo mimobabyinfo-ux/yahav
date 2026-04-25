@@ -8,6 +8,7 @@ type Props = {
   viewAsUser: boolean
   onToggleUserView: () => void
   unreadForms?: number
+  unreadRegistrations?: number
 }
 
 const NAV: { id: AdminSection; label: string; icon?: React.ReactNode; emoji?: string }[] = [
@@ -19,12 +20,13 @@ const NAV: { id: AdminSection; label: string; icon?: React.ReactNode; emoji?: st
   { id: 'perks',     label: 'הטבות',            icon: <Gift className="w-4 h-4" /> },
   { id: 'forms',     label: 'טפסים',            emoji: '📋' },
   { id: 'leads',     label: 'לידים & CRM',      emoji: '📞' },
+  { id: 'registrations', label: 'הרשמות',        emoji: '📝' },
   { id: 'pregnancy', label: 'הריון',             emoji: '🤰' },
   { id: 'partners',  label: 'שירותים',           emoji: '🌿' },
   { id: 'settings',  label: 'הגדרות',            icon: <Settings className="w-4 h-4" /> },
 ]
 
-export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView, unreadForms = 0 }: Props) {
+export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView, unreadForms = 0, unreadRegistrations = 0 }: Props) {
   const { signOut, profile } = useAuth()
 
   return (
@@ -78,7 +80,12 @@ export default function AdminSidebar({ section, onSection, viewAsUser, onToggleU
                   {unreadForms > 99 ? '99+' : unreadForms}
                 </span>
               )}
-              {active && item.id !== 'forms' && <div className="mr-auto w-1.5 h-1.5 rounded-full bg-purple-400" />}
+              {item.id === 'registrations' && unreadRegistrations > 0 && (
+                <span className="mr-auto min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {unreadRegistrations > 99 ? '99+' : unreadRegistrations}
+                </span>
+              )}
+              {active && item.id !== 'forms' && item.id !== 'registrations' && <div className="mr-auto w-1.5 h-1.5 rounded-full bg-purple-400" />}
             </button>
           )
         })}

@@ -8,7 +8,7 @@ import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Work
 import { useAuth } from '../contexts/AuthContext'
 import type { AdminSection } from '../App'
 
-type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads'
+type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
 const APP_URL = 'https://mimoapp.vercel.app'
 
@@ -24,6 +24,7 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
   perks:     'perks',
   pregnancy: 'pregnancy',
   partners:  'partners',
+  registrations: 'registrations',
   settings:  'settings',
 }
 
@@ -38,10 +39,11 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'partners',  label: 'שירותים',       icon: <span className="text-xs">🌿</span> },
   { id: 'leads',     label: 'לידים',         icon: <span className="text-xs">📞</span> },
   { id: 'forms',     label: 'טפסים',         icon: <span className="text-xs">📋</span> },
+  { id: 'registrations', label: 'הרשמות',     icon: <span className="text-xs">📝</span> },
   { id: 'settings',  label: 'הגדרות',        icon: <Settings className="w-3.5 h-3.5" /> },
 ]
 
-export default function AdminPage({ defaultSection, unreadForms = 0, onFormsViewed }: { defaultSection?: AdminSection; unreadForms?: number; onFormsViewed?: () => void }) {
+export default function AdminPage({ defaultSection, unreadForms = 0, onFormsViewed, unreadRegistrations = 0, onRegistrationsViewed }: { defaultSection?: AdminSection; unreadForms?: number; onFormsViewed?: () => void; unreadRegistrations?: number; onRegistrationsViewed?: () => void }) {
   const { profile } = useAuth()
   const [tab, setTab] = useState<Tab>(defaultSection ? SECTION_TAB[defaultSection] : 'insights')
 
@@ -53,6 +55,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
   // Clear badge whenever the forms tab is active
   useEffect(() => {
     if (tab === 'forms') onFormsViewed?.()
+    if (tab === 'registrations') onRegistrationsViewed?.()
   }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!profile?.is_admin) {
@@ -90,6 +93,11 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
                     {unreadForms > 99 ? '99+' : unreadForms}
                   </span>
                 )}
+                {t.id === 'registrations' && unreadRegistrations > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-[3px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {unreadRegistrations > 99 ? '99+' : unreadRegistrations}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -120,6 +128,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'partners'   && <PartnersTab />}
         {tab === 'leads'      && <LeadsTab />}
         {tab === 'forms'      && <FormsTab />}
+        {tab === 'registrations' && <RegistrationsTab />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
 
@@ -135,6 +144,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'partners'   && <PartnersTab />}
+        {tab === 'registrations' && <RegistrationsTab />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
     </div>
@@ -986,7 +996,7 @@ function WorkshopsTabDesktop() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   const [drawer, setDrawer] = useState<Workshop | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false })
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -1006,7 +1016,7 @@ function WorkshopsTabDesktop() {
 
   function openEdit(w: Workshop) {
     setEditing(w)
-    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '' })
+    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false })
     setDrawer(w)
   }
 
@@ -1023,6 +1033,7 @@ function WorkshopsTabDesktop() {
       whatsapp_number: form.whatsapp_number || null,
       next_workshop_id: form.next_workshop_id || null,
       workshop_type: form.workshop_type || null,
+      public_registration: form.public_registration,
     }).eq('id', editing.id)
     setSaving(false); setDrawer(null); setEditing(null); load()
   }
@@ -1115,6 +1126,15 @@ function WorkshopsTabDesktop() {
               ))}
             </select>
           </div>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.public_registration}
+              onChange={e => setForm(f => ({ ...f, public_registration: e.target.checked }))}
+              className="w-4 h-4 accent-purple-600"
+            />
+            <span className="text-xs text-gray-700">הצגה בעמוד ההרשמה הציבורי <span className="text-gray-400">(?register)</span></span>
+          </label>
           <div className="flex gap-2 pt-2">
             <button onClick={saveEdit} disabled={saving} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}>
               {saving ? '...' : 'שמור'}
@@ -2413,7 +2433,7 @@ function WorkshopsTab() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false })
   const [uploadingImage, setUploadingImage] = useState(false)
 
   async function uploadImage(file: File): Promise<string | null> {
@@ -2455,6 +2475,7 @@ function WorkshopsTab() {
       whatsapp_number: form.whatsapp_number || null,
       next_workshop_id: form.next_workshop_id || null,
       workshop_type: form.workshop_type || null,
+      public_registration: form.public_registration,
     }
     if (editing) {
       await supabase.from('workshops').update(payload).eq('id', editing.id)
@@ -2462,7 +2483,7 @@ function WorkshopsTab() {
       const maxOrder = workshops.length > 0 ? Math.max(...workshops.map(w => w.display_order)) : 0
       await supabase.from('workshops').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '' })
+    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false })
     setEditing(null); setShowForm(false); load()
   }
 
@@ -2530,6 +2551,15 @@ function WorkshopsTab() {
               ))}
             </select>
           </div>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.public_registration}
+              onChange={e => setForm(f => ({ ...f, public_registration: e.target.checked }))}
+              className="w-4 h-4 accent-mustard-500"
+            />
+            <span className="text-xs text-sand-700">הצגה בעמוד ההרשמה הציבורי <span className="text-sand-400">(?register)</span></span>
+          </label>
           <div className="flex gap-2">
             <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold">שמירה</button>
             <button onClick={() => { setShowForm(false); setEditing(null) }} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
@@ -2548,7 +2578,7 @@ function WorkshopsTab() {
               <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
                 {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
               </button>
-              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
               <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
@@ -3419,17 +3449,19 @@ function OwnerSettingsSection() {
   const [name, setName] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [subtitle, setSubtitle] = useState('')
+  const [hero, setHero] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     supabase.from('global_settings')
       .select('setting_key, setting_value')
-      .in('setting_key', ['owner_name', 'owner_whatsapp', 'app_subtitle'])
+      .in('setting_key', ['owner_name', 'owner_whatsapp', 'app_subtitle', 'landing_hero_text'])
       .then(({ data }) => {
         setName(data?.find(r => r.setting_key === 'owner_name')?.setting_value ?? 'ברנדה')
         setWhatsapp(data?.find(r => r.setting_key === 'owner_whatsapp')?.setting_value ?? '972527506227')
         setSubtitle(data?.find(r => r.setting_key === 'app_subtitle')?.setting_value ?? 'מרכז התפתחות לתינוקות')
+        setHero(data?.find(r => r.setting_key === 'landing_hero_text')?.setting_value ?? 'ברוכה הבאה לסדנאות מימו')
       })
   }, [])
 
@@ -3439,6 +3471,7 @@ function OwnerSettingsSection() {
       { setting_key: 'owner_name', setting_value: name, setting_type: 'text', category: 'owner', description: 'שם בעלת העסק' },
       { setting_key: 'owner_whatsapp', setting_value: whatsapp, setting_type: 'text', category: 'owner', description: 'מספר WhatsApp של בעלת העסק' },
       { setting_key: 'app_subtitle', setting_value: subtitle, setting_type: 'text', category: 'owner', description: 'כיתוב מתחת ללוגו במסך הכניסה' },
+      { setting_key: 'landing_hero_text', setting_value: hero, setting_type: 'text', category: 'landing', description: 'כיתוב ראשי בעמוד ההרשמה הציבורי' },
     ], { onConflict: 'setting_key' })
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -3462,6 +3495,10 @@ function OwnerSettingsSection() {
         <div>
           <label className="text-xs font-semibold text-sand-500 mb-1 block">כיתוב מתחת ללוגו (מסך כניסה)</label>
           <input value={subtitle} onChange={e => setSubtitle(e.target.value)} placeholder="מרכז התפתחות לתינוקות" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-sand-500 mb-1 block">כיתוב ראשי בעמוד ההרשמה הציבורי <span className="text-sand-400">(?register)</span></label>
+          <input value={hero} onChange={e => setHero(e.target.value)} placeholder="ברוכה הבאה לסדנאות מימו" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
         </div>
         <button onClick={save} disabled={saving} className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
           {saved ? '✓ נשמר!' : saving ? '...' : 'שמור'}
@@ -4178,6 +4215,214 @@ function LeadsTab() {
             <p className="text-xs text-sand-300">
               {new Date(l.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
             </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Registrations Tab (public ?register page leads) ──────────────────────────
+type RegistrationLead = {
+  id: string
+  name: string
+  phone: string
+  email: string
+  selected_workshop_id: string | null
+  status: 'pending' | 'paid' | 'handled'
+  source: string | null
+  created_at: string
+  workshops?: { title: string } | null
+}
+
+const REG_STATUS_LABELS: Record<RegistrationLead['status'], { label: string; color: string; bg: string }> = {
+  pending: { label: 'ממתינה',  color: '#b45309', bg: '#fef3c7' },
+  paid:    { label: 'שילמה',   color: '#15803d', bg: '#dcfce7' },
+  handled: { label: 'טופלה',   color: '#475569', bg: '#f1f5f9' },
+}
+
+function RegistrationsTab() {
+  const [leads, setLeads] = useState<RegistrationLead[]>([])
+  const [workshops, setWorkshops] = useState<Workshop[]>([])
+  const [statusFilter, setStatusFilter] = useState<'all' | RegistrationLead['status']>('all')
+  const [workshopFilter, setWorkshopFilter] = useState<string>('all')
+  const [search, setSearch] = useState('')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+
+  const load = useCallback(async () => {
+    const [{ data: l }, { data: w }] = await Promise.all([
+      supabase.from('registration_leads').select('*, workshops:selected_workshop_id(title)').order('created_at', { ascending: false }),
+      supabase.from('workshops').select('id,title').order('display_order'),
+    ])
+    setLeads((l ?? []) as RegistrationLead[])
+    setWorkshops((w ?? []) as Workshop[])
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  async function updateStatus(id: string, status: RegistrationLead['status']) {
+    await supabase.from('registration_leads').update({ status }).eq('id', id)
+    setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l))
+  }
+
+  async function del(id: string) {
+    if (!confirm('למחוק את הליד?')) return
+    await supabase.from('registration_leads').delete().eq('id', id)
+    setLeads(prev => prev.filter(l => l.id !== id))
+  }
+
+  const filtered = useMemo(() => {
+    return leads.filter(l => {
+      if (statusFilter !== 'all' && l.status !== statusFilter) return false
+      if (workshopFilter !== 'all' && l.selected_workshop_id !== workshopFilter) return false
+      if (fromDate && new Date(l.created_at) < new Date(fromDate)) return false
+      if (toDate) {
+        const end = new Date(toDate); end.setHours(23, 59, 59, 999)
+        if (new Date(l.created_at) > end) return false
+      }
+      if (search.trim()) {
+        const q = search.trim().toLowerCase()
+        if (!l.name.toLowerCase().includes(q) && !l.phone.includes(q) && !l.email.toLowerCase().includes(q)) return false
+      }
+      return true
+    })
+  }, [leads, statusFilter, workshopFilter, search, fromDate, toDate])
+
+  const counts = useMemo(() => ({
+    all: leads.length,
+    pending: leads.filter(l => l.status === 'pending').length,
+    paid: leads.filter(l => l.status === 'paid').length,
+    handled: leads.filter(l => l.status === 'handled').length,
+  }), [leads])
+
+  function waLink(phone: string, name: string) {
+    const clean = phone.startsWith('0') ? '972' + phone.slice(1) : phone
+    const msg = encodeURIComponent(`היי ${name}! קיבלתי את ההרשמה שלך לסדנאות מימו 🌸`)
+    return `https://wa.me/${clean}?text=${msg}`
+  }
+
+  return (
+    <div className="space-y-3" dir="rtl">
+      <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3 lg:p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="font-bold text-sand-800 text-sm lg:text-base">הרשמות מעמוד ?register ({counts.all})</h2>
+          <a
+            href="?register"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-purple-600 hover:underline"
+          >
+            פתחי עמוד ההרשמה ↗
+          </a>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {(['all', 'pending', 'paid', 'handled'] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${statusFilter === s ? 'bg-mustard-500 text-white' : 'bg-sand-50 text-sand-600 hover:bg-sand-100'}`}
+            >
+              {s === 'all' ? 'הכל' : REG_STATUS_LABELS[s].label} ({counts[s]})
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="חיפוש לפי שם / טלפון / אימייל"
+            className="px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+          />
+          <select
+            value={workshopFilter}
+            onChange={e => setWorkshopFilter(e.target.value)}
+            className="px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white"
+          >
+            <option value="all">כל הסדנאות</option>
+            {workshops.map(w => (
+              <option key={w.id} value={w.id}>{w.title}</option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={e => setFromDate(e.target.value)}
+            dir="ltr"
+            className="px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+          />
+          <input
+            type="date"
+            value={toDate}
+            onChange={e => setToDate(e.target.value)}
+            dir="ltr"
+            className="px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+          />
+        </div>
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="bg-white rounded-2xl shadow-sm py-12 text-center">
+          <p className="text-sand-400 text-sm">{leads.length === 0 ? 'אין הרשמות עדיין' : 'אין תוצאות לפילטר הנוכחי'}</p>
+        </div>
+      )}
+
+      {filtered.map(l => (
+        <div key={l.id} className="bg-white rounded-2xl shadow-sm p-4 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-bold text-sand-800 text-sm">{l.name}</p>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold" style={{ color: REG_STATUS_LABELS[l.status].color, background: REG_STATUS_LABELS[l.status].bg }}>
+                  {REG_STATUS_LABELS[l.status].label}
+                </span>
+                {l.source && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-600">{l.source}</span>}
+              </div>
+              <p className="text-xs text-sand-400 mt-0.5">
+                {l.workshops?.title ?? '—'} · {new Date(l.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+            <button
+              onClick={() => del(l.id)}
+              className="p-1.5 text-sand-300 hover:text-red-500"
+              title="מחיקה"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-2 text-xs">
+            <a
+              href={waLink(l.phone, l.name)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              {l.phone}
+            </a>
+            <a
+              href={`mailto:${l.email}`}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
+              dir="ltr"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              {l.email}
+            </a>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <label className="text-xs text-sand-500">סטטוס:</label>
+            <select
+              value={l.status}
+              onChange={e => updateStatus(l.id, e.target.value as RegistrationLead['status'])}
+              className="px-2 py-1 rounded-lg border border-sand-200 bg-white text-xs focus:outline-none focus:border-mustard-400"
+            >
+              <option value="pending">ממתינה לתשלום</option>
+              <option value="paid">שילמה</option>
+              <option value="handled">טופלה</option>
+            </select>
           </div>
         </div>
       ))}

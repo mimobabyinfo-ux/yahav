@@ -19,6 +19,7 @@ import PublicFormPage from './pages/PublicFormPage'
 import PublicBabyPage from './pages/PublicBabyPage'
 import GuestJoinPage from './pages/GuestJoinPage'
 import PublicPartnerPage from './pages/PublicPartnerPage'
+import PublicRegisterPage from './pages/PublicRegisterPage'
 import BottomNav from './components/BottomNav'
 import AdminSidebar from './components/AdminSidebar'
 import MimoLogo from './components/MimoLogo'
@@ -26,15 +27,17 @@ import FormTriggerModal from './components/FormTriggerModal'
 import InstallPrompt from './components/InstallPrompt'
 
 export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'contact' | 'services' | 'community' | 'marketplace'
-export type AdminSection = 'insights' | 'users' | 'workshops' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'settings'
+export type AdminSection = 'insights' | 'users' | 'workshops' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'registrations' | 'settings'
 
 // Detect public URLs
 const publicFormId = new URLSearchParams(window.location.search).get('form')
 const publicBabyToken = new URLSearchParams(window.location.search).get('baby')
 const joinToken = new URLSearchParams(window.location.search).get('join')
 const isPartnerPage = new URLSearchParams(window.location.search).has('partner')
+const isRegisterPage = new URLSearchParams(window.location.search).has('register')
 
 const FORMS_LS_KEY = 'forms_last_seen'
+const REGS_LS_KEY = 'registrations_last_seen'
 
 function AppInner() {
   const { user, profile, loading, isGuest } = useAuth()
@@ -42,6 +45,7 @@ function AppInner() {
   const [adminSection, setAdminSection] = useState<AdminSection>('insights')
   const [viewAsUser, setViewAsUser] = useState(false)
   const [unreadForms, setUnreadForms] = useState(0)
+  const [unreadRegistrations, setUnreadRegistrations] = useState(0)
   const { track } = useTracker()
 
   useEffect(() => {
@@ -81,6 +85,23 @@ function AppInner() {
     setUnreadForms(0)
   }, [])
 
+  // Fetch unread registration leads count (badge) — counts pending leads since last view
+  useEffect(() => {
+    if (!profile?.is_admin || viewAsUser) return
+    const lastSeen = localStorage.getItem(REGS_LS_KEY) ?? '1970-01-01T00:00:00Z'
+    supabase
+      .from('registration_leads')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .gt('created_at', lastSeen)
+      .then(({ count }) => setUnreadRegistrations(count ?? 0))
+  }, [profile?.is_admin, viewAsUser])
+
+  const clearRegistrationsBadge = useCallback(() => {
+    localStorage.setItem(REGS_LS_KEY, new Date().toISOString())
+    setUnreadRegistrations(0)
+  }, [])
+
   function navigate(page: Page) {
     setCurrentPage(page)
   }
@@ -89,12 +110,14 @@ function AppInner() {
     setAdminSection(section)
     setCurrentPage('admin')
     if (section === 'forms') clearFormsBadge()
+    if (section === 'registrations') clearRegistrationsBadge()
   }
 
   if (publicFormId) return <PublicFormPage formId={publicFormId} />
   if (publicBabyToken) return <PublicBabyPage token={publicBabyToken} />
   if (joinToken && !user) return <GuestJoinPage token={joinToken} />
   if (isPartnerPage) return <PublicPartnerPage />
+  if (isRegisterPage) return <PublicRegisterPage />
 
   if (loading) {
     return (
@@ -135,7 +158,7 @@ function AppInner() {
       case 'benefits':   return <BenefitsPage />
       case 'workshops':  return <WorkshopsPage />
       case 'pro':        return <ProAreaPage />
-      case 'admin':      return <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} />
+      case 'admin':      return <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} />
       case 'contact':    return <ContactPage />
       case 'services':   return <MyServicesPage />
       case 'marketplace': return <ServicesMarketplacePage />
@@ -163,6 +186,7 @@ function AppInner() {
             viewAsUser={viewAsUser}
             onToggleUserView={toggleUserView}
             unreadForms={unreadForms}
+            unreadRegistrations={unreadRegistrations}
           />
         </div>
 
