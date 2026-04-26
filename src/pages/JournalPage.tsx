@@ -385,14 +385,14 @@ export default function JournalPage() {
 
             {selectedDate === formatDate(new Date()) && (
               <div className="bg-[#DCD4C8] rounded-3xl p-4 shadow-sm">
-                <h2 className="text-sm font-semibold text-sand-600 mb-3">טיימרים</h2>
+                <h2 className="text-sm font-semibold text-musgo-600 mb-3">טיימרים</h2>
                 <ActivityTimers onEntrySaved={fetchEntries} />
               </div>
             )}
 
             <div className="bg-[#DCD4C8] rounded-3xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-sand-600">הוספה מהירה</h2>
+                <h2 className="text-sm font-semibold text-musgo-600">הוספה מהירה</h2>
                 <button
                   onClick={() => setModalType('feeding')}
                   className="flex items-center gap-1 text-xs text-mustard-600 font-medium bg-mustard-50 px-3 py-1.5 rounded-xl"
@@ -437,7 +437,7 @@ export default function JournalPage() {
 
             {/* Legend */}
             <div className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm">
-              <p className="text-xs font-semibold text-sand-500 mb-2">מקרא</p>
+              <p className="text-xs font-semibold text-musgo-600 mb-2">מקרא</p>
               <div className="flex flex-wrap gap-3">
                 {Object.entries(ENTRY_COLORS).map(([type, col]) => (
                   <div key={type} className="flex items-center gap-1.5">
@@ -473,7 +473,7 @@ export default function JournalPage() {
 
             {/* Legend */}
             <div className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm">
-              <p className="text-xs font-semibold text-sand-500 mb-2">מקרא</p>
+              <p className="text-xs font-semibold text-musgo-600 mb-2">מקרא</p>
               <div className="flex flex-wrap gap-3">
                 {Object.entries(ENTRY_COLORS).map(([type, col]) => (
                   <div key={type} className="flex items-center gap-1.5">

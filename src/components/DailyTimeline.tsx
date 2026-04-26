@@ -60,7 +60,7 @@ export default function DailyTimeline({ entries, onRefresh }: Props) {
 
   return (
     <div className="space-y-1.5">
-      <h3 className="text-sm font-semibold text-sand-600 px-1">ציר זמן</h3>
+      <h3 className="text-sm font-semibold text-musgo-600 px-1">ציר זמן</h3>
       {entries.map((entry, idx) => {
         const colors = ENTRY_COLORS[entry.entry_type] ?? ENTRY_COLORS.note
         return (
