@@ -19,7 +19,7 @@ export default function QuickActionButtons({ onSelect }: Props) {
         <button
           key={action.type}
           onClick={() => onSelect(action.type)}
-          className="flex flex-col items-center gap-1 bg-[#F5F5F5] rounded-2xl p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all min-w-[60px]"
+          className="flex flex-col items-center gap-1 bg-[#DCD4C8] rounded-2xl p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all min-w-[60px]"
         >
           <span className="text-xl">{action.emoji}</span>
           <span className="text-xs font-medium text-sand-600 whitespace-nowrap">{action.label}</span>

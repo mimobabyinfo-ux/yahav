@@ -27,7 +27,7 @@ export default function DailySummary({ entries }: Props) {
 
   if (entries.length === 0) {
     return (
-      <div className="bg-[#F5F5F5] rounded-3xl shadow-sm p-5 text-center">
+      <div className="bg-[#DCD4C8] rounded-3xl shadow-sm p-5 text-center">
         <p className="text-sand-400 text-sm">עדיין אין פעילויות היום</p>
         <p className="text-sand-300 text-xs mt-1">הוסיפי רשומה ראשונה 👇</p>
       </div>
@@ -59,7 +59,7 @@ export default function DailySummary({ entries }: Props) {
   ]
 
   return (
-    <div className="bg-[#F5F5F5] rounded-3xl shadow-sm p-4 space-y-4">
+    <div className="bg-[#DCD4C8] rounded-3xl shadow-sm p-4 space-y-4">
       {/* 24-hour color bar */}
       <div>
         <div className="flex items-center justify-between mb-1.5">

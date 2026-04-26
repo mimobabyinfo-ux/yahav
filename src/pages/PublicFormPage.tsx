@@ -86,7 +86,7 @@ export default function PublicFormPage({ formId }: { formId: string }) {
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: bg }} dir="rtl">
-        <div className="bg-[#F5F5F5] rounded-3xl p-8 text-center space-y-4 shadow-xl max-w-sm w-full">
+        <div className="bg-[#DCD4C8] rounded-3xl p-8 text-center space-y-4 shadow-xl max-w-sm w-full">
           <div className="text-5xl">🎉</div>
           <h2 className="text-xl font-bold text-sand-800">תודה!</h2>
           <p className="text-sand-500 text-sm">התשובות שלך נשמרו בהצלחה.</p>
@@ -113,7 +113,7 @@ export default function PublicFormPage({ formId }: { formId: string }) {
         </div>
 
         {/* Form */}
-        <div className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm space-y-5">
+        <div className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm space-y-5">
           {form.fields_json.map(field => {
             /* ── Info block (display-only text) ── */
             if (field.type === 'info') {

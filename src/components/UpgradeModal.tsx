@@ -10,7 +10,7 @@ export default function UpgradeModal({ featureName, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="bg-[#F5F5F5] rounded-3xl w-full max-w-sm p-6 space-y-5 mb-2"
+        className="bg-[#DCD4C8] rounded-3xl w-full max-w-sm p-6 space-y-5 mb-2"
         onClick={e => e.stopPropagation()}
       >
         {/* Icon */}

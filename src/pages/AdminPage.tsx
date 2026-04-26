@@ -237,7 +237,7 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-[#F5F5F5] rounded-3xl w-full max-w-sm shadow-xl space-y-4 p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#DCD4C8] rounded-3xl w-full max-w-sm shadow-xl space-y-4 p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="text-center">
           <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-2">
             <span className="text-2xl">🎓</span>
@@ -400,7 +400,7 @@ function UsersTab() {
       <p className="text-xs text-sand-400">{filtered.length} משתמשות</p>
 
       {filtered.map(u => (
-        <div key={u.id} className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm space-y-3">
+        <div key={u.id} className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -471,7 +471,7 @@ function UsersTab() {
       {/* Edit Modal */}
       {editUser && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditUser(null)}>
-          <div className="bg-[#F5F5F5] rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#DCD4C8] rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-sand-800 text-lg">ערוך פרטים</h3>
             <div>
               <label className="text-xs text-sand-500 mb-1 block">שם</label>
@@ -534,7 +534,7 @@ function UsersTab() {
       {/* Delete Confirm Modal */}
       {deleteUser && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setDeleteUser(null)}>
-          <div className="bg-[#F5F5F5] rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#DCD4C8] rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
             <div className="text-center">
               <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Trash2 className="w-6 h-6 text-red-500" />
@@ -634,7 +634,7 @@ function UsersTabDesktop() {
         </div>
 
         {/* Table */}
-        <div className="bg-[#F5F5F5] rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+        <div className="bg-[#DCD4C8] rounded-2xl shadow-sm overflow-hidden border border-gray-100">
           <table className="w-full text-right" dir="rtl">
             <thead>
               <tr style={{ background: '#f8f8fb' }}>
@@ -703,7 +703,7 @@ function UsersTabDesktop() {
 
       {/* ── Side Drawer ── */}
       {drawer && (
-        <aside className="w-80 shrink-0 bg-[#F5F5F5] rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4 self-start sticky top-24" dir="rtl">
+        <aside className="w-80 shrink-0 bg-[#DCD4C8] rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4 self-start sticky top-24" dir="rtl">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-gray-800">עריכת משתמשת</h3>
             <button onClick={() => setDrawer(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
@@ -760,7 +760,7 @@ function UsersTabDesktop() {
       {assignAccessUser && <AssignAccessModal user={assignAccessUser} onClose={() => setAssignAccessUser(null)} />}
       {deleteUser && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setDeleteUser(null)}>
-          <div className="bg-[#F5F5F5] rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#DCD4C8] rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
             <div className="text-center">
               <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><Trash2 className="w-6 h-6 text-red-500" /></div>
               <h3 className="font-bold text-sand-800">מחיקת משתמשת</h3>
@@ -851,7 +851,7 @@ function LeadsTabDesktop() {
         {loadingLeads ? (
           <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" /></div>
         ) : (
-          <div className="bg-[#F5F5F5] rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-[#DCD4C8] rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
@@ -926,7 +926,7 @@ function LeadsTabDesktop() {
         </div>
 
         <div className="flex gap-6">
-          <div className="flex-1 min-w-0 bg-[#F5F5F5] rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="flex-1 min-w-0 bg-[#DCD4C8] rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
@@ -972,7 +972,7 @@ function LeadsTabDesktop() {
           </div>
 
           {drawer && (
-            <aside className="w-72 shrink-0 bg-[#F5F5F5] rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3 self-start sticky top-24" dir="rtl">
+            <aside className="w-72 shrink-0 bg-[#DCD4C8] rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3 self-start sticky top-24" dir="rtl">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-gray-800">פרטי משתמשת</h3>
                 <button onClick={() => setDrawer(null)} className="text-gray-400"><X className="w-4 h-4" /></button>
@@ -1084,7 +1084,7 @@ function WorkshopsTabDesktop() {
   return (
     <div className="flex gap-6" dir="rtl">
       <div className="flex-1 min-w-0 space-y-4">
-        <div className="bg-[#F5F5F5] rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-[#DCD4C8] rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-bold text-gray-800">סדנאות ({workshops.length})</h2>
             <button
@@ -1143,7 +1143,7 @@ function WorkshopsTabDesktop() {
 
       {/* Create / Edit drawer */}
       {drawer && (
-        <aside className="w-80 shrink-0 bg-[#F5F5F5] rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3 self-start sticky top-24" dir="rtl">
+        <aside className="w-80 shrink-0 bg-[#DCD4C8] rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3 self-start sticky top-24" dir="rtl">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-gray-800">{drawer === 'create' ? 'סדנה חדשה' : 'עריכת סדנה'}</h3>
             <button onClick={closeDrawer} className="text-gray-400"><X className="w-4 h-4" /></button>
@@ -1495,7 +1495,7 @@ function FormsTabDesktop() {
 
         {/* Create / Edit form panel */}
         {(showCreate || editingForm) && (
-          <div className="bg-[#F5F5F5] rounded-2xl shadow-sm border border-gray-100">
+          <div className="bg-[#DCD4C8] rounded-2xl shadow-sm border border-gray-100">
             {/* Sticky save header */}
             <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-5 py-3 flex items-center justify-between rounded-t-2xl shadow-sm">
               <p className="text-xs font-bold text-gray-500 truncate max-w-[200px]">
@@ -1598,7 +1598,7 @@ function FormsTabDesktop() {
         )}
 
         {/* Forms table */}
-        <div className="bg-[#F5F5F5] rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-[#DCD4C8] rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
@@ -1641,7 +1641,7 @@ function FormsTabDesktop() {
 
       {/* Right: submissions panel */}
       {selected && (
-        <aside className="w-96 shrink-0 bg-[#F5F5F5] rounded-2xl shadow-sm border border-gray-100 self-start sticky top-24" dir="rtl">
+        <aside className="w-96 shrink-0 bg-[#DCD4C8] rounded-2xl shadow-sm border border-gray-100 self-start sticky top-24" dir="rtl">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-gray-800">{selected.title}</h3>
@@ -1792,7 +1792,7 @@ function InsightsTab() {
 
       {/* Retention chart */}
       {retentionChart.length > 0 && (
-        <div className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm">
+        <div className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm">
           <h3 className="font-bold text-sand-800 text-sm mb-3">Retention (%) לפי שבוע</h3>
           <ResponsiveContainer width="100%" height={160}>
             <LineChart data={retentionChart}>
@@ -1811,7 +1811,7 @@ function InsightsTab() {
 
       {/* Video performance chart */}
       {videoPerf.length > 0 && (
-        <div className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm">
+        <div className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm">
           <h3 className="font-bold text-sand-800 text-sm mb-3">ביצועי סרטונים</h3>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={videoPerf} layout="vertical">
@@ -1826,7 +1826,7 @@ function InsightsTab() {
       )}
 
       {/* User 360 */}
-      <div className="bg-[#F5F5F5] rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-[#DCD4C8] rounded-2xl shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-sand-100">
           <h3 className="font-bold text-sand-800 text-sm">User 360°</h3>
         </div>
@@ -1846,7 +1846,7 @@ function InsightsTab() {
 
       {/* 360 Detail Panel */}
       {user360 && (
-        <div className="bg-[#F5F5F5] rounded-2xl shadow-sm p-4 space-y-4">
+        <div className="bg-[#DCD4C8] rounded-2xl shadow-sm p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-sand-800">{user360.mother_name ?? user360.email}</h3>
@@ -2006,7 +2006,7 @@ function TipsTab() {
       </button>
 
       {(showForm || editing) && (
-        <div className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm space-y-3">
+        <div className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm space-y-3">
           <textarea
             value={text}
             onChange={e => setText(e.target.value)}
@@ -2022,7 +2022,7 @@ function TipsTab() {
       )}
 
       {tips.map(tip => (
-        <div key={tip.id} className={`bg-[#F5F5F5] rounded-2xl p-4 shadow-sm ${!tip.is_active ? 'opacity-50' : ''}`}>
+        <div key={tip.id} className={`bg-[#DCD4C8] rounded-2xl p-4 shadow-sm ${!tip.is_active ? 'opacity-50' : ''}`}>
           <p className="text-sm text-sand-700 leading-relaxed mb-2">{tip.tip_text}</p>
           <div className="flex items-center justify-between">
             <button onClick={() => toggle(tip)} className="text-sand-400 hover:text-mustard-500">
@@ -2158,7 +2158,7 @@ function VideosTab() {
       </button>
 
       {(showForm || editing) && (
-        <div className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm space-y-3">
+        <div className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm space-y-3">
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="כותרת" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור" rows={2} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none" />
           {/* Video upload */}
@@ -2227,7 +2227,7 @@ function VideosTab() {
       )}
 
       {videos.map((v, idx) => (
-        <div key={v.id} className={`bg-[#F5F5F5] rounded-2xl p-4 shadow-sm ${!v.is_active ? 'opacity-50' : ''}`}>
+        <div key={v.id} className={`bg-[#DCD4C8] rounded-2xl p-4 shadow-sm ${!v.is_active ? 'opacity-50' : ''}`}>
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sand-800 text-sm truncate">{v.title}</p>
@@ -2327,7 +2327,7 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-[#F5F5F5] rounded-3xl w-full max-w-sm shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#DCD4C8] rounded-3xl w-full max-w-sm shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div className="p-5 border-b border-sand-100 sticky top-0 bg-white rounded-t-3xl z-10 flex items-center justify-between">
@@ -2586,7 +2586,7 @@ function WorkshopsTab() {
       </button>
 
       {(showForm || editing) && (
-        <div className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm space-y-3">
+        <div className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm space-y-3">
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="שם הסדנה" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור" rows={2} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none" />
           <textarea value={form.summary} onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} placeholder="סיכום / נקודות מפתח (מוצג בכרטיס הסדנה)" rows={3} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none" />
@@ -2648,7 +2648,7 @@ function WorkshopsTab() {
       )}
 
       {workshops.map(w => (
-        <div key={w.id} className={`bg-[#F5F5F5] rounded-2xl p-4 shadow-sm space-y-2 ${!w.is_active ? 'opacity-50' : ''}`}>
+        <div key={w.id} className={`bg-[#DCD4C8] rounded-2xl p-4 shadow-sm space-y-2 ${!w.is_active ? 'opacity-50' : ''}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sand-800 text-sm truncate">{w.title}</p>
@@ -2758,7 +2758,7 @@ function PerksTab() {
       </div>
 
       {(showForm || editing) && (
-        <div className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm space-y-3">
+        <div className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm space-y-3">
           <input value={form.partner_name} onChange={e => setForm(f => ({ ...f, partner_name: e.target.value }))} placeholder="שם השותף" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
           <input value={form.short_description} onChange={e => setForm(f => ({ ...f, short_description: e.target.value }))} placeholder="תיאור קצר" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
           <textarea value={form.full_description} onChange={e => setForm(f => ({ ...f, full_description: e.target.value }))} placeholder="תיאור מלא" rows={2} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none" />
@@ -2781,7 +2781,7 @@ function PerksTab() {
       {perks.map((p, idx) => {
         const stats = perkStats(p.id)
         return (
-          <div key={p.id} className={`bg-[#F5F5F5] rounded-2xl p-4 shadow-sm ${!p.is_active ? 'opacity-50' : ''}`}>
+          <div key={p.id} className={`bg-[#DCD4C8] rounded-2xl p-4 shadow-sm ${!p.is_active ? 'opacity-50' : ''}`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -2886,7 +2886,7 @@ function AssignFormModal({ form, onClose }: { form: FormRecord; onClose: () => v
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end p-4" onClick={onClose}>
-      <div className="bg-[#F5F5F5] rounded-3xl w-full max-w-sm mx-auto shadow-2xl overflow-hidden max-h-[88vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#DCD4C8] rounded-3xl w-full max-w-sm mx-auto shadow-2xl overflow-hidden max-h-[88vh] flex flex-col" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div className="px-5 py-4 border-b border-sand-100 flex-shrink-0">
@@ -3264,7 +3264,7 @@ function FormsTab() {
         {subsView === 'list' && (
           <>
             {submissions.map(s => (
-              <div key={s.id} className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm space-y-2">
+              <div key={s.id} className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-sand-700">
                     {(s.user_profiles as { mother_name: string | null; email: string } | undefined)?.mother_name
@@ -3320,7 +3320,7 @@ function FormsTab() {
       </button>
 
       {(showCreate || editingForm) && (
-        <div className="bg-[#F5F5F5] rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-[#DCD4C8] rounded-2xl shadow-sm overflow-hidden">
           {/* Sticky save header */}
           <div className="sticky top-0 z-10 bg-white border-b border-sand-100 px-4 py-3 flex items-center justify-between shadow-sm">
             <p className="text-xs font-bold text-mustard-600 truncate max-w-[160px]">
@@ -3500,7 +3500,7 @@ function FormsTab() {
             </button>
 
             {openFolders.has(folderName) && folderForms.map(form => (
-              <div key={form.id} className={`bg-[#F5F5F5] rounded-2xl p-4 shadow-sm mr-2 ${!form.is_active ? 'opacity-50' : ''}`}>
+              <div key={form.id} className={`bg-[#DCD4C8] rounded-2xl p-4 shadow-sm mr-2 ${!form.is_active ? 'opacity-50' : ''}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <p className="font-bold text-sand-800 text-sm">{form.title}</p>
@@ -3565,7 +3565,7 @@ function OwnerSettingsSection() {
   }
 
   return (
-    <div className="bg-[#F5F5F5] rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-[#DCD4C8] rounded-2xl shadow-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-sand-100">
         <h3 className="font-bold text-sand-800 text-sm">פרטי בעלת העסק</h3>
         <p className="text-xs text-sand-400 mt-0.5">מופיע בכפתורי WhatsApp ובהודעות אוטומטיות</p>
@@ -3630,7 +3630,7 @@ function ThankYouSettingsSection() {
   }
 
   return (
-    <div className="bg-[#F5F5F5] rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-[#DCD4C8] rounded-2xl shadow-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-sand-100">
         <h3 className="font-bold text-sand-800 text-sm">עמוד תודה אחרי תשלום <span className="text-sand-400 font-normal">(?thanks)</span></h3>
         <p className="text-xs text-sand-400 mt-0.5">מוצג לאמא אחרי שמורנינג מפנה אותה חזרה לאפליקציה</p>
@@ -3722,7 +3722,7 @@ function SettingsTab() {
       </button>
 
       {(showForm || editing) && (
-        <div className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm space-y-3">
+        <div className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm space-y-3">
           {!editing && <input value={form.setting_key} onChange={e => setForm(f => ({ ...f, setting_key: e.target.value }))} placeholder="מפתח (key)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />}
           <input value={form.setting_value} onChange={e => setForm(f => ({ ...f, setting_value: e.target.value }))} placeholder="ערך" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
           <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור (אופציונלי)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
@@ -3749,7 +3749,7 @@ function SettingsTab() {
         <div key={cat}>
           <p className="text-xs font-semibold text-sand-400 mb-2 px-1">{cat}</p>
           {items.map(s => (
-            <div key={s.id} className="bg-[#F5F5F5] rounded-2xl p-3 shadow-sm mb-2">
+            <div key={s.id} className="bg-[#DCD4C8] rounded-2xl p-3 shadow-sm mb-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-mono text-sand-400">{s.setting_key}</p>
@@ -3854,7 +3854,7 @@ function PregnancyAdminTab() {
   return (
     <div className="space-y-4">
       {/* Category tabs */}
-      <div className="flex bg-[#F5F5F5] rounded-2xl p-1 shadow-sm gap-1 overflow-x-auto">
+      <div className="flex bg-[#DCD4C8] rounded-2xl p-1 shadow-sm gap-1 overflow-x-auto">
         {([
           { id: 'medical' as PregnancyCat, label: '🩺 רפואי' },
           { id: 'buying'  as PregnancyCat, label: '🛍️ קניות' },
@@ -3886,7 +3886,7 @@ function PregnancyAdminTab() {
 
       {/* Add / Edit form */}
       {(showAdd || editItem) && (
-        <div className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm space-y-3">
+        <div className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm space-y-3">
           <h3 className="font-bold text-sand-800 text-sm">{editItem ? 'ערוך פריט' : 'פריט חדש'}</h3>
           <div>
             <label className="text-xs text-sand-500 mb-1 block">טקסט</label>
@@ -3955,7 +3955,7 @@ function PregnancyAdminTab() {
       {/* Items list */}
       <div className="space-y-2">
         {displayed.map(item => (
-          <div key={item.id} className={`bg-[#F5F5F5] rounded-2xl p-4 shadow-sm flex items-start gap-3 ${!item.is_active ? 'opacity-50' : ''}`}>
+          <div key={item.id} className={`bg-[#DCD4C8] rounded-2xl p-4 shadow-sm flex items-start gap-3 ${!item.is_active ? 'opacity-50' : ''}`}>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-sand-800">{item.text}</p>
               {item.category === 'medical' && (item.week_from || item.week_to) && (
@@ -4052,7 +4052,7 @@ function WeeklyGuideAdminSection() {
   }
 
   const form = (showAdd || editGuide) && (
-    <div className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm space-y-3">
+    <div className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm space-y-3">
       <h3 className="font-bold text-sand-800 text-sm">{editGuide ? `ערוך שבוע ${editGuide.week}` : 'שבוע חדש'}</h3>
       <div className="flex gap-2">
         <div className="flex-1">
@@ -4117,7 +4117,7 @@ function WeeklyGuideAdminSection() {
 
       <div className="space-y-2">
         {guides.map(g => (
-          <div key={g.id} className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm flex items-center gap-3">
+          <div key={g.id} className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm flex items-center gap-3">
             <span className="text-2xl flex-shrink-0">{g.baby_size_emoji}</span>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-sand-800 text-sm">שבוע {g.week}</p>
@@ -4213,7 +4213,7 @@ function PartnersTab() {
       </div>
 
       {adding && (
-        <div className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm space-y-3">
+        <div className="bg-[#DCD4C8] rounded-3xl p-4 shadow-sm space-y-3">
           <p className="font-bold text-sand-800 text-sm">{editing ? 'ערוך שירות' : 'שירות חדש'}</p>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
             placeholder="שם השירות / נותן השירות"
@@ -4251,7 +4251,7 @@ function PartnersTab() {
       )}
 
       {partners.map(p => (
-        <div key={p.id} className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm flex items-center gap-3">
+        <div key={p.id} className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-bold text-sand-800 text-sm truncate">{p.title}</p>
@@ -4343,14 +4343,14 @@ function LeadsTab() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="bg-[#F5F5F5] rounded-3xl p-10 text-center shadow-sm">
+        <div className="bg-[#DCD4C8] rounded-3xl p-10 text-center shadow-sm">
           <p className="text-3xl mb-2">📭</p>
           <p className="text-sm text-sand-400">אין לידים עדיין</p>
         </div>
       )}
 
       {filtered.map(l => (
-        <div key={l.id} className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm space-y-2">
+        <div key={l.id} className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="font-bold text-sand-800 text-sm">{l.user_name ?? '—'}</p>
@@ -4458,7 +4458,7 @@ function RegistrationsTab() {
 
   return (
     <div className="space-y-3" dir="rtl">
-      <div className="bg-[#F5F5F5] rounded-2xl shadow-sm p-4 space-y-3 lg:p-5">
+      <div className="bg-[#DCD4C8] rounded-2xl shadow-sm p-4 space-y-3 lg:p-5">
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-sand-800 text-sm lg:text-base">הרשמות מעמוד ?register ({counts.all})</h2>
           <a
@@ -4518,13 +4518,13 @@ function RegistrationsTab() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="bg-[#F5F5F5] rounded-2xl shadow-sm py-12 text-center">
+        <div className="bg-[#DCD4C8] rounded-2xl shadow-sm py-12 text-center">
           <p className="text-sand-400 text-sm">{leads.length === 0 ? 'אין הרשמות עדיין' : 'אין תוצאות לפילטר הנוכחי'}</p>
         </div>
       )}
 
       {filtered.map(l => (
-        <div key={l.id} className="bg-[#F5F5F5] rounded-2xl shadow-sm p-4 space-y-2">
+        <div key={l.id} className="bg-[#DCD4C8] rounded-2xl shadow-sm p-4 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">

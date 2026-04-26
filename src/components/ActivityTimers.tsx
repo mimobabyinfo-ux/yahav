@@ -155,7 +155,7 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
             <button
               key={def.type}
               onClick={() => startTimer(def.type)}
-              className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#F5F5F5] rounded-2xl shadow-sm hover:shadow-md border-2 border-transparent hover:border-mustard-200 transition-all"
+              className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#DCD4C8] rounded-2xl shadow-sm hover:shadow-md border-2 border-transparent hover:border-mustard-200 transition-all"
             >
               <span className="text-xl">{def.emoji}</span>
               <div className="text-right">
@@ -185,7 +185,7 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
         return (
           <div
             key={timer.id}
-            className="bg-[#F5F5F5] rounded-2xl p-4 shadow-md border-2 border-mustard-100"
+            className="bg-[#DCD4C8] rounded-2xl p-4 shadow-md border-2 border-mustard-100"
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">

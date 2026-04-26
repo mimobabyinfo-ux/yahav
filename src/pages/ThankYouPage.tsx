@@ -56,7 +56,7 @@ export default function ThankYouPage() {
           <p className="text-sand-500 text-sm">{subtitle}</p>
         </div>
 
-        <div className="bg-[#F5F5F5] rounded-3xl shadow-sm p-6 space-y-5 text-center">
+        <div className="bg-[#DCD4C8] rounded-3xl shadow-sm p-6 space-y-5 text-center">
           <h1 className="text-2xl font-bold text-sand-800 leading-tight">{title}</h1>
 
           <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-line">{body}</p>

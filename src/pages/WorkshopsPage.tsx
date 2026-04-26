@@ -209,7 +209,7 @@ export default function WorkshopsPage() {
               filtered.map(ws => {
                 const isFeatured = ws.display_order === 1
                 return (
-                  <div key={ws.id} className="bg-[#F5F5F5] rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => setSelected(ws)}>
+                  <div key={ws.id} className="bg-[#DCD4C8] rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => setSelected(ws)}>
                     <div className="flex gap-3 p-4">
                       <div className="flex-1 min-w-0 space-y-2">
                         {ws.workshop_type && (
@@ -270,7 +270,7 @@ export default function WorkshopsPage() {
             </div>
           ) : (
             purchases.map(p => (
-              <div key={p.id} className="bg-[#F5F5F5] rounded-3xl shadow-sm overflow-hidden">
+              <div key={p.id} className="bg-[#DCD4C8] rounded-3xl shadow-sm overflow-hidden">
                 {p.workshops.image_url && (
                   <img src={p.workshops.image_url} alt={p.workshops.title} className="w-full h-32 object-cover" />
                 )}

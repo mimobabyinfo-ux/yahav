@@ -49,7 +49,7 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose} dir="rtl">
-      <div className="bg-[#F5F5F5] rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#DCD4C8] rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100">
           <h3 className="font-bold text-sand-800">שיתוף פרופיל התינוק/ת</h3>

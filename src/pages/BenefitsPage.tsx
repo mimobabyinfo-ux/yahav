@@ -82,7 +82,7 @@ export default function BenefitsPage() {
               <button
                 key={perk.id}
                 onClick={() => trackView(perk)}
-                className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all text-right"
+                className="bg-[#DCD4C8] rounded-3xl p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all text-right"
               >
                 {perk.logo_url ? (
                   <img

@@ -72,7 +72,7 @@ function FamilyPanel() {
 
   if (family) {
     return (
-      <div className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm space-y-3">
+      <div className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm space-y-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center">
             <Users className="w-5 h-5 text-blue-500" />
@@ -151,7 +151,7 @@ function FamilyPanel() {
   }
 
   return (
-    <div className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm space-y-3">
+    <div className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm space-y-3">
       <div className="flex items-center gap-3 mb-1">
         <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center">
           <Users className="w-5 h-5 text-blue-500" />
@@ -268,7 +268,7 @@ export default function MyServicesPage() {
               <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
             </div>
           ) : purchases.length === 0 ? (
-            <div className="bg-[#F5F5F5] rounded-3xl p-6 text-center shadow-sm space-y-3">
+            <div className="bg-[#DCD4C8] rounded-3xl p-6 text-center shadow-sm space-y-3">
               <ShoppingBag className="w-10 h-10 text-sand-200 mx-auto" />
               <p className="text-sand-400 text-sm">עדיין אין רכישות</p>
               <p className="text-xs text-sand-300">רכישות שתבצעי יופיעו כאן</p>
@@ -276,7 +276,7 @@ export default function MyServicesPage() {
           ) : (
             <div className="space-y-3">
               {purchases.map(p => (
-                <div key={p.id} className="bg-[#F5F5F5] rounded-3xl shadow-sm overflow-hidden">
+                <div key={p.id} className="bg-[#DCD4C8] rounded-3xl shadow-sm overflow-hidden">
                   {p.workshops.image_url && (
                     <img src={p.workshops.image_url} alt={p.workshops.title} className="w-full h-32 object-cover" />
                   )}

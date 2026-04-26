@@ -141,7 +141,7 @@ export default function DashboardPage({ onNavigate }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => onNavigate('journal')}
-            className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
+            className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
           >
             <span className="text-3xl block mb-2">📔</span>
             <p className="font-bold text-sand-800">יומן</p>
@@ -149,7 +149,7 @@ export default function DashboardPage({ onNavigate }: Props) {
           </button>
           <button
             onClick={() => onNavigate('community')}
-            className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
+            className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
           >
             <span className="text-3xl block mb-2">🌸</span>
             <p className="font-bold text-sand-800">קהילה</p>
@@ -157,7 +157,7 @@ export default function DashboardPage({ onNavigate }: Props) {
           </button>
           <button
             onClick={() => onNavigate('workshops')}
-            className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
+            className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
           >
             <span className="text-3xl block mb-2">🛍️</span>
             <p className="font-bold text-sand-800">מוצרים</p>
@@ -167,7 +167,7 @@ export default function DashboardPage({ onNavigate }: Props) {
 
         {/* Family invite */}
         {selectedChild && (
-          <div className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm">
+          <div className="bg-[#DCD4C8] rounded-3xl p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-2xl bg-mustard-50 flex items-center justify-center flex-shrink-0">
                 <UserPlus className="w-4 h-4 text-mustard-600" />
@@ -223,7 +223,7 @@ export default function DashboardPage({ onNavigate }: Props) {
                 <button
                   key={perk.id}
                   onClick={() => setSelectedPerk(perk)}
-                  className="flex-shrink-0 bg-[#F5F5F5] rounded-2xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all w-44 text-right"
+                  className="flex-shrink-0 bg-[#DCD4C8] rounded-2xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all w-44 text-right"
                 >
                   {perk.logo_url ? (
                     <img
@@ -247,7 +247,7 @@ export default function DashboardPage({ onNavigate }: Props) {
         )}
 
         {/* Contact */}
-        <div className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm text-right">
+        <div className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm text-right">
           <div className="flex items-center gap-3">
             <span className="text-2xl">💬</span>
             <div className="flex-1">
