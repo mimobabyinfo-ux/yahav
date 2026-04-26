@@ -155,6 +155,9 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
             >
               {item.icon}
               <span className="text-[10px] font-medium whitespace-nowrap">{item.label}</span>
+              {active && (
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#A35C3D' }} />
+              )}
             </button>
           )
         })}

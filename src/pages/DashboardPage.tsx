@@ -207,6 +207,7 @@ export default function DashboardPage({ onNavigate }: Props) {
           <div>
             <div className="flex items-center justify-between mb-3">
               <div>
+                <div className="w-8 h-0.5 rounded-full mb-1.5" style={{ background: '#A35C3D' }} />
                 <h2 className="text-base font-bold text-sand-800">הטבות מומלצות</h2>
                 <p className="text-xs text-musgo-600">הנחות בלעדיות לאמהות מימו</p>
               </div>
@@ -249,7 +250,7 @@ export default function DashboardPage({ onNavigate }: Props) {
         {/* Contact */}
         <div className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm text-right">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">💬</span>
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 text-2xl" style={{ background: 'rgba(163,92,61,0.1)' }}>💬</div>
             <div className="flex-1">
               <p className="font-semibold text-sand-800 text-sm">יש שאלה?</p>
               <p className="text-xs text-musgo-600">{ownerName} כאן לכל שאלה או התייעצות</p>
