@@ -7,7 +7,6 @@ import { getBabyAge, getIsraelHour } from '../utils/dateUtils'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import MyTasksPanel from '../components/MyTasksPanel'
-import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import type { Page } from '../App'
 
 type Props = {
