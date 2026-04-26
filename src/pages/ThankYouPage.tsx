@@ -5,10 +5,6 @@ import MimoLogo from '../components/MimoLogo'
 const DEFAULTS = {
   subtitle: 'בית עוטף ומלטף',
   title: 'ברוכה הבאה למימו 🐣',
-  body: `מחכה לפגוש אותך ואת הבייבי שלך.
-פרטים נוספים יישלחו בקבוצת ווטסאפ ייעודית לקראת מועד המפגש.
-אני כאן בשבילך לכל שאלה, התייעצות או כל דבר קטן 🤍
-באהבה, ברנדה`,
   whatsappCommunity: '',
   instagram: '',
 }
@@ -16,7 +12,7 @@ const DEFAULTS = {
 export default function ThankYouPage() {
   const [subtitle, setSubtitle] = useState(DEFAULTS.subtitle)
   const [title, setTitle] = useState(DEFAULTS.title)
-  const [body, setBody] = useState(DEFAULTS.body)
+  const [body, setBody] = useState('')
   const [waLink, setWaLink] = useState(DEFAULTS.whatsappCommunity)
   const [igLink, setIgLink] = useState(DEFAULTS.instagram)
   const [loading, setLoading] = useState(true)
@@ -28,12 +24,16 @@ export default function ThankYouPage() {
   useEffect(() => {
     supabase.from('global_settings')
       .select('setting_key, setting_value')
-      .in('setting_key', ['app_subtitle', 'thank_you_title', 'thank_you_body', 'whatsapp_community_link', 'instagram_link'])
+      .in('setting_key', ['app_subtitle', 'thank_you_title', 'thank_you_body', 'whatsapp_community_link', 'instagram_link', 'owner_name'])
       .then(({ data }) => {
         const get = (k: string) => data?.find(r => r.setting_key === k)?.setting_value ?? null
         const sub = get('app_subtitle');               if (sub) setSubtitle(sub)
         const ttl = get('thank_you_title');            if (ttl) setTitle(ttl)
-        const bdy = get('thank_you_body');             if (bdy) setBody(bdy)
+        const ownerName = get('owner_name') ?? ''
+        const bdy = get('thank_you_body') ?? (ownerName
+          ? `מחכה לפגוש אותך ואת הבייבי שלך.\nפרטים נוספים יישלחו בקבוצת ווטסאפ ייעודית לקראת מועד המפגש.\nאני כאן בשבילך לכל שאלה, התייעצות או כל דבר קטן 🤍\nבאהבה, ${ownerName}`
+          : `מחכה לפגוש אותך ואת הבייבי שלך.\nפרטים נוספים יישלחו בקבוצת ווטסאפ ייעודית לקראת מועד המפגש.\nאני כאן בשבילך לכל שאלה, התייעצות או כל דבר קטן 🤍`)
+        setBody(bdy)
         const wa  = get('whatsapp_community_link');    if (wa)  setWaLink(wa)
         const ig  = get('instagram_link');             if (ig)  setIgLink(ig)
         setLoading(false)
