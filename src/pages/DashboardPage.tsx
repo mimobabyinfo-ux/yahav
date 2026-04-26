@@ -1,7 +1,8 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronLeft, UserPlus, Copy, Check, Settings as SettingsIcon } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { getBabyAge, getIsraelHour } from '../utils/dateUtils'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import ChildSwitcher from '../components/ChildSwitcher'
@@ -17,7 +18,7 @@ const APP_BASE = 'https://mimoapp.vercel.app'
 
 export default function DashboardPage({ onNavigate }: Props) {
   const { profile, selectedChild, children, family, createFamily, createFamilyInvite, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
-  const { ownerWhatsapp } = useOwnerSettings()
+  const { ownerName, ownerWhatsapp } = useOwnerSettings()
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
@@ -145,7 +146,7 @@ export default function DashboardPage({ onNavigate }: Props) {
           >
             <span className="text-3xl block mb-2">📔</span>
             <p className="font-bold text-sand-800">יומן</p>
-            <p className="text-xs text-sand-400 mt-0.5">האכלות, שינה ועוד</p>
+            <p className="text-xs text-musgo-600 mt-0.5">מעקב יומיומי על האכלות, שינה והתפתחות</p>
           </button>
           <button
             onClick={() => onNavigate('community')}
@@ -153,7 +154,7 @@ export default function DashboardPage({ onNavigate }: Props) {
           >
             <span className="text-3xl block mb-2">🌸</span>
             <p className="font-bold text-sand-800">קהילה</p>
-            <p className="text-xs text-sand-400 mt-0.5">אמהות בשלב דומה</p>
+            <p className="text-xs text-musgo-600 mt-0.5">הכירי אמהות בשלב דומה אלייך</p>
           </button>
           <button
             onClick={() => onNavigate('workshops')}
@@ -161,7 +162,7 @@ export default function DashboardPage({ onNavigate }: Props) {
           >
             <span className="text-3xl block mb-2">🛍️</span>
             <p className="font-bold text-sand-800">מוצרים</p>
-            <p className="text-xs text-sand-400 mt-0.5">סדנאות ורכישות</p>
+            <p className="text-xs text-musgo-600 mt-0.5">סדנאות, ליווי וכל מה שמימו מציעה</p>
           </button>
         </div>
 
@@ -174,7 +175,7 @@ export default function DashboardPage({ onNavigate }: Props) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-sand-800">שתפי את היומן</p>
-                <p className="text-xs text-sand-400">הזמיני אבא, סבתא — בלי הרשמה</p>
+                <p className="text-xs text-musgo-600">הזמיני את המשפחה לראות את היומיום של התינוק</p>
               </div>
               {inviteLink ? (
                 <button
@@ -206,7 +207,10 @@ export default function DashboardPage({ onNavigate }: Props) {
         {featuredPerks.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-bold text-sand-800">הטבות מומלצות</h2>
+              <div>
+                <h2 className="text-base font-bold text-sand-800">הטבות מומלצות</h2>
+                <p className="text-xs text-musgo-600">הנחות בלעדיות לאמהות מימו</p>
+              </div>
               <button
                 onClick={() => onNavigate('benefits')}
                 className="flex items-center gap-1 text-xs text-mustard-600 font-medium"
@@ -235,7 +239,7 @@ export default function DashboardPage({ onNavigate }: Props) {
                   )}
                   <p className="text-sm font-bold text-sand-800 truncate">{perk.partner_name}</p>
                   {perk.short_description && (
-                    <p className="text-xs text-sand-400 mt-0.5 line-clamp-2">{perk.short_description}</p>
+                    <p className="text-xs text-musgo-600 mt-0.5 line-clamp-2">{perk.short_description}</p>
                   )}
                 </button>
               ))}
@@ -249,7 +253,7 @@ export default function DashboardPage({ onNavigate }: Props) {
             <span className="text-2xl">💬</span>
             <div className="flex-1">
               <p className="font-semibold text-sand-800 text-sm">יש שאלה?</p>
-              <p className="text-xs text-sand-400">אנחנו כאן בשבילך</p>
+              <p className="text-xs text-musgo-600">{ownerName} כאן לכל שאלה או התייעצות</p>
             </div>
             <a
               href={`https://wa.me/${ownerWhatsapp}`}
