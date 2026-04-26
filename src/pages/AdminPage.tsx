@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
@@ -86,7 +86,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${tab === t.id ? 'text-white shadow-md' : 'bg-sand-50 text-sand-500 hover:bg-sand-100'}`}
-                style={tab === t.id ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
+                style={tab === t.id ? { background: '#E7C78A' } : {}}>
                 {t.icon}{t.label}
                 {t.id === 'forms' && unreadForms > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-[3px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
@@ -270,7 +270,7 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
                   {editingId === e.id && (
                     <div className="flex gap-2 items-center">
                       <input type="date" value={editEndDate} onChange={ev => setEditEndDate(ev.target.value)} className="flex-1 px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none" />
-                      <button onClick={() => saveEditAccess(e.id)} className="px-3 py-1.5 rounded-xl text-xs text-white font-bold" style={{ background: '#C49438' }}>שמור</button>
+                      <button onClick={() => saveEditAccess(e.id)} className="px-3 py-1.5 rounded-xl text-xs text-white font-bold" style={{ background: '#D9B978' }}>שמור</button>
                       <button onClick={() => setEditingId(null)} className="px-2 py-1.5 rounded-xl text-xs bg-sand-100 text-sand-600">ביטול</button>
                     </div>
                   )}
@@ -309,7 +309,7 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
         )}
 
         <div className="flex gap-2 pb-2">
-          <button onClick={save} disabled={saving || !workshopId || !endDate} className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+          <button onClick={save} disabled={saving || !workshopId || !endDate} className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50" style={{ background: '#E7C78A' }}>
             {saving ? '...' : 'הקצה גישה'}
           </button>
           <button onClick={onClose} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">סגור</button>
@@ -390,7 +390,7 @@ function UsersTab() {
             key={m}
             onClick={() => setModeFilter(m)}
             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${modeFilter === m ? 'text-white shadow-sm' : 'bg-sand-50 text-sand-500'}`}
-            style={modeFilter === m ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+            style={modeFilter === m ? { background: '#E7C78A' } : {}}
           >
             {m === 'all' ? 'הכל' : m === 'mom' ? '👶 אמהות' : '🤰 הריון'}
           </button>
@@ -517,7 +517,7 @@ function UsersTab() {
               />
             </div>
             <div className="flex gap-2">
-              <button onClick={saveEdit} disabled={saving} className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              <button onClick={saveEdit} disabled={saving} className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50" style={{ background: '#E7C78A' }}>
                 {saving ? '...' : 'שמירה'}
               </button>
               <button onClick={() => setEditUser(null)} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
@@ -625,7 +625,7 @@ function UsersTabDesktop() {
             {(['all', 'mom', 'pregnant'] as const).map(m => (
               <button key={m} onClick={() => setModeFilter(m)}
                 className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${modeFilter === m ? 'text-white' : 'bg-white text-gray-500 border border-gray-200'}`}
-                style={modeFilter === m ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
+                style={modeFilter === m ? { background: '#E7C78A' } : {}}>
                 {m === 'all' ? 'הכל' : m === 'mom' ? '👶 אמהות' : '🤰 הריון'}
               </button>
             ))}
@@ -747,7 +747,7 @@ function UsersTabDesktop() {
 
           <button onClick={saveDrawer} disabled={saving}
             className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+            style={{ background: '#E7C78A' }}>
             {saving ? 'שומר...' : 'שמור שינויים'}
           </button>
           <button onClick={() => setAssignAccessUser(drawer)}
@@ -918,7 +918,7 @@ function LeadsTabDesktop() {
             {['all', 'new_lead', 'active_workshop', 'post_service'].map(s => (
               <button key={s} onClick={() => setStatusFilter(s)}
                 className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${statusFilter === s ? 'text-white' : 'bg-white text-gray-500 border border-gray-200'}`}
-                style={statusFilter === s ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
+                style={statusFilter === s ? { background: '#E7C78A' } : {}}>
                 {s === 'all' ? 'הכל' : s === 'new_lead' ? 'ליד חדש' : s === 'active_workshop' ? 'בסדנה' : 'לאחר שירות'}
               </button>
             ))}
@@ -1294,7 +1294,7 @@ function FormAggregatePanel({ form, submissions, filterQuestion, setFilterQuesti
                     <div key={n} className="flex items-center gap-2">
                       <span className="text-xs w-4 text-center text-gray-500">{n}</span>
                       <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: answers.length ? `${(count/answers.length)*100}%` : '0%', background: 'linear-gradient(135deg, #D4AA52, #C49438)' }} />
+                        <div className="h-full rounded-full" style={{ width: answers.length ? `${(count/answers.length)*100}%` : '0%', background: '#E7C78A' }} />
                       </div>
                       <span className="text-xs text-gray-400 w-5 text-left">{count}</span>
                     </div>
@@ -1318,7 +1318,7 @@ function FormAggregatePanel({ form, submissions, filterQuestion, setFilterQuesti
                       <span className="text-[10px] font-semibold text-gray-500">{count}</span>
                     </div>
                     <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: answers.length ? `${(count/answers.length)*100}%` : '0%', background: 'linear-gradient(135deg, #D4AA52, #C49438)' }} />
+                      <div className="h-full rounded-full" style={{ width: answers.length ? `${(count/answers.length)*100}%` : '0%', background: '#E7C78A' }} />
                     </div>
                   </div>
                 ))}
@@ -1488,7 +1488,7 @@ function FormsTabDesktop() {
         <button
           onClick={() => { setShowCreate(!showCreate); setEditingForm(null) }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold"
-          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+          style={{ background: '#E7C78A' }}
         >
           <Plus className="w-4 h-4" /> טופס חדש
         </button>
@@ -1507,7 +1507,7 @@ function FormsTabDesktop() {
                   onClick={saveForm}
                   disabled={saving || !title.trim() || fields.length === 0}
                   className="px-3 py-1.5 rounded-lg text-white text-xs font-bold disabled:opacity-50 transition-all"
-                  style={{ background: isDirty ? 'linear-gradient(135deg, #D4AA52, #C49438)' : '#9CA3AF' }}
+                  style={{ background: isDirty ? '#E7C78A' : '#9CA3AF' }}
                   title="Ctrl/Cmd+S"
                 >
                   {saving ? '...' : 'שמור'}
@@ -1588,7 +1588,7 @@ function FormsTabDesktop() {
               </DndContext>
               {/* Bottom save — convenience duplicate */}
               <div className="flex gap-2 pt-1">
-                <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: '#E7C78A' }}>
                   {saving ? '...' : 'שמור טופס'}
                 </button>
                 <button onClick={() => { setShowCreate(false); setEditingForm(null); setTitle(''); setDescription(''); setFields([]) }} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm">ביטול</button>
@@ -1802,7 +1802,7 @@ function InsightsTab() {
               <Tooltip formatter={(v) => `${v}%`} />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               <Line type="monotone" dataKey="יום 1" stroke="#3B82F6" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="יום 3" stroke="#C49438" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="יום 3" stroke="#D9B978" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="יום 7" stroke="#22C55E" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -1818,7 +1818,7 @@ function InsightsTab() {
               <XAxis type="number" tick={{ fontSize: 9 }} />
               <YAxis dataKey="title" type="category" width={80} tick={{ fontSize: 9 }} />
               <Tooltip />
-              <Bar dataKey="total_views" name="צפיות" fill="#C49438" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="total_views" name="צפיות" fill="#D9B978" radius={[0, 4, 4, 0]} />
               <Bar dataKey="completions" name="השלמות" fill="#86EFAC" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -1936,9 +1936,9 @@ function LeadStatusEditor({ user, onSaved }: { user: User360; onSaved: () => voi
             onClick={() => setStatus(s.value)}
             className="flex-1 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
             style={{
-              borderColor: status === s.value ? s.color : '#E5DDD2',
+              borderColor: status === s.value ? s.color : '#C6BDA0',
               background: status === s.value ? s.color + '20' : 'white',
-              color: status === s.value ? s.color : '#9B8E80',
+              color: status === s.value ? s.color : '#818267',
             }}
           >
             {s.label}
@@ -1956,7 +1956,7 @@ function LeadStatusEditor({ user, onSaved }: { user: User360; onSaved: () => voi
         onClick={save}
         disabled={saving}
         className="w-full py-2 rounded-xl text-white text-xs font-bold disabled:opacity-50"
-        style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+        style={{ background: '#E7C78A' }}
       >
         {saving ? 'שומר...' : 'שמור הערות'}
       </button>
@@ -2344,7 +2344,7 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
           {!showAdd && (
             <button onClick={() => setShowAdd(true)}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold text-white"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              style={{ background: '#E7C78A' }}>
               <Plus className="w-4 h-4" /> הוסף פריט
             </button>
           )}
@@ -2455,7 +2455,7 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
                           onKeyDown={e => { if (e.key === 'Enter' && newTask.trim()) { setTasks(p => [...p, newTask.trim()]); setNewTask('') } }}
                           placeholder="הוסף משימה..." className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400" />
                         <button onClick={() => { if (newTask.trim()) { setTasks(p => [...p, newTask.trim()]); setNewTask('') } }}
-                          className="px-3 py-2 rounded-xl text-xs text-white font-bold" style={{ background: '#D4AA52' }}>+</button>
+                          className="px-3 py-2 rounded-xl text-xs text-white font-bold" style={{ background: '#E7C78A' }}>+</button>
                       </div>
                     </div>
                   )}
@@ -2464,7 +2464,7 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
                   <div className="flex gap-2 pt-1">
                     <button onClick={save} disabled={saving || !title.trim() || (selType === 'homework' && tasks.length === 0)}
                       className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-                      style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                      style={{ background: '#E7C78A' }}>
                       {saving ? '...' : 'שמור'}
                     </button>
                     <button onClick={resetForm} className="px-4 py-2.5 rounded-xl text-sm bg-sand-100 text-sand-600">ביטול</button>
@@ -3006,7 +3006,7 @@ function AssignFormModal({ form, onClose }: { form: FormRecord; onClose: () => v
               onClick={save}
               disabled={saving}
               className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+              style={{ background: '#E7C78A' }}
             >
               {saving ? '...' : `הקצה ל-${selectedIds.size}`}
             </button>
@@ -3051,7 +3051,7 @@ function OptionsTagInput({ options, onChange }: { options: string[]; onChange: (
           rows={3}
           className="flex-1 px-3 py-1.5 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white resize-none leading-relaxed"
         />
-        <button type="button" onClick={add} className="px-3 py-2 rounded-xl text-xs text-white font-bold flex-shrink-0" style={{ background: '#D4AA52' }}>+</button>
+        <button type="button" onClick={add} className="px-3 py-2 rounded-xl text-xs text-white font-bold flex-shrink-0" style={{ background: '#E7C78A' }}>+</button>
       </div>
     </div>
   )
@@ -3313,7 +3313,7 @@ function FormsTab() {
       <button
         onClick={() => setShowCreate(!showCreate)}
         className="w-full flex items-center justify-center gap-2 text-white font-semibold py-3 rounded-2xl transition-colors"
-        style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+        style={{ background: '#E7C78A' }}
       >
         <Plus className="w-4 h-4" />
         טופס חדש
@@ -3332,7 +3332,7 @@ function FormsTab() {
                 onClick={saveForm}
                 disabled={saving || !title.trim() || fields.length === 0}
                 className="px-3 py-1.5 rounded-xl text-white text-xs font-bold disabled:opacity-50 transition-all"
-                style={{ background: isDirty ? 'linear-gradient(135deg, #D4AA52, #C49438)' : '#9CA3AF' }}
+                style={{ background: isDirty ? '#E7C78A' : '#9CA3AF' }}
               >
                 {saving ? '...' : 'שמור'}
               </button>
@@ -3463,7 +3463,7 @@ function FormsTab() {
 
             {/* Bottom save — convenience duplicate */}
             <div className="flex gap-2 pt-1">
-              <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: '#E7C78A' }}>
                 {saving ? 'שומר...' : editingForm ? 'שמור שינויים' : 'צור טופס'}
               </button>
               <button onClick={() => { setShowCreate(false); cancelEdit() }} className="px-4 py-2.5 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
@@ -3587,7 +3587,7 @@ function OwnerSettingsSection() {
           <label className="text-xs font-semibold text-sand-500 mb-1 block">כיתוב ראשי בעמוד ההרשמה הציבורי <span className="text-sand-400">(?register)</span></label>
           <input value={hero} onChange={e => setHero(e.target.value)} placeholder="ברוכה הבאה לסדנאות מימו" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
         </div>
-        <button onClick={save} disabled={saving} className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+        <button onClick={save} disabled={saving} className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: '#E7C78A' }}>
           {saved ? '✓ נשמר!' : saving ? '...' : 'שמור'}
         </button>
       </div>
@@ -3652,7 +3652,7 @@ function ThankYouSettingsSection() {
           <label className="text-xs font-semibold text-sand-500 mb-1 block">קישור לאינסטגרם</label>
           <input value={igLink} onChange={e => setIgLink(e.target.value)} dir="ltr" placeholder="https://instagram.com/..." className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
         </div>
-        <button onClick={save} disabled={saving} className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+        <button onClick={save} disabled={saving} className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: '#E7C78A' }}>
           {saved ? '✓ נשמר!' : saving ? '...' : 'שמור'}
         </button>
       </div>
@@ -3863,7 +3863,7 @@ function PregnancyAdminTab() {
           <button key={t.id}
             onClick={() => { setCat(t.id); setEditItem(null); setShowAdd(false) }}
             className={`flex-shrink-0 flex-1 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${cat === t.id ? 'text-white shadow-sm' : 'text-sand-500'}`}
-            style={cat === t.id ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+            style={cat === t.id ? { background: '#E7C78A' } : {}}
           >
             {t.label}
           </button>
@@ -3878,7 +3878,7 @@ function PregnancyAdminTab() {
       <button
         onClick={openAdd}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-white font-bold text-sm"
-        style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+        style={{ background: '#E7C78A' }}
       >
         <Plus className="w-4 h-4" />
         {cat === 'medical' ? 'הוסף משימה רפואית' : 'הוסף פריט לקנייה'}
@@ -3938,7 +3938,7 @@ function PregnancyAdminTab() {
               onClick={save}
               disabled={saving || !formText.trim()}
               className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+              style={{ background: '#E7C78A' }}
             >
               {saving ? '...' : 'שמירה'}
             </button>
@@ -4094,7 +4094,7 @@ function WeeklyGuideAdminSection() {
       <div className="flex gap-2">
         <button onClick={save} disabled={saving || !formWeek}
           className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+          style={{ background: '#E7C78A' }}>
           {saving ? '...' : 'שמירה'}
         </button>
         <button onClick={() => { setEditGuide(null); setShowAdd(false) }}
@@ -4109,7 +4109,7 @@ function WeeklyGuideAdminSection() {
     <div className="space-y-3">
       <button onClick={openAdd}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-white font-bold text-sm"
-        style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+        style={{ background: '#E7C78A' }}>
         <Plus className="w-4 h-4" /> הוסף שבוע חדש
       </button>
 
@@ -4207,7 +4207,7 @@ function PartnersTab() {
         <p className="text-xs text-sand-400">{partners.length} שירותים</p>
         <button onClick={openNew}
           className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-white text-xs font-bold"
-          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+          style={{ background: '#E7C78A' }}>
           <Plus className="w-3.5 h-3.5" /> הוסף שירות
         </button>
       </div>
@@ -4241,7 +4241,7 @@ function PartnersTab() {
           <div className="flex gap-2">
             <button onClick={save} disabled={saving || !form.title.trim()}
               className="flex-1 py-2.5 rounded-2xl text-white font-bold text-sm disabled:opacity-40"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              style={{ background: '#E7C78A' }}>
               {saving ? '...' : editing ? 'שמור שינויים' : 'הוסף'}
             </button>
             <button onClick={() => { setAdding(false); setEditing(null) }}
@@ -4335,7 +4335,7 @@ function LeadsTab() {
           {(['all', 'whatsapp', 'callback'] as const).map(t => (
             <button key={t} onClick={() => setFilterType(t)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${filterType === t ? 'text-white' : 'bg-sand-50 text-sand-500'}`}
-              style={filterType === t ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
+              style={filterType === t ? { background: '#E7C78A' } : {}}>
               {t === 'all' ? 'הכל' : t === 'whatsapp' ? '💬 WA' : '📞 טלפון'}
             </button>
           ))}

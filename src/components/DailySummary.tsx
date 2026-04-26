@@ -1,4 +1,4 @@
-import type { DailyLogEntryWithDetails } from '../lib/supabase'
+﻿import type { DailyLogEntryWithDetails } from '../lib/supabase'
 import { formatDuration } from '../utils/dateUtils'
 import { ENTRY_COLORS } from './DailyTimeline'
 
@@ -104,12 +104,12 @@ export default function DailySummary({ entries }: Props) {
       <div className="flex gap-3 justify-around">
         {stats.map(stat => (
           <div key={stat.label} className="flex flex-col items-center gap-1">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#FBF6E9' }}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#FDF8EE' }}>
               <span className="text-2xl">{stat.emoji}</span>
             </div>
             <span className="text-2xl font-bold text-sand-800">{stat.value}</span>
             <span className="text-xs text-sand-500">{stat.label}</span>
-            {stat.sub && <span className="text-xs font-medium" style={{ color: '#C49438' }}>{stat.sub}</span>}
+            {stat.sub && <span className="text-xs font-medium" style={{ color: '#D9B978' }}>{stat.sub}</span>}
           </div>
         ))}
       </div>

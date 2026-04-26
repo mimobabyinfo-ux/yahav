@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { MessageCircle, Phone, X, Check } from 'lucide-react'
 import { supabase, ServicePartner } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -109,7 +109,7 @@ export default function ServicesMarketplacePage() {
               key={v}
               onClick={() => setCategory(v)}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${category === v ? 'text-white' : 'text-sand-500'}`}
-              style={category === v ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+              style={category === v ? { background: '#E7C78A' } : {}}
             >
               {label}
             </button>
@@ -139,7 +139,7 @@ export default function ServicesMarketplacePage() {
                   {/* Partner info */}
                   <div className="flex items-start gap-3">
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: 'linear-gradient(135deg, #F7F3EC, #F2EBE0)' }}>
+                      style={{ background: '#DCD4C8' }}>
                       {partner.logo_url
                         ? <img src={partner.logo_url} alt={partner.title} className="w-10 h-10 rounded-xl object-contain" />
                         : <span className="text-2xl">{SUBCATEGORY_EMOJI[partner.subcategory ?? ''] ?? '🌿'}</span>}
@@ -185,7 +185,7 @@ export default function ServicesMarketplacePage() {
                           onClick={() => submitCallback(partner.id)}
                           disabled={!callbackName.trim() || !callbackPhone.trim()}
                           className="w-full py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-40 transition-all active:scale-95"
-                          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                          style={{ background: '#E7C78A' }}
                         >
                           שלחי בקשה ✓
                         </button>
@@ -205,7 +205,7 @@ export default function ServicesMarketplacePage() {
                       <button
                         onClick={() => openCallback(partner)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl text-sm font-bold transition-colors active:opacity-80"
-                        style={{ background: 'linear-gradient(135deg, #F7F3EC, #EDE5D8)', color: '#7C6045' }}
+                        style={{ background: 'linear-gradient(135deg, #DCD4C8, #EDE5D8)', color: '#7C6045' }}
                       >
                         <Phone className="w-4 h-4" />
                         בקשי התקשרות
@@ -226,7 +226,7 @@ export default function ServicesMarketplacePage() {
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-white text-sm font-bold"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            style={{ background: '#E7C78A' }}
           >
             <MessageCircle className="w-4 h-4" />
             צרי קשר

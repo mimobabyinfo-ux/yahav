@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
@@ -67,7 +67,7 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }}
+      style={{ background: '#DCD4C8' }}
       dir="rtl"
     >
       {/* Background watermark duck */}
@@ -93,7 +93,7 @@ export default function LoginPage() {
             <button
               onClick={() => { setSignupSent(false); setMode('login') }}
               className="w-full font-bold py-3.5 rounded-2xl text-white"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+              style={{ background: '#E7C78A' }}
             >
               חזרה לכניסה
             </button>
@@ -102,7 +102,7 @@ export default function LoginPage() {
 
 
         {/* Subtitle */}
-        <p style={{ color: '#B8AB98', fontSize: '0.95rem', marginTop: '-12px' }}>
+        <p style={{ color: '#818267', fontSize: '0.95rem', marginTop: '-12px' }}>
           {subtitle}
         </p>
 
@@ -110,14 +110,14 @@ export default function LoginPage() {
         {!signupSent && <div className="w-full bg-white rounded-3xl shadow-lg p-7 mt-2">
           <h2
             className="font-bold text-center mb-6"
-            style={{ fontSize: '1.5rem', color: '#5C4F3D', fontFamily: 'Nunito, sans-serif' }}
+            style={{ fontSize: '1.5rem', color: '#3D2E20', fontFamily: 'Nunito, sans-serif' }}
           >
             {mode === 'login' ? 'התחברות' : 'הרשמה'}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
             <div>
-              <label className="block text-sm text-right mb-1.5" style={{ color: '#9B8E80' }}>
+              <label className="block text-sm text-right mb-1.5" style={{ color: '#818267' }}>
                 אימייל
               </label>
               <input
@@ -130,18 +130,18 @@ export default function LoginPage() {
                 required
                 className="w-full px-4 py-3.5 rounded-2xl text-right focus:outline-none transition-colors"
                 style={{
-                  border: '1.5px solid #E5DDD2',
-                  color: '#5C4F3D',
+                  border: '1.5px solid #C6BDA0',
+                  color: '#3D2E20',
                   background: 'white',
                   fontSize: '0.95rem',
                 }}
-                onFocus={e => (e.target.style.borderColor = '#C49438')}
-                onBlur={e => (e.target.style.borderColor = '#E5DDD2')}
+                onFocus={e => (e.target.style.borderColor = '#D9B978')}
+                onBlur={e => (e.target.style.borderColor = '#C6BDA0')}
               />
             </div>
 
             <div>
-              <label className="block text-sm text-right mb-1.5" style={{ color: '#9B8E80' }}>
+              <label className="block text-sm text-right mb-1.5" style={{ color: '#818267' }}>
                 סיסמה
               </label>
               <input
@@ -155,13 +155,13 @@ export default function LoginPage() {
                 minLength={6}
                 className="w-full px-4 py-3.5 rounded-2xl text-right focus:outline-none transition-colors"
                 style={{
-                  border: '1.5px solid #E5DDD2',
-                  color: '#5C4F3D',
+                  border: '1.5px solid #C6BDA0',
+                  color: '#3D2E20',
                   background: 'white',
                   fontSize: '0.95rem',
                 }}
-                onFocus={e => (e.target.style.borderColor = '#C49438')}
-                onBlur={e => (e.target.style.borderColor = '#E5DDD2')}
+                onFocus={e => (e.target.style.borderColor = '#D9B978')}
+                onBlur={e => (e.target.style.borderColor = '#C6BDA0')}
               />
             </div>
 
@@ -173,7 +173,7 @@ export default function LoginPage() {
                   onChange={e => setRememberMe(e.target.checked)}
                   className="w-4 h-4 rounded accent-mustard-500"
                 />
-                <span className="text-sm" style={{ color: '#9B8E80' }}>זכרי אותי</span>
+                <span className="text-sm" style={{ color: '#818267' }}>זכרי אותי</span>
               </label>
             )}
 
@@ -188,7 +188,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full font-bold py-4 rounded-2xl transition-all disabled:opacity-50"
               style={{
-                background: 'linear-gradient(135deg, #D4AA52, #C49438)',
+                background: '#E7C78A',
                 color: 'white',
                 fontSize: '1rem',
                 fontFamily: 'Nunito, sans-serif',
@@ -201,9 +201,9 @@ export default function LoginPage() {
 
           {/* Divider */}
           <div className="flex items-center gap-3 my-2">
-            <div className="flex-1 h-px" style={{ background: '#E5DDD2' }} />
-            <span className="text-xs" style={{ color: '#B8AB98' }}>או</span>
-            <div className="flex-1 h-px" style={{ background: '#E5DDD2' }} />
+            <div className="flex-1 h-px" style={{ background: '#C6BDA0' }} />
+            <span className="text-xs" style={{ color: '#818267' }}>או</span>
+            <div className="flex-1 h-px" style={{ background: '#C6BDA0' }} />
           </div>
 
           {/* Google */}
@@ -211,7 +211,7 @@ export default function LoginPage() {
             type="button"
             onClick={handleGoogle}
             className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl font-semibold transition-all"
-            style={{ border: '1.5px solid #E5DDD2', color: '#5C4F3D', background: 'white', fontSize: '0.95rem' }}
+            style={{ border: '1.5px solid #C6BDA0', color: '#3D2E20', background: 'white', fontSize: '0.95rem' }}
           >
             <svg width="20" height="20" viewBox="0 0 48 48">
               <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.7 2.5 30.2 0 24 0 14.7 0 6.7 5.4 2.8 13.3l7.8 6C12.4 13.2 17.8 9.5 24 9.5z"/>
@@ -223,12 +223,12 @@ export default function LoginPage() {
           </button>
 
           {/* Toggle */}
-          <p className="text-center mt-4 text-sm" style={{ color: '#B8AB98' }}>
+          <p className="text-center mt-4 text-sm" style={{ color: '#818267' }}>
             {mode === 'login' ? 'אין לך חשבון? ' : 'יש לך חשבון? '}
             <button
               onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
               className="font-bold underline"
-              style={{ color: '#C49438' }}
+              style={{ color: '#A35C3D' }}
             >
               {mode === 'login' ? 'הרשמה' : 'כניסה'}
             </button>

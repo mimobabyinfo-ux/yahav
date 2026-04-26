@@ -1,4 +1,4 @@
-type Props = {
+﻿type Props = {
   featureName: string
   onClose: () => void
 }
@@ -17,7 +17,7 @@ export default function UpgradeModal({ featureName, onClose }: Props) {
         <div className="text-center">
           <div
             className="w-20 h-20 rounded-3xl mx-auto mb-4 flex items-center justify-center shadow-lg"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            style={{ background: '#E7C78A' }}
           >
             <span className="text-4xl">⭐</span>
           </div>
@@ -49,7 +49,7 @@ export default function UpgradeModal({ featureName, onClose }: Props) {
             target="_blank"
             rel="noopener noreferrer"
             className="block w-full text-center text-white font-bold py-4 rounded-2xl transition-all shadow-lg"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            style={{ background: '#E7C78A' }}
           >
             שדרגי עכשיו 🚀
           </a>

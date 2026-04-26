@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { MessageCircle, ShoppingBag, Users, Copy, Check, UserPlus, Link } from 'lucide-react'
 import { supabase, Workshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -117,7 +117,7 @@ function FamilyPanel() {
                 <button
                   onClick={copyInviteLink}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white"
-                  style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                  style={{ background: '#E7C78A' }}
                 >
                   {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   {copiedLink ? 'הועתק!' : 'העתק קישור'}
@@ -138,7 +138,7 @@ function FamilyPanel() {
               onClick={handleCreateInvite}
               disabled={loading || !selectedChild}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-40"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+              style={{ background: '#E7C78A' }}
             >
               <UserPlus className="w-4 h-4" />
               {loading ? 'יוצר קישור...' : 'צור קישור הזמנה'}
@@ -164,7 +164,7 @@ function FamilyPanel() {
 
       {mode === 'idle' && (
         <div className="flex gap-2">
-          <button onClick={() => setMode('create')} className="flex-1 py-3 rounded-2xl text-white text-sm font-bold" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+          <button onClick={() => setMode('create')} className="flex-1 py-3 rounded-2xl text-white text-sm font-bold" style={{ background: '#E7C78A' }}>
             צרי משפחה
           </button>
           <button onClick={() => setMode('join')} className="flex-1 py-3 rounded-2xl bg-sand-100 text-sand-700 text-sm font-semibold">
@@ -183,7 +183,7 @@ function FamilyPanel() {
           />
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-2">
-            <button onClick={handleCreate} disabled={loading} className="flex-1 py-3 rounded-2xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+            <button onClick={handleCreate} disabled={loading} className="flex-1 py-3 rounded-2xl text-white text-sm font-bold disabled:opacity-50" style={{ background: '#E7C78A' }}>
               {loading ? '...' : 'צרי'}
             </button>
             <button onClick={() => setMode('idle')} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>
@@ -214,7 +214,7 @@ function FamilyPanel() {
           />
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-2">
-            <button onClick={handleJoin} disabled={loading} className="flex-1 py-3 rounded-2xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+            <button onClick={handleJoin} disabled={loading} className="flex-1 py-3 rounded-2xl text-white text-sm font-bold disabled:opacity-50" style={{ background: '#E7C78A' }}>
               {loading ? '...' : 'הצטרפי'}
             </button>
             <button onClick={() => setMode('idle')} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>

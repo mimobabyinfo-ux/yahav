@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
 import { Plus, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { supabase, DailyLogEntryWithDetails } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -57,7 +57,7 @@ function UpsellCard({ type, onDismiss }: { type: EntryType; onDismiss: () => voi
           target="_blank"
           rel="noopener noreferrer"
           className="inline-block mt-2 text-xs font-bold text-white px-3 py-1.5 rounded-xl"
-          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+          style={{ background: '#E7C78A' }}
         >
           {u.cta} →
         </a>
@@ -112,7 +112,7 @@ function WeekView({ entries, weekStart, onDayClick }: { entries: DailyLogEntryWi
             >
               <span className="text-[10px] text-sand-400">{DAY_LABELS[i]}</span>
               <span className={`text-sm font-bold mt-0.5 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'text-white' : 'text-sand-700'}`}
-                style={isToday ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
+                style={isToday ? { background: '#E7C78A' } : {}}>
                 {d.getDate()}
               </span>
             </button>
@@ -188,7 +188,7 @@ function MonthView({ entries, month, year, onDayClick }: { entries: DailyLogEntr
                   className="flex flex-col items-center py-1 rounded-xl hover:bg-mustard-50 transition-colors"
                 >
                   <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'text-white' : 'text-sand-700'}`}
-                    style={isToday ? { background: '#C49438' } : {}}>
+                    style={isToday ? { background: '#D9B978' } : {}}>
                     {dayNum}
                   </span>
                   <div className="flex flex-wrap gap-0.5 justify-center mt-0.5 max-w-[24px]">
@@ -369,7 +369,7 @@ export default function JournalPage() {
               key={v}
               onClick={() => setViewMode(v)}
               className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${viewMode === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
-              style={viewMode === v ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+              style={viewMode === v ? { background: '#E7C78A' } : {}}
             >
               {label}
             </button>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLogo from '../components/MimoLogo'
 
@@ -16,7 +16,7 @@ export default function GuestJoinPage({ token }: { token: string }) {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-6 gap-6"
-      style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }}
+      style={{ background: '#DCD4C8' }}
       dir="rtl"
     >
       <MimoLogo size={90} />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { ChevronLeft, UserPlus, Copy, Check, Settings as SettingsIcon } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -112,7 +112,7 @@ export default function DashboardPage({ onNavigate }: Props) {
 
         {/* Active workshop access badge */}
         {hasActiveWorkshopAccess && activeAccessUntil && (
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }}>
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold" style={{ background: '#E7C78A', color: 'white' }}>
             <span>⭐</span>
             <span>גישה לסדנה פתוחה עד {new Date(activeAccessUntil + 'T12:00:00').toLocaleDateString('he-IL')}</span>
           </div>
@@ -180,7 +180,7 @@ export default function DashboardPage({ onNavigate }: Props) {
                 <button
                   onClick={copyLink}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                  style={{ background: '#E7C78A' }}
                 >
                   {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   {copied ? 'הועתק!' : 'העתק'}
@@ -190,7 +190,7 @@ export default function DashboardPage({ onNavigate }: Props) {
                   onClick={handleCreateInvite}
                   disabled={inviteLoading}
                   className="px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0 disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                  style={{ background: '#E7C78A' }}
                 >
                   {inviteLoading ? '...' : 'צור קישור'}
                 </button>

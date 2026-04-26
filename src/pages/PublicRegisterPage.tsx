@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+﻿import { useEffect, useState, useMemo } from 'react'
 import { supabase, Workshop } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
@@ -117,14 +117,14 @@ export default function PublicRegisterPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#DCD4C8' }}>
         <div className="animate-pulse"><MimoLogo size={120} /></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen px-4 py-8" dir="rtl" style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }}>
+    <div className="min-h-screen px-4 py-8" dir="rtl" style={{ background: '#DCD4C8' }}>
       <div className="max-w-md mx-auto">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-2"><MimoLogo size={120} /></div>
@@ -228,7 +228,7 @@ export default function PublicRegisterPage() {
             type="submit"
             disabled={submitting || workshops.length === 0}
             className="w-full py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50 transition-opacity"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            style={{ background: '#E7C78A' }}
           >
             {submitting ? 'שולח...' : 'המשך לתשלום'}
           </button>

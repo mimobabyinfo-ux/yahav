@@ -13,8 +13,8 @@ html {
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background-color: #FAF8F4;
-  color: #5C4F3D;
+  background-color: #DCD4C8;
+  color: #3D2E20;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -45,7 +45,7 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #E0D3BE;
+  background: #C6BDA0;
   border-radius: 2px;
 }
 

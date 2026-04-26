@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { getBabyAge, entryTypeEmoji, entryTypeLabel, formatDate } from '../utils/dateUtils'
 import MimoLogo from '../components/MimoLogo'
@@ -85,7 +85,7 @@ export default function PublicBabyPage({ token }: Props) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#DCD4C8' }}>
         <div className="text-center flex flex-col items-center gap-4">
           <div className="animate-pulse">
             <MimoLogo size={100} />
@@ -98,7 +98,7 @@ export default function PublicBabyPage({ token }: Props) {
 
   if (notFound) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }} dir="rtl">
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#DCD4C8' }} dir="rtl">
         <div className="text-center space-y-4">
           <p className="text-5xl">🔍</p>
           <p className="font-bold text-sand-800">קישור לא תקין</p>
@@ -109,7 +109,7 @@ export default function PublicBabyPage({ token }: Props) {
   }
 
   return (
-    <div className="min-h-screen p-4 pb-10" style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }} dir="rtl">
+    <div className="min-h-screen p-4 pb-10" style={{ background: '#DCD4C8' }} dir="rtl">
       <div className="max-w-sm mx-auto space-y-4 pt-4">
 
         {/* Header */}

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
 import { X, ClipboardList } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -169,7 +169,7 @@ export default function MyTasksPanel() {
                               key={n}
                               onClick={() => setAnswers(a => ({ ...a, [field.label]: String(n) }))}
                               className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${answers[field.label] === String(n) ? 'text-white shadow-md' : 'bg-sand-100 text-sand-600 hover:bg-mustard-100 hover:text-mustard-700'}`}
-                              style={answers[field.label] === String(n) ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+                              style={answers[field.label] === String(n) ? { background: '#E7C78A' } : {}}
                             >
                               {n}
                             </button>
@@ -183,7 +183,7 @@ export default function MyTasksPanel() {
                               key={opt}
                               onClick={() => setAnswers(a => ({ ...a, [field.label]: opt }))}
                               className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${answers[field.label] === opt ? 'text-white shadow-sm' : 'bg-sand-100 text-sand-600 hover:bg-mustard-50 hover:text-mustard-700'}`}
-                              style={answers[field.label] === opt ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+                              style={answers[field.label] === opt ? { background: '#E7C78A' } : {}}
                             >
                               {opt}
                             </button>
@@ -197,7 +197,7 @@ export default function MyTasksPanel() {
                   onClick={submit}
                   disabled={submitting}
                   className="w-full py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50 mt-2"
-                  style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                  style={{ background: '#E7C78A' }}
                 >
                   {submitting ? 'שולח...' : 'סיום משימה ✓'}
                 </button>

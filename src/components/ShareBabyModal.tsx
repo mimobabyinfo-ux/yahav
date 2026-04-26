@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { X, Copy, Check, MessageCircle, Eye } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
@@ -60,7 +60,7 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
 
         {/* Baby card preview */}
         <div className="p-5">
-          <div className="rounded-3xl p-5 text-center space-y-3" style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }}>
+          <div className="rounded-3xl p-5 text-center space-y-3" style={{ background: '#DCD4C8' }}>
             <div className="flex justify-center">
               <MimoLogo size={70} />
             </div>

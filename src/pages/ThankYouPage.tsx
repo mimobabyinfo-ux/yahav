@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
@@ -42,14 +42,14 @@ export default function ThankYouPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#DCD4C8' }}>
         <div className="animate-pulse"><MimoLogo size={120} /></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen px-4 py-10" dir="rtl" style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }}>
+    <div className="min-h-screen px-4 py-10" dir="rtl" style={{ background: '#DCD4C8' }}>
       <div className="max-w-md mx-auto">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-2"><MimoLogo size={120} /></div>

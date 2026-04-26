@@ -137,7 +137,7 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
     <nav className="fixed bottom-0 right-0 left-0 max-w-[480px] mx-auto bg-white border-t border-sand-100 shadow-xl z-50">
       {/* "Back to Admin" banner when viewing as user */}
       {viewAsUser && (
-        <div className="flex items-center justify-between px-4 py-1.5 border-b border-sand-100" style={{ background: '#fff3cd' }}>
+        <div className="flex items-center justify-between px-4 py-1.5 border-b border-sand-100" style={{ background: '#FDF8EE' }}>
           <span className="text-[10px] font-bold text-amber-700 flex items-center gap-1"><Eye className="w-3 h-3" /> מצב תצוגה כמשתמשת</span>
           <button onClick={onToggleUserView} className="text-[10px] font-bold text-amber-700 underline">חזרה לניהול</button>
         </div>

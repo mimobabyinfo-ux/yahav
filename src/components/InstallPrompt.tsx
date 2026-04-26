@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
 type Platform = 'ios' | 'android' | 'other'
@@ -81,7 +81,7 @@ export default function InstallPrompt() {
             <button
               onClick={installAndroid}
               className="w-full py-3 rounded-2xl text-white font-bold text-sm"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+              style={{ background: '#E7C78A' }}
             >
               📲 התקיני את האפליקציה
             </button>

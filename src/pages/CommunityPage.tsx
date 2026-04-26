@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+﻿import { useEffect, useState, useCallback, useRef } from 'react'
 import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -232,7 +232,7 @@ export default function CommunityPage() {
               <div
                 onClick={() => setConsentChecked(v => !v)}
                 className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${consentChecked ? 'border-mustard-500' : 'border-sand-300'}`}
-                style={consentChecked ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+                style={consentChecked ? { background: '#E7C78A' } : {}}
               >
                 {consentChecked && <Check className="w-3 h-3 text-white" />}
               </div>
@@ -253,7 +253,7 @@ export default function CommunityPage() {
                 onClick={saveMyProfile}
                 disabled={savingProfile}
                 className="flex-1 py-3 rounded-2xl text-white text-sm font-bold disabled:opacity-40 transition-all"
-                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                style={{ background: '#E7C78A' }}
               >
                 {savingProfile ? 'שומרת...' : editMode ? 'עדכון' : 'הצטרפי לקהילה ✓'}
               </button>
@@ -273,7 +273,7 @@ export default function CommunityPage() {
                 key={v}
                 onClick={() => setPregnancyFilter(v)}
                 className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${pregnancyFilter === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
-                style={pregnancyFilter === v ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+                style={pregnancyFilter === v ? { background: '#E7C78A' } : {}}
               >
                 {label}
               </button>
@@ -290,7 +290,7 @@ export default function CommunityPage() {
                 key={v}
                 onClick={() => setFilterMode(v as FilterMode)}
                 className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${filterMode === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
-                style={filterMode === v ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+                style={filterMode === v ? { background: '#E7C78A' } : {}}
               >
                 {label}
               </button>
@@ -392,7 +392,7 @@ export default function CommunityPage() {
                 <div key={p.child_id} className="bg-white rounded-3xl p-4 shadow-sm">
                   <div className="flex items-start gap-3">
                     <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 mt-0.5"
-                      style={{ background: 'linear-gradient(135deg, #F7F3EC, #F2EBE0)' }}>
+                      style={{ background: '#DCD4C8' }}>
                       {genderEmoji(p.child_gender)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -447,7 +447,7 @@ export default function CommunityPage() {
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-white text-sm font-bold"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            style={{ background: '#E7C78A' }}
           >
             <MessageCircle className="w-4 h-4" />
             בקשי להצטרף

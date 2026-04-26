@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { ExternalLink, MessageCircle, ShoppingBag, Star, X, Sparkles, CreditCard } from 'lucide-react'
 import { supabase, Workshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -27,7 +27,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose
             </button>
           </div>
         ) : (
-          <div className="relative w-full h-24 flex items-center justify-center rounded-t-3xl" style={{ background: 'linear-gradient(135deg, #F7F3EC, #F2EBE0)' }}>
+          <div className="relative w-full h-24 flex items-center justify-center rounded-t-3xl" style={{ background: '#DCD4C8' }}>
             <ShoppingBag className="w-10 h-10 text-sand-300" />
             <button
               onClick={onClose}
@@ -74,7 +74,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 flex items-center justify-center gap-2 text-white font-bold py-3.5 rounded-2xl text-sm transition-all"
-                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                style={{ background: '#E7C78A' }}
               >
                 <ExternalLink className="w-4 h-4" />
                 להרשמה
@@ -147,13 +147,13 @@ export default function WorkshopsPage() {
   return (
     <div className="min-h-screen pb-28" dir="rtl">
       {/* Dark header */}
-      <div className="px-5 pt-10 pb-6" style={{ background: 'linear-gradient(160deg, #4A3F35 0%, #3a302a 100%)' }}>
+      <div className="px-5 pt-10 pb-6" style={{ background: 'linear-gradient(160deg, #3D2E20 0%, #2A1F15 100%)' }}>
         <div className="max-w-sm mx-auto flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">מוצרים מיוחדים</h1>
-            <p className="text-sm mt-1" style={{ color: '#C49438' }}>נבחרו במיוחד עבורך</p>
+            <p className="text-sm mt-1" style={{ color: '#D9B978' }}>נבחרו במיוחד עבורך</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: '#E7C78A' }}>
             <Sparkles className="w-5 h-5 text-white" />
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function WorkshopsPage() {
                 onClick={() => setCategory(c.key)}
                 className="flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all"
                 style={category === c.key
-                  ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }
+                  ? { background: '#E7C78A', color: 'white' }
                   : { background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)' }}
               >
                 {c.label}
@@ -213,28 +213,28 @@ export default function WorkshopsPage() {
                     <div className="flex gap-3 p-4">
                       <div className="flex-1 min-w-0 space-y-2">
                         {ws.workshop_type && (
-                          <span className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#FDF3E3', color: '#C49438' }}>
+                          <span className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#FFFFFF', color: '#D9B978' }}>
                             {ws.workshop_type}
                           </span>
                         )}
-                        <h3 className="font-bold text-sm leading-snug" style={{ color: '#4A3F35' }}>{ws.title}</h3>
+                        <h3 className="font-bold text-sm leading-snug" style={{ color: '#3D2E20' }}>{ws.title}</h3>
                         {ws.description && (
-                          <p className="text-xs leading-relaxed line-clamp-2" style={{ color: '#9B8E80' }}>{ws.description.split('\n')[0]}</p>
+                          <p className="text-xs leading-relaxed line-clamp-2" style={{ color: '#818267' }}>{ws.description.split('\n')[0]}</p>
                         )}
                         {ws.price != null && (
-                          <p className="text-lg font-black" style={{ color: '#C49438' }}>{ws.price === 0 ? 'חינם' : `₪${ws.price}`}</p>
+                          <p className="text-lg font-black" style={{ color: '#D9B978' }}>{ws.price === 0 ? 'חינם' : `₪${ws.price}`}</p>
                         )}
                       </div>
                       <div className="relative flex-shrink-0">
                         {ws.image_url ? (
                           <img src={ws.image_url} alt={ws.title} className="w-24 h-24 object-cover rounded-2xl" />
                         ) : (
-                          <div className="w-24 h-24 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #F7F3EC, #F2EBE0)' }}>
+                          <div className="w-24 h-24 rounded-2xl flex items-center justify-center" style={{ background: '#DCD4C8' }}>
                             <ShoppingBag className="w-8 h-8 text-sand-300" />
                           </div>
                         )}
                         {isFeatured && (
-                          <div className="absolute -top-2 -right-2 flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: '#4A3F35' }}>
+                          <div className="absolute -top-2 -right-2 flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: '#A35C3D' }}>
                             <Star className="w-2.5 h-2.5" /> מומלץ
                           </div>
                         )}
@@ -244,13 +244,13 @@ export default function WorkshopsPage() {
                       <a href={`https://wa.me/${ws.whatsapp_number ?? ownerWhatsapp}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
                         target="_blank" rel="noopener noreferrer"
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white"
-                        style={{ background: '#4A3F35' }}>
+                        style={{ background: '#818267' }}>
                         <MessageCircle className="w-4 h-4" /> וואטסאפ
                       </a>
                       {ws.payment_link && (
                         <a href={ws.payment_link} target="_blank" rel="noopener noreferrer"
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white"
-                          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                          style={{ background: '#E7C78A' }}>
                           <CreditCard className="w-4 h-4" /> רכישה
                         </a>
                       )}

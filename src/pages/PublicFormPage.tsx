@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
@@ -62,7 +62,7 @@ export default function PublicFormPage({ formId }: { formId: string }) {
     }
   }
 
-  const bg = 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)'
+  const bg = '#DCD4C8'
 
   if (notFound) {
     return (
@@ -160,8 +160,8 @@ export default function PublicFormPage({ formId }: { formId: string }) {
                         onClick={() => setAnswers(a => ({ ...a, [field.label]: String(n) }))}
                         className="w-11 h-11 rounded-xl text-sm font-bold transition-all"
                         style={answers[field.label] === String(n)
-                          ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)', color: 'white' }
-                          : { background: '#F5F0E8', color: '#9B8E80' }}
+                          ? { background: '#E7C78A', color: 'white' }
+                          : { background: '#F5F0E8', color: '#818267' }}
                       >
                         {n}
                       </button>
@@ -211,7 +211,7 @@ export default function PublicFormPage({ formId }: { formId: string }) {
             onClick={submit}
             disabled={submitting}
             className="w-full py-4 rounded-2xl text-white font-bold text-sm disabled:opacity-50 mt-2"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+            style={{ background: '#E7C78A' }}
           >
             {submitting ? 'שולח...' : 'שלח טופס ✓'}
           </button>

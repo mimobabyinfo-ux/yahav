@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { ArrowRight, LogOut, Plus, Check, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -47,7 +47,7 @@ export default function UserSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen p-5 pb-12" dir="rtl" style={{ background: '#FAF8F4' }}>
+    <div className="min-h-screen p-5 pb-12" dir="rtl" style={{ background: '#DCD4C8' }}>
       <div className="max-w-sm mx-auto space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between pt-2">
@@ -155,7 +155,7 @@ export default function UserSettingsPage() {
                   type="submit"
                   disabled={saving}
                   className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                  style={{ background: '#E7C78A' }}
                 >
                   {saving ? '...' : <><Check className="w-4 h-4" /> שמירה</>}
                 </button>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import {
   LogOut, Sparkles, CheckCircle2, Circle, ShoppingBag, Stethoscope,
   ChevronDown, ChevronUp, Plus, Trash2, Bell, X, Pencil, Check,
@@ -223,7 +223,7 @@ function CustomRemindersPanel() {
           <div className="flex gap-2">
             <button onClick={add} disabled={saving || !newLabel.trim()}
               className="flex-1 py-2.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+              style={{ background: '#E7C78A' }}>
               {saving ? '...' : 'הוסיפי'}
             </button>
             <button onClick={() => setAdding(false)} className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>
@@ -441,11 +441,11 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
   return (
     <div className="min-h-screen pb-28" dir="rtl">
       {/* ── Header ── */}
-      <div className="px-5 pt-10 pb-6" style={{ background: 'linear-gradient(160deg, #4A3F35 0%, #3a302a 100%)' }}>
+      <div className="px-5 pt-10 pb-6" style={{ background: 'linear-gradient(160deg, #3D2E20 0%, #2A1F15 100%)' }}>
         <div className="max-w-sm mx-auto">
           <div className="flex items-start justify-between mb-5">
             <div>
-              <p className="text-sm" style={{ color: '#C49438' }}>שלום,</p>
+              <p className="text-sm" style={{ color: '#D9B978' }}>שלום,</p>
               <h1 className="text-2xl font-bold text-white">{profile?.mother_name ?? 'אמא לעתיד'} 🤰</h1>
             </div>
             <button onClick={signOut} className="p-2 rounded-xl text-white/50 hover:text-white transition-colors">
@@ -454,7 +454,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
           </div>
 
           {profile?.due_date ? (
-            <div className="rounded-3xl p-5 relative overflow-hidden mb-4" style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+            <div className="rounded-3xl p-5 relative overflow-hidden mb-4" style={{ background: '#E7C78A' }}>
               <div className="relative z-10">
                 <p className="text-sm font-semibold text-white/80">שבוע הריון</p>
                 <p className="text-5xl font-black text-white mt-1">{week}</p>
@@ -474,7 +474,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
             <div className="flex-1">
               <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #D4AA52, #ffdf80)' }} />
+                  style={{ width: `${pct}%`, background: '#E7C78A' }} />
               </div>
             </div>
             <p className="text-xs font-bold text-white/80 flex-shrink-0">{doneCount}/{totalItems} הושלמו</p>
@@ -514,7 +514,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
               key={t.id}
               onClick={() => { setDashTab(t.id); setAddingPersonal(false) }}
               className={`flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${dashTab === t.id ? 'text-white shadow-sm' : 'text-sand-500'}`}
-              style={dashTab === t.id ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+              style={dashTab === t.id ? { background: '#E7C78A' } : {}}
             >
               {t.icon}{t.label}
             </button>
@@ -590,7 +590,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                       </div>
                       <div className="flex gap-2">
                         <button onClick={saveEdit} className="flex-1 py-2 rounded-xl text-white font-bold text-xs"
-                          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                          style={{ background: '#E7C78A' }}>
                           <Check className="w-3.5 h-3.5 inline ml-1" />שמירה
                         </button>
                         <button onClick={() => setEditingId(null)} className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-xs font-semibold">ביטול</button>
@@ -642,7 +642,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                 <div className="flex gap-2">
                   <button onClick={addPersonalItem} disabled={savingPersonal || !newItemText.trim()}
                     className="flex-1 py-2.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
-                    style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                    style={{ background: '#E7C78A' }}>
                     {savingPersonal ? '...' : 'הוסיפי'}
                   </button>
                   <button onClick={() => setAddingPersonal(false)} className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>
@@ -696,7 +696,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                         className="w-full px-3 py-2 border-2 border-mustard-300 rounded-xl text-sm focus:outline-none" autoFocus />
                       <div className="flex gap-2">
                         <button onClick={saveEdit} className="flex-1 py-2 rounded-xl text-white font-bold text-xs"
-                          style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                          style={{ background: '#E7C78A' }}>
                           <Check className="w-3.5 h-3.5 inline ml-1" />שמירה
                         </button>
                         <button onClick={() => setEditingId(null)} className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-xs font-semibold">ביטול</button>
@@ -731,7 +731,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                 <div className="flex gap-2">
                   <button onClick={addPersonalItem} disabled={savingPersonal || !newItemText.trim()}
                     className="flex-1 py-2.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
-                    style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                    style={{ background: '#E7C78A' }}>
                     {savingPersonal ? '...' : 'הוסיפי'}
                   </button>
                   <button onClick={() => setAddingPersonal(false)} className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>
@@ -802,7 +802,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
             <div className="flex gap-2">
               <button onClick={graduate} disabled={saving || !babyName.trim()}
                 className="flex-1 py-3 rounded-2xl text-white font-bold disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+                style={{ background: '#E7C78A' }}>
                 {saving ? 'שומרת...' : 'כניסה ליומן 🎉'}
               </button>
               <button onClick={() => setGraduating(false)} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>

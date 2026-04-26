@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+﻿import { Check } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function ChildSwitcher() {
@@ -17,7 +17,7 @@ export default function ChildSwitcher() {
               ? 'text-white shadow-sm'
               : 'bg-white text-sand-500 border border-sand-100'
           }`}
-          style={selectedChild?.id === child.id ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+          style={selectedChild?.id === child.id ? { background: '#E7C78A' } : {}}
         >
           <span>{genderEmoji(child.gender)}</span>
           <span>{child.name}</span>

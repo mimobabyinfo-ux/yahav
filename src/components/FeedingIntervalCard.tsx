@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -116,7 +116,7 @@ export default function FeedingIntervalCard() {
               key={h}
               onClick={() => saveFeedingInterval(h)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${intervalHours === h ? 'text-white shadow-sm' : 'bg-sand-100 text-sand-500'}`}
-              style={intervalHours === h ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+              style={intervalHours === h ? { background: '#E7C78A' } : {}}
             >
               {h}ש׳
             </button>

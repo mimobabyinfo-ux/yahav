@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -155,7 +155,7 @@ export default function FormTriggerModal() {
                             ? 'text-white shadow-md'
                             : 'bg-sand-100 text-sand-600 hover:bg-mustard-100 hover:text-mustard-700'
                         }`}
-                        style={answers[field.label] === String(n) ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}
+                        style={answers[field.label] === String(n) ? { background: '#E7C78A' } : {}}
                       >
                         {n}
                       </button>
@@ -188,7 +188,7 @@ export default function FormTriggerModal() {
               onClick={submit}
               disabled={submitting}
               className="w-full py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50 mt-2"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+              style={{ background: '#E7C78A' }}
             >
               {submitting ? 'שולח...' : 'שלח'}
             </button>

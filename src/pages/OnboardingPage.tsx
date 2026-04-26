@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Plus, Trash2, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -122,7 +122,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center p-6 pb-10" style={{ background: 'linear-gradient(135deg, #F7F3EC 0%, #F2EBE0 100%)' }} dir="rtl">
+    <div className="min-h-screen flex flex-col justify-center p-6 pb-10" style={{ background: '#DCD4C8' }} dir="rtl">
       <div className="w-full max-w-sm mx-auto space-y-5">
         {/* Header */}
         <div className="text-center">
@@ -208,7 +208,7 @@ export default function OnboardingPage() {
             <label className="flex items-start gap-3 cursor-pointer pt-1">
               <div onClick={() => setShowPhone(v => !v)}
                 className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${showPhone ? 'border-mustard-500' : 'border-sand-300'}`}
-                style={showPhone ? { background: 'linear-gradient(135deg, #D4AA52, #C49438)' } : {}}>
+                style={showPhone ? { background: '#E7C78A' } : {}}>
                 {showPhone && <Check className="w-3 h-3 text-white" />}
               </div>
               <span className="text-xs text-sand-600 leading-relaxed">
@@ -292,7 +292,7 @@ export default function OnboardingPage() {
 
           <button type="submit" disabled={loading}
             className="w-full text-white font-bold py-4 rounded-2xl transition-all shadow-lg disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+            style={{ background: '#E7C78A' }}>
             {loading ? 'שומרת...' : 'בואי נתחיל! 🎉'}
           </button>
         </form>

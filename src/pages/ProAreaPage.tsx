@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
 import { ChevronRight, PlayCircle, BookOpen, FileText, Lock, CheckSquare, Square, MessageCircle, X } from 'lucide-react'
 import { supabase, Workshop, WorkshopContent, PurchasedWorkshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -142,7 +142,7 @@ export default function ProAreaPage() {
       <div className="min-h-screen flex items-center justify-center p-6" dir="rtl">
         <div className="text-center max-w-sm space-y-5">
           <div className="w-24 h-24 rounded-3xl mx-auto flex items-center justify-center shadow-lg"
-            style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}>
+            style={{ background: '#E7C78A' }}>
             <Lock className="w-10 h-10 text-white" />
           </div>
           <h2 className="text-2xl font-black text-sand-800">הסדנאות נעולות</h2>
@@ -162,7 +162,7 @@ export default function ProAreaPage() {
     const pdfs     = content.filter(c => c.type === 'pdf')
 
     return (
-      <div className="min-h-screen pb-24" dir="rtl" style={{ background: '#FDFBF7' }}>
+      <div className="min-h-screen pb-24" dir="rtl" style={{ background: '#FFFFFF' }}>
         {/* Header */}
         <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-sand-100 bg-white sticky top-0 z-10">
           <button onClick={() => { setSelected(null); setContent([]); setPlayingId(null) }}
@@ -194,7 +194,7 @@ export default function ProAreaPage() {
             <button
               onClick={openNextModal}
               className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
-              style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+              style={{ background: '#E7C78A' }}
             >
               🎓 לסדנה הבאה
             </button>
@@ -408,7 +408,7 @@ export default function ProAreaPage() {
                       target="_blank" rel="noopener noreferrer"
                       onClick={() => track('next_workshop_payment_click', { workshop_id: nextWorkshop?.id ?? selected.workshop_id })}
                       className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-white font-bold text-base"
-                      style={{ background: 'linear-gradient(135deg, #D4AA52, #C49438)' }}
+                      style={{ background: '#E7C78A' }}
                     >
                       להרשמה ותשלום ←
                     </a>
@@ -434,7 +434,7 @@ export default function ProAreaPage() {
 
   // ── Workshop list view ─────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen p-4 pb-24" dir="rtl" style={{ background: '#FDFBF7' }}>
+    <div className="min-h-screen p-4 pb-24" dir="rtl" style={{ background: '#FFFFFF' }}>
       <div className="max-w-sm mx-auto space-y-4">
         <div className="pt-2">
           <h1 className="text-2xl font-bold text-sand-800">סדנאות</h1>
