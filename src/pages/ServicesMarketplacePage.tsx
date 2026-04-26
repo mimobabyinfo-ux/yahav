@@ -103,7 +103,7 @@ export default function ServicesMarketplacePage() {
         </div>
 
         {/* Category tabs */}
-        <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
+        <div className="flex bg-[#F5F5F5] rounded-2xl p-1 shadow-sm gap-1">
           {([['pregnancy', '🤰 הריון'], ['motherhood', '🌸 אמהות']] as [Category, string][]).map(([v, label]) => (
             <button
               key={v}
@@ -121,7 +121,7 @@ export default function ServicesMarketplacePage() {
             <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-3xl p-10 text-center shadow-sm">
+          <div className="bg-[#F5F5F5] rounded-3xl p-10 text-center shadow-sm">
             <p className="text-4xl mb-3">🔍</p>
             <p className="font-semibold text-sand-700">בקרוב כאן יהיו שירותים מומלצים</p>
           </div>
@@ -134,12 +134,12 @@ export default function ServicesMarketplacePage() {
               </div>
 
               {items.map(partner => (
-                <div key={partner.id} className="bg-white rounded-3xl p-4 shadow-sm space-y-3"
+                <div key={partner.id} className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm space-y-3"
                   style={{ border: '1px solid #F0EAE0' }}>
                   {/* Partner info */}
                   <div className="flex items-start gap-3">
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: '#DCD4C8' }}>
+                      style={{ background: '#FFFFFF' }}>
                       {partner.logo_url
                         ? <img src={partner.logo_url} alt={partner.title} className="w-10 h-10 rounded-xl object-contain" />
                         : <span className="text-2xl">{SUBCATEGORY_EMOJI[partner.subcategory ?? ''] ?? '🌿'}</span>}
@@ -205,7 +205,7 @@ export default function ServicesMarketplacePage() {
                       <button
                         onClick={() => openCallback(partner)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl text-sm font-bold transition-colors active:opacity-80"
-                        style={{ background: 'linear-gradient(135deg, #DCD4C8, #EDE5D8)', color: '#7C6045' }}
+                        style={{ background: 'linear-gradient(135deg, #FFFFFF, #EDE5D8)', color: '#7C6045' }}
                       >
                         <Phone className="w-4 h-4" />
                         בקשי התקשרות

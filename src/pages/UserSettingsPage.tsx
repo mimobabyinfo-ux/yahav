@@ -47,7 +47,7 @@ export default function UserSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen p-5 pb-12" dir="rtl" style={{ background: '#DCD4C8' }}>
+    <div className="min-h-screen p-5 pb-12" dir="rtl" style={{ background: '#FFFFFF' }}>
       <div className="max-w-sm mx-auto space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between pt-2">
@@ -62,7 +62,7 @@ export default function UserSettingsPage() {
         </div>
 
         {/* פרטים אישיים — read-only */}
-        <section className="bg-white rounded-3xl shadow-sm p-5 space-y-3">
+        <section className="bg-[#F5F5F5] rounded-3xl shadow-sm p-5 space-y-3">
           <h2 className="text-sm font-bold text-sand-700">פרטים אישיים</h2>
           <div className="space-y-2.5">
             <div>
@@ -87,7 +87,7 @@ export default function UserSettingsPage() {
         </section>
 
         {/* הילדים שלי */}
-        <section className="bg-white rounded-3xl shadow-sm p-5 space-y-3">
+        <section className="bg-[#F5F5F5] rounded-3xl shadow-sm p-5 space-y-3">
           <h2 className="text-sm font-bold text-sand-700">הילדים שלי</h2>
 
           {children.length === 0 && (
@@ -181,7 +181,7 @@ export default function UserSettingsPage() {
         </section>
 
         {/* יציאה */}
-        <section className="bg-white rounded-3xl shadow-sm p-5">
+        <section className="bg-[#F5F5F5] rounded-3xl shadow-sm p-5">
           <button
             onClick={signOut}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-red-600 hover:bg-red-50 transition-colors"

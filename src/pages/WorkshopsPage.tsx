@@ -27,7 +27,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose
             </button>
           </div>
         ) : (
-          <div className="relative w-full h-24 flex items-center justify-center rounded-t-3xl" style={{ background: '#DCD4C8' }}>
+          <div className="relative w-full h-24 flex items-center justify-center rounded-t-3xl" style={{ background: '#FFFFFF' }}>
             <ShoppingBag className="w-10 h-10 text-sand-300" />
             <button
               onClick={onClose}
@@ -209,7 +209,7 @@ export default function WorkshopsPage() {
               filtered.map(ws => {
                 const isFeatured = ws.display_order === 1
                 return (
-                  <div key={ws.id} className="bg-white rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => setSelected(ws)}>
+                  <div key={ws.id} className="bg-[#F5F5F5] rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => setSelected(ws)}>
                     <div className="flex gap-3 p-4">
                       <div className="flex-1 min-w-0 space-y-2">
                         {ws.workshop_type && (
@@ -229,7 +229,7 @@ export default function WorkshopsPage() {
                         {ws.image_url ? (
                           <img src={ws.image_url} alt={ws.title} className="w-24 h-24 object-cover rounded-2xl" />
                         ) : (
-                          <div className="w-24 h-24 rounded-2xl flex items-center justify-center" style={{ background: '#DCD4C8' }}>
+                          <div className="w-24 h-24 rounded-2xl flex items-center justify-center" style={{ background: '#FFFFFF' }}>
                             <ShoppingBag className="w-8 h-8 text-sand-300" />
                           </div>
                         )}
@@ -270,7 +270,7 @@ export default function WorkshopsPage() {
             </div>
           ) : (
             purchases.map(p => (
-              <div key={p.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
+              <div key={p.id} className="bg-[#F5F5F5] rounded-3xl shadow-sm overflow-hidden">
                 {p.workshops.image_url && (
                   <img src={p.workshops.image_url} alt={p.workshops.title} className="w-full h-32 object-cover" />
                 )}

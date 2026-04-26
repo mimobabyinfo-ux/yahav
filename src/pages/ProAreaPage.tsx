@@ -231,7 +231,7 @@ export default function ProAreaPage() {
                   </div>
                   <div className="space-y-3">
                     {videos.map(item => (
-                      <div key={item.id} className="bg-white rounded-2xl overflow-hidden shadow-sm">
+                      <div key={item.id} className="bg-[#F5F5F5] rounded-2xl overflow-hidden shadow-sm">
                         {item.url && (
                           <div className="relative bg-sand-100 h-36">
                             {playingId === item.id ? (
@@ -269,7 +269,7 @@ export default function ProAreaPage() {
                       const taskList = item.tasks_json ?? []
                       const doneCount = taskList.filter((_, i) => doneKeys.has(`${item.id}:${i}`)).length
                       return (
-                        <div key={item.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                        <div key={item.id} className="bg-[#F5F5F5] rounded-2xl shadow-sm overflow-hidden">
                           <div className="p-4 border-b border-sand-50">
                             <div className="flex items-center justify-between">
                               <p className="font-bold text-sand-800 text-sm">{item.title}</p>
@@ -328,7 +328,7 @@ export default function ProAreaPage() {
                   <div className="space-y-2">
                     {pdfs.map(item => (
                       <a key={item.id} href={item.url ?? '#'} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm hover:bg-sand-50 transition-colors">
+                        className="flex items-center gap-3 bg-[#F5F5F5] rounded-2xl p-4 shadow-sm hover:bg-sand-50 transition-colors">
                         <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
                           <FileText className="w-4 h-4 text-blue-500" />
                         </div>
@@ -474,7 +474,7 @@ export default function ProAreaPage() {
               const w = aw.workshop
               return (
                 <button key={aw.id} onClick={() => openWorkshop(aw)}
-                  className="w-full bg-white rounded-3xl shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all text-right">
+                  className="w-full bg-[#F5F5F5] rounded-3xl shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all text-right">
                   {w?.image_url ? (
                     <img src={w.image_url} alt={w.title} className="w-full h-36 object-cover" />
                   ) : (

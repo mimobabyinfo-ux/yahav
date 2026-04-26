@@ -49,7 +49,7 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose} dir="rtl">
-      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#F5F5F5] rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100">
           <h3 className="font-bold text-sand-800">שיתוף פרופיל התינוק/ת</h3>
@@ -60,7 +60,7 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
 
         {/* Baby card preview */}
         <div className="p-5">
-          <div className="rounded-3xl p-5 text-center space-y-3" style={{ background: '#DCD4C8' }}>
+          <div className="rounded-3xl p-5 text-center space-y-3" style={{ background: '#FFFFFF' }}>
             <div className="flex justify-center">
               <MimoLogo size={70} />
             </div>

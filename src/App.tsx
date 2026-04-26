@@ -126,7 +126,7 @@ function AppInner() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#DCD4C8' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#FFFFFF' }}>
         <div className="text-center flex flex-col items-center gap-4">
           <div className="animate-pulse">
             <MimoLogo size={120} />
@@ -146,7 +146,7 @@ function AppInner() {
   // Guests see ONLY the journal — no nav, no other pages
   if (isGuest) {
     return (
-      <div className="min-h-screen" style={{ background: '#DCD4C8' }}>
+      <div className="min-h-screen" style={{ background: '#FFFFFF' }}>
         <JournalPage />
       </div>
     )
@@ -219,7 +219,7 @@ function AppInner() {
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: '#DCD4C8' }}>
+    <div className="min-h-screen pb-20" style={{ background: '#FFFFFF' }}>
       {renderPage()}
       <BottomNav
         currentPage={currentPage} onNavigate={navigate}

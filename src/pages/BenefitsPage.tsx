@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 import { supabase, PartnerPerk } from '../lib/supabase'
 import PerkDetailsModal from '../components/PerkDetailsModal'
@@ -82,7 +82,7 @@ export default function BenefitsPage() {
               <button
                 key={perk.id}
                 onClick={() => trackView(perk)}
-                className="bg-white rounded-3xl p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all text-right"
+                className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all text-right"
               >
                 {perk.logo_url ? (
                   <img

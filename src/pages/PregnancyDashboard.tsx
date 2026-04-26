@@ -69,7 +69,7 @@ function dismissTimeReminder(timeStr: string) {
 function WeekGuideCard({ guide, week }: { guide: PregnancyWeeklyGuide; week: number }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+    <div className="bg-[#F5F5F5] rounded-3xl shadow-sm overflow-hidden">
       <button
         className="w-full p-4 flex items-center gap-3 text-right"
         onClick={() => setOpen(v => !v)}
@@ -172,7 +172,7 @@ function CustomRemindersPanel() {
   return (
     <div className="space-y-3">
       {reminders.length === 0 && !adding && (
-        <div className="bg-white rounded-3xl p-8 text-center shadow-sm">
+        <div className="bg-[#F5F5F5] rounded-3xl p-8 text-center shadow-sm">
           <p className="text-3xl mb-2">🔔</p>
           <p className="font-semibold text-sand-700 text-sm">אין תזכורות עדיין</p>
           <p className="text-xs text-sand-400 mt-1">הוסיפי תזכורות אישיות להריון</p>
@@ -180,7 +180,7 @@ function CustomRemindersPanel() {
       )}
 
       {reminders.map(r => (
-        <div key={r.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
+        <div key={r.id} className="bg-[#F5F5F5] rounded-2xl p-4 shadow-sm flex items-center gap-3">
           <span className="text-xl flex-shrink-0">{r.emoji}</span>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sand-800 text-sm">{r.label}</p>
@@ -199,7 +199,7 @@ function CustomRemindersPanel() {
       ))}
 
       {adding ? (
-        <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
+        <div className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm space-y-3">
           <div className="flex gap-2">
             <input
               value={newEmoji} onChange={e => setNewEmoji(e.target.value)}
@@ -504,7 +504,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
         ))}
 
         {/* ── Tab Switcher ── */}
-        <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
+        <div className="flex bg-[#F5F5F5] rounded-2xl p-1 shadow-sm gap-1">
           {([
             { id: 'medical' as DashTab,   icon: <Stethoscope className="w-3.5 h-3.5" />, label: 'רפואי' },
             { id: 'buying' as DashTab,    icon: <ShoppingBag className="w-3.5 h-3.5" />, label: 'קניות' },
@@ -529,7 +529,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
               const isOpen = expandedBuckets.has(bucket.key)
               const allDone = bucketDone === bucket.items.length
               return (
-                <div key={bucket.key} className="bg-white rounded-3xl shadow-sm overflow-hidden">
+                <div key={bucket.key} className="bg-[#F5F5F5] rounded-3xl shadow-sm overflow-hidden">
                   <button className="w-full flex items-center justify-between p-4" onClick={() => toggleBucket(bucket.key)}>
                     <div className="flex items-center gap-3">
                       <div className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 ${allDone ? 'bg-green-100' : 'bg-mustard-50'}`}>
@@ -571,7 +571,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
 
             {/* Personal medical items */}
             {myPersonalMedical.length > 0 && (
-              <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+              <div className="bg-[#F5F5F5] rounded-3xl shadow-sm overflow-hidden">
                 <div className="p-4 border-b border-sand-100">
                   <p className="text-xs font-bold text-mustard-600">📝 הוספות אישיות שלי</p>
                 </div>
@@ -619,7 +619,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
 
             {/* Add personal medical item */}
             {addingPersonal ? (
-              <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
+              <div className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm space-y-3">
                 <input
                   value={newItemText}
                   onChange={e => setNewItemText(e.target.value)}
@@ -660,7 +660,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
         {/* ── Buying Tab ── */}
         {dashTab === 'buying' && (
           <div className="space-y-2">
-            <div className="bg-white rounded-3xl shadow-sm overflow-hidden divide-y divide-sand-50">
+            <div className="bg-[#F5F5F5] rounded-3xl shadow-sm overflow-hidden divide-y divide-sand-50">
               {visibleBuying.map(item => {
                 const done = completed.has(item.id)
                 return (
@@ -685,7 +685,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
 
             {/* Personal buying items */}
             {myPersonalBuying.length > 0 && (
-              <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+              <div className="bg-[#F5F5F5] rounded-3xl shadow-sm overflow-hidden">
                 <div className="p-4 border-b border-sand-100">
                   <p className="text-xs font-bold text-mustard-600">📝 פריטים שהוספתי</p>
                 </div>
@@ -721,7 +721,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
             )}
 
             {addingPersonal ? (
-              <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
+              <div className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm space-y-3">
                 <input
                   value={newItemText} onChange={e => setNewItemText(e.target.value)}
                   placeholder="מה עוד צריך לקנות?"
@@ -754,13 +754,13 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
         {/* ── Quick links + Graduation (always visible) ── */}
         <div className="grid grid-cols-2 gap-3 pt-1">
           <button onClick={() => onNavigate('workshops')}
-            className="bg-white rounded-3xl p-4 shadow-sm text-right hover:shadow-md hover:-translate-y-0.5 transition-all">
+            className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm text-right hover:shadow-md hover:-translate-y-0.5 transition-all">
             <span className="text-3xl block mb-2">🛍️</span>
             <p className="font-bold text-sand-800 text-sm">מוצרים</p>
             <p className="text-xs text-sand-400">לקראת הלידה</p>
           </button>
           <button onClick={() => onNavigate('community')}
-            className="bg-white rounded-3xl p-4 shadow-sm text-right hover:shadow-md hover:-translate-y-0.5 transition-all">
+            className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm text-right hover:shadow-md hover:-translate-y-0.5 transition-all">
             <span className="text-3xl block mb-2">🌸</span>
             <p className="font-bold text-sand-800 text-sm">קהילה</p>
             <p className="text-xs text-sand-400">בנות בהריון כמוך</p>
@@ -775,7 +775,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
             התינוק נולד! 🎉 עברי ליומן
           </button>
         ) : (
-          <div className="bg-white rounded-3xl p-5 shadow-sm space-y-4">
+          <div className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm space-y-4">
             <div className="text-center">
               <p className="text-2xl">🎉</p>
               <p className="font-bold text-sand-800 mt-1">מזל טוב! ספרי לנו על התינוק</p>

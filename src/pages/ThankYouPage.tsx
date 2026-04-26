@@ -42,21 +42,21 @@ export default function ThankYouPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#DCD4C8' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#FFFFFF' }}>
         <div className="animate-pulse"><MimoLogo size={120} /></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen px-4 py-10" dir="rtl" style={{ background: '#DCD4C8' }}>
+    <div className="min-h-screen px-4 py-10" dir="rtl" style={{ background: '#FFFFFF' }}>
       <div className="max-w-md mx-auto">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-2"><MimoLogo size={120} /></div>
           <p className="text-sand-500 text-sm">{subtitle}</p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-sm p-6 space-y-5 text-center">
+        <div className="bg-[#F5F5F5] rounded-3xl shadow-sm p-6 space-y-5 text-center">
           <h1 className="text-2xl font-bold text-sand-800 leading-tight">{title}</h1>
 
           <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-line">{body}</p>

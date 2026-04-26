@@ -62,7 +62,7 @@ export default function InstallPrompt() {
 
   return (
     <div className="fixed bottom-24 right-0 left-0 max-w-[480px] mx-auto px-4 z-50 animate-slide-up" dir="rtl">
-      <div className="bg-white rounded-3xl shadow-2xl border border-sand-100 overflow-hidden">
+      <div className="bg-[#F5F5F5] rounded-3xl shadow-2xl border border-sand-100 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-sand-50">
           <div className="flex items-center gap-3">
             <img src="/mimo_logo.png" alt="Mimo" className="w-10 h-10 rounded-2xl object-cover" />

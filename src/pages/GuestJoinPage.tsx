@@ -16,7 +16,7 @@ export default function GuestJoinPage({ token }: { token: string }) {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-6 gap-6"
-      style={{ background: '#DCD4C8' }}
+      style={{ background: '#FFFFFF' }}
       dir="rtl"
     >
       <MimoLogo size={90} />

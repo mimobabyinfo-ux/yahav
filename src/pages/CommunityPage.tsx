@@ -166,7 +166,7 @@ export default function CommunityPage() {
           {profileComplete && !editMode && (
             <button
               onClick={() => setEditMode(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-2xl text-xs font-semibold text-sand-500 shadow-sm hover:text-sand-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#F5F5F5] rounded-2xl text-xs font-semibold text-sand-500 shadow-sm hover:text-sand-700 transition-colors"
             >
               <Pencil className="w-3.5 h-3.5" />
               ערוך פרופיל
@@ -176,7 +176,7 @@ export default function CommunityPage() {
 
         {/* Community profile form */}
         {showEditSection && (
-          <div className="bg-white rounded-3xl p-5 shadow-sm space-y-4">
+          <div className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm space-y-4">
             <div>
               <p className="text-base font-bold text-sand-800">
                 {isPregnant ? 'הצטרפי לקהילת הריון 🤰' : 'הצטרפי לקהילה 🌸'}
@@ -263,7 +263,7 @@ export default function CommunityPage() {
 
         {/* Filters */}
         {isPregnant ? (
-          <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
+          <div className="flex bg-[#F5F5F5] rounded-2xl p-1 shadow-sm gap-1">
             {([
               ['all',  'כולן'],
               ['week', 'שבוע דומה'],
@@ -280,7 +280,7 @@ export default function CommunityPage() {
             ))}
           </div>
         ) : (
-          <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
+          <div className="flex bg-[#F5F5F5] rounded-2xl p-1 shadow-sm gap-1">
             {([
               ['all',  'כולן'],
               ['age',  'גיל דומה'],
@@ -301,7 +301,7 @@ export default function CommunityPage() {
         {/* ── Pregnant community results ─────────────────────────────────────── */}
         {isPregnant && (
           filteredPregnant.length === 0 ? (
-            <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-2">
+            <div className="bg-[#F5F5F5] rounded-3xl p-8 text-center shadow-sm space-y-2">
               <p className="text-3xl">🔍</p>
               <p className="font-semibold text-sand-700 text-sm">
                 {pregnancyFilter === 'week' && myWeek == null
@@ -320,7 +320,7 @@ export default function CommunityPage() {
               {filteredPregnant.map(p => {
                 const week = p.due_date ? pregnancyWeek(p.due_date) : null
                 return (
-                  <div key={p.id} className="bg-white rounded-3xl p-4 shadow-sm">
+                  <div key={p.id} className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm">
                     <div className="flex items-start gap-3">
                       <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 mt-0.5"
                         style={{ background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)' }}>
@@ -372,7 +372,7 @@ export default function CommunityPage() {
         {/* ── Mom community results ──────────────────────────────────────────── */}
         {!isPregnant && (
           filteredMoms.length === 0 ? (
-            <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-2">
+            <div className="bg-[#F5F5F5] rounded-3xl p-8 text-center shadow-sm space-y-2">
               <p className="text-3xl">🔍</p>
               <p className="font-semibold text-sand-700 text-sm">
                 {filterMode === 'area' && !myArea
@@ -389,10 +389,10 @@ export default function CommunityPage() {
                 {filteredMoms.length} אמהות נמצאו
               </p>
               {filteredMoms.map(p => (
-                <div key={p.child_id} className="bg-white rounded-3xl p-4 shadow-sm">
+                <div key={p.child_id} className="bg-[#F5F5F5] rounded-3xl p-4 shadow-sm">
                   <div className="flex items-start gap-3">
                     <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 mt-0.5"
-                      style={{ background: '#DCD4C8' }}>
+                      style={{ background: '#FFFFFF' }}>
                       {genderEmoji(p.child_gender)}
                     </div>
                     <div className="flex-1 min-w-0">

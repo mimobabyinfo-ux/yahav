@@ -85,7 +85,7 @@ export default function PublicBabyPage({ token }: Props) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#DCD4C8' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#FFFFFF' }}>
         <div className="text-center flex flex-col items-center gap-4">
           <div className="animate-pulse">
             <MimoLogo size={100} />
@@ -98,7 +98,7 @@ export default function PublicBabyPage({ token }: Props) {
 
   if (notFound) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#DCD4C8' }} dir="rtl">
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#FFFFFF' }} dir="rtl">
         <div className="text-center space-y-4">
           <p className="text-5xl">🔍</p>
           <p className="font-bold text-sand-800">קישור לא תקין</p>
@@ -109,7 +109,7 @@ export default function PublicBabyPage({ token }: Props) {
   }
 
   return (
-    <div className="min-h-screen p-4 pb-10" style={{ background: '#DCD4C8' }} dir="rtl">
+    <div className="min-h-screen p-4 pb-10" style={{ background: '#FFFFFF' }} dir="rtl">
       <div className="max-w-sm mx-auto space-y-4 pt-4">
 
         {/* Header */}
@@ -118,7 +118,7 @@ export default function PublicBabyPage({ token }: Props) {
         </div>
 
         {/* Baby card */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm text-center space-y-2">
+        <div className="bg-[#F5F5F5] rounded-3xl p-5 shadow-sm text-center space-y-2">
           <div className="text-5xl">{genderEmoji}</div>
           <div>
             <h1 className="text-2xl font-bold text-sand-800">{baby?.name}</h1>
@@ -141,7 +141,7 @@ export default function PublicBabyPage({ token }: Props) {
               { type: 'diaper',     emoji: '🧷', label: 'חיתולים' },
               { type: 'tummy_time', emoji: '🐣', label: 'זמן בטן' },
             ].map(item => (
-              <div key={item.type} className="bg-white rounded-2xl p-3 shadow-sm text-center">
+              <div key={item.type} className="bg-[#F5F5F5] rounded-2xl p-3 shadow-sm text-center">
                 <div className="text-2xl">{item.emoji}</div>
                 <div className="text-lg font-bold text-sand-800">{countType(item.type)}</div>
                 <div className="text-[10px] text-sand-400">{item.label}</div>
@@ -157,7 +157,7 @@ export default function PublicBabyPage({ token }: Props) {
               {todayEntries.length > 0 ? 'פירוט' : 'הפעילויות האחרונות'}
             </p>
             {entries.slice(0, 15).map(entry => (
-              <div key={entry.id} className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3">
+              <div key={entry.id} className="bg-[#F5F5F5] rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3">
                 <span className="text-xl flex-shrink-0">{entryTypeEmoji(entry.entry_type)}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-sand-800">{entryTypeLabel(entry.entry_type)}</p>
@@ -177,7 +177,7 @@ export default function PublicBabyPage({ token }: Props) {
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-2">
+          <div className="bg-[#F5F5F5] rounded-3xl p-8 text-center shadow-sm space-y-2">
             <p className="text-3xl">📝</p>
             <p className="text-sand-400 text-sm">עדיין אין רשומות להיום</p>
           </div>

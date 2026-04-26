@@ -67,7 +67,7 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
-      style={{ background: '#DCD4C8' }}
+      style={{ background: '#FFFFFF' }}
       dir="rtl"
     >
       {/* Background watermark duck */}
@@ -83,7 +83,7 @@ export default function LoginPage() {
 
         {/* Signup email-sent confirmation */}
         {signupSent && (
-          <div className="w-full bg-white rounded-3xl shadow-lg p-7 text-center space-y-4">
+          <div className="w-full bg-[#F5F5F5] rounded-3xl shadow-lg p-7 text-center space-y-4">
             <div className="text-5xl">📧</div>
             <h2 className="font-bold text-sand-800 text-xl">בדקי את האימייל שלך!</h2>
             <p className="text-sand-500 text-sm leading-relaxed">
@@ -107,7 +107,7 @@ export default function LoginPage() {
         </p>
 
         {/* Card */}
-        {!signupSent && <div className="w-full bg-white rounded-3xl shadow-lg p-7 mt-2">
+        {!signupSent && <div className="w-full bg-[#F5F5F5] rounded-3xl shadow-lg p-7 mt-2">
           <h2
             className="font-bold text-center mb-6"
             style={{ fontSize: '1.5rem', color: '#3D2E20', fontFamily: 'Nunito, sans-serif' }}

@@ -1,4 +1,4 @@
-export default function ContactPage() {
+﻿export default function ContactPage() {
   return (
     <div className="min-h-screen p-5 pb-24" dir="rtl">
       <div className="max-w-sm mx-auto space-y-5 pt-4">
@@ -10,7 +10,7 @@ export default function ContactPage() {
           href="https://wa.me/972500000000"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-4 bg-white rounded-3xl p-5 shadow-sm hover:shadow-md transition-all"
+          className="flex items-center gap-4 bg-[#F5F5F5] rounded-3xl p-5 shadow-sm hover:shadow-md transition-all"
         >
           <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0">
             💬
@@ -27,7 +27,7 @@ export default function ContactPage() {
         {/* Email */}
         <a
           href="mailto:mimobaby.info@gmail.com"
-          className="flex items-center gap-4 bg-white rounded-3xl p-5 shadow-sm hover:shadow-md transition-all"
+          className="flex items-center gap-4 bg-[#F5F5F5] rounded-3xl p-5 shadow-sm hover:shadow-md transition-all"
         >
           <div className="w-12 h-12 bg-mustard-50 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0">
             ✉️
@@ -43,7 +43,7 @@ export default function ContactPage() {
           href="https://instagram.com/mimobaby"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-4 bg-white rounded-3xl p-5 shadow-sm hover:shadow-md transition-all"
+          className="flex items-center gap-4 bg-[#F5F5F5] rounded-3xl p-5 shadow-sm hover:shadow-md transition-all"
         >
           <div className="w-12 h-12 bg-pink-50 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0">
             📸

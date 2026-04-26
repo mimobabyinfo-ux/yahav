@@ -105,7 +105,7 @@ export default function FormTriggerModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-6" dir="rtl">
-      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
+      <div className="bg-[#F5F5F5] rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100">
           <div>

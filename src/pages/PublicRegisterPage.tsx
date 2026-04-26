@@ -117,14 +117,14 @@ export default function PublicRegisterPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#DCD4C8' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#FFFFFF' }}>
         <div className="animate-pulse"><MimoLogo size={120} /></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen px-4 py-8" dir="rtl" style={{ background: '#DCD4C8' }}>
+    <div className="min-h-screen px-4 py-8" dir="rtl" style={{ background: '#FFFFFF' }}>
       <div className="max-w-md mx-auto">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-2"><MimoLogo size={120} /></div>
@@ -133,7 +133,7 @@ export default function PublicRegisterPage() {
 
         <h1 className="text-center text-xl font-bold text-sand-800 mb-6">{hero}</h1>
 
-        <form onSubmit={submit} className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
+        <form onSubmit={submit} className="bg-[#F5F5F5] rounded-3xl shadow-sm p-5 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם מלא</label>
             <input
