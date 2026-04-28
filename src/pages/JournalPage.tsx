@@ -2,6 +2,7 @@
 import { Plus, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { supabase, DailyLogEntryWithDetails } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { formatDate, formatDisplayDate, entryTypeLabel } from '../utils/dateUtils'
 import HorizontalCalendar from '../components/HorizontalCalendar'
 import ActivityTimers from '../components/ActivityTimers'
@@ -43,10 +44,10 @@ const UPSELLS: Record<string, { emoji: string; text: string; cta: string; wa: st
   },
 }
 
-function UpsellCard({ type, onDismiss }: { type: EntryType; onDismiss: () => void }) {
+function UpsellCard({ type, onDismiss, ownerWhatsapp }: { type: EntryType; onDismiss: () => void; ownerWhatsapp: string }) {
   const u = UPSELLS[type]
   if (!u) return null
-  const waUrl = `https://wa.me/972559904274?text=${encodeURIComponent(u.wa)}`
+  const waUrl = `https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(u.wa)}`
   return (
     <div className="bg-gradient-to-r from-mustard-50 to-beige-50 border border-mustard-200 rounded-3xl p-4 flex items-start gap-3 animate-fade-in">
       <span className="text-2xl flex-shrink-0">{u.emoji}</span>
@@ -210,6 +211,7 @@ function MonthView({ entries, month, year, onDayClick }: { entries: DailyLogEntr
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function JournalPage() {
   const { user, selectedChild, profile, isGuest } = useAuth()
+  const { ownerWhatsapp } = useOwnerSettings()
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()))
   const [entries, setEntries] = useState<DailyLogEntryWithDetails[]>([])
@@ -406,7 +408,7 @@ export default function JournalPage() {
             <DailySummary entries={entries} />
 
             {upsellType && (
-              <UpsellCard type={upsellType} onDismiss={() => setUpsellType(null)} />
+              <UpsellCard type={upsellType} onDismiss={() => setUpsellType(null)} ownerWhatsapp={ownerWhatsapp} />
             )}
 
             {loading ? (
