@@ -3607,11 +3607,15 @@ function ThankYouSettingsSection() {
   useEffect(() => {
     supabase.from('global_settings')
       .select('setting_key, setting_value')
-      .in('setting_key', ['thank_you_title', 'thank_you_body', 'whatsapp_community_link', 'instagram_link'])
+      .in('setting_key', ['thank_you_title', 'thank_you_body', 'whatsapp_community_link', 'instagram_link', 'owner_name'])
       .then(({ data }) => {
         const get = (k: string) => data?.find(r => r.setting_key === k)?.setting_value ?? ''
         setTitle(get('thank_you_title') || 'ברוכה הבאה למימו 🐣')
-        setBody(get('thank_you_body') || `מחכה לפגוש אותך ואת הבייבי שלך.\nפרטים נוספים יישלחו בקבוצת ווטסאפ ייעודית לקראת מועד המפגש.\nאני כאן בשבילך לכל שאלה, התייעצות או כל דבר קטן 🤍\nבאהבה, ברנדה`)
+        const ownerName = get('owner_name')
+        const defaultBody = ownerName
+          ? `מחכה לפגוש אותך ואת הבייבי שלך.\nפרטים נוספים יישלחו בקבוצת ווטסאפ ייעודית לקראת מועד המפגש.\nאני כאן בשבילך לכל שאלה, התייעצות או כל דבר קטן 🤍\nבאהבה, ${ownerName}`
+          : `מחכה לפגוש אותך ואת הבייבי שלך.\nפרטים נוספים יישלחו בקבוצת ווטסאפ ייעודית לקראת מועד המפגש.\nאני כאן בשבילך לכל שאלה, התייעצות או כל דבר קטן 🤍`
+        setBody(get('thank_you_body') || defaultBody)
         setWaLink(get('whatsapp_community_link'))
         setIgLink(get('instagram_link'))
       })
