@@ -1,5 +1,5 @@
 import { X, Camera, Trash2 } from 'lucide-react'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatTime } from '../utils/dateUtils'
@@ -82,6 +82,10 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
   const [diaperPhotoPreview, setDiaperPhotoPreview] = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
 
+  useEffect(() => {
+    return () => { if (diaperPhotoPreview) URL.revokeObjectURL(diaperPhotoPreview) }
+  }, [diaperPhotoPreview])
+
   async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -92,7 +96,6 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
 
   function removePhoto() {
     setDiaperPhoto(null)
-    if (diaperPhotoPreview) URL.revokeObjectURL(diaperPhotoPreview)
     setDiaperPhotoPreview(null)
     if (photoInputRef.current) photoInputRef.current.value = ''
   }
