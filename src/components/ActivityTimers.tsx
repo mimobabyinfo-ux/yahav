@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback, useRef } from 'react'
-import { Play, Square, RefreshCw } from 'lucide-react'
+import { Play, Square } from 'lucide-react'
 import { supabase, ActiveTimer } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDate, formatTime, formatElapsed } from '../utils/dateUtils'
@@ -20,7 +20,6 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
   const { user, selectedChild } = useAuth()
   const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([])
   const [elapsed, setElapsed] = useState<Record<string, string>>({})
-  const [breastSide, setBreastSide] = useState<'left' | 'right' | 'both'>('right')
   const stoppingRef = useRef<Set<string>>(new Set())
 
   const loadTimers = useCallback(async () => {
@@ -52,7 +51,7 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
     const additionalData: AdditionalData = {}
     if (type === 'feeding') {
       additionalData.feeding_type = 'breast'
-      additionalData.breast_side = breastSide
+      additionalData.breast_side = 'right'
     }
     await supabase.from('active_timers').insert({
       user_id: user.id,
@@ -126,10 +125,8 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
     }
   }
 
-  async function switchBreastSide(timer: ActiveTimer) {
+  async function switchBreastSide(timer: ActiveTimer, newSide: 'left' | 'right' | 'both') {
     const addl = (timer.additional_data ?? {}) as AdditionalData
-    const currentSide = addl.breast_side ?? 'right'
-    const newSide = currentSide === 'right' ? 'left' : 'right'
     await supabase
       .from('active_timers')
       .update({ additional_data: { ...addl, breast_side: newSide } })
@@ -170,14 +167,6 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
         })}
       </div>
 
-      {/* Breast side selector for feeding */}
-      {!runningTypes.has('feeding') && (
-        <div className="px-1">
-          <p className="text-xs text-sand-400 mb-1.5">צד האכלה</p>
-          <BreastfeedingQuickSwitch side={breastSide} onChange={setBreastSide} />
-        </div>
-      )}
-
       {/* Active timers */}
       {activeTimers.map(timer => {
         const def = timerDefs.find(d => d.type === timer.timer_type)
@@ -190,38 +179,30 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-2xl">{def?.emoji}</span>
-                <div>
-                  <p className="text-sm font-bold text-sand-800">{def?.label} פעיל</p>
-                  {timer.timer_type === 'feeding' && addl.breast_side && (
-                    <p className="text-xs text-sand-400">
-                      {addl.breast_side === 'right' ? 'ימין' : addl.breast_side === 'left' ? 'שמאל' : 'שניהם'}
-                    </p>
-                  )}
-                </div>
+                <p className="text-sm font-bold text-sand-800">{def?.label} פעיל</p>
               </div>
               <div className="text-2xl font-mono font-bold text-mustard-600">
                 {elapsed[timer.id] ?? '00:00'}
               </div>
             </div>
 
-            <div className="flex gap-2">
-              {timer.timer_type === 'feeding' && (
-                <button
-                  onClick={() => switchBreastSide(timer)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-sand-100 rounded-xl text-sand-600 text-xs font-medium hover:bg-sand-200 transition-colors"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  החלפת צד
-                </button>
-              )}
-              <button
-                onClick={() => stopTimer(timer)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-mustard-500 to-mustard-600 text-white rounded-xl text-xs font-semibold hover:from-mustard-600 hover:to-mustard-700 transition-all"
-              >
-                <Square className="w-3.5 h-3.5 fill-current" />
-                עצירה ושמירה
-              </button>
-            </div>
+            {timer.timer_type === 'feeding' && (
+              <div className="mb-3">
+                <p className="text-xs text-musgo-600 mb-1.5">צד האכלה</p>
+                <BreastfeedingQuickSwitch
+                  side={addl.breast_side ?? 'right'}
+                  onChange={side => switchBreastSide(timer, side)}
+                />
+              </div>
+            )}
+
+            <button
+              onClick={() => stopTimer(timer)}
+              className="w-full flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-mustard-500 to-mustard-600 text-white rounded-xl text-xs font-semibold hover:from-mustard-600 hover:to-mustard-700 transition-all"
+            >
+              <Square className="w-3.5 h-3.5 fill-current" />
+              עצירה ושמירה
+            </button>
           </div>
         )
       })}
