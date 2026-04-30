@@ -68,7 +68,7 @@ export default function MyTasksPanel() {
   return (
     <>
       {/* Summary card */}
-      <div className="bg-[#DCD4C8] rounded-3xl shadow-sm p-4 border-r-4 border-mustard-400" dir="rtl">
+      <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-4 border-r-4 border-mustard-400" dir="rtl">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-9 h-9 rounded-2xl bg-mustard-100 flex items-center justify-center">
             <ClipboardList className="w-5 h-5 text-mustard-600" />
@@ -102,7 +102,7 @@ export default function MyTasksPanel() {
       {/* Form modal */}
       {activeTask && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-6" dir="rtl">
-          <div className="bg-[#DCD4C8] rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
+          <div className="bg-[#F5F1EB] rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100">
               <div>
                 <h3 className="font-bold text-sand-800">{activeTask.title || activeTask.forms.title}</h3>

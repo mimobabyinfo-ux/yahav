@@ -99,7 +99,7 @@ function WeekView({ entries, weekStart, onDayClick }: { entries: DailyLogEntryWi
   })
 
   return (
-    <div className="bg-[#DCD4C8] rounded-3xl shadow-sm overflow-hidden">
+    <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
       {/* Day headers */}
       <div className="grid grid-cols-7 border-b border-sand-100">
         {days.map((d, i) => {
@@ -167,7 +167,7 @@ function MonthView({ entries, month, year, onDayClick }: { entries: DailyLogEntr
   })
 
   return (
-    <div className="bg-[#DCD4C8] rounded-3xl shadow-sm overflow-hidden">
+    <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
       <div className="grid grid-cols-7 border-b border-sand-100">
         {DAY_LABELS.map(l => (
           <div key={l} className="text-center text-[10px] text-sand-400 py-2 font-semibold">{l}</div>
@@ -365,7 +365,7 @@ export default function JournalPage() {
         <FeedingIntervalCard />
 
         {/* View mode tabs */}
-        <div className="flex bg-[#DCD4C8] rounded-2xl p-1 shadow-sm gap-1">
+        <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
           {([['day','יום'], ['week','שבוע'], ['month','חודש']] as [ViewMode, string][]).map(([v, label]) => (
             <button
               key={v}
@@ -381,18 +381,18 @@ export default function JournalPage() {
         {/* ── Day view ─────────────────────────────────────────── */}
         {viewMode === 'day' && (
           <>
-            <div className="bg-[#DCD4C8] rounded-3xl p-4 shadow-sm">
+            <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
               <HorizontalCalendar selectedDate={selectedDate} onSelect={setSelectedDate} />
             </div>
 
             {selectedDate === formatDate(new Date()) && (
-              <div className="bg-[#DCD4C8] rounded-3xl p-4 shadow-sm">
+              <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
                 <h2 className="text-sm font-semibold text-musgo-600 mb-3">טיימרים</h2>
                 <ActivityTimers onEntrySaved={fetchEntries} />
               </div>
             )}
 
-            <div className="bg-[#DCD4C8] rounded-3xl p-4 shadow-sm">
+            <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-musgo-600">הוספה מהירה</h2>
                 <button
@@ -438,7 +438,7 @@ export default function JournalPage() {
             <WeekView entries={allEntries} weekStart={weekStart} onDayClick={handleDayClick} />
 
             {/* Legend */}
-            <div className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm">
+            <div className="bg-[#F5F1EB] rounded-2xl p-4 shadow-sm">
               <p className="text-xs font-semibold text-musgo-600 mb-2">מקרא</p>
               <div className="flex flex-wrap gap-3">
                 {Object.entries(ENTRY_COLORS).map(([type, col]) => (
@@ -474,7 +474,7 @@ export default function JournalPage() {
             />
 
             {/* Legend */}
-            <div className="bg-[#DCD4C8] rounded-2xl p-4 shadow-sm">
+            <div className="bg-[#F5F1EB] rounded-2xl p-4 shadow-sm">
               <p className="text-xs font-semibold text-musgo-600 mb-2">מקרא</p>
               <div className="flex flex-wrap gap-3">
                 {Object.entries(ENTRY_COLORS).map(([type, col]) => (

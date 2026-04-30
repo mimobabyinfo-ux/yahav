@@ -95,7 +95,7 @@ export default function PublicPartnerPage() {
       <div className="max-w-lg mx-auto px-6 pb-10">
         <div className="grid grid-cols-2 gap-3">
           {STATS.map(s => (
-            <div key={s.label} className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm text-center space-y-1">
+            <div key={s.label} className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm text-center space-y-1">
               <div className="text-3xl">{s.emoji}</div>
               <div className="text-2xl font-black text-sand-800">{s.value}</div>
               <div className="text-xs text-sand-400 leading-tight">{s.label}</div>
@@ -106,7 +106,7 @@ export default function PublicPartnerPage() {
 
       {/* ── Who is our user ── */}
       <div className="max-w-lg mx-auto px-6 pb-10">
-        <div className="bg-[#DCD4C8] rounded-3xl p-6 shadow-sm space-y-4">
+        <div className="bg-[#F5F1EB] rounded-3xl p-6 shadow-sm space-y-4">
           <h2 className="text-xl font-black text-sand-800 text-center">מי המשתמשות שלנו?</h2>
           <div className="space-y-3">
             {[
@@ -130,7 +130,7 @@ export default function PublicPartnerPage() {
       <div className="max-w-lg mx-auto px-6 pb-10 space-y-4">
         <h2 className="text-xl font-black text-sand-800 text-center">איך זה עובד?</h2>
         {HOW_IT_WORKS.map(step => (
-          <div key={step.step} className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm flex gap-4 items-start">
+          <div key={step.step} className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm flex gap-4 items-start">
             <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #F7F0E4, #EFE3CA)' }}>
               {step.emoji}
@@ -148,7 +148,7 @@ export default function PublicPartnerPage() {
 
       {/* ── Lead screenshot mockup ── */}
       <div className="max-w-lg mx-auto px-6 pb-10">
-        <div className="bg-[#DCD4C8] rounded-3xl p-6 shadow-sm space-y-4">
+        <div className="bg-[#F5F1EB] rounded-3xl p-6 shadow-sm space-y-4">
           <h2 className="text-xl font-black text-sand-800 text-center">כך נראית פנייה שמגיעה אליך</h2>
           <p className="text-xs text-sand-400 text-center">בכל פעם שמשתמשת לוחצת "WhatsApp" — הודעה נשלחת ישירות אליך</p>
 
@@ -164,7 +164,7 @@ export default function PublicPartnerPage() {
             </div>
             {/* WA bubble */}
             <div className="p-4" style={{ background: '#ECE5DD' }}>
-              <div className="bg-[#DCD4C8] rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm max-w-[85%] mr-auto">
+              <div className="bg-[#F5F1EB] rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm max-w-[85%] mr-auto">
                 <p className="text-gray-800 text-sm leading-relaxed">
                   היי! הגעתי אליך דרך Mimo 🐣<br />
                   רוצה לשמוע עוד על השירות שלך
@@ -181,7 +181,7 @@ export default function PublicPartnerPage() {
         <h2 className="text-xl font-black text-sand-800 text-center">תחומים שאנחנו מחפשים</h2>
         <div className="grid grid-cols-2 gap-3">
           {CATEGORIES.map(c => (
-            <div key={c.label} className="bg-[#DCD4C8] rounded-2xl px-4 py-3.5 shadow-sm flex items-center gap-3">
+            <div key={c.label} className="bg-[#F5F1EB] rounded-2xl px-4 py-3.5 shadow-sm flex items-center gap-3">
               <span className="text-xl">{c.emoji}</span>
               <span className="text-sm font-semibold text-sand-700">{c.label}</span>
             </div>
@@ -194,7 +194,7 @@ export default function PublicPartnerPage() {
       <div className="max-w-lg mx-auto px-6 pb-10 space-y-4">
         <h2 className="text-xl font-black text-sand-800 text-center">מה אומרות השותפות שלנו</h2>
         {TESTIMONIALS.map(t => (
-          <div key={t.name} className="bg-[#DCD4C8] rounded-3xl p-5 shadow-sm space-y-3">
+          <div key={t.name} className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-sand-100 flex items-center justify-center text-xl">{t.emoji}</div>
               <div>

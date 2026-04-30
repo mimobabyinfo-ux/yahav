@@ -83,7 +83,7 @@ export default function LoginPage() {
 
         {/* Signup email-sent confirmation */}
         {signupSent && (
-          <div className="w-full bg-[#DCD4C8] rounded-3xl shadow-lg p-7 text-center space-y-4">
+          <div className="w-full bg-[#F5F1EB] rounded-3xl shadow-lg p-7 text-center space-y-4">
             <div className="text-5xl">📧</div>
             <h2 className="font-bold text-sand-800 text-xl">בדקי את האימייל שלך!</h2>
             <p className="text-sand-500 text-sm leading-relaxed">
@@ -107,7 +107,7 @@ export default function LoginPage() {
         </p>
 
         {/* Card */}
-        {!signupSent && <div className="w-full bg-[#DCD4C8] rounded-3xl shadow-lg p-7 mt-2">
+        {!signupSent && <div className="w-full bg-[#F5F1EB] rounded-3xl shadow-lg p-7 mt-2">
           <h2
             className="font-bold text-center mb-6"
             style={{ fontSize: '1.5rem', color: '#3D2E20', fontFamily: 'Nunito, sans-serif' }}

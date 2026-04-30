@@ -93,7 +93,7 @@ export default function FeedingIntervalCard() {
   }
 
   return (
-    <div className="bg-[#DCD4C8] rounded-3xl p-4 shadow-sm space-y-3" dir="rtl">
+    <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm space-y-3" dir="rtl">
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 ${status === 'overdue' ? 'bg-orange-100' : 'bg-mustard-50'}`}>
           🍼

@@ -133,7 +133,7 @@ export default function PublicRegisterPage() {
 
         <h1 className="text-center text-xl font-bold text-sand-800 mb-6">{hero}</h1>
 
-        <form onSubmit={submit} className="bg-[#DCD4C8] rounded-3xl shadow-sm p-5 space-y-4">
+        <form onSubmit={submit} className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם מלא</label>
             <input

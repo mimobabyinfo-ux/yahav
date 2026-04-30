@@ -135,7 +135,7 @@ export default function OnboardingPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Mode selector */}
-          <div className="bg-[#DCD4C8] rounded-3xl shadow-sm p-4">
+          <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-4">
             <p className="text-xs font-semibold text-sand-600 mb-3 text-center">איפה את בתהליך?</p>
             <div className="flex gap-2">
               <button type="button" onClick={() => setMode('pregnant')}
@@ -150,7 +150,7 @@ export default function OnboardingPage() {
           </div>
 
           {/* Mother details */}
-          <div className="bg-[#DCD4C8] rounded-3xl shadow-sm p-5 space-y-4">
+          <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-4">
             {/* Name — split */}
             <div className="flex gap-2">
               <div className="flex-1">
@@ -219,7 +219,7 @@ export default function OnboardingPage() {
 
           {/* Due date — pregnant only, required */}
           {mode === 'pregnant' && (
-            <div className="bg-[#DCD4C8] rounded-3xl shadow-sm p-5 overflow-hidden">
+            <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 overflow-hidden">
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
                 תאריך לידה משוער <span className="text-red-400">*</span>
               </label>
@@ -231,7 +231,7 @@ export default function OnboardingPage() {
 
           {/* Baby cards — mom only */}
           {mode === 'mom' && babies.map((baby, idx) => (
-            <div key={idx} className="bg-[#DCD4C8] rounded-3xl shadow-sm p-5 space-y-4">
+            <div key={idx} className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sand-700 text-sm">
                   {babies.length > 1 ? `תינוק/ת ${idx + 1}` : 'פרטי התינוק/ת'}
