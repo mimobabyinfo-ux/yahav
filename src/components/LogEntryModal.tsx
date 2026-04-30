@@ -1,9 +1,40 @@
-import { X } from 'lucide-react'
+import { X, Camera, Trash2 } from 'lucide-react'
 import { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatTime } from '../utils/dateUtils'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
+
+async function compressImage(file: File): Promise<Blob> {
+  return new Promise(resolve => {
+    const img = new Image()
+    const reader = new FileReader()
+    reader.onload = e => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let { width, height } = img
+        const maxDim = 1200
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height)
+          width = Math.round(width * scale)
+          height = Math.round(height * scale)
+        }
+        canvas.width = width
+        canvas.height = height
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(blob => {
+          if (blob && blob.size > 512 * 1024) {
+            canvas.toBlob(b => resolve(b ?? blob), 'image/jpeg', 0.6)
+          } else {
+            resolve(blob ?? new Blob())
+          }
+        }, 'image/jpeg', 0.82)
+      }
+      img.src = e.target!.result as string
+    }
+    reader.readAsDataURL(file)
+  })
+}
 
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 
@@ -47,6 +78,24 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
 
   // Diaper
   const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both'>('wet')
+  const [diaperPhoto, setDiaperPhoto] = useState<Blob | null>(null)
+  const [diaperPhotoPreview, setDiaperPhotoPreview] = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+
+  async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const compressed = await compressImage(file)
+    setDiaperPhoto(compressed)
+    setDiaperPhotoPreview(URL.createObjectURL(compressed))
+  }
+
+  function removePhoto() {
+    setDiaperPhoto(null)
+    if (diaperPhotoPreview) URL.revokeObjectURL(diaperPhotoPreview)
+    setDiaperPhotoPreview(null)
+    if (photoInputRef.current) photoInputRef.current.value = ''
+  }
 
   async function handleSave(e?: React.MouseEvent) {
     // Defensive: block bubbling/default in case anything wraps this in a form-like context.
@@ -98,6 +147,17 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
           diaper_type: diaperType,
           notes: notes || null,
         })
+        if (diaperPhoto) {
+          const childSegment = selectedChild?.id ?? user.id
+          const ext = 'jpg'
+          const path = `${user.id}/${childSegment}/${Date.now()}.${ext}`
+          const { error: uploadErr } = await supabase.storage
+            .from('diaper-photos')
+            .upload(path, diaperPhoto, { contentType: 'image/jpeg' })
+          if (!uploadErr) {
+            await supabase.from('daily_log_entries').update({ photo_url: path }).eq('id', entry.id)
+          }
+        }
       }
 
       onSaved()
@@ -251,22 +311,58 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
 
           {/* Diaper fields */}
           {entryType === 'diaper' && (
-            <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-2">סוג חיתול</label>
-              <div className="flex gap-2">
-                {(['wet', 'dirty', 'both'] as const).map(t => (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-sand-600 mb-2">סוג חיתול</label>
+                <div className="flex gap-2">
+                  {(['wet', 'dirty', 'both'] as const).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setDiaperType(t)}
+                      className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all border-2 ${
+                        diaperType === t
+                          ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
+                          : 'border-sand-200 text-sand-600'
+                      }`}
+                    >
+                      {t === 'wet' ? 'פיפי' : t === 'dirty' ? 'קקי' : 'שניהם'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Photo upload */}
+              <div>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoSelect}
+                />
+                {diaperPhotoPreview ? (
+                  <div className="flex items-center gap-3">
+                    <img src={diaperPhotoPreview} alt="תצוגה מקדימה" className="w-14 h-14 rounded-xl object-cover border border-sand-200" />
+                    <div className="flex-1">
+                      <p className="text-xs text-sand-600 font-medium">תמונה נבחרה</p>
+                      <p className="text-[10px] text-sand-400">תישמר עם הרשומה</p>
+                    </div>
+                    <button
+                      onClick={removePhoto}
+                      className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
                   <button
-                    key={t}
-                    onClick={() => setDiaperType(t)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all border-2 ${
-                      diaperType === t
-                        ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
-                        : 'border-sand-200 text-sand-600'
-                    }`}
+                    onClick={() => photoInputRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-sand-200 rounded-2xl text-sand-500 hover:border-mustard-300 hover:text-mustard-600 transition-colors text-sm"
                   >
-                    {t === 'wet' ? 'פיפי' : t === 'dirty' ? 'קקי' : 'שניהם'}
+                    <Camera className="w-4 h-4" />
+                    הוסף תמונה (אופציונלי)
                   </button>
-                ))}
+                )}
               </div>
             </div>
           )}

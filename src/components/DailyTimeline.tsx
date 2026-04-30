@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import type { DailyLogEntryWithDetails } from '../lib/supabase'
 import { entryTypeLabel, entryTypeEmoji, formatDuration } from '../utils/dateUtils'
 import { supabase } from '../lib/supabase'
+import DiaperPhotoThumbnail from './DiaperPhotoThumbnail'
 
 type Props = {
   entries: DailyLogEntryWithDetails[]
@@ -51,9 +53,15 @@ function entrySubtitle(entry: DailyLogEntryWithDetails): string {
 }
 
 export default function DailyTimeline({ entries, onRefresh }: Props) {
+  const [photoDeletedIds, setPhotoDeletedIds] = useState<Set<string>>(new Set())
+
   async function deleteEntry(id: string) {
     await supabase.from('daily_log_entries').delete().eq('id', id)
     onRefresh()
+  }
+
+  function markPhotoDeleted(id: string) {
+    setPhotoDeletedIds(prev => new Set(prev).add(id))
   }
 
   if (entries.length === 0) return null
@@ -108,6 +116,13 @@ export default function DailyTimeline({ entries, onRefresh }: Props) {
                     <p className="text-xs text-sand-600 mt-0.5">{entry.notes}</p>
                   )}
                 </div>
+                {entry.entry_type === 'diaper' && entry.photo_url && !photoDeletedIds.has(entry.id) && (
+                  <DiaperPhotoThumbnail
+                    storagePath={entry.photo_url}
+                    entryId={entry.id}
+                    onDeleted={() => markPhotoDeleted(entry.id)}
+                  />
+                )}
                 <button
                   onClick={() => deleteEntry(entry.id)}
                   className="opacity-0 group-hover:opacity-100 p-1 text-sand-300 hover:text-red-400 transition-all flex-shrink-0"
