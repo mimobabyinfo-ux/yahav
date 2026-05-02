@@ -22,7 +22,7 @@ export default function DailySummary({ entries }: Props) {
   const stats = [
     { emoji: '🍼', label: 'האכלות', value: feedings.length, sub: totalFeedingMins > 0 ? formatDuration(totalFeedingMins) : '' },
     { emoji: '😴', label: 'שינה',   value: sleeps.length,   sub: totalSleepMins > 0 ? formatDuration(totalSleepMins) : '' },
-    { emoji: '🧷', label: 'חיתולים', value: diapers.length, sub: '' },
+    { emoji: '💩', label: 'חיתולים', value: diapers.length, sub: '' },
   ]
 
   if (entries.length === 0) {

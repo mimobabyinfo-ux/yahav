@@ -202,7 +202,7 @@ export type DailyLogEntry = {
   user_id: string
   entry_date: string
   entry_time: string
-  entry_type: 'feeding' | 'sleep' | 'diaper' | 'pumping' | 'milestone' | 'doctor_visit' | 'note'
+  entry_type: 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'pumping' | 'milestone' | 'doctor_visit' | 'note'
   notes: string | null
   photo_url: string | null
   created_at: string

@@ -123,7 +123,7 @@ export function entryTypeEmoji(type: string): string {
   const emojis: Record<string, string> = {
     feeding: '🍼',
     sleep: '😴',
-    diaper: '🧷',
+    diaper: '💩',
     tummy_time: '🐣',
     milestone: '⭐',
     doctor_visit: '🏥',

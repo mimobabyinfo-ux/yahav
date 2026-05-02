@@ -5,7 +5,7 @@ type Props = {
 }
 
 const actions: { type: EntryType; emoji: string; label: string }[] = [
-  { type: 'diaper', emoji: '🧷', label: 'חיתול' },
+  { type: 'diaper', emoji: '💩', label: 'חיתול' },
   { type: 'tummy_time', emoji: '🐣', label: 'זמן בטן' },
   { type: 'milestone', emoji: '⭐', label: 'אבן דרך' },
   { type: 'doctor_visit', emoji: '🏥', label: 'רופא' },

@@ -123,6 +123,15 @@ export default function DailyTimeline({ entries, onRefresh }: Props) {
                     onDeleted={() => markPhotoDeleted(entry.id)}
                   />
                 )}
+                {entry.entry_type === 'milestone' && entry.photo_url && !photoDeletedIds.has(entry.id) && (
+                  <DiaperPhotoThumbnail
+                    storagePath={entry.photo_url}
+                    entryId={entry.id}
+                    onDeleted={() => markPhotoDeleted(entry.id)}
+                    bucket="milestone-media"
+                    isVideo={entry.photo_url.endsWith('.mp4') || entry.photo_url.endsWith('.webm') || entry.photo_url.endsWith('.mov')}
+                  />
+                )}
                 <button
                   onClick={() => deleteEntry(entry.id)}
                   className="opacity-0 group-hover:opacity-100 p-1 text-sand-300 hover:text-red-400 transition-all flex-shrink-0"

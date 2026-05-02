@@ -6,23 +6,25 @@ type Props = {
   storagePath: string
   entryId: string
   onDeleted: () => void
+  bucket?: string
+  isVideo?: boolean
 }
 
-export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted }: Props) {
+export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted, bucket = 'diaper-photos', isVideo = false }: Props) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    supabase.storage.from('diaper-photos')
+    supabase.storage.from(bucket)
       .createSignedUrl(storagePath, 3600)
       .then(({ data }) => { if (data) setSignedUrl(data.signedUrl) })
-  }, [storagePath])
+  }, [storagePath, bucket])
 
   async function deletePhoto(e: React.MouseEvent) {
     e.stopPropagation()
     setDeleting(true)
-    await supabase.storage.from('diaper-photos').remove([storagePath])
+    await supabase.storage.from(bucket).remove([storagePath])
     await supabase.from('daily_log_entries').update({ photo_url: null }).eq('id', entryId)
     onDeleted()
   }
@@ -35,7 +37,11 @@ export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted }
         onClick={() => setFullscreen(true)}
         className="flex-shrink-0 rounded-lg overflow-hidden border border-sand-100 hover:border-mustard-300 transition-colors"
       >
-        <img src={signedUrl} alt="תמונת חיתול" className="w-10 h-10 object-cover" />
+        {isVideo ? (
+          <video src={signedUrl} className="w-10 h-10 object-cover" muted playsInline />
+        ) : (
+          <img src={signedUrl} alt="תמונה" className="w-10 h-10 object-cover" />
+        )}
       </button>
 
       {fullscreen && (
@@ -50,19 +56,28 @@ export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted }
           >
             <X className="w-5 h-5" />
           </button>
-          <img
-            src={signedUrl}
-            alt="תמונת חיתול"
-            className="max-w-full max-h-[80vh] rounded-2xl object-contain"
-            onClick={e => e.stopPropagation()}
-          />
+          {isVideo ? (
+            <video
+              src={signedUrl}
+              controls
+              className="max-w-full max-h-[80vh] rounded-2xl"
+              onClick={e => e.stopPropagation()}
+            />
+          ) : (
+            <img
+              src={signedUrl}
+              alt="תמונה"
+              className="max-w-full max-h-[80vh] rounded-2xl object-contain"
+              onClick={e => e.stopPropagation()}
+            />
+          )}
           <button
             onClick={deletePhoto}
             disabled={deleting}
             className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-red-500/80 hover:bg-red-600 text-white rounded-2xl text-sm font-semibold transition-colors disabled:opacity-50"
           >
             <Trash2 className="w-4 h-4" />
-            {deleting ? 'מוחק...' : 'מחק תמונה'}
+            {deleting ? 'מוחק...' : 'מחק מדיה'}
           </button>
         </div>
       )}

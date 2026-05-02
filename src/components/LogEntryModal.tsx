@@ -59,6 +59,8 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
   const { user, selectedChild } = useAuth()
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
+  const saveButtonRef = useRef<HTMLButtonElement>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [time, setTime] = useState(formatTime(new Date()))
   const [notes, setNotes] = useState('')
 
@@ -82,9 +84,18 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
   const [diaperPhotoPreview, setDiaperPhotoPreview] = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
 
+  // Milestone
+  const [milestoneMedia, setMilestoneMedia] = useState<Blob | null>(null)
+  const [milestoneMediaPreview, setMilestoneMediaPreview] = useState<string | null>(null)
+  const [milestoneIsVideo, setMilestoneIsVideo] = useState(false)
+  const milestoneMediaInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
-    return () => { if (diaperPhotoPreview) URL.revokeObjectURL(diaperPhotoPreview) }
-  }, [diaperPhotoPreview])
+    return () => {
+      if (diaperPhotoPreview) URL.revokeObjectURL(diaperPhotoPreview)
+      if (milestoneMediaPreview) URL.revokeObjectURL(milestoneMediaPreview)
+    }
+  }, [diaperPhotoPreview, milestoneMediaPreview])
 
   async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -100,14 +111,48 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
     if (photoInputRef.current) photoInputRef.current.value = ''
   }
 
+  async function handleMilestoneMediaSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const isVideo = file.type.startsWith('video/')
+    if (isVideo) {
+      if (file.size > 50 * 1024 * 1024) { setSaveError('הסרטון גדול מדי — מקסימום 50MB'); return }
+      setMilestoneMedia(file)
+      setMilestoneMediaPreview(URL.createObjectURL(file))
+      setMilestoneIsVideo(true)
+    } else {
+      if (file.size > 5 * 1024 * 1024) { setSaveError('התמונה גדולה מדי — מקסימום 5MB'); return }
+      const compressed = await compressImage(file)
+      setMilestoneMedia(compressed)
+      setMilestoneMediaPreview(URL.createObjectURL(compressed))
+      setMilestoneIsVideo(false)
+    }
+  }
+
+  function removeMilestoneMedia() {
+    setMilestoneMedia(null)
+    setMilestoneMediaPreview(null)
+    if (milestoneMediaInputRef.current) milestoneMediaInputRef.current.value = ''
+  }
+
   async function handleSave(e?: React.MouseEvent) {
     // Defensive: block bubbling/default in case anything wraps this in a form-like context.
     if (e) { e.preventDefault(); e.stopPropagation() }
     if (!user || savingRef.current) return
     savingRef.current = true
+    // Immediately disable the button at DOM level — belt-and-suspenders against ghost clicks.
+    if (saveButtonRef.current) saveButtonRef.current.disabled = true
     setSaving(true)
+    setSaveError(null)
     try {
       const now = new Date()
+      // For tummy_time, merge duration into the notes field on INSERT.
+      let finalNotes = notes || null
+      if (entryType === 'tummy_time' && tummyDuration) {
+        finalNotes = notes
+          ? `משך: ${tummyDuration} דקות — ${notes}`
+          : `משך: ${tummyDuration} דקות`
+      }
       const { data: entry, error } = await supabase
         .from('daily_log_entries')
         .insert({
@@ -116,18 +161,12 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
           entry_date: date,
           entry_time: time || formatTime(now),
           entry_type: entryType,
-          notes: notes || null,
+          notes: finalNotes,
         })
         .select()
         .single()
 
-      if (error || !entry) throw error
-
-      if (entryType === 'tummy_time' && tummyDuration && !notes) {
-        await supabase.from('daily_log_entries').update({
-          notes: `משך: ${tummyDuration} דקות`
-        }).eq('id', entry.id)
-      }
+      if (error || !entry) throw error ?? new Error('שגיאה בשמירה')
 
       if (entryType === 'feeding') {
         await supabase.from('feeding_details').insert({
@@ -161,6 +200,17 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
             await supabase.from('daily_log_entries').update({ photo_url: path }).eq('id', entry.id)
           }
         }
+      } else if (entryType === 'milestone' && milestoneMedia) {
+        const ext = milestoneIsVideo ? 'mp4' : 'jpg'
+        const contentType = milestoneIsVideo ? 'video/mp4' : 'image/jpeg'
+        const childSegment = selectedChild?.id ?? user.id
+        const path = `${user.id}/${childSegment}/${Date.now()}.${ext}`
+        const { error: uploadErr } = await supabase.storage
+          .from('milestone-media')
+          .upload(path, milestoneMedia, { contentType })
+        if (!uploadErr) {
+          await supabase.from('daily_log_entries').update({ photo_url: path }).eq('id', entry.id)
+        }
       }
 
       onSaved()
@@ -169,10 +219,11 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
       // Resetting before React unmounts opens a window where a delayed
       // mobile "ghost click" (~300ms after touchstart) can re-enter handleSave.
     } catch (err) {
-      // Only reset on error so the user can retry.
       setSaving(false)
       savingRef.current = false
-      throw err
+      if (saveButtonRef.current) saveButtonRef.current.disabled = false
+      const msg = err instanceof Error ? err.message : 'שגיאה בשמירה — נסי שנית'
+      setSaveError(msg)
     }
   }
 
@@ -386,11 +437,73 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
             </div>
           )}
 
+          {/* Milestone: chip suggestions + media upload */}
+          {entryType === 'milestone' && (
+            <div className="space-y-3">
+              {/* Suggested milestone chips */}
+              <div>
+                <label className="block text-xs font-semibold text-sand-600 mb-2">בחרי אבן דרך</label>
+                <div className="flex flex-wrap gap-2">
+                  {['חיוך ראשון 😊','שינה כל הלילה 🌙','הפיכה מבטן לגב','הפיכה מגב לבטן','ישיבה עצמאית','זחילה ראשונה','עמידה ראשונה','צעד ראשון 👣','מילה ראשונה 🗣️','שן ראשונה 🦷','אוכל מוצקים 🥣','פה פה / ביי ביי 👋','מחיאות כפיים 👏','חיבוק ראשון 🤗'].map(chip => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setNotes(n => n === chip ? '' : chip)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                        notes === chip
+                          ? 'bg-mustard-500 border-mustard-500 text-white'
+                          : 'bg-sand-50 border-sand-200 text-sand-700 hover:border-mustard-300'
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Media upload */}
+              <div>
+                <input
+                  ref={milestoneMediaInputRef}
+                  type="file"
+                  accept="image/*,video/mp4,video/quicktime,video/webm"
+                  className="hidden"
+                  onChange={handleMilestoneMediaSelect}
+                />
+                {milestoneMediaPreview ? (
+                  <div className="flex items-center gap-3">
+                    {milestoneIsVideo ? (
+                      <video src={milestoneMediaPreview} className="w-14 h-14 rounded-xl object-cover border border-sand-200" muted playsInline />
+                    ) : (
+                      <img src={milestoneMediaPreview} alt="תצוגה מקדימה" className="w-14 h-14 rounded-xl object-cover border border-sand-200" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-xs text-sand-600 font-medium">{milestoneIsVideo ? 'סרטון נבחר' : 'תמונה נבחרה'}</p>
+                      <p className="text-[10px] text-sand-400">תישמר עם הרשומה</p>
+                    </div>
+                    <button onClick={removeMilestoneMedia} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => milestoneMediaInputRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-sand-200 rounded-2xl text-sand-500 hover:border-mustard-300 hover:text-mustard-600 transition-colors text-sm"
+                  >
+                    <Camera className="w-4 h-4" />
+                    הוסיפי תמונה או סרטון (אופציונלי)
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Notes */}
           {['milestone', 'doctor_visit', 'note', 'tummy_time'].includes(entryType) && (
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1">
-                {entryType === 'note' ? 'הערה' : entryType === 'milestone' ? 'תיאור האבן דרך' : 'הערות'}
+                {entryType === 'note' ? 'הערה' : entryType === 'milestone' ? 'אם בא לך לכתוב משהו' : 'הערות'}
               </label>
               <textarea
                 value={notes}
@@ -404,8 +517,12 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
         </div>
 
         {/* Sticky save button */}
-        <div className="px-5 pb-5 pt-3 flex-shrink-0 border-t border-sand-100">
+        <div className="px-5 pb-5 pt-3 flex-shrink-0 border-t border-sand-100 space-y-2">
+          {saveError && (
+            <p className="text-xs text-red-500 text-center">{saveError}</p>
+          )}
           <button
+            ref={saveButtonRef}
             type="button"
             onClick={handleSave}
             disabled={saving}
