@@ -273,7 +273,11 @@ export default function JournalPage() {
       query = query.in('user_id', userIds)
     }
     const { data } = await query
-    setEntries((data as DailyLogEntryWithDetails[]) ?? [])
+    // PostgREST's .or() with embedded joins can return the same row twice when a
+    // row satisfies both OR conditions (child_id match AND user_id match). Dedupe by id.
+    const seen = new Set<string>()
+    const unique = (data ?? []).filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true })
+    setEntries(unique as DailyLogEntryWithDetails[])
     setLoading(false)
   }, [user, selectedDate, selectedChild, getFamilyUserIds])
 
@@ -293,7 +297,9 @@ export default function JournalPage() {
       query = query.in('user_id', userIds)
     }
     const { data } = await query
-    setAllEntries((data as DailyLogEntryWithDetails[]) ?? [])
+    const seen = new Set<string>()
+    const unique = (data ?? []).filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true })
+    setAllEntries(unique as DailyLogEntryWithDetails[])
   }, [user, selectedChild, getFamilyUserIds])
 
   useEffect(() => {
