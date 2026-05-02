@@ -267,17 +267,13 @@ export default function JournalPage() {
       .eq('entry_date', selectedDate)
       .order('entry_time', { ascending: false })
     if (selectedChild) {
-      query = query.or(`child_id.eq.${selectedChild.id},user_id.eq.${selectedChild.user_id}`)
+      query = query.eq('child_id', selectedChild.id)
     } else {
       const userIds = await getFamilyUserIds()
       query = query.in('user_id', userIds)
     }
     const { data } = await query
-    // PostgREST's .or() with embedded joins can return the same row twice when a
-    // row satisfies both OR conditions (child_id match AND user_id match). Dedupe by id.
-    const seen = new Set<string>()
-    const unique = (data ?? []).filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true })
-    setEntries(unique as DailyLogEntryWithDetails[])
+    setEntries((data ?? []) as DailyLogEntryWithDetails[])
     setLoading(false)
   }, [user, selectedDate, selectedChild, getFamilyUserIds])
 
@@ -291,15 +287,13 @@ export default function JournalPage() {
       .lte('entry_date', to)
       .order('entry_date')
     if (selectedChild) {
-      query = query.or(`child_id.eq.${selectedChild.id},user_id.eq.${selectedChild.user_id}`)
+      query = query.eq('child_id', selectedChild.id)
     } else {
       const userIds = await getFamilyUserIds()
       query = query.in('user_id', userIds)
     }
     const { data } = await query
-    const seen = new Set<string>()
-    const unique = (data ?? []).filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true })
-    setAllEntries(unique as DailyLogEntryWithDetails[])
+    setAllEntries((data ?? []) as DailyLogEntryWithDetails[])
   }, [user, selectedChild, getFamilyUserIds])
 
   useEffect(() => {
