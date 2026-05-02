@@ -82,6 +82,7 @@ export default function DailyTimeline({ entries, onRefresh }: Props) {
       <h3 className="text-sm font-semibold text-musgo-600 px-1">ציר זמן</h3>
       {entries.map((entry, idx) => {
         const colors = ENTRY_COLORS[entry.entry_type] ?? ENTRY_COLORS.note
+        const subtitle = entrySubtitle(entry)
         return (
           <div key={entry.id} className="flex gap-2 items-start group">
             {/* Timeline dot + line */}
@@ -115,9 +116,9 @@ export default function DailyTimeline({ entries, onRefresh }: Props) {
                       {entryTypeLabel(entry.entry_type)}
                     </span>
                   </div>
-                  {entrySubtitle(entry) && (
+                  {subtitle && (
                     <p className="text-xs mt-0.5" style={{ color: colors.label + 'BB' }}>
-                      {entrySubtitle(entry)}
+                      {subtitle}
                     </p>
                   )}
                   {entry.notes && entry.entry_type !== 'note' && (
