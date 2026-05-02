@@ -60,7 +60,7 @@ function entrySubtitle(entry: DailyLogEntryWithDetails): string {
     if (dd.diaper_type === 'dirty') return 'קקי 💩'
     if (dd.diaper_type === 'both') return 'פיפי וקקי'
   }
-  return entry.notes ?? ''
+  return ''
 }
 
 export default function DailyTimeline({ entries, onRefresh }: Props) {
