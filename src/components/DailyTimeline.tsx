@@ -21,9 +21,18 @@ export const ENTRY_COLORS: Record<string, { bg: string; border: string; dot: str
   note:         { bg: '#F9FAFB', border: '#D1D5DB', dot: '#6B7280', label: '#374151' },
 }
 
+// PostgREST returns one-to-many embedded relations as arrays at runtime,
+// even though the TypeScript types declare them as single objects.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pick(val: unknown): any {
+  if (!val) return null
+  return Array.isArray(val) ? val[0] ?? null : val
+}
+
 function entrySubtitle(entry: DailyLogEntryWithDetails): string {
-  if (entry.entry_type === 'feeding' && entry.feeding_details) {
-    const fd = entry.feeding_details
+  if (entry.entry_type === 'feeding') {
+    const fd = pick(entry.feeding_details)
+    if (!fd) return entry.notes ?? ''
     const parts: string[] = []
     if (fd.feeding_type === 'breast') parts.push('הנקה')
     else if (fd.feeding_type === 'bottle') parts.push('בקבוק')
@@ -35,16 +44,18 @@ function entrySubtitle(entry: DailyLogEntryWithDetails): string {
     if (fd.amount_ml) parts.push(`${fd.amount_ml} מ"ל`)
     return parts.join(' · ')
   }
-  if (entry.entry_type === 'sleep' && entry.sleep_details) {
-    const sd = entry.sleep_details
+  if (entry.entry_type === 'sleep') {
+    const sd = pick(entry.sleep_details)
+    if (!sd) return entry.notes ?? ''
     const parts: string[] = []
     if (sd.sleep_type === 'nap') parts.push('שנת צהריים')
     else if (sd.sleep_type === 'night') parts.push('שנת לילה')
     if (sd.duration_minutes) parts.push(formatDuration(sd.duration_minutes))
     return parts.join(' · ')
   }
-  if (entry.entry_type === 'diaper' && entry.diaper_details) {
-    const dd = entry.diaper_details
+  if (entry.entry_type === 'diaper') {
+    const dd = pick(entry.diaper_details)
+    if (!dd) return entry.notes ?? ''
     if (dd.diaper_type === 'wet') return 'פיפי 💧'
     if (dd.diaper_type === 'dirty') return 'קקי 💩'
     if (dd.diaper_type === 'both') return 'פיפי וקקי'
