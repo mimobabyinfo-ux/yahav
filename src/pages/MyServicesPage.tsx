@@ -3,7 +3,6 @@ import { MessageCircle, ShoppingBag, Users, Copy, Check, UserPlus, Link } from '
 import { supabase, Workshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
-const APP_BASE = 'https://mimoapp.vercel.app'
 
 const WA_NUMBER = '972559904274'
 
@@ -51,7 +50,7 @@ function FamilyPanel() {
     const token = await createFamilyInvite(selectedChild.id)
     setLoading(false)
     if (token) {
-      setInviteLink(`${APP_BASE}?join=${token}`)
+      setInviteLink(`${window.location.origin}?join=${token}`)
     } else {
       setError('שגיאה ביצירת קישור')
     }

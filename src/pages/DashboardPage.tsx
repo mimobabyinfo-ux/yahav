@@ -13,7 +13,6 @@ type Props = {
   onNavigate: (page: Page) => void
 }
 
-const APP_BASE = 'https://mimoapp.vercel.app'
 
 export default function DashboardPage({ onNavigate }: Props) {
   const { profile, selectedChild, children, family, createFamily, createFamilyInvite, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
@@ -60,7 +59,7 @@ export default function DashboardPage({ onNavigate }: Props) {
     }
     const token = await createFamilyInvite(selectedChild.id)
     setInviteLoading(false)
-    if (token) setInviteLink(`${APP_BASE}?join=${token}`)
+    if (token) setInviteLink(`${window.location.origin}?join=${token}`)
   }
 
   function copyLink() {

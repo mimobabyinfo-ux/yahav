@@ -4,19 +4,18 @@ import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
 import MimoLogo from './MimoLogo'
 
-const APP_BASE = 'https://mimoapp.vercel.app'
-
 export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
   const { profile, selectedChild } = useAuth()
   const [copiedLive, setCopiedLive] = useState(false)
   const [copiedApp, setCopiedApp] = useState(false)
 
+  const appBase = window.location.origin
   const baby = selectedChild
   const age = baby?.dob ? getBabyAge(baby.dob) : null
   const genderEmoji = baby?.gender === 'boy' ? '👶🏻' : baby?.gender === 'girl' ? '👧' : '👶'
 
   const liveLink = baby?.share_token
-    ? `${APP_BASE}?baby=${baby.share_token}`
+    ? `${appBase}?baby=${baby.share_token}`
     : null
 
   const shareText = [
@@ -25,7 +24,7 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
     profile?.mother_name ? `אמא: ${profile.mother_name}` : null,
     '',
     '👀 לצפייה חיה בפעילויות של היום:',
-    liveLink ?? APP_BASE,
+    liveLink ?? appBase,
   ].filter(l => l !== null).join('\n')
 
   function copyLiveLink() {
@@ -37,7 +36,7 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
   }
 
   function copyAppLink() {
-    navigator.clipboard.writeText(APP_BASE).then(() => {
+    navigator.clipboard.writeText(appBase).then(() => {
       setCopiedApp(true)
       setTimeout(() => setCopiedApp(false), 2000)
     })

@@ -10,7 +10,6 @@ import type { AdminSection } from '../App'
 
 type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
-const APP_URL = 'https://mimoapp.vercel.app'
 
 // Map admin nav sections → internal tabs
 const SECTION_TAB: Record<AdminSection, Tab> = {
@@ -1377,7 +1376,7 @@ function FormsTabDesktop() {
   }
 
   function copyFormLink(formId: string) {
-    navigator.clipboard.writeText(`${APP_URL}/?form=${formId}`)
+    navigator.clipboard.writeText(`${window.location.origin}/?form=${formId}`)
     setCopiedId(formId); setTimeout(() => setCopiedId(null), 2000)
   }
 
@@ -3069,7 +3068,7 @@ function FormsTab() {
   const [filterQuestion, setFilterQuestion] = useState<string | null>(null)
 
   function copyFormLink(formId: string) {
-    const url = `${APP_URL}/?form=${formId}`
+    const url = `${window.location.origin}/?form=${formId}`
     navigator.clipboard.writeText(url)
     setCopiedId(formId)
     setTimeout(() => setCopiedId(null), 2000)

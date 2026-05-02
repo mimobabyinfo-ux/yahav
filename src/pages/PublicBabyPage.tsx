@@ -187,7 +187,7 @@ export default function PublicBabyPage({ token }: Props) {
         <div className="text-center pt-2 pb-4 space-y-2">
           <p className="text-xs text-sand-300">מידע זה עדכני ומשותף דרך Mimo</p>
           <a
-            href="https://mimoapp.vercel.app"
+            href="https://mimo-baby.co.il"
             className="inline-block text-xs font-semibold text-mustard-600"
           >
             הורידי את Mimo →
