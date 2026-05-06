@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react'
-import { ChevronLeft, UserPlus, Copy, Check, Settings as SettingsIcon } from 'lucide-react'
+import { ChevronLeft, UserPlus, Copy, Check, MessageCircle, Settings as SettingsIcon } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
@@ -175,16 +175,7 @@ export default function DashboardPage({ onNavigate }: Props) {
                 <p className="text-sm font-bold text-sand-800">שתפי את היומן</p>
                 <p className="text-xs text-musgo-600">הזמיני את המשפחה לראות את היומיום של התינוק</p>
               </div>
-              {inviteLink ? (
-                <button
-                  onClick={copyLink}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0"
-                  style={{ background: '#E7C78A' }}
-                >
-                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? 'הועתק!' : 'העתק'}
-                </button>
-              ) : (
+              {!inviteLink && (
                 <button
                   onClick={handleCreateInvite}
                   disabled={inviteLoading}
@@ -196,7 +187,29 @@ export default function DashboardPage({ onNavigate }: Props) {
               )}
             </div>
             {inviteLink && (
-              <p className="text-[10px] text-sand-400 mt-2 break-all">{inviteLink}</p>
+              <div className="mt-3 space-y-2">
+                <p className="text-[10px] text-sand-400 break-all leading-relaxed">{inviteLink}</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={copyLink}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
+                    style={{ background: '#E7C78A' }}
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? 'הועתק!' : 'העתק'}
+                  </button>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`היי! הנה קישור לראות ולעדכן את היומן של ${selectedChild.name}: ${inviteLink}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-green-500 text-white"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    שלחי בוואטסאפ
+                  </a>
+                </div>
+                <p className="text-[10px] text-sand-400 text-center">הקישור תקף ל-30 יום</p>
+              </div>
             )}
           </div>
         )}
