@@ -15,6 +15,9 @@ Before building any new feature, ask: "Does this help get the first 50 active us
 - Professionals marketplace visibility in nav (currently hidden, intentional)
 - Any feature that competes with the owner's WhatsApp-based guidance — WhatsApp is the support channel, not the app
 
+## Future Ideas
+Feature ideas that are NOT being built now are tracked in `IDEAS.md` at the repo root. Do not implement features from that file without explicit approval — the file exists specifically to keep them OUT of the active codebase until the app launches and validates demand.
+
 ## How to Work With Me
 
 - Before starting any feature, give me a 3-5 bullet plan of what you'll build and why
