@@ -54,10 +54,12 @@ export default function DashboardPage({ onNavigate }: Props) {
   async function handleCreateInvite() {
     if (!selectedChild) return
     setInviteLoading(true)
+    let familyId = family?.id ?? profile?.family_id ?? undefined
     if (!family) {
-      await createFamily(profile?.mother_name ?? 'המשפחה שלי')
+      const newId = await createFamily(profile?.mother_name ?? 'המשפחה שלי')
+      if (newId) familyId = newId
     }
-    const token = await createFamilyInvite(selectedChild.id)
+    const token = await createFamilyInvite(selectedChild.id, familyId)
     setInviteLoading(false)
     if (token) setInviteLink(`${window.location.origin}?join=${token}`)
   }

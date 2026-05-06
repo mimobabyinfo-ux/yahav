@@ -16,7 +16,7 @@ type AuthContextType = {
   family: Family | null
   familyMembers: UserProfile[]
   createFamily: (name: string) => Promise<string | null>
-  createFamilyInvite: (childId: string) => Promise<string | null>
+  createFamilyInvite: (childId: string, familyId?: string) => Promise<string | null>
   redeemFamilyInvite: (token: string) => Promise<boolean>
   hasActiveWorkshopAccess: boolean
   activeAccessUntil: string | null
@@ -159,14 +159,15 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
     setFamily(fam)
     setFamilyMembers([profile!])
     setProfile(prev => prev ? { ...prev, family_id: fam.id } : prev)
-    return fam.invite_code
+    return fam.id
   }
 
-  async function createFamilyInvite(childId: string): Promise<string | null> {
-    if (!user || !profile?.family_id) return null
+  async function createFamilyInvite(childId: string, familyId?: string): Promise<string | null> {
+    const fid = familyId ?? profile?.family_id
+    if (!user || !fid) return null
     const token = Math.random().toString(36).substring(2, 8).toUpperCase()
     const { error } = await supabase.from('family_invite_tokens').insert({
-      family_id: profile.family_id,
+      family_id: fid,
       child_id: childId,
       token,
       created_by: user.id,
