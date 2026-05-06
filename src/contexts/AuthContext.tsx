@@ -16,7 +16,6 @@ type AuthContextType = {
   family: Family | null
   familyMembers: UserProfile[]
   createFamily: (name: string) => Promise<string | null>
-  joinFamily: (code: string) => Promise<boolean>
   createFamilyInvite: (childId: string) => Promise<string | null>
   redeemFamilyInvite: (token: string) => Promise<boolean>
   hasActiveWorkshopAccess: boolean
@@ -226,22 +225,6 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
     return true
   }
 
-  async function joinFamily(code: string): Promise<boolean> {
-    if (!user) return false
-    const { data: fam } = await supabase
-      .from('families')
-      .select('*')
-      .eq('invite_code', code.toUpperCase())
-      .maybeSingle()
-    if (!fam) return false
-    await supabase.from('user_profiles').update({ family_id: fam.id }).eq('id', user.id)
-    setFamily(fam)
-    setProfile(prev => prev ? { ...prev, family_id: fam.id } : prev)
-    await fetchFamily(fam.id)
-    await fetchChildren(user.id)
-    return true
-  }
-
   async function refreshProfile() {
     if (user) await fetchProfile(user.id)
   }
@@ -292,7 +275,7 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
     <AuthContext.Provider value={{
       user, profile, children, selectedChild, setSelectedChild,
       loading, isGuest, signOut, refreshProfile, refreshChildren,
-      family, familyMembers, createFamily, joinFamily,
+      family, familyMembers, createFamily,
       createFamilyInvite, redeemFamilyInvite,
       hasActiveWorkshopAccess, activeAccessUntil,
       purchasedWorkshops, refreshPurchasedWorkshops,
