@@ -362,6 +362,14 @@ Tracked via `useTracker` hook → `user_activities` table:
 
 ---
 
+## Hidden / Phase 2 Features
+
+Code that's fully built and tested but intentionally not exposed in the UI yet. Activation is a product decision, not an engineering one.
+
+- **`ServicesMarketplacePage`** — service providers marketplace (doulas, lactation consultants, postpartum caregivers). Code ready, intentionally hidden. Activation criteria: 100+ active users on the platform AND 5-10 real service providers recruited and onboarded. To activate: wire a new tab into `BottomNav.tsx` and add the route in `App.tsx`. Header comment in the file documents the same.
+
+---
+
 ## Deferred Decisions
 
 ### WhatsApp notification on form submission (April 2026)

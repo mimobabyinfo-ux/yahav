@@ -1,4 +1,20 @@
-﻿import { useEffect, useState } from 'react'
+﻿/**
+ * ServicesMarketplacePage — FUTURE FEATURE (Phase 2)
+ *
+ * Marketplace page for professional service providers
+ * (doulas, lactation consultants, postpartum caregivers).
+ *
+ * Intentionally hidden from navigation until after app launch
+ * and establishment of a user base.
+ *
+ * Activation criteria:
+ * 1. 100+ active users on the platform
+ * 2. 5-10 real service providers recruited and onboarded
+ *
+ * Code is fully functional — only requires connection to BottomNav.tsx
+ * (add new tab and routing logic).
+ */
+import { useEffect, useState } from 'react'
 import { MessageCircle, Phone, X, Check } from 'lucide-react'
 import { supabase, ServicePartner } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
