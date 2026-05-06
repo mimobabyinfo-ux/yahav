@@ -11,7 +11,6 @@ import BenefitsPage from './pages/BenefitsPage'
 import WorkshopsPage from './pages/WorkshopsPage'
 import ProAreaPage from './pages/ProAreaPage'
 import AdminPage from './pages/AdminPage'
-import ContactPage from './pages/ContactPage'
 import MyServicesPage from './pages/MyServicesPage'
 import ServicesMarketplacePage from './pages/ServicesMarketplacePage'
 import CommunityPage from './pages/CommunityPage'
@@ -28,7 +27,7 @@ import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
 import InstallPrompt from './components/InstallPrompt'
 
-export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'contact' | 'services' | 'community' | 'marketplace'
+export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'services' | 'community' | 'marketplace'
 export type AdminSection = 'insights' | 'users' | 'workshops' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'registrations' | 'settings'
 
 // Detect public URLs
@@ -167,7 +166,6 @@ function AppInner() {
       case 'workshops':  return <WorkshopsPage />
       case 'pro':        return <ProAreaPage />
       case 'admin':      return <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} />
-      case 'contact':    return <ContactPage />
       case 'services':   return <MyServicesPage />
       case 'marketplace': return <ServicesMarketplacePage />
       case 'community':  return <CommunityPage />
