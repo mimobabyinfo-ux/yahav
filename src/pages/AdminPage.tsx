@@ -419,7 +419,7 @@ function UsersTab() {
           {/* Communication row */}
           <div className="flex gap-2">
             <a
-              href={`https://wa.me/${u.email.replace(/[^0-9]/g, '') || '972559904274'}?text=${encodeURIComponent(`היי ${u.mother_name ?? ''}! 👋`)}`}
+              href={`https://wa.me/${u.phone_number?.replace(/\D/g, '') ?? ''}?text=${encodeURIComponent(`היי ${u.mother_name ?? ''}! 👋`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"

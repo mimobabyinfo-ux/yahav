@@ -2,9 +2,8 @@
 import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { getBabyAge } from '../utils/dateUtils'
-
-const WA_ADMIN = '972559904274'
 
 type CommunityProfile = {
   id: string
@@ -42,6 +41,7 @@ function pregnancyWeek(dueDate: string): number {
 
 export default function CommunityPage() {
   const { selectedChild, profile, user, refreshProfile } = useAuth()
+  const { ownerWhatsapp } = useOwnerSettings()
   const isPregnant = profile?.user_mode === 'pregnant'
 
   // Mom-mode state
@@ -351,7 +351,7 @@ export default function CommunityPage() {
                           </a>
                         ) : (
                           <a
-                            href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent('היי! אני בהריון ורוצה להתחבר עם בנות בשבוע דומה 🤰')}`}
+                            href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent('היי! אני בהריון ורוצה להתחבר עם בנות בשבוע דומה 🤰')}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors"
@@ -420,7 +420,7 @@ export default function CommunityPage() {
                         </a>
                       ) : (
                         <a
-                          href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent(`היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוק${p.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`)}`}
+                          href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוק${p.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors"
@@ -443,7 +443,7 @@ export default function CommunityPage() {
             {isPregnant ? 'רוצה קבוצת וואטסאפ עם בנות בהריון מהאזור?' : 'רוצה קבוצת וואטסאפ עם אמהות מהאזור?'}
           </p>
           <a
-            href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent(isPregnant ? 'היי! אני בהריון ורוצה להצטרף לקבוצת בנות בהריון 🤰' : 'היי! אני רוצה להצטרף לקבוצת אמהות מהאזור שלי 🌿')}`}
+            href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(isPregnant ? 'היי! אני בהריון ורוצה להצטרף לקבוצת בנות בהריון 🤰' : 'היי! אני רוצה להצטרף לקבוצת אמהות מהאזור שלי 🌿')}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-white text-sm font-bold"
