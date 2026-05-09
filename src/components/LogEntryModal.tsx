@@ -43,6 +43,9 @@ type Props = {
   date: string
   onClose: () => void
   onSaved: () => void
+  // When set, the feeding type-picker is hidden and the form opens directly
+  // in that mode. Used by FeedingTypePicker → bottle / solid / breast (past).
+  presetFeedingType?: 'breast' | 'bottle' | 'solid'
 }
 
 const TYPE_LABELS: Record<EntryType, string> = {
@@ -55,7 +58,7 @@ const TYPE_LABELS: Record<EntryType, string> = {
   note: 'הערה',
 }
 
-export default function LogEntryModal({ entryType, date, onClose, onSaved }: Props) {
+export default function LogEntryModal({ entryType, date, onClose, onSaved, presetFeedingType }: Props) {
   const { user, selectedChild } = useAuth()
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
@@ -65,7 +68,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
   const [notes, setNotes] = useState('')
 
   // Feeding
-  const [feedingType, setFeedingType] = useState<'breast' | 'bottle' | 'solid'>('breast')
+  const [feedingType, setFeedingType] = useState<'breast' | 'bottle' | 'solid'>(presetFeedingType ?? 'breast')
   const [breastSide, setBreastSide] = useState<'left' | 'right' | 'both'>('right')
   const [durationMins, setDurationMins] = useState('')
   const [amountMl, setAmountMl] = useState('')
@@ -261,56 +264,74 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
           {/* Feeding fields */}
           {entryType === 'feeding' && (
             <>
-              <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-2">סוג האכלה</label>
-                <div className="flex gap-2">
-                  {(['breast', 'bottle', 'solid'] as const).map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setFeedingType(t)}
-                      className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all border-2 ${
-                        feedingType === t
-                          ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
-                          : 'border-sand-200 text-sand-600 hover:border-sand-300'
-                      }`}
-                    >
-                      {t === 'breast' ? 'הנקה' : t === 'bottle' ? 'בקבוק' : 'מוצק'}
-                    </button>
-                  ))}
+              {/* Hide the type picker when caller preset the type — the choice
+                  was made via FeedingTypePicker before the modal opened. */}
+              {!presetFeedingType && (
+                <div>
+                  <label className="block text-xs font-semibold text-sand-600 mb-2">סוג האכלה</label>
+                  <div className="flex gap-2">
+                    {(['breast', 'bottle', 'solid'] as const).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setFeedingType(t)}
+                        className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all border-2 ${
+                          feedingType === t
+                            ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
+                            : 'border-sand-200 text-sand-600 hover:border-sand-300'
+                        }`}
+                      >
+                        {t === 'breast' ? 'הנקה' : t === 'bottle' ? 'בקבוק' : 'מוצק'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               {feedingType === 'breast' && (
                 <div>
                   <label className="block text-xs font-semibold text-sand-600 mb-2">צד</label>
                   <BreastfeedingQuickSwitch side={breastSide} onChange={setBreastSide} />
                 </div>
               )}
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={durationMins}
-                    onChange={e => setDurationMins(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
-                  />
-                </div>
-                {feedingType !== 'breast' && (
+              {feedingType !== 'solid' && (
+                <div className="flex gap-3">
                   <div className="flex-1">
-                    <label className="block text-xs font-semibold text-sand-600 mb-1">כמות (מ"ל)</label>
+                    <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות)</label>
                     <input
                       type="number"
                       min="0"
                       placeholder="0"
-                      value={amountMl}
-                      onChange={e => setAmountMl(e.target.value)}
+                      value={durationMins}
+                      onChange={e => setDurationMins(e.target.value)}
                       className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
                     />
                   </div>
-                )}
-              </div>
+                  {feedingType === 'bottle' && (
+                    <div className="flex-1">
+                      <label className="block text-xs font-semibold text-sand-600 mb-1">כמות (מ"ל)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={amountMl}
+                        onChange={e => setAmountMl(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+              {feedingType === 'solid' && (
+                <div>
+                  <label className="block text-xs font-semibold text-sand-600 mb-1">מה התינוק אכל?</label>
+                  <textarea
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="מה התינוק אכל? למשל: אבוקדו וקרוטוס"
+                    rows={3}
+                    className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none"
+                  />
+                </div>
+              )}
             </>
           )}
 
@@ -499,11 +520,16 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved }: Pro
             </div>
           )}
 
-          {/* Notes */}
-          {['milestone', 'doctor_visit', 'note', 'tummy_time'].includes(entryType) && (
+          {/* Notes — generic notes box for these types. Solid feeding uses
+              its own labelled "what did baby eat?" textarea above. */}
+          {(['milestone', 'doctor_visit', 'note', 'tummy_time'].includes(entryType) ||
+            (entryType === 'feeding' && feedingType === 'bottle')) && (
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1">
-                {entryType === 'note' ? 'הערה' : entryType === 'milestone' ? 'אם בא לך לכתוב משהו' : 'הערות'}
+                {entryType === 'note' ? 'הערה' :
+                 entryType === 'milestone' ? 'אם בא לך לכתוב משהו' :
+                 entryType === 'feeding' ? 'הערות (אופציונלי)' :
+                 'הערות'}
               </label>
               <textarea
                 value={notes}

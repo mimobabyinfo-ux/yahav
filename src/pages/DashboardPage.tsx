@@ -30,6 +30,7 @@ export default function DashboardPage({ onNavigate }: Props) {
   const [copied, setCopied] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
   const [modalType, setModalType] = useState<EntryType | null>(null)
+  const [presetFeedingType, setPresetFeedingType] = useState<'breast' | 'bottle' | 'solid' | undefined>(undefined)
   const [refetchKey, setRefetchKey] = useState(0)
   const lastDiaper = useLastEntry('diaper', refetchKey)
   const diaperExtraAction: ExtraAction = {
@@ -137,7 +138,10 @@ export default function DashboardPage({ onNavigate }: Props) {
               refetchKey={refetchKey}
               layout="grid-2"
               extraActions={[diaperExtraAction]}
-              onExtraActionClick={(t) => setModalType(t as EntryType)}
+              onModalRequest={(t, preset) => {
+                setModalType(t as EntryType)
+                setPresetFeedingType(preset?.feedingType)
+              }}
             />
           </div>
         )}
@@ -320,10 +324,12 @@ export default function DashboardPage({ onNavigate }: Props) {
         <LogEntryModal
           entryType={modalType}
           date={new Date().toISOString().split('T')[0]}
-          onClose={() => setModalType(null)}
+          presetFeedingType={presetFeedingType}
+          onClose={() => { setModalType(null); setPresetFeedingType(undefined) }}
           onSaved={() => {
             handleEntrySaved()
             setModalType(null)
+            setPresetFeedingType(undefined)
           }}
         />
       )}

@@ -228,6 +228,7 @@ export default function JournalPage() {
   const [allEntries, setAllEntries] = useState<DailyLogEntryWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [modalType, setModalType] = useState<EntryType | null>(null)
+  const [presetFeedingType, setPresetFeedingType] = useState<'breast' | 'bottle' | 'solid' | undefined>(undefined)
   const [upsellType, setUpsellType] = useState<EntryType | null>(null)
   const [refetchKey, setRefetchKey] = useState(0)
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>('all')
@@ -375,20 +376,23 @@ export default function JournalPage() {
               <HorizontalCalendar selectedDate={selectedDate} onSelect={setSelectedDate} />
             </div>
 
-            {/* Unified quick-add bar — only when viewing today, since timers
-                always start "now". Past-date views skip the bar entirely;
-                use the timeline edit/delete to fix existing entries. */}
-            {selectedDate === formatDate(new Date()) && (
-              <div className="bg-[#F5F1EB] rounded-3xl p-3 shadow-sm">
-                <ActivityTimers
-                  onEntrySaved={handleEntrySaved}
-                  refetchKey={refetchKey}
-                  layout="grid-2"
-                  extraActions={[diaperExtraAction]}
-                  onExtraActionClick={(t) => setModalType(t as EntryType)}
-                />
-              </div>
-            )}
+            {/* Unified quick-add bar. On today: timer-based (feeding picker
+                opens; sleep/tummy start a live timer; diaper opens modal).
+                On past dates: forceModal routes every tap to a modal so the
+                user can backfill entries with selectedDate. */}
+            <div className="bg-[#F5F1EB] rounded-3xl p-3 shadow-sm">
+              <ActivityTimers
+                onEntrySaved={handleEntrySaved}
+                refetchKey={refetchKey}
+                layout="grid-2"
+                extraActions={[diaperExtraAction]}
+                onModalRequest={(t, preset) => {
+                  setModalType(t as EntryType)
+                  setPresetFeedingType(preset?.feedingType)
+                }}
+                forceModal={selectedDate !== formatDate(new Date())}
+              />
+            </div>
 
             {/* Secondary actions: less-frequent log types (milestone / doctor / note) */}
             <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
@@ -504,11 +508,13 @@ export default function JournalPage() {
         <LogEntryModal
           entryType={modalType}
           date={selectedDate}
-          onClose={() => setModalType(null)}
+          presetFeedingType={presetFeedingType}
+          onClose={() => { setModalType(null); setPresetFeedingType(undefined) }}
           onSaved={() => {
             handleEntrySaved()
             setUpsellType(modalType)
             setTimeout(() => setUpsellType(null), 8000)
+            setPresetFeedingType(undefined)
           }}
         />
       )}
