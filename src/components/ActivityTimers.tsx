@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Square, Plus } from 'lucide-react'
+import { Square } from 'lucide-react'
 import { supabase, ActiveTimer } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDate, formatTime, formatElapsed } from '../utils/dateUtils'
@@ -7,6 +7,7 @@ import { formatTimeSince } from '../utils/timeSince'
 import { useLastEntry } from '../hooks/useLastEntry'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
 import FeedingTypePicker, { FeedingChoice } from './FeedingTypePicker'
+import TimerOrManualPicker, { TimerOrManualChoice } from './TimerOrManualPicker'
 
 // Buttons that don't run a timer — they just open a modal (e.g. diaper).
 // Used by Dashboard's grid-2 layout to combine timer buttons + modal actions
@@ -40,6 +41,10 @@ type Props = {
 }
 
 type TimerType = 'feeding' | 'sleep' | 'tummy_time'
+// Value tracked while the 2-option (timer / manual) sheet is open. The
+// 'feeding-breast' variant lets the sheet's pick handler know to route the
+// 'manual' branch with feedingType='breast' preset.
+type PendingTimerChoice = 'sleep' | 'tummy_time' | 'feeding-breast'
 
 type AdditionalData = {
   breast_side?: 'left' | 'right' | 'both'
@@ -58,17 +63,25 @@ export default function ActivityTimers({
   const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([])
   const [elapsed, setElapsed] = useState<Record<string, string>>({})
   const [feedingPickerOpen, setFeedingPickerOpen] = useState(false)
-  // When true, the next picker pick — including breast — routes to a modal
-  // (manual entry) instead of starting a live timer. Set by tapping the
-  // "+" sub-button on the feeding cell, reset after the pick or close.
-  const [manualFeedRequested, setManualFeedRequested] = useState(false)
+  // Non-null while the 2-option (timer / manual) sheet is shown. Set when
+  // the user taps a timer cell on today (sleep/tummy_time) or picks 'breast'
+  // from the feeding type sheet. Past-date taps skip this entirely.
+  const [pendingTimerChoice, setPendingTimerChoice] = useState<PendingTimerChoice | null>(null)
   const stoppingRef = useRef<Set<string>>(new Set())
   const lastFeeding = useLastEntry('feeding', refetchKey)
   const lastSleep = useLastEntry('sleep', refetchKey)
   const lastTummy = useLastEntry('tummy_time', refetchKey)
 
-  // Tap behavior dispatch — feeding always goes through the picker.
-  // sleep / tummy_time start a timer (today) or open a modal (past-date).
+  function timerOrManualTitle(choice: PendingTimerChoice): string {
+    if (choice === 'sleep') return 'שינה'
+    if (choice === 'tummy_time') return 'זמן בטן'
+    return 'הנקה'
+  }
+
+  // Tap behavior dispatch:
+  //  - feeding → always opens the 3-option type picker
+  //  - sleep / tummy_time on today → opens the 2-option timer/manual picker
+  //  - sleep / tummy_time on past-date → opens modal directly (forceModal)
   function handleTimerCellClick(type: TimerType) {
     if (type === 'feeding') {
       setFeedingPickerOpen(true)
@@ -77,35 +90,38 @@ export default function ActivityTimers({
     if (forceModal) {
       onModalRequest?.(type)
     } else {
-      startTimer(type)
+      setPendingTimerChoice(type)
     }
   }
 
   function handleFeedingPick(choice: FeedingChoice) {
-    const wantManual = forceModal || manualFeedRequested
     setFeedingPickerOpen(false)
-    setManualFeedRequested(false)
-    if (choice === 'breast' && !wantManual) {
-      startTimer('feeding')
+    if (choice === 'breast') {
+      // On today: route through the 2-option timer/manual sheet.
+      // On past-date: there's no timer option — skip straight to the modal.
+      if (forceModal) {
+        onModalRequest?.('feeding', { feedingType: 'breast' })
+      } else {
+        setPendingTimerChoice('feeding-breast')
+      }
     } else {
       onModalRequest?.('feeding', { feedingType: choice })
     }
   }
 
-  function closePicker() {
-    setFeedingPickerOpen(false)
-    setManualFeedRequested(false)
-  }
-
-  // "+" sub-button on a timer cell — opens manual entry for that type.
-  // Feeding routes through the picker (so user still chooses breast/bottle/solid)
-  // but every choice goes to a modal, not a live timer.
-  function handleManualClick(type: TimerType) {
-    if (type === 'feeding') {
-      setManualFeedRequested(true)
-      setFeedingPickerOpen(true)
+  function handleTimerOrManualPick(choice: TimerOrManualChoice) {
+    const pending = pendingTimerChoice
+    setPendingTimerChoice(null)
+    if (!pending) return
+    if (choice === 'timer') {
+      startTimer(pending === 'feeding-breast' ? 'feeding' : pending)
     } else {
-      onModalRequest?.(type)
+      // manual
+      if (pending === 'feeding-breast') {
+        onModalRequest?.('feeding', { feedingType: 'breast' })
+      } else {
+        onModalRequest?.(pending)
+      }
     }
   }
 
@@ -236,32 +252,18 @@ export default function ActivityTimers({
   const runningTypes = new Set(activeTimers.map(t => t.timer_type))
 
   function renderTimerStartButton(def: typeof timerDefs[number]) {
-    // Show "+" only on Start state (idle) and only when timers are live.
-    // On past-date (forceModal) the whole cell is already manual, so "+" would be redundant.
-    const showManualPlus = !forceModal
     return (
-      <div key={def.type} className="flex-1 relative">
-        <button
-          onClick={() => handleTimerCellClick(def.type)}
-          className="w-full flex items-center justify-center gap-2 py-3 bg-[#F5F1EB] rounded-2xl shadow-sm hover:shadow-md border-2 border-transparent hover:border-mustard-200 transition-all"
-        >
-          <span className="text-xl">{def.emoji}</span>
-          <div className="text-right">
-            <div className="text-xs font-semibold text-sand-700">{def.label}</div>
-            <div className="text-[10px] text-sand-400 leading-tight">{sinceTextFor(def.type)}</div>
-          </div>
-        </button>
-        {showManualPlus && (
-          <button
-            onClick={(e) => { e.stopPropagation(); handleManualClick(def.type) }}
-            className="absolute top-1 left-1 w-7 h-7 rounded-full bg-mustard-100 hover:bg-mustard-200 text-mustard-700 flex items-center justify-center transition-colors"
-            aria-label="הוספה ידנית"
-            title="הוספה ידנית"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
+      <button
+        key={def.type}
+        onClick={() => handleTimerCellClick(def.type)}
+        className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#F5F1EB] rounded-2xl shadow-sm hover:shadow-md border-2 border-transparent hover:border-mustard-200 transition-all"
+      >
+        <span className="text-xl">{def.emoji}</span>
+        <div className="text-right">
+          <div className="text-xs font-semibold text-sand-700">{def.label}</div>
+          <div className="text-[10px] text-sand-400 leading-tight">{sinceTextFor(def.type)}</div>
+        </div>
+      </button>
     )
   }
 
@@ -364,8 +366,14 @@ export default function ActivityTimers({
         </div>
         <FeedingTypePicker
           open={feedingPickerOpen}
-          onClose={closePicker}
+          onClose={() => setFeedingPickerOpen(false)}
           onPick={handleFeedingPick}
+        />
+        <TimerOrManualPicker
+          open={pendingTimerChoice !== null}
+          title={pendingTimerChoice ? timerOrManualTitle(pendingTimerChoice) : ''}
+          onClose={() => setPendingTimerChoice(null)}
+          onPick={handleTimerOrManualPick}
         />
       </>
     )
@@ -424,6 +432,12 @@ export default function ActivityTimers({
         open={feedingPickerOpen}
         onClose={() => setFeedingPickerOpen(false)}
         onPick={handleFeedingPick}
+      />
+      <TimerOrManualPicker
+        open={pendingTimerChoice !== null}
+        title={pendingTimerChoice ? timerOrManualTitle(pendingTimerChoice) : ''}
+        onClose={() => setPendingTimerChoice(null)}
+        onPick={handleTimerOrManualPick}
       />
     </>
   )
