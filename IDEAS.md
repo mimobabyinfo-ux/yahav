@@ -42,3 +42,27 @@ A dedicated screen for introducing solid foods to babies (6+ months). Hebrew-fir
 
 ## Add new ideas below this line
 <!-- Format: ## Idea name, then Status / Source / Description / Why now / Why not now / Validation -->
+
+---
+
+## OAuth Branding — לסדר לפני השקה
+
+**Status:** Pre-launch fix (Week 3 target)
+**Source:** דיווח אישי
+
+### הבעיה
+במסך ההתחברות של גוגל מופיע `Ir a pkekucngirkjqigpmlrt.supabase.co` במקום שם האפליקציה. זה נראה לא מקצועי לאמהות ועלול להרתיע מלהשלים התחברות.
+
+### שתי דרכים לפתור
+
+1. **Custom Domain ב-Supabase** (Pro plan, ~$25/חודש) — הדרך המקצועית.
+   ה-OAuth callback עובר לדומיין ייעודי (למשל `auth.mimo-baby.co.il`), ובמסך גוגל מוצג הדומיין הזה במקום ה-URL הגנרי של Supabase. דורש שדרוג מנוי, אבל פותר מיד.
+
+2. **Google OAuth Verification** — תהליך חינמי שלוקח 1-3 שבועות.
+   דורש: Privacy Policy פומבית, Terms of Service, בקשת אימות מ-Google. אחרי האישור, מסך הגוגל יציג את שם האפליקציה ("Mimo") במקום ה-URL.
+
+### מתי לטפל
+**שבוע 3** — ממילא עובדים אז על privacy policy ו-assets לחנות האפליקציות, אז זה משתלב טבעית.
+
+### החלטה נדרשת לפני ההתחלה
+לעבור ל-Supabase Pro (~$25/חודש, מיידי) או ללכת על Google Verification (חינמי, 1-3 שבועות)?
