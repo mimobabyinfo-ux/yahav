@@ -1,4 +1,7 @@
-﻿import { useEffect, useState } from 'react'
+﻿// Currently unused as of 2026-05-09 — replaced by "time since last action"
+// display on the action buttons in JournalPage. Kept for potential future use
+// in an advanced settings view (the interval picker is still functional).
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 

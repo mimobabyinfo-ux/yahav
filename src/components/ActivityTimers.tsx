@@ -3,10 +3,13 @@ import { Play, Square } from 'lucide-react'
 import { supabase, ActiveTimer } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDate, formatTime, formatElapsed } from '../utils/dateUtils'
+import { formatTimeSince } from '../utils/timeSince'
+import { useLastEntry } from '../hooks/useLastEntry'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
 
 type Props = {
   onEntrySaved: () => void
+  refetchKey?: number
 }
 
 type TimerType = 'feeding' | 'sleep' | 'tummy_time'
@@ -16,11 +19,13 @@ type AdditionalData = {
   feeding_type?: string
 }
 
-export default function ActivityTimers({ onEntrySaved }: Props) {
+export default function ActivityTimers({ onEntrySaved, refetchKey = 0 }: Props) {
   const { user, selectedChild } = useAuth()
   const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([])
   const [elapsed, setElapsed] = useState<Record<string, string>>({})
   const stoppingRef = useRef<Set<string>>(new Set())
+  const lastFeeding = useLastEntry('feeding', refetchKey)
+  const lastSleep = useLastEntry('sleep', refetchKey)
 
   const loadTimers = useCallback(async () => {
     if (!user) return
@@ -140,6 +145,12 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
     { type: 'tummy_time', emoji: '🐣', label: 'זמן בטן', color: 'bg-orange-50 text-orange-600 border-orange-200' },
   ]
 
+  const sinceTextFor = (type: TimerType): string | null => {
+    if (type === 'feeding') return formatTimeSince(lastFeeding, 'טרם נרשמה האכלה')
+    if (type === 'sleep') return formatTimeSince(lastSleep, 'טרם נרשמה שינה')
+    return null
+  }
+
   const runningTypes = new Set(activeTimers.map(t => t.timer_type))
 
   return (
@@ -148,6 +159,7 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
       <div className="flex gap-2">
         {timerDefs.map(def => {
           if (runningTypes.has(def.type)) return null
+          const sinceText = sinceTextFor(def.type)
           return (
             <button
               key={def.type}
@@ -157,10 +169,14 @@ export default function ActivityTimers({ onEntrySaved }: Props) {
               <span className="text-xl">{def.emoji}</span>
               <div className="text-right">
                 <div className="text-xs font-semibold text-sand-700">{def.label}</div>
-                <div className="flex items-center gap-1 text-xs text-mustard-500">
-                  <Play className="w-3 h-3" />
-                  <span>התחלה</span>
-                </div>
+                {sinceText ? (
+                  <div className="text-[10px] text-sand-400 leading-tight">{sinceText}</div>
+                ) : (
+                  <div className="flex items-center gap-1 text-xs text-mustard-500">
+                    <Play className="w-3 h-3" />
+                    <span>התחלה</span>
+                  </div>
+                )}
               </div>
             </button>
           )

@@ -45,6 +45,30 @@ A dedicated screen for introducing solid foods to babies (6+ months). Hebrew-fir
 
 ---
 
+## Optional "Feeding Interval Prediction" view
+
+**Status:** Removed (2026-05-09), keep for potential reintroduction
+**Source:** Roni (beta tester) feedback
+
+### What we removed
+The journal originally had a `FeedingIntervalCard` showing predicted "next feeding in X hours" plus an alert banner ("baby needs to eat now!") and a browser-Notification scheduler. Roni said she didn't want predictions — she wanted to see *when the baby last ate*. We replaced the prediction with a "time since last action" badge on every action button.
+
+### Why this could come back
+- Some moms may actually want the interval reminder (especially first-time moms with strict-schedule pediatricians).
+- The `FeedingIntervalCard.tsx` file is intact, including the 2 / 2.5 / 3 / 3.5 / 4 hours picker and the prediction logic.
+- The `user_profiles.feeding_interval_hours` column is still in the schema, just unused by the UI.
+
+### Options if we reintroduce
+1. **Settings → Advanced → "מעקב מרווחים"** — opt-in toggle, hidden by default
+2. **Pregnancy-mode-only** carryover → for moms who arrive from pregnancy mode and already had it on
+3. **Specific user request only** — leave dormant unless multiple beta testers ask for it
+
+### When to revisit
+After 50+ active users post-launch, if a meaningful fraction asks for feeding-interval reminders.
+
+
+---
+
 ## OAuth Branding — לסדר לפני השקה
 
 **Status:** Pre-launch fix (Week 3 target)

@@ -1,7 +1,11 @@
-﻿type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
+import { formatTimeSince } from '../utils/timeSince'
+import { useLastEntry } from '../hooks/useLastEntry'
+
+type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 
 type Props = {
   onSelect: (type: EntryType) => void
+  refetchKey?: number
 }
 
 const actions: { type: EntryType; emoji: string; label: string }[] = [
@@ -12,7 +16,10 @@ const actions: { type: EntryType; emoji: string; label: string }[] = [
   { type: 'note', emoji: '📝', label: 'הערה' },
 ]
 
-export default function QuickActionButtons({ onSelect }: Props) {
+export default function QuickActionButtons({ onSelect, refetchKey = 0 }: Props) {
+  const lastDiaper = useLastEntry('diaper', refetchKey)
+  const diaperSince = formatTimeSince(lastDiaper, 'טרם נרשם חיתול')
+
   return (
     <div className="flex gap-2 overflow-x-auto scroll-hide py-1">
       {actions.map(action => (
@@ -23,6 +30,9 @@ export default function QuickActionButtons({ onSelect }: Props) {
         >
           <span className="text-xl">{action.emoji}</span>
           <span className="text-xs font-medium text-sand-600 whitespace-nowrap">{action.label}</span>
+          {action.type === 'diaper' && (
+            <span className="text-[10px] text-sand-400 whitespace-nowrap leading-tight">{diaperSince}</span>
+          )}
         </button>
       ))}
     </div>
