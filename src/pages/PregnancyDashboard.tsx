@@ -2,6 +2,7 @@
 import {
   LogOut, Sparkles, CheckCircle2, Circle, ShoppingBag, Stethoscope,
   ChevronDown, ChevronUp, Plus, Trash2, Bell, X, Pencil, Check,
+  Settings as SettingsIcon,
 } from 'lucide-react'
 import { supabase, PregnancyChecklistItem, PregnancyWeeklyGuide, UserPregnancyItem, UserReminder } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -450,9 +451,18 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
               <p className="text-sm" style={{ color: '#D9B978' }}>שלום,</p>
               <h1 className="text-2xl font-bold text-white">{profile?.mother_name ?? 'אמא לעתיד'} 🤰</h1>
             </div>
-            <button onClick={signOut} className="p-2 rounded-xl text-white/50 hover:text-white transition-colors">
-              <LogOut className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <a
+                href="?settings"
+                className="p-2 rounded-xl text-white/50 hover:text-white transition-colors"
+                title="הגדרות"
+              >
+                <SettingsIcon className="w-5 h-5" />
+              </a>
+              <button onClick={signOut} className="p-2 rounded-xl text-white/50 hover:text-white transition-colors" title="יציאה">
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {profile?.due_date ? (
