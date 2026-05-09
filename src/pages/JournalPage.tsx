@@ -17,6 +17,15 @@ import ChildSwitcher from '../components/ChildSwitcher'
 
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 type ViewMode = 'day' | 'week' | 'month'
+type TimelineFilter = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time'
+
+const TIMELINE_FILTERS: { value: TimelineFilter; emoji: string; label: string }[] = [
+  { value: 'all',        emoji: '',   label: 'הכל' },
+  { value: 'feeding',    emoji: '🍼', label: 'האכלה' },
+  { value: 'sleep',      emoji: '😴', label: 'שינה' },
+  { value: 'diaper',     emoji: '💩', label: 'חיתול' },
+  { value: 'tummy_time', emoji: '🐣', label: 'בטן' },
+]
 
 const UPSELLS: Record<string, { emoji: string; text: string; cta: string; wa: string }> = {
   sleep: {
@@ -221,6 +230,7 @@ export default function JournalPage() {
   const [modalType, setModalType] = useState<EntryType | null>(null)
   const [upsellType, setUpsellType] = useState<EntryType | null>(null)
   const [refetchKey, setRefetchKey] = useState(0)
+  const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>('all')
   const lastDiaper = useLastEntry('diaper', refetchKey)
   const diaperExtraAction: ExtraAction = {
     type: 'diaper',
@@ -392,12 +402,32 @@ export default function JournalPage() {
               <UpsellCard type={upsellType} onDismiss={() => setUpsellType(null)} ownerWhatsapp={ownerWhatsapp} />
             )}
 
+            {/* Timeline filter — narrows the timeline below to a single entry type */}
+            <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
+              {TIMELINE_FILTERS.map(f => (
+                <button
+                  key={f.value}
+                  onClick={() => setTimelineFilter(f.value)}
+                  className={`flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-semibold transition-all leading-tight ${
+                    timelineFilter === f.value ? 'text-white shadow-sm' : 'text-sand-500'
+                  }`}
+                  style={timelineFilter === f.value ? { background: '#E7C78A' } : {}}
+                >
+                  {f.emoji && <span className="text-base">{f.emoji}</span>}
+                  <span>{f.label}</span>
+                </button>
+              ))}
+            </div>
+
             {loading ? (
               <div className="text-center py-8">
                 <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
               </div>
             ) : (
-              <DailyTimeline entries={entries} onRefresh={handleEntrySaved} />
+              <DailyTimeline
+                entries={timelineFilter === 'all' ? entries : entries.filter(e => e.entry_type === timelineFilter)}
+                onRefresh={handleEntrySaved}
+              />
             )}
           </>
         )}
