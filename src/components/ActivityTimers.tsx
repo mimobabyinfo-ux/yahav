@@ -1,5 +1,5 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react'
-import { Play, Square } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Square } from 'lucide-react'
 import { supabase, ActiveTimer } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDate, formatTime, formatElapsed } from '../utils/dateUtils'
@@ -7,9 +7,27 @@ import { formatTimeSince } from '../utils/timeSince'
 import { useLastEntry } from '../hooks/useLastEntry'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
 
+// Buttons that don't run a timer — they just open a modal (e.g. diaper).
+// Used by Dashboard's grid-2 layout to combine timer buttons + modal actions
+// in a single 2x2 grid. Caller computes sinceText (so it can use its own
+// useLastEntry calls) and handles the click via onExtraActionClick.
+export type ExtraAction = {
+  type: string
+  emoji: string
+  label: string
+  sinceText: string
+}
+
 type Props = {
   onEntrySaved: () => void
   refetchKey?: number
+  // 'flex' (default) — 3 timer buttons in a row, big active-timer cards below.
+  //   Used by JournalPage. Backward compatible.
+  // 'grid-2' — 2x2 grid combining timer buttons + extraActions, with the same
+  //   big active-timer cards rendered below for advanced controls. Used by Dashboard.
+  layout?: 'flex' | 'grid-2'
+  extraActions?: ExtraAction[]
+  onExtraActionClick?: (type: string) => void
 }
 
 type TimerType = 'feeding' | 'sleep' | 'tummy_time'
@@ -19,13 +37,20 @@ type AdditionalData = {
   feeding_type?: string
 }
 
-export default function ActivityTimers({ onEntrySaved, refetchKey = 0 }: Props) {
+export default function ActivityTimers({
+  onEntrySaved,
+  refetchKey = 0,
+  layout = 'flex',
+  extraActions = [],
+  onExtraActionClick,
+}: Props) {
   const { user, selectedChild } = useAuth()
   const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([])
   const [elapsed, setElapsed] = useState<Record<string, string>>({})
   const stoppingRef = useRef<Set<string>>(new Set())
   const lastFeeding = useLastEntry('feeding', refetchKey)
   const lastSleep = useLastEntry('sleep', refetchKey)
+  const lastTummy = useLastEntry('tummy_time', refetchKey)
 
   const loadTimers = useCallback(async () => {
     if (!user) return
@@ -145,21 +170,136 @@ export default function ActivityTimers({ onEntrySaved, refetchKey = 0 }: Props) 
     { type: 'tummy_time', emoji: '🐣', label: 'זמן בטן', color: 'bg-orange-50 text-orange-600 border-orange-200' },
   ]
 
-  const sinceTextFor = (type: TimerType): string | null => {
+  const sinceTextFor = (type: TimerType): string => {
     if (type === 'feeding') return formatTimeSince(lastFeeding, 'טרם נרשמה האכלה')
     if (type === 'sleep') return formatTimeSince(lastSleep, 'טרם נרשמה שינה')
-    return null
+    return formatTimeSince(lastTummy, 'טרם נרשם זמן בטן')
   }
 
   const runningTypes = new Set(activeTimers.map(t => t.timer_type))
 
+  function renderTimerStartButton(def: typeof timerDefs[number]) {
+    return (
+      <button
+        key={def.type}
+        onClick={() => startTimer(def.type)}
+        className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#F5F1EB] rounded-2xl shadow-sm hover:shadow-md border-2 border-transparent hover:border-mustard-200 transition-all"
+      >
+        <span className="text-xl">{def.emoji}</span>
+        <div className="text-right">
+          <div className="text-xs font-semibold text-sand-700">{def.label}</div>
+          <div className="text-[10px] text-sand-400 leading-tight">{sinceTextFor(def.type)}</div>
+        </div>
+      </button>
+    )
+  }
+
+  function renderExtraActionButton(action: ExtraAction) {
+    return (
+      <button
+        key={action.type}
+        onClick={() => onExtraActionClick?.(action.type)}
+        className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#F5F1EB] rounded-2xl shadow-sm hover:shadow-md border-2 border-transparent hover:border-mustard-200 transition-all"
+      >
+        <span className="text-xl">{action.emoji}</span>
+        <div className="text-right">
+          <div className="text-xs font-semibold text-sand-700">{action.label}</div>
+          <div className="text-[10px] text-sand-400 leading-tight">{action.sinceText}</div>
+        </div>
+      </button>
+    )
+  }
+
+  // Compact in-grid running cell — used in grid-2 layout so the cell stays
+  // the same shape when a timer is running. The big card below still renders
+  // for advanced controls (BreastfeedingQuickSwitch).
+  function renderCompactRunningCell(timer: ActiveTimer) {
+    const def = timerDefs.find(d => d.type === timer.timer_type)
+    return (
+      <button
+        key={timer.id}
+        onClick={() => stopTimer(timer)}
+        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl shadow-sm border-2 border-mustard-200"
+        style={{ background: '#FFF7E5' }}
+      >
+        <span className="text-xl">{def?.emoji}</span>
+        <div className="text-right">
+          <div className="text-xs font-semibold text-mustard-700">{def?.label} פעיל</div>
+          <div className="flex items-center gap-1 text-[11px] font-mono font-bold text-mustard-600 leading-tight">
+            <Square className="w-2.5 h-2.5 fill-current" />
+            <span>{elapsed[timer.id] ?? '00:00'}</span>
+          </div>
+        </div>
+      </button>
+    )
+  }
+
+  // ── Layout: grid-2 (Dashboard) ───────────────────────────────────────────
+  if (layout === 'grid-2') {
+    const cells = [
+      ...timerDefs.map(def => {
+        const runningTimer = activeTimers.find(t => t.timer_type === def.type)
+        return runningTimer
+          ? renderCompactRunningCell(runningTimer)
+          : renderTimerStartButton(def)
+      }),
+      ...extraActions.map(renderExtraActionButton),
+    ]
+
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">{cells}</div>
+
+        {/* Big active-timer cards (for BreastfeedingQuickSwitch etc.) */}
+        {activeTimers.map(timer => {
+          const def = timerDefs.find(d => d.type === timer.timer_type)
+          const addl = (timer.additional_data ?? {}) as AdditionalData
+          return (
+            <div
+              key={timer.id}
+              className="bg-[#F5F1EB] rounded-2xl p-4 shadow-md border-2 border-mustard-100"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{def?.emoji}</span>
+                  <p className="text-sm font-bold text-sand-800">{def?.label} פעיל</p>
+                </div>
+                <div className="text-2xl font-mono font-bold text-mustard-600">
+                  {elapsed[timer.id] ?? '00:00'}
+                </div>
+              </div>
+
+              {timer.timer_type === 'feeding' && (
+                <div className="mb-3">
+                  <p className="text-xs text-musgo-600 mb-1.5">צד האכלה</p>
+                  <BreastfeedingQuickSwitch
+                    side={addl.breast_side ?? 'right'}
+                    onChange={side => switchBreastSide(timer, side)}
+                  />
+                </div>
+              )}
+
+              <button
+                onClick={() => stopTimer(timer)}
+                className="w-full flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-mustard-500 to-mustard-600 text-white rounded-xl text-xs font-semibold hover:from-mustard-600 hover:to-mustard-700 transition-all"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                עצירה ושמירה
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── Layout: flex (default — JournalPage, unchanged) ──────────────────────
   return (
     <div className="space-y-3">
       {/* Start buttons */}
       <div className="flex gap-2">
         {timerDefs.map(def => {
           if (runningTypes.has(def.type)) return null
-          const sinceText = sinceTextFor(def.type)
           return (
             <button
               key={def.type}
@@ -169,14 +309,7 @@ export default function ActivityTimers({ onEntrySaved, refetchKey = 0 }: Props) 
               <span className="text-xl">{def.emoji}</span>
               <div className="text-right">
                 <div className="text-xs font-semibold text-sand-700">{def.label}</div>
-                {sinceText ? (
-                  <div className="text-[10px] text-sand-400 leading-tight">{sinceText}</div>
-                ) : (
-                  <div className="flex items-center gap-1 text-xs text-mustard-500">
-                    <Play className="w-3 h-3" />
-                    <span>התחלה</span>
-                  </div>
-                )}
+                <div className="text-[10px] text-sand-400 leading-tight">{sinceTextFor(def.type)}</div>
               </div>
             </button>
           )

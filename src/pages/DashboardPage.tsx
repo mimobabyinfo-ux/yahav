@@ -1,13 +1,19 @@
-﻿import { useEffect, useState } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
 import { ChevronLeft, UserPlus, Copy, Check, MessageCircle, Settings as SettingsIcon } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { getBabyAge, getIsraelHour } from '../utils/dateUtils'
+import { formatTimeSince } from '../utils/timeSince'
+import { useLastEntry } from '../hooks/useLastEntry'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import MyTasksPanel from '../components/MyTasksPanel'
+import ActivityTimers, { ExtraAction } from '../components/ActivityTimers'
+import LogEntryModal from '../components/LogEntryModal'
 import type { Page } from '../App'
+
+type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 
 type Props = {
   onNavigate: (page: Page) => void
@@ -23,6 +29,18 @@ export default function DashboardPage({ onNavigate }: Props) {
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [modalType, setModalType] = useState<EntryType | null>(null)
+  const [refetchKey, setRefetchKey] = useState(0)
+  const lastDiaper = useLastEntry('diaper', refetchKey)
+  const diaperExtraAction: ExtraAction = {
+    type: 'diaper',
+    emoji: '💩',
+    label: 'חיתול',
+    sinceText: formatTimeSince(lastDiaper, 'טרם נרשם חיתול'),
+  }
+  const handleEntrySaved = useCallback(() => {
+    setRefetchKey(k => k + 1)
+  }, [])
 
   useEffect(() => {
     fetchTip()
@@ -110,6 +128,19 @@ export default function DashboardPage({ onNavigate }: Props) {
             <SettingsIcon className="w-5 h-5" />
           </a>
         </div>
+
+        {/* Quick-add bar (above the fold for tired moms) */}
+        {selectedChild && (
+          <div className="bg-[#F5F1EB] rounded-3xl p-3 shadow-sm">
+            <ActivityTimers
+              onEntrySaved={handleEntrySaved}
+              refetchKey={refetchKey}
+              layout="grid-2"
+              extraActions={[diaperExtraAction]}
+              onExtraActionClick={(t) => setModalType(t as EntryType)}
+            />
+          </div>
+        )}
 
         {/* Active workshop access badge */}
         {hasActiveWorkshopAccess && activeAccessUntil && (
@@ -283,6 +314,18 @@ export default function DashboardPage({ onNavigate }: Props) {
 
       {selectedPerk && (
         <PerkDetailsModal perk={selectedPerk} onClose={() => setSelectedPerk(null)} />
+      )}
+
+      {modalType && (
+        <LogEntryModal
+          entryType={modalType}
+          date={new Date().toISOString().split('T')[0]}
+          onClose={() => setModalType(null)}
+          onSaved={() => {
+            handleEntrySaved()
+            setModalType(null)
+          }}
+        />
       )}
     </div>
   )
