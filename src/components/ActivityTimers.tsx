@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Square } from 'lucide-react'
+import { Square, Plus } from 'lucide-react'
 import { supabase, ActiveTimer } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDate, formatTime, formatElapsed } from '../utils/dateUtils'
@@ -58,6 +58,10 @@ export default function ActivityTimers({
   const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([])
   const [elapsed, setElapsed] = useState<Record<string, string>>({})
   const [feedingPickerOpen, setFeedingPickerOpen] = useState(false)
+  // When true, the next picker pick — including breast — routes to a modal
+  // (manual entry) instead of starting a live timer. Set by tapping the
+  // "+" sub-button on the feeding cell, reset after the pick or close.
+  const [manualFeedRequested, setManualFeedRequested] = useState(false)
   const stoppingRef = useRef<Set<string>>(new Set())
   const lastFeeding = useLastEntry('feeding', refetchKey)
   const lastSleep = useLastEntry('sleep', refetchKey)
@@ -78,11 +82,30 @@ export default function ActivityTimers({
   }
 
   function handleFeedingPick(choice: FeedingChoice) {
+    const wantManual = forceModal || manualFeedRequested
     setFeedingPickerOpen(false)
-    if (choice === 'breast' && !forceModal) {
+    setManualFeedRequested(false)
+    if (choice === 'breast' && !wantManual) {
       startTimer('feeding')
     } else {
       onModalRequest?.('feeding', { feedingType: choice })
+    }
+  }
+
+  function closePicker() {
+    setFeedingPickerOpen(false)
+    setManualFeedRequested(false)
+  }
+
+  // "+" sub-button on a timer cell — opens manual entry for that type.
+  // Feeding routes through the picker (so user still chooses breast/bottle/solid)
+  // but every choice goes to a modal, not a live timer.
+  function handleManualClick(type: TimerType) {
+    if (type === 'feeding') {
+      setManualFeedRequested(true)
+      setFeedingPickerOpen(true)
+    } else {
+      onModalRequest?.(type)
     }
   }
 
@@ -213,18 +236,32 @@ export default function ActivityTimers({
   const runningTypes = new Set(activeTimers.map(t => t.timer_type))
 
   function renderTimerStartButton(def: typeof timerDefs[number]) {
+    // Show "+" only on Start state (idle) and only when timers are live.
+    // On past-date (forceModal) the whole cell is already manual, so "+" would be redundant.
+    const showManualPlus = !forceModal
     return (
-      <button
-        key={def.type}
-        onClick={() => handleTimerCellClick(def.type)}
-        className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#F5F1EB] rounded-2xl shadow-sm hover:shadow-md border-2 border-transparent hover:border-mustard-200 transition-all"
-      >
-        <span className="text-xl">{def.emoji}</span>
-        <div className="text-right">
-          <div className="text-xs font-semibold text-sand-700">{def.label}</div>
-          <div className="text-[10px] text-sand-400 leading-tight">{sinceTextFor(def.type)}</div>
-        </div>
-      </button>
+      <div key={def.type} className="flex-1 relative">
+        <button
+          onClick={() => handleTimerCellClick(def.type)}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-[#F5F1EB] rounded-2xl shadow-sm hover:shadow-md border-2 border-transparent hover:border-mustard-200 transition-all"
+        >
+          <span className="text-xl">{def.emoji}</span>
+          <div className="text-right">
+            <div className="text-xs font-semibold text-sand-700">{def.label}</div>
+            <div className="text-[10px] text-sand-400 leading-tight">{sinceTextFor(def.type)}</div>
+          </div>
+        </button>
+        {showManualPlus && (
+          <button
+            onClick={(e) => { e.stopPropagation(); handleManualClick(def.type) }}
+            className="absolute top-1 left-1 w-7 h-7 rounded-full bg-mustard-100 hover:bg-mustard-200 text-mustard-700 flex items-center justify-center transition-colors"
+            aria-label="הוספה ידנית"
+            title="הוספה ידנית"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
     )
   }
 
@@ -327,7 +364,7 @@ export default function ActivityTimers({
         </div>
         <FeedingTypePicker
           open={feedingPickerOpen}
-          onClose={() => setFeedingPickerOpen(false)}
+          onClose={closePicker}
           onPick={handleFeedingPick}
         />
       </>
@@ -340,22 +377,7 @@ export default function ActivityTimers({
       <div className="space-y-3">
         {/* Start buttons */}
         <div className="flex gap-2">
-          {timerDefs.map(def => {
-            if (runningTypes.has(def.type)) return null
-            return (
-              <button
-                key={def.type}
-                onClick={() => handleTimerCellClick(def.type)}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#F5F1EB] rounded-2xl shadow-sm hover:shadow-md border-2 border-transparent hover:border-mustard-200 transition-all"
-              >
-                <span className="text-xl">{def.emoji}</span>
-                <div className="text-right">
-                  <div className="text-xs font-semibold text-sand-700">{def.label}</div>
-                  <div className="text-[10px] text-sand-400 leading-tight">{sinceTextFor(def.type)}</div>
-                </div>
-              </button>
-            )
-          })}
+          {timerDefs.map(def => runningTypes.has(def.type) ? null : renderTimerStartButton(def))}
         </div>
 
         {/* Active timers */}

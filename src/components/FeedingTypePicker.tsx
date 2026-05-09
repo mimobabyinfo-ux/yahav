@@ -20,7 +20,7 @@ const choices: { value: FeedingChoice; emoji: string; label: string }[] = [
 export default function FeedingTypePicker({ open, onClose, onPick }: Props) {
   return (
     <div
-      className={`fixed inset-0 z-[60] ${open ? 'pointer-events-auto' : 'pointer-events-none'}`}
+      className={`fixed inset-0 z-[100] ${open ? 'pointer-events-auto' : 'pointer-events-none'}`}
       aria-hidden={!open}
     >
       {/* Backdrop */}
