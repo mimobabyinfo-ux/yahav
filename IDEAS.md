@@ -45,6 +45,25 @@ A dedicated screen for introducing solid foods to babies (6+ months). Hebrew-fir
 
 ---
 
+## Additional pregnancy profile fields
+
+**Status:** Phase 2 candidate
+**Source:** noticed while building פרטי הריון section in UserSettingsPage (2026-05-09)
+
+### The idea
+Today the only pregnancy-specific column on `user_profiles` is `due_date`. If users want to track richer context — first pregnancy vs. multiparous, twins/multiples, high-risk flags, last menstrual period — we'd need new columns.
+
+### Why we're NOT building it now
+- Requires a Supabase migration (out of scope for current sprint).
+- Unclear which fields are actually wanted by users; risk of bloat.
+- "Parity" (1st/2nd/3rd pregnancy) and "multiples" are the most commonly requested by tracking apps; everything else can wait.
+
+### Validation needed
+- Beta survey: which fields would moms actually want to record / see in their pregnancy dashboard?
+- Check if Brenda's WhatsApp guidance distinguishes between first-time and multiparous moms — if yes, parity matters.
+
+---
+
 ## Optional "Feeding Interval Prediction" view
 
 **Status:** Removed (2026-05-09), keep for potential reintroduction

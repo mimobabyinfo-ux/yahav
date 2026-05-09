@@ -130,7 +130,7 @@ export default function OnboardingPage() {
             <MimoLogo size={100} />
           </div>
           <h1 className="text-2xl font-bold text-sand-800">ברוכה הבאה!</h1>
-          <p className="text-sand-500 mt-1 text-sm">ספרי לנו קצת עליך ועל התינוק שלך</p>
+          <p className="text-sand-500 mt-1 text-sm">ספרי לנו קצת עליך</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

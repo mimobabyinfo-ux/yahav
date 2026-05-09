@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react'
-import { ArrowRight, LogOut, Plus, Check, X } from 'lucide-react'
+import { ArrowRight, LogOut, Plus, Check, X, Pencil } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
@@ -12,19 +12,43 @@ function genderLabel(g: string | null) {
   return g === 'boy' ? 'בן' : g === 'girl' ? 'בת' : 'אחר'
 }
 
+// Same calc as PregnancyDashboard's local helper — keep the two in sync if either changes.
+function pregnancyWeek(dueDate: string): number {
+  const daysLeft = Math.round((new Date(dueDate).getTime() - Date.now()) / 86400000)
+  return Math.max(1, Math.min(42, Math.floor((280 - daysLeft) / 7)))
+}
+
 function exitSettings() {
   // Drop the ?settings query param and return to the app root
   window.location.assign(window.location.pathname)
 }
 
 export default function UserSettingsPage() {
-  const { user, profile, children, signOut, refreshChildren } = useAuth()
+  const { user, profile, children, signOut, refreshChildren, refreshProfile } = useAuth()
   const [showAdd, setShowAdd] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDob, setNewDob] = useState('')
   const [newGender, setNewGender] = useState<'girl' | 'boy' | 'other'>('girl')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+
+  // Pregnancy due-date editor state
+  const [editingDueDate, setEditingDueDate] = useState(false)
+  const [newDueDate, setNewDueDate] = useState('')
+  const [savingDueDate, setSavingDueDate] = useState(false)
+  const [dueDateError, setDueDateError] = useState('')
+
+  async function saveDueDate() {
+    if (!user) return
+    if (!newDueDate) { setDueDateError('נא לבחור תאריך'); return }
+    setDueDateError('')
+    setSavingDueDate(true)
+    const { error } = await supabase.from('user_profiles').update({ due_date: newDueDate }).eq('id', user.id)
+    setSavingDueDate(false)
+    if (error) { setDueDateError('שגיאה בשמירה — נסי שוב'); return }
+    await refreshProfile()
+    setEditingDueDate(false)
+  }
 
   async function addChild(e: React.FormEvent) {
     e.preventDefault()
@@ -86,7 +110,75 @@ export default function UserSettingsPage() {
           </div>
         </section>
 
-        {/* הילדים שלי */}
+        {/* פרטי הריון — pregnant users only */}
+        {profile?.user_mode === 'pregnant' && (
+          <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
+            <h2 className="text-sm font-bold text-sand-700">פרטי הריון</h2>
+            <div className="space-y-2.5">
+              <div>
+                <p className="text-[11px] text-sand-400 mb-1">תאריך לידה משוער</p>
+                {editingDueDate ? (
+                  <div className="space-y-2">
+                    <div dir="ltr">
+                      <input
+                        type="date"
+                        autoFocus
+                        value={newDueDate}
+                        onChange={e => setNewDueDate(e.target.value)}
+                        min={new Date().toISOString().slice(0, 10)}
+                        className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                      />
+                    </div>
+                    {dueDateError && <p className="text-xs text-red-500">{dueDateError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={saveDueDate}
+                        disabled={savingDueDate}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-50"
+                        style={{ background: '#E7C78A' }}
+                      >
+                        {savingDueDate ? '...' : <><Check className="w-4 h-4" /> שמירה</>}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setEditingDueDate(false); setDueDateError('') }}
+                        className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-sm"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-sand-800 font-medium">
+                      {profile.due_date
+                        ? new Date(profile.due_date + 'T12:00:00').toLocaleDateString('he-IL')
+                        : <span className="text-sand-400 italic">לא הוגדר</span>}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setNewDueDate(profile.due_date ?? ''); setEditingDueDate(true) }}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-700 hover:text-mustard-800"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      ערכי
+                    </button>
+                  </div>
+                )}
+              </div>
+              {profile.due_date && (
+                <div>
+                  <p className="text-[11px] text-sand-400">שבוע הריון נוכחי</p>
+                  <p className="text-sm text-sand-800 font-medium">שבוע {pregnancyWeek(profile.due_date)}</p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* הילדים שלי — mom users only */}
+        {profile?.user_mode === 'mom' && (
         <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
           <h2 className="text-sm font-bold text-sand-700">הילדים שלי</h2>
 
@@ -179,6 +271,7 @@ export default function UserSettingsPage() {
             </button>
           )}
         </section>
+        )}
 
         {/* יציאה */}
         <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5">

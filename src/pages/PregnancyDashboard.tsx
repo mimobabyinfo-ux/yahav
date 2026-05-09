@@ -83,7 +83,9 @@ function WeekGuideCard({ guide, week }: { guide: PregnancyWeeklyGuide; week: num
           <p className="font-bold text-sand-800 text-sm mt-0.5">
             {guide.baby_size ?? `שבוע ${week} בהריון`}
           </p>
-          <p className="text-xs text-sand-400 mt-0.5 truncate">{guide.development?.slice(0, 50)}...</p>
+          {!open && (
+            <p className="text-xs text-sand-400 mt-0.5 truncate">{guide.development?.slice(0, 50)}...</p>
+          )}
         </div>
         {open ? <ChevronUp className="w-4 h-4 text-sand-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-sand-400 flex-shrink-0" />}
       </button>
