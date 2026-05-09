@@ -26,6 +26,7 @@ function exitSettings() {
 export default function UserSettingsPage() {
   const { user, profile, children, signOut, refreshChildren, refreshProfile } = useAuth()
   const [showAdd, setShowAdd] = useState(false)
+  const [editingChildId, setEditingChildId] = useState<string | null>(null)
   const [newName, setNewName] = useState('')
   const [newDob, setNewDob] = useState('')
   const [newGender, setNewGender] = useState<'girl' | 'boy' | 'other'>('girl')
@@ -50,24 +51,45 @@ export default function UserSettingsPage() {
     setEditingDueDate(false)
   }
 
-  async function addChild(e: React.FormEvent) {
+  function startAdd() {
+    setEditingChildId(null)
+    setNewName(''); setNewDob(''); setNewGender('girl')
+    setSaveError('')
+    setShowAdd(true)
+  }
+
+  function startEdit(child: typeof children[number]) {
+    setShowAdd(false)
+    setEditingChildId(child.id)
+    setNewName(child.name)
+    setNewDob(child.dob ?? '')
+    setNewGender((child.gender as 'girl' | 'boy' | 'other' | null) ?? 'girl')
+    setSaveError('')
+  }
+
+  function cancelChildForm() {
+    setShowAdd(false)
+    setEditingChildId(null)
+    setSaveError('')
+  }
+
+  async function saveChild(e: React.FormEvent) {
     e.preventDefault()
     if (!user) return
     setSaveError('')
     if (!newName.trim()) { setSaveError('נא למלא שם'); return }
     if (!newDob) { setSaveError('נא לבחור תאריך לידה'); return }
     setSaving(true)
-    const { error } = await supabase.from('children').insert({
-      user_id: user.id,
-      name: newName.trim(),
-      dob: newDob,
-      gender: newGender,
-    })
+    const payload = { name: newName.trim(), dob: newDob, gender: newGender }
+    const { error } = editingChildId
+      ? await supabase.from('children').update(payload).eq('id', editingChildId)
+      : await supabase.from('children').insert({ user_id: user.id, ...payload })
     setSaving(false)
     if (error) { setSaveError('שגיאה בשמירה — נסי שוב'); return }
     await refreshChildren()
     setNewName(''); setNewDob(''); setNewGender('girl')
     setShowAdd(false)
+    setEditingChildId(null)
   }
 
   return (
@@ -198,12 +220,24 @@ export default function UserSettingsPage() {
                     {child.dob && ` · ${getBabyAge(child.dob)}`}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => startEdit(child)}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-700 hover:text-mustard-800 px-2 py-1.5"
+                  title="ערכי"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  ערכי
+                </button>
               </div>
             ))}
           </div>
 
-          {showAdd ? (
-            <form onSubmit={addChild} className="space-y-2.5 pt-1">
+          {(showAdd || editingChildId) ? (
+            <form onSubmit={saveChild} className="space-y-2.5 pt-1">
+              <p className="text-xs font-bold text-sand-700">
+                {editingChildId ? 'עריכת פרטי הילד/ה' : 'הוספת ילד/ה חדש/ה'}
+              </p>
               <div>
                 <label className="block text-[11px] font-semibold text-sand-500 mb-1">שם <span className="text-red-400">*</span></label>
                 <input
@@ -253,7 +287,7 @@ export default function UserSettingsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setShowAdd(false); setSaveError('') }}
+                  onClick={cancelChildForm}
                   className="px-3 py-2.5 rounded-xl bg-sand-100 text-sand-600 text-sm"
                 >
                   <X className="w-4 h-4" />
@@ -263,7 +297,7 @@ export default function UserSettingsPage() {
           ) : (
             <button
               type="button"
-              onClick={() => setShowAdd(true)}
+              onClick={startAdd}
               className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-semibold text-mustard-700 bg-mustard-50 hover:bg-mustard-100 border-2 border-dashed border-mustard-200 transition-colors"
             >
               <Plus className="w-4 h-4" />

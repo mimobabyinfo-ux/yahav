@@ -45,6 +45,34 @@ A dedicated screen for introducing solid foods to babies (6+ months). Hebrew-fir
 
 ---
 
+## Editable personal info in Settings
+
+**Status:** Deferred until real user request
+**Source:** noticed while building child editing in UserSettingsPage (2026-05-09)
+
+### What's currently editable
+- Pregnancy due date (added 2026-05-09)
+- Existing child (name / DOB / gender) — added 2026-05-09
+- Add new child
+- Community bio + phone-share consent (in CommunityPage)
+- Switch from pregnant → mom mode (in PregnancyDashboard, "התינוק נולד!")
+
+### What's NOT editable yet
+- Mother name (`mother_name`)
+- Phone number (`phone_number`) — relevant if a beta user changes SIM and WhatsApp delivery breaks
+- City/area (`area`) — affects community matching but rarely changes
+- Delete child (rare edge case — usually wrong-account or wrong-data scenario)
+- Email — auth-controlled, unlikely to expose
+
+### Why we're NOT building these now
+Onboarding mistakes for *child data* will lock a mom out of accurate tracking forever, so child editing was prioritized. Phone/name/area edits are rare enough that beta users can request changes via WhatsApp; the support cost is low compared to building 3+ inline editors.
+
+### When to revisit
+- First time a beta tester asks to change their phone number → build phone editor
+- If multiple users mention name/area issues → build a generic "edit personal info" form
+
+---
+
 ## Additional pregnancy profile fields
 
 **Status:** Phase 2 candidate
