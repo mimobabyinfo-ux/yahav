@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 export type FeedingChoice = 'breast' | 'bottle' | 'solid'
@@ -17,8 +18,13 @@ const choices: { value: FeedingChoice; emoji: string; label: string }[] = [
 // Bottom-sheet picker — slides up from the bottom edge so a one-handed
 // thumb can reach the buttons. The component always renders so the slide
 // transition runs on toggle; pointer-events flip with `open`.
+//
+// Rendered via createPortal to document.body so it escapes any ancestor
+// stacking context (DashboardPage / JournalPage wrap their content in a
+// `relative z-10` div, which would otherwise trap z-[100] beneath the
+// fixed BottomNav at the App level).
 export default function FeedingTypePicker({ open, onClose, onPick }: Props) {
-  return (
+  return createPortal(
     <div
       className={`fixed inset-0 z-[100] ${open ? 'pointer-events-auto' : 'pointer-events-none'}`}
       aria-hidden={!open}
@@ -67,6 +73,7 @@ export default function FeedingTypePicker({ open, onClose, onPick }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
