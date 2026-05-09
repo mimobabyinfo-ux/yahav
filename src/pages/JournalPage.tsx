@@ -1,11 +1,13 @@
 ﻿import { useEffect, useState, useCallback } from 'react'
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase, DailyLogEntryWithDetails } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { formatDate, formatDisplayDate, entryTypeLabel } from '../utils/dateUtils'
+import { formatTimeSince } from '../utils/timeSince'
+import { useLastEntry } from '../hooks/useLastEntry'
 import HorizontalCalendar from '../components/HorizontalCalendar'
-import ActivityTimers from '../components/ActivityTimers'
+import ActivityTimers, { ExtraAction } from '../components/ActivityTimers'
 import DailyTimeline from '../components/DailyTimeline'
 import { ENTRY_COLORS } from '../components/DailyTimeline'
 import DailySummary from '../components/DailySummary'
@@ -219,6 +221,13 @@ export default function JournalPage() {
   const [modalType, setModalType] = useState<EntryType | null>(null)
   const [upsellType, setUpsellType] = useState<EntryType | null>(null)
   const [refetchKey, setRefetchKey] = useState(0)
+  const lastDiaper = useLastEntry('diaper', refetchKey)
+  const diaperExtraAction: ExtraAction = {
+    type: 'diaper',
+    emoji: '💩',
+    label: 'חיתול',
+    sinceText: formatTimeSince(lastDiaper, 'טרם נרשם חיתול'),
+  }
 
   // Week/month navigation
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()))
@@ -356,24 +365,25 @@ export default function JournalPage() {
               <HorizontalCalendar selectedDate={selectedDate} onSelect={setSelectedDate} />
             </div>
 
+            {/* Unified quick-add bar — only when viewing today, since timers
+                always start "now". Past-date views skip the bar entirely;
+                use the timeline edit/delete to fix existing entries. */}
             {selectedDate === formatDate(new Date()) && (
-              <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
-                <h2 className="text-sm font-semibold text-musgo-600 mb-3">טיימרים</h2>
-                <ActivityTimers onEntrySaved={handleEntrySaved} refetchKey={refetchKey} />
+              <div className="bg-[#F5F1EB] rounded-3xl p-3 shadow-sm">
+                <ActivityTimers
+                  onEntrySaved={handleEntrySaved}
+                  refetchKey={refetchKey}
+                  layout="grid-2"
+                  extraActions={[diaperExtraAction]}
+                  onExtraActionClick={(t) => setModalType(t as EntryType)}
+                />
               </div>
             )}
 
+            {/* Secondary actions: less-frequent log types (milestone / doctor / note) */}
             <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-musgo-600">הוספה מהירה</h2>
-                <button
-                  onClick={() => setModalType('feeding')}
-                  className="flex items-center gap-1 text-xs text-mustard-600 font-medium bg-mustard-50 px-3 py-1.5 rounded-xl"
-                >
-                  <Plus className="w-3.5 h-3.5" />האכלה
-                </button>
-              </div>
-              <QuickActionButtons onSelect={setModalType} refetchKey={refetchKey} />
+              <h2 className="text-sm font-semibold text-musgo-600 mb-3">פעולות נוספות</h2>
+              <QuickActionButtons onSelect={setModalType} />
             </div>
 
             <DailySummary entries={entries} />
