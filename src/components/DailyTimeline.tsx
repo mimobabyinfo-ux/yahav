@@ -10,7 +10,10 @@ type Props = {
   onRefresh: () => void
 }
 
-// Color scheme per entry type
+// Color scheme per entry type. Used by DailyTimeline, DailySummary, and the
+// JournalPage week/month legends — those iterate this object, so feeding
+// subtypes (breast/bottle/solid) live in FEEDING_SUBTYPE_COLORS below
+// instead of polluting this map.
 export const ENTRY_COLORS: Record<string, { bg: string; border: string; dot: string; label: string }> = {
   feeding:      { bg: '#EFF6FF', border: '#93C5FD', dot: '#3B82F6', label: '#1D4ED8' },
   sleep:        { bg: '#FEF2F2', border: '#FCA5A5', dot: '#EF4444', label: '#B91C1C' },
@@ -20,6 +23,41 @@ export const ENTRY_COLORS: Record<string, { bg: string; border: string; dot: str
   milestone:    { bg: '#FFFBEB', border: '#FCD34D', dot: '#F59E0B', label: '#B45309' },
   doctor_visit: { bg: '#F0FDFA', border: '#5EEAD4', dot: '#14B8A6', label: '#0F766E' },
   note:         { bg: '#F9FAFB', border: '#D1D5DB', dot: '#6B7280', label: '#374151' },
+}
+
+// Per-subtype palette for feeding entries — shown in the timeline only.
+// Aggregate views (DailySummary chart, week/month per-day stripes, legends)
+// keep using ENTRY_COLORS.feeding so they don't fragment the eye.
+const FEEDING_SUBTYPE_COLORS: Record<string, { bg: string; border: string; dot: string; label: string }> = {
+  breast: { bg: '#E0F7FA', border: '#80DEEA', dot: '#00ACC1', label: '#00838F' }, // teal
+  bottle: { bg: '#E3F2FD', border: '#90CAF9', dot: '#2196F3', label: '#1565C0' }, // blue
+  solid:  { bg: '#FFF8E1', border: '#FFE082', dot: '#FFC107', label: '#F57F17' }, // yellow
+}
+
+const FEEDING_SUBTYPE_EMOJI: Record<string, string> = {
+  breast: '🤱',
+  bottle: '🍼',
+  solid:  '🥄',
+}
+
+function entryColors(entry: DailyLogEntryWithDetails) {
+  if (entry.entry_type === 'feeding') {
+    const fd = pick(entry.feeding_details)
+    if (fd?.feeding_type && FEEDING_SUBTYPE_COLORS[fd.feeding_type]) {
+      return FEEDING_SUBTYPE_COLORS[fd.feeding_type]
+    }
+  }
+  return ENTRY_COLORS[entry.entry_type] ?? ENTRY_COLORS.note
+}
+
+function entryIcon(entry: DailyLogEntryWithDetails): string {
+  if (entry.entry_type === 'feeding') {
+    const fd = pick(entry.feeding_details)
+    if (fd?.feeding_type && FEEDING_SUBTYPE_EMOJI[fd.feeding_type]) {
+      return FEEDING_SUBTYPE_EMOJI[fd.feeding_type]
+    }
+  }
+  return entryTypeEmoji(entry.entry_type)
 }
 
 // PostgREST returns one-to-many embedded relations as arrays at runtime,
@@ -82,7 +120,7 @@ export default function DailyTimeline({ entries, onRefresh }: Props) {
     <div className="space-y-1.5">
       <h3 className="text-sm font-semibold text-musgo-600 px-1">ציר זמן</h3>
       {entries.map((entry, idx) => {
-        const colors = ENTRY_COLORS[entry.entry_type] ?? ENTRY_COLORS.note
+        const colors = entryColors(entry)
         const subtitle = entrySubtitle(entry)
         return (
           <div key={entry.id} className="flex gap-2 items-start group">
@@ -112,7 +150,7 @@ export default function DailyTimeline({ entries, onRefresh }: Props) {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm">{entryTypeEmoji(entry.entry_type)}</span>
+                    <span className="text-sm">{entryIcon(entry)}</span>
                     <span className="text-sm font-bold" style={{ color: colors.label }}>
                       {entryTypeLabel(entry.entry_type)}
                     </span>
