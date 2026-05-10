@@ -6,6 +6,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
 import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { BUYING_SUBCATEGORIES } from '../data/buyingSubcategories'
 import type { AdminSection } from '../App'
 
 type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
@@ -3935,13 +3936,9 @@ function PregnancyAdminTab() {
               <label className="text-xs text-sand-500 mb-1 block">קטגוריה</label>
               <select value={formSubcategory} onChange={e => setFormSubcategory(e.target.value)}
                 className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 bg-white">
-                <option value="furniture">🛏️ ריהוט</option>
-                <option value="safety">🛡️ בטיחות</option>
-                <option value="feeding">🍼 האכלה</option>
-                <option value="hygiene">🧼 היגיינה</option>
-                <option value="clothing">👕 ביגוד</option>
-                <option value="accessories">🧸 אבזרים</option>
-                <option value="other">📋 שונות</option>
+                {BUYING_SUBCATEGORIES.map(s => (
+                  <option key={s.id} value={s.id}>{s.emoji} {s.label}</option>
+                ))}
               </select>
             </div>
           )}
