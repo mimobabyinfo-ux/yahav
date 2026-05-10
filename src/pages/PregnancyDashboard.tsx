@@ -68,7 +68,7 @@ function dismissTimeReminder(timeStr: string) {
 }
 
 // ── Week Guide Card ───────────────────────────────────────────────────────────
-function WeekGuideCard({ guide, week }: { guide: PregnancyWeeklyGuide; week: number }) {
+function WeekGuideCard({ guide, week, items = [] }: { guide: PregnancyWeeklyGuide; week: number; items?: UserPregnancyItem[] }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
@@ -113,6 +113,22 @@ function WeekGuideCard({ guide, week }: { guide: PregnancyWeeklyGuide; week: num
             <div className="bg-amber-50 rounded-2xl p-3 border border-amber-100">
               <p className="text-xs font-bold text-amber-700 mb-1">💡 ידעת?</p>
               <p className="text-sm text-sand-700 leading-relaxed">{guide.fun_fact}</p>
+            </div>
+          )}
+          {items.length > 0 && (
+            <div className="bg-blue-50 rounded-2xl p-3 border border-blue-100">
+              <p className="text-xs font-bold text-blue-700 mb-2">📝 המשימות שלך לשבוע הזה</p>
+              <ul className="space-y-1.5">
+                {items.map(item => (
+                  <li key={item.id} className="flex items-center gap-2 text-sm">
+                    <span className="text-base flex-shrink-0">{item.category === 'medical' ? '🩺' : '🛒'}</span>
+                    <span className={`flex-1 ${item.is_completed ? 'line-through text-sand-400' : 'text-sand-700'}`}>
+                      {item.text}
+                    </span>
+                    {item.is_completed && <span className="text-xs text-green-600 flex-shrink-0">✓</span>}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>
@@ -494,6 +510,12 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
   const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0
   const medicalBuckets = groupByWeek(visibleMedical)
   const myPersonalMedical = personalItems.filter(i => i.category === 'medical')
+
+  // Items rendered inline on a WeekGuideCard. Match by week_from only — week_to
+  // is intentionally ignored for now (range logic can come later if requested).
+  function itemsForWeek(w: number): UserPregnancyItem[] {
+    return personalItems.filter(item => item.week_from != null && item.week_from === w)
+  }
   const myPersonalBuying = personalItems.filter(i => i.category === 'buying')
 
   return (
@@ -554,7 +576,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
         <MyTasksPanel />
 
         {/* ── Weekly Guide Card ── */}
-        {guide && week && <WeekGuideCard guide={guide} week={week} />}
+        {guide && week && <WeekGuideCard guide={guide} week={week} items={itemsForWeek(week)} />}
 
         {/* ── Active Reminder Banners ── */}
         {reminders.map(r => (
