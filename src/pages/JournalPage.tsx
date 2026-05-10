@@ -143,9 +143,9 @@ function WeekView({ entries, weekStart, onDayClick }: { entries: DailyLogEntryWi
               className="flex flex-col gap-1 items-center pt-1 hover:bg-sand-50 rounded-xl transition-colors min-h-[100px]"
             >
               {dayEntries.slice(0, 6).map(e => {
-                const col = ENTRY_COLORS[e.entry_type] ?? { bg: '#e5e7eb' }
+                const col = ENTRY_COLORS[e.entry_type] ?? { dot: '#9ca3af' }
                 return (
-                  <div key={e.id} className="w-4 h-4 rounded-md flex-shrink-0" style={{ background: col.bg }} title={e.entry_type} />
+                  <div key={e.id} className="w-4 h-4 rounded-md flex-shrink-0" style={{ background: col.dot }} title={e.entry_type} />
                 )
               })}
               {dayEntries.length > 6 && (
@@ -204,8 +204,8 @@ function MonthView({ entries, month, year, onDayClick }: { entries: DailyLogEntr
                   </span>
                   <div className="flex flex-wrap gap-0.5 justify-center mt-0.5 max-w-[24px]">
                     {[...new Set(dayEntries.map(e => e.type))].slice(0, 3).map(type => {
-                      const col = ENTRY_COLORS[type as EntryType] ?? { bg: '#e5e7eb' }
-                      return <div key={type} className="w-1.5 h-1.5 rounded-full" style={{ background: col.bg }} />
+                      const col = ENTRY_COLORS[type as EntryType] ?? { dot: '#9ca3af' }
+                      return <div key={type} className="w-1.5 h-1.5 rounded-full" style={{ background: col.dot }} />
                     })}
                   </div>
                 </button>
