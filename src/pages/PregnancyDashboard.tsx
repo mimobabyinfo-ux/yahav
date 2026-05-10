@@ -511,10 +511,17 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
   const medicalBuckets = groupByWeek(visibleMedical)
   const myPersonalMedical = personalItems.filter(i => i.category === 'medical')
 
-  // Items rendered inline on a WeekGuideCard. Match by week_from only — week_to
-  // is intentionally ignored for now (range logic can come later if requested).
+  // Items rendered inline on a WeekGuideCard. Match the full range
+  // [week_from, week_to] — items with a range like "26-28" should appear on
+  // weeks 26, 27, AND 28 (previously only week_from matched). When week_to is
+  // null, treat the item as single-week (week_from only).
   function itemsForWeek(w: number): UserPregnancyItem[] {
-    return personalItems.filter(item => item.week_from != null && item.week_from === w)
+    return personalItems.filter(item => {
+      if (item.week_from == null) return false
+      const from = item.week_from
+      const to = item.week_to ?? item.week_from
+      return from <= w && w <= to
+    })
   }
   const myPersonalBuying = personalItems.filter(i => i.category === 'buying')
 
