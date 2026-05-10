@@ -76,10 +76,22 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
   // Tummy time
   const [tummyDuration, setTummyDuration] = useState('')
 
-  // Sleep
+  // Sleep — manual entry uses start/end time pair (more intuitive than minutes
+  // when logging retroactively). duration_minutes is computed at save time.
   const [sleepType, setSleepType] = useState<'nap' | 'night'>('nap')
-  const [sleepDuration, setSleepDuration] = useState('')
+  const [sleepEndTime, setSleepEndTime] = useState('')
   const [sleepQuality, setSleepQuality] = useState<'good' | 'fair' | 'poor'>('good')
+
+  function computeSleepDurationMins(): number | null {
+    if (!time || !sleepEndTime) return null
+    const [sh, sm] = time.split(':').map(Number)
+    const [eh, em] = sleepEndTime.split(':').map(Number)
+    if ([sh, sm, eh, em].some(n => isNaN(n))) return null
+    const startMin = sh * 60 + sm
+    const endMin = eh * 60 + em
+    // Wrap past midnight: 23:00 → 07:00 = 8h
+    return ((endMin - startMin) + 1440) % 1440
+  }
 
   // Diaper
   const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both'>('wet')
@@ -183,7 +195,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
         await supabase.from('sleep_details').insert({
           log_entry_id: entry.id,
           sleep_type: sleepType,
-          duration_minutes: sleepDuration ? parseInt(sleepDuration) : null,
+          duration_minutes: computeSleepDurationMins(),
           quality: sleepQuality,
         })
       } else if (entryType === 'diaper') {
@@ -250,16 +262,19 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
         {/* Scrollable fields */}
         <div className="px-5 space-y-4 overflow-y-auto flex-1 pb-2">
 
-          {/* Time */}
-          <div>
-            <label className="block text-xs font-semibold text-sand-600 mb-1">שעה</label>
-            <input
-              type="time"
-              value={time}
-              onChange={e => setTime(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
-            />
-          </div>
+          {/* Time — sleep renders its own start/end pair below, so hide
+              the generic single-time input there to avoid duplication. */}
+          {entryType !== 'sleep' && (
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1">שעה</label>
+              <input
+                type="time"
+                value={time}
+                onChange={e => setTime(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
+              />
+            </div>
+          )}
 
           {/* Feeding fields */}
           {entryType === 'feeding' && (
@@ -338,6 +353,39 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           {/* Sleep fields */}
           {entryType === 'sleep' && (
             <>
+              {/* Start / end times — easier than computing minutes when logging
+                  retroactively. Wraps past midnight automatically on save. */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-sand-600 mb-1">התחלה</label>
+                  <input
+                    type="time"
+                    value={time}
+                    onChange={e => setTime(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-sand-600 mb-1">סיום</label>
+                  <input
+                    type="time"
+                    value={sleepEndTime}
+                    onChange={e => setSleepEndTime(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
+                  />
+                </div>
+              </div>
+              {(() => {
+                const mins = computeSleepDurationMins()
+                if (mins === null) return null
+                return (
+                  <p className="text-xs text-sand-500 -mt-2">
+                    משך: {mins < 60
+                      ? `${mins} דק'`
+                      : `${Math.floor(mins / 60)}ש${mins % 60 ? ` ${mins % 60}דק'` : ''}`}
+                  </p>
+                )
+              })()}
               <div>
                 <label className="block text-xs font-semibold text-sand-600 mb-2">סוג שינה</label>
                 <div className="flex gap-2">
@@ -356,30 +404,17 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                   ))}
                 </div>
               </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={sleepDuration}
-                    onChange={e => setSleepDuration(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-semibold text-sand-600 mb-1">איכות</label>
-                  <select
-                    value={sleepQuality}
-                    onChange={e => setSleepQuality(e.target.value as typeof sleepQuality)}
-                    className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 bg-white"
-                  >
-                    <option value="good">טובה</option>
-                    <option value="fair">בינונית</option>
-                    <option value="poor">גרועה</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-sand-600 mb-1">איכות</label>
+                <select
+                  value={sleepQuality}
+                  onChange={e => setSleepQuality(e.target.value as typeof sleepQuality)}
+                  className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 bg-white"
+                >
+                  <option value="good">טובה</option>
+                  <option value="fair">בינונית</option>
+                  <option value="poor">גרועה</option>
+                </select>
               </div>
             </>
           )}

@@ -458,7 +458,7 @@ export default function JournalPage() {
               <div className="flex flex-wrap gap-3">
                 {Object.entries(ENTRY_COLORS).map(([type, col]) => (
                   <div key={type} className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm" style={{ background: col.bg }} />
+                    <div className="w-3 h-3 rounded-sm" style={{ background: col.dot }} />
                     <span className="text-xs text-sand-500">{entryTypeLabel(type)}</span>
                   </div>
                 ))}
@@ -494,7 +494,7 @@ export default function JournalPage() {
               <div className="flex flex-wrap gap-3">
                 {Object.entries(ENTRY_COLORS).map(([type, col]) => (
                   <div key={type} className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: col.bg }} />
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: col.dot }} />
                     <span className="text-xs text-sand-500">{entryTypeLabel(type)}</span>
                   </div>
                 ))}
