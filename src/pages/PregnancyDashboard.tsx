@@ -8,6 +8,7 @@ import { supabase, PregnancyChecklistItem, PregnancyWeeklyGuide, UserPregnancyIt
 import { useAuth } from '../contexts/AuthContext'
 import MyTasksPanel from '../components/MyTasksPanel'
 import { formatDate } from '../utils/dateUtils'
+import { PREGNANCY_REMINDER_TEMPLATES, PregnancyReminderTemplate } from '../data/pregnancyReminderTemplates'
 import type { Page } from '../App'
 
 type Props = { onNavigate: (page: Page) => void }
@@ -135,7 +136,7 @@ function ReminderBanner({ emoji, text, onDismiss }: { emoji: string; text: strin
 }
 
 // ── Custom Reminders Panel ────────────────────────────────────────────────────
-function CustomRemindersPanel() {
+function CustomRemindersPanel({ currentWeek }: { currentWeek?: number }) {
   const { user } = useAuth()
   const [reminders, setReminders] = useState<UserReminder[]>([])
   const [adding, setAdding] = useState(false)
@@ -143,6 +144,24 @@ function CustomRemindersPanel() {
   const [newEmoji, setNewEmoji] = useState('🔔')
   const [newTime, setNewTime] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Templates whose week range hasn't ended yet (with optional weekToShown override
+  // for ones we want to keep visible slightly past their official window — e.g.
+  // folic acid stays through week 13 even though the protocol ends at 12).
+  const visibleTemplates = currentWeek
+    ? PREGNANCY_REMINDER_TEMPLATES.filter(t => currentWeek <= (t.weekToShown ?? t.weekTo))
+    : PREGNANCY_REMINDER_TEMPLATES
+
+  // Strict-label dedup: a template is "added" only if a reminder with the exact
+  // same label already exists. Loose matching would risk false positives.
+  const reminderLabels = new Set(reminders.map(r => r.label))
+
+  function applyTemplate(t: PregnancyReminderTemplate) {
+    setNewLabel(t.label)
+    setNewEmoji(t.emoji)
+    setNewTime(t.recommendedTime ?? '')
+    setAdding(true)
+  }
 
   const load = useCallback(async () => {
     if (!user) return
@@ -180,6 +199,36 @@ function CustomRemindersPanel() {
 
   return (
     <div className="space-y-3">
+      {/* Recommended templates — horizontal scroll, filtered by current week */}
+      {visibleTemplates.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-sand-500 mb-2">💡 תבניות מומלצות לשבוע שלך</p>
+          <div className="flex gap-2 overflow-x-auto scroll-hide pb-1">
+            {visibleTemplates.map(t => {
+              const added = reminderLabels.has(t.label)
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => applyTemplate(t)}
+                  className="min-w-[160px] flex-shrink-0 bg-[#F5F1EB] rounded-2xl p-3 text-right border-2 border-transparent hover:border-mustard-200 transition-all"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-xl">{t.emoji}</span>
+                    {added ? (
+                      <span className="text-[10px] text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">✓ נוסף</span>
+                    ) : (
+                      <span className="text-[10px] text-sand-400 bg-sand-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">שבוע {t.weekFrom}-{t.weekTo}</span>
+                    )}
+                  </div>
+                  <p className="text-xs font-bold text-sand-800 mt-1.5">{t.label}</p>
+                  <p className="text-[10px] text-sand-500 leading-tight mt-0.5 line-clamp-2">{t.description}</p>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {reminders.length === 0 && !adding && (
         <div className="bg-[#F5F1EB] rounded-3xl p-8 text-center shadow-sm">
           <p className="text-3xl mb-2">🔔</p>
@@ -766,7 +815,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
 
         {/* ── Reminders Tab ── */}
         {dashTab === 'reminders' && (
-          <CustomRemindersPanel />
+          <CustomRemindersPanel currentWeek={week ?? undefined} />
         )}
 
         {/* ── Quick links + Graduation (always visible) ── */}
