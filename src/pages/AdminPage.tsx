@@ -4000,6 +4000,7 @@ function WeeklyGuideAdminSection() {
   const [formBabySize, setFormBabySize] = useState('')
   const [formEmoji, setFormEmoji] = useState('🍊')
   const [formDevelopment, setFormDevelopment] = useState('')
+  const [formFunFact, setFormFunFact] = useState('')
   const [formImageUrl, setFormImageUrl] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -4016,6 +4017,7 @@ function WeeklyGuideAdminSection() {
     setFormBabySize(g.baby_size ?? '')
     setFormEmoji(g.baby_size_emoji ?? '🍊')
     setFormDevelopment(g.development ?? '')
+    setFormFunFact(g.fun_fact ?? '')
     setFormImageUrl(g.image_url ?? '')
     setShowAdd(false)
   }
@@ -4023,7 +4025,7 @@ function WeeklyGuideAdminSection() {
   function openAdd() {
     setEditGuide(null)
     setFormWeek(''); setFormSymptoms(''); setFormBabySize('')
-    setFormEmoji('🍊'); setFormDevelopment(''); setFormImageUrl('')
+    setFormEmoji('🍊'); setFormDevelopment(''); setFormFunFact(''); setFormImageUrl('')
     setShowAdd(true)
   }
 
@@ -4036,6 +4038,7 @@ function WeeklyGuideAdminSection() {
       baby_size: formBabySize.trim() || null,
       baby_size_emoji: formEmoji.trim() || '🍊',
       development: formDevelopment.trim() || null,
+      fun_fact: formFunFact.trim() || null,
       image_url: formImageUrl.trim() || null,
     }
     if (editGuide) {
@@ -4086,6 +4089,12 @@ function WeeklyGuideAdminSection() {
         <label className="text-xs text-sand-500 mb-1 block">סימפטומים</label>
         <textarea rows={2} value={formSymptoms} onChange={e => setFormSymptoms(e.target.value)}
           placeholder="בחילות, עייפות, כאבי גב..."
+          className="w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
+      </div>
+      <div>
+        <label className="text-xs text-sand-500 mb-1 block">💡 ידעת? (עובדה מעניינת)</label>
+        <textarea rows={2} value={formFunFact} onChange={e => setFormFunFact(e.target.value)}
+          placeholder="עובדה מעניינת אחת לשבוע..."
           className="w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
       </div>
       <div>

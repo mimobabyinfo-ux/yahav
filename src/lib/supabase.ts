@@ -249,6 +249,7 @@ export type PregnancyWeeklyGuide = {
   baby_size: string | null
   baby_size_emoji: string | null
   development: string | null
+  fun_fact: string | null
   image_url: string | null
   is_active: boolean
   created_at: string

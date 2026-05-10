@@ -108,6 +108,12 @@ function WeekGuideCard({ guide, week }: { guide: PregnancyWeeklyGuide; week: num
               <p className="text-sm text-sand-700 leading-relaxed">{guide.symptoms}</p>
             </div>
           )}
+          {guide.fun_fact && (
+            <div className="bg-amber-50 rounded-2xl p-3 border border-amber-100">
+              <p className="text-xs font-bold text-amber-700 mb-1">💡 ידעת?</p>
+              <p className="text-sm text-sand-700 leading-relaxed">{guide.fun_fact}</p>
+            </div>
+          )}
         </div>
       )}
     </div>
