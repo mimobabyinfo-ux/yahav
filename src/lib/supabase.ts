@@ -259,6 +259,7 @@ export type UserPregnancyItem = {
   id: string
   user_id: string
   category: 'medical' | 'buying'
+  subcategory: string | null
   text: string
   week_from: number | null
   week_to: number | null
@@ -269,6 +270,7 @@ export type UserPregnancyItem = {
 export type PregnancyChecklistItem = {
   id: string
   category: 'medical' | 'buying'
+  subcategory: string | null
   text: string
   week_from: number | null
   week_to: number | null

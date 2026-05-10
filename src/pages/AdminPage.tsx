@@ -3792,6 +3792,7 @@ function PregnancyAdminTab() {
   const [formWeekFrom, setFormWeekFrom] = useState('')
   const [formWeekTo, setFormWeekTo] = useState('')
   const [formOrder, setFormOrder] = useState('')
+  const [formSubcategory, setFormSubcategory] = useState<string>('other')
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -3809,6 +3810,7 @@ function PregnancyAdminTab() {
     setFormWeekFrom(item.week_from?.toString() ?? '')
     setFormWeekTo(item.week_to?.toString() ?? '')
     setFormOrder(item.display_order.toString())
+    setFormSubcategory(item.subcategory ?? 'other')
     setShowAdd(false)
   }
 
@@ -3818,6 +3820,7 @@ function PregnancyAdminTab() {
     setFormWeekFrom('')
     setFormWeekTo('')
     setFormOrder('')
+    setFormSubcategory('other')
     setShowAdd(true)
   }
 
@@ -3827,6 +3830,7 @@ function PregnancyAdminTab() {
     const payload = {
       text: formText.trim(),
       category: cat,
+      subcategory: cat === 'buying' ? formSubcategory : null,
       week_from: formWeekFrom ? parseInt(formWeekFrom) : null,
       week_to: formWeekTo ? parseInt(formWeekTo) : null,
       display_order: formOrder ? parseInt(formOrder) : 0,
@@ -3924,6 +3928,21 @@ function PregnancyAdminTab() {
                   className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
                 />
               </div>
+            </div>
+          )}
+          {cat === 'buying' && (
+            <div>
+              <label className="text-xs text-sand-500 mb-1 block">קטגוריה</label>
+              <select value={formSubcategory} onChange={e => setFormSubcategory(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 bg-white">
+                <option value="furniture">🛏️ ריהוט</option>
+                <option value="safety">🛡️ בטיחות</option>
+                <option value="feeding">🍼 האכלה</option>
+                <option value="hygiene">🧼 היגיינה</option>
+                <option value="clothing">👕 ביגוד</option>
+                <option value="accessories">🧸 אבזרים</option>
+                <option value="other">📋 שונות</option>
+              </select>
             </div>
           )}
           <div>

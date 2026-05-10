@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext'
 import MyTasksPanel from '../components/MyTasksPanel'
 import { formatDate } from '../utils/dateUtils'
 import { PREGNANCY_REMINDER_TEMPLATES, PregnancyReminderTemplate } from '../data/pregnancyReminderTemplates'
+import { BUYING_SUBCATEGORIES, BuyingSubcategoryId } from '../data/buyingSubcategories'
 import type { Page } from '../App'
 
 type Props = { onNavigate: (page: Page) => void }
@@ -331,6 +332,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
   const [newItemText, setNewItemText] = useState('')
   const [newItemWeekFrom, setNewItemWeekFrom] = useState('')
   const [newItemWeekTo, setNewItemWeekTo] = useState('')
+  const [newItemSubcategory, setNewItemSubcategory] = useState<BuyingSubcategoryId>('other')
   const [savingPersonal, setSavingPersonal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -450,12 +452,14 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
     const { data } = await supabase.from('user_pregnancy_items').insert({
       user_id: user.id,
       category: dashTab as 'medical' | 'buying',
+      subcategory: dashTab === 'buying' ? newItemSubcategory : null,
       text: newItemText.trim(),
       week_from: newItemWeekFrom ? parseInt(newItemWeekFrom) : null,
       week_to: newItemWeekTo ? parseInt(newItemWeekTo) : null,
     }).select().single()
     if (data) setPersonalItems(prev => [...prev, data as UserPregnancyItem])
     setNewItemText(''); setNewItemWeekFrom(''); setNewItemWeekTo('')
+    setNewItemSubcategory('other')
     setAddingPersonal(false)
     setSavingPersonal(false)
   }
@@ -756,65 +760,76 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
         {/* ── Buying Tab ── */}
         {dashTab === 'buying' && (
           <div className="space-y-2">
-            <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden divide-y divide-sand-50">
-              {visibleBuying.map(item => {
-                const done = completed.has(item.id)
-                return (
-                  <div key={item.id} className="flex items-center gap-1 pr-4 pl-2 hover:bg-sand-50 transition-colors">
-                    <button onClick={() => toggleItem(item.id)}
-                      className="flex items-center gap-3 flex-1 py-3.5 text-right">
-                      {done ? <CheckCircle2 className="w-5 h-5 text-mustard-500 flex-shrink-0" /> : <Circle className="w-5 h-5 text-sand-300 flex-shrink-0" />}
-                      <span className={`text-sm flex-1 text-right ${done ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
-                      {done && <span className="text-xs text-mustard-500 font-semibold flex-shrink-0">✓</span>}
-                    </button>
-                    <button
-                      onClick={() => hideItem(item.id)}
-                      className="p-2 text-sand-200 hover:text-red-400 transition-colors flex-shrink-0"
-                      title="הסר פריט"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Personal buying items */}
-            {myPersonalBuying.length > 0 && (
-              <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-sand-100">
-                  <p className="text-xs font-bold text-mustard-600">📝 פריטים שהוספתי</p>
-                </div>
-                <div className="divide-y divide-sand-50">
-                  {myPersonalBuying.map(item => editingId === item.id ? (
-                    <div key={item.id} className="px-4 py-3 space-y-2">
-                      <input value={editText} onChange={e => setEditText(e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-mustard-300 rounded-xl text-sm focus:outline-none" autoFocus />
-                      <div className="flex gap-2">
-                        <button onClick={saveEdit} className="flex-1 py-2 rounded-xl text-white font-bold text-xs"
-                          style={{ background: '#E7C78A' }}>
-                          <Check className="w-3.5 h-3.5 inline ml-1" />שמירה
-                        </button>
-                        <button onClick={() => setEditingId(null)} className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-xs font-semibold">ביטול</button>
-                      </div>
+            {BUYING_SUBCATEGORIES.map(sub => {
+              const masterInGroup = visibleBuying.filter(i => (i.subcategory ?? 'other') === sub.id)
+              const personalInGroup = myPersonalBuying.filter(i => (i.subcategory ?? 'other') === sub.id)
+              const total = masterInGroup.length + personalInGroup.length
+              if (total === 0) return null
+              const done = masterInGroup.filter(i => completed.has(i.id)).length
+                         + personalInGroup.filter(i => i.is_completed).length
+              const bucketKey = `buying:${sub.id}`
+              const expanded = expandedBuckets.has(bucketKey)
+              return (
+                <div key={sub.id} className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
+                  <button onClick={() => toggleBucket(bucketKey)}
+                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-sand-50 transition-colors">
+                    <span className="text-xl flex-shrink-0">{sub.emoji}</span>
+                    <p className="flex-1 text-sm font-bold text-sand-800 text-right">{sub.label}</p>
+                    <span className="text-xs text-sand-500 flex-shrink-0">{done}/{total} הושלמו</span>
+                    {expanded ? <ChevronUp className="w-4 h-4 text-sand-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-sand-400 flex-shrink-0" />}
+                  </button>
+                  {expanded && (
+                    <div className="divide-y divide-sand-50 border-t border-sand-100">
+                      {/* Master items in this subcategory */}
+                      {masterInGroup.map(item => {
+                        const itemDone = completed.has(item.id)
+                        return (
+                          <div key={item.id} className="flex items-center gap-1 pr-4 pl-2 hover:bg-sand-50 transition-colors">
+                            <button onClick={() => toggleItem(item.id)}
+                              className="flex items-center gap-3 flex-1 py-3.5 text-right">
+                              {itemDone ? <CheckCircle2 className="w-5 h-5 text-mustard-500 flex-shrink-0" /> : <Circle className="w-5 h-5 text-sand-300 flex-shrink-0" />}
+                              <span className={`text-sm flex-1 text-right ${itemDone ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
+                              {itemDone && <span className="text-xs text-mustard-500 font-semibold flex-shrink-0">✓</span>}
+                            </button>
+                            <button onClick={() => hideItem(item.id)}
+                              className="p-2 text-sand-200 hover:text-red-400 transition-colors flex-shrink-0" title="הסר פריט">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )
+                      })}
+                      {/* Personal items in this subcategory */}
+                      {personalInGroup.map(item => editingId === item.id ? (
+                        <div key={item.id} className="px-4 py-3 space-y-2">
+                          <input value={editText} onChange={e => setEditText(e.target.value)}
+                            className="w-full px-3 py-2 border-2 border-mustard-300 rounded-xl text-sm focus:outline-none" autoFocus />
+                          <div className="flex gap-2">
+                            <button onClick={saveEdit} className="flex-1 py-2 rounded-xl text-white font-bold text-xs"
+                              style={{ background: '#E7C78A' }}>
+                              <Check className="w-3.5 h-3.5 inline ml-1" />שמירה
+                            </button>
+                            <button onClick={() => setEditingId(null)} className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-xs font-semibold">ביטול</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={item.id} className="flex items-center gap-3 px-4 py-3">
+                          <button onClick={() => togglePersonal(item)}>
+                            {item.is_completed ? <CheckCircle2 className="w-5 h-5 text-mustard-500" /> : <Circle className="w-5 h-5 text-sand-300" />}
+                          </button>
+                          <span className={`text-sm flex-1 text-right ${item.is_completed ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
+                          <button onClick={() => startEdit(item)} className="text-sand-200 hover:text-mustard-400 flex-shrink-0">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => deletePersonalItem(item.id)} className="text-sand-200 hover:text-red-400 flex-shrink-0">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ) : (
-                    <div key={item.id} className="flex items-center gap-3 px-4 py-3">
-                      <button onClick={() => togglePersonal(item)}>
-                        {item.is_completed ? <CheckCircle2 className="w-5 h-5 text-mustard-500" /> : <Circle className="w-5 h-5 text-sand-300" />}
-                      </button>
-                      <span className={`text-sm flex-1 text-right ${item.is_completed ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
-                      <button onClick={() => startEdit(item)} className="text-sand-200 hover:text-mustard-400 flex-shrink-0">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => deletePersonalItem(item.id)} className="text-sand-200 hover:text-red-400 flex-shrink-0">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            )}
+              )
+            })}
 
             {addingPersonal ? (
               <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm space-y-3">
@@ -824,6 +839,15 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                   className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
                   autoFocus
                 />
+                <div>
+                  <label className="text-xs text-sand-500 mb-1 block">קטגוריה</label>
+                  <select value={newItemSubcategory} onChange={e => setNewItemSubcategory(e.target.value as BuyingSubcategoryId)}
+                    className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 bg-white">
+                    {BUYING_SUBCATEGORIES.map(s => (
+                      <option key={s.id} value={s.id}>{s.emoji} {s.label}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex gap-2">
                   <button onClick={addPersonalItem} disabled={savingPersonal || !newItemText.trim()}
                     className="flex-1 py-2.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
