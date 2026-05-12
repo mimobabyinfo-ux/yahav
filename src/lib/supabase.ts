@@ -35,6 +35,7 @@ export type UserProfile = {
   reminder_exercise_time: string | null
   feeding_interval_hours: number
   hidden_pregnancy_items: string[]
+  pregnancy_task_completions: string[] | null
   created_at: string
   updated_at: string
 }
