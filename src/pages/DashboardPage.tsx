@@ -102,9 +102,11 @@ export default function DashboardPage({ onNavigate }: Props) {
                 if (logType === 'sleep') onNavigate('log-sleep')
                 else if (logType === 'tummy_time') onNavigate('log-tummy')
                 else if (logType === 'feeding-breast') onNavigate('log-feeding-breast')
-                // Other routes (bottle/solid/diaper/doctor/milestone/note) fall
-                // through to ActivityTimers' built-in modal fallback in C1;
-                // dedicated pages land in C3/C4.
+                else if (logType === 'feeding-bottle') onNavigate('log-feeding-bottle')
+                else if (logType === 'feeding-solid') onNavigate('log-feeding-solid')
+                else if (logType === 'diaper') onNavigate('log-diaper')
+                // doctor_visit / milestone / note land in C4 — fall through
+                // to LogEntryModal for now.
               }}
             />
           </div>

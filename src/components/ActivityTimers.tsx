@@ -62,9 +62,13 @@ const MORE_TILES: Tile[] = [
   { key: 'note',         emoji: '📝',         label: 'הערה',    modalEntry: 'note',         more: true },
 ]
 
-// Only these three keys currently route to dedicated action pages. Bottle /
-// solid / diaper / doctor / milestone / note add themselves in C3 + C4.
-const PAGE_BUILT: ReadonlySet<LogPageRoute> = new Set<LogPageRoute>(['sleep', 'tummy_time', 'feeding-breast'])
+// Tiles whose dedicated action page exists. Bottle / solid / diaper land
+// in C3; doctor / milestone / note in C4. Anything not here falls through
+// to onModalRequest (LogEntryModal).
+const PAGE_BUILT: ReadonlySet<LogPageRoute> = new Set<LogPageRoute>([
+  'sleep', 'tummy_time', 'feeding-breast',
+  'feeding-bottle', 'feeding-solid', 'diaper',
+])
 
 type Props = {
   onEntrySaved: () => void

@@ -222,6 +222,9 @@ export type FeedingDetail = {
   // only stored an aggregate duration_minutes.
   left_duration_seconds: number | null
   right_duration_seconds: number | null
+  // Bottle-only: distinguishes pumped breast milk from formula. NULL for
+  // breast/solid feedings and for legacy bottle entries.
+  milk_type: 'pumped' | 'formula' | null
 }
 
 export type SleepDetail = {
@@ -235,7 +238,10 @@ export type SleepDetail = {
 export type DiaperDetail = {
   id: string
   log_entry_id: string
-  diaper_type: 'wet' | 'dirty' | 'both' | null
+  // 'dry' was added via migration 20260601130000 for the dedicated
+  // DiaperPage (checked-but-found-dry diapers, useful for intake/output
+  // tracking). Existing rows are wet/dirty/both/NULL.
+  diaper_type: 'wet' | 'dirty' | 'both' | 'dry' | null
   notes: string | null
 }
 

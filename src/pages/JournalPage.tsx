@@ -403,8 +403,10 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
                   if (logType === 'sleep') onNavigate('log-sleep')
                   else if (logType === 'tummy_time') onNavigate('log-tummy')
                   else if (logType === 'feeding-breast') onNavigate('log-feeding-breast')
-                  // Bottle / solid / diaper / doctor / milestone / note fall
-                  // through to the modal fallback in C1; pages land in C3/C4.
+                  else if (logType === 'feeding-bottle') onNavigate('log-feeding-bottle')
+                  else if (logType === 'feeding-solid') onNavigate('log-feeding-solid')
+                  else if (logType === 'diaper') onNavigate('log-diaper')
+                  // doctor_visit / milestone / note pages land in C4.
                 } : undefined}
               />
             </div>
