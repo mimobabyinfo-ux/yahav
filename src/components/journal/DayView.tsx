@@ -26,9 +26,9 @@ const TIMELINE_FILTERS: { value: TimelineFilter; emoji: string; label: string }[
 // persisted to localStorage (Q from the spec).
 type DayViewMode = 'graph' | 'cards' | 'list'
 const VIEW_MODES: { id: DayViewMode; emoji: string; label: string }[] = [
-  { id: 'graph', emoji: '📊', label: 'גרף' },
-  { id: 'cards', emoji: '🎴', label: 'כרטיסים' },
-  { id: 'list',  emoji: '📝', label: 'רשימה' },
+  { id: 'graph', emoji: '📊', label: 'ציר זמן' },
+  { id: 'cards', emoji: '🎴', label: 'סיכום יומי' },
+  { id: 'list',  emoji: '📝', label: 'פירוט' },
 ]
 
 type Props = {

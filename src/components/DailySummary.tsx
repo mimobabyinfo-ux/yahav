@@ -280,7 +280,7 @@ function SummaryCard({ emoji, color, label, primary, sub }: SummaryCardProps) {
           <span className="text-xl leading-none flex-shrink-0">{emoji}</span>
           <span className="text-sm font-semibold text-sand-700">{label}</span>
         </div>
-        <span className="text-2xl font-bold text-sand-800 whitespace-nowrap">{primary}</span>
+        <span className="text-base font-bold text-sand-800 whitespace-nowrap">{primary}</span>
       </div>
       {sub && (
         <p className="text-xs text-sand-500 mt-1.5 leading-snug">{sub}</p>
