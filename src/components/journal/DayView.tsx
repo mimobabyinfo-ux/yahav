@@ -7,6 +7,7 @@ import HorizontalCalendar from '../HorizontalCalendar'
 import ActivityTimers from '../ActivityTimers'
 import DailySummary from '../DailySummary'
 import DailyTimeline from '../DailyTimeline'
+import DayTimelineChart from './DayTimelineChart'
 
 // Hebrew weekday labels for the date header (e.g. "יום שישי").
 const HE_WEEKDAY = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'שבת']
@@ -69,6 +70,11 @@ export default function DayView({
   const today = formatDate(new Date())
   const isToday = selectedDate === today
   const isPast = selectedDate < today
+
+  // JournalPage widens fetchEntries by 1 day on the LEFT so the chart can
+  // render cross-midnight sleep tails. Everything else on this page wants
+  // strictly-today entries.
+  const todayEntries = entries.filter(e => e.entry_date === selectedDate)
 
   // Hidden <input type="date"> ref — tapping the center label opens the
   // native date picker via .showPicker() (Chromium / Safari iOS support).
@@ -179,7 +185,15 @@ export default function DayView({
         />
       </div>
 
-      <DailySummary entries={entries} />
+      {/* Visual day timeline (Phase 3 / C4 addition). Receives the
+          widened entries so cross-midnight sleep tails render. */}
+      <DayTimelineChart entries={entries} selectedDate={selectedDate} />
+
+      {/* Summary cards process only today's entries — cross-midnight
+          tails are visualized in the chart above but intentionally
+          not counted in today's totals (consistent with the rest of
+          the summary's per-day semantics). */}
+      <DailySummary entries={todayEntries} />
 
       {/* Timeline filter strip — narrows the timeline to a single category. */}
       <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
@@ -202,14 +216,14 @@ export default function DayView({
         <div className="text-center py-8">
           <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
         </div>
-      ) : entries.length === 0 ? (
+      ) : todayEntries.length === 0 ? (
         <div className="bg-[#F5F1EB] rounded-3xl p-8 shadow-sm text-center space-y-2">
           <div className="text-4xl">📒</div>
           <p className="text-sm text-sand-500">{isToday ? 'עוד לא נרשמו פעולות היום' : `אין רשומות מ${formatDisplayDate(selectedDate)}`}</p>
         </div>
       ) : (
         <DailyTimeline
-          entries={filter === 'all' ? entries : entries.filter(e => e.entry_type === filter)}
+          entries={filter === 'all' ? todayEntries : todayEntries.filter(e => e.entry_type === filter)}
           onRefresh={onEntrySaved}
           onEditEntry={onEditEntry}
         />

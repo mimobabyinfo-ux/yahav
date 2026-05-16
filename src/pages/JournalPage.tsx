@@ -98,14 +98,19 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
     return data?.map(r => r.id) ?? [user.id]
   }, [user, profile?.family_id])
 
-  // Fetch entries for the selected date (day view)
+  // Fetch entries for the selected date (day view). Widened by 1 day on
+  // the LEFT so the DayTimelineChart can render cross-midnight tails from
+  // the previous night's sleep. Consumers downstream that only care about
+  // selectedDate (the text timeline, DailySummary cards) filter inside
+  // DayView so the widening is transparent to them.
   const fetchEntries = useCallback(async () => {
     if (!user) return
     setLoading(true)
+    const prev = formatDate(addDays(new Date(selectedDate + 'T12:00:00'), -1))
     let query = supabase
       .from('daily_log_entries')
       .select(`*, feeding_details(*), sleep_details(*), diaper_details(*)`)
-      .eq('entry_date', selectedDate)
+      .in('entry_date', [prev, selectedDate])
       .order('entry_time', { ascending: false })
     if (selectedChild) {
       query = query.eq('child_id', selectedChild.id)
