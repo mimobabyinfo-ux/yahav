@@ -9,6 +9,7 @@ import ChildSwitcher from '../components/ChildSwitcher'
 import MyTasksPanel from '../components/MyTasksPanel'
 import ActivityTimers from '../components/ActivityTimers'
 import LogEntryModal from '../components/LogEntryModal'
+import TodaysJournalPanel from '../components/dashboard/TodaysJournalPanel'
 import type { Page } from '../App'
 
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
@@ -111,6 +112,19 @@ export default function DashboardPage({ onNavigate }: Props) {
               }}
             />
           </div>
+        )}
+
+        {/* Today's Journal panel (Phase 3 / C1) — one-glance summary of
+            every action category for today. refetchKey shares the same
+            counter that drives the quick-add bar's "time since" badges,
+            so saving an entry refreshes both. */}
+        {selectedChild && (
+          <TodaysJournalPanel
+            refetchKey={refetchKey}
+            onNavigate={target => {
+              if (target === 'journal') onNavigate('journal')
+            }}
+          />
         )}
 
         {/* Active workshop access badge */}
