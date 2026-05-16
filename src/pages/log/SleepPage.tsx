@@ -15,18 +15,18 @@ type Props = {
 }
 
 const ACCENT = '#5C7CB8' // calm blue, matching the sleep theme
+const DELETE_CONFIRM = 'התינוק לא באמת נרדם? הטיימר יימחק ולא תישמר רשומה.'
 
 export default function SleepPage({ onBack, onSaved }: Props) {
   const { user, selectedChild } = useAuth()
-  const { timer, loading, start, remove, elapsedSeconds } = useActiveTimer('sleep')
+  const { timer, loading, paused, start, pause, resume, remove, elapsedSeconds } = useActiveTimer('sleep')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [refetchTick, setRefetchTick] = useState(0)
   const lastSleep = useLastEntry('sleep', refetchTick)
 
-  // Re-render once a second when running so the elapsed display ticks.
-  // useActiveTimer already triggers its own internal tick; this is a
-  // safety net for the manual-entry math (it doesn't depend on time).
+  // Safety-net ticker for the elapsed display. useActiveTimer ticks too,
+  // but a local tick keeps the page responsive while paused/resuming.
   const [, setNow] = useState(0)
   useEffect(() => {
     if (!timer) return
@@ -44,10 +44,13 @@ export default function SleepPage({ onBack, onSaved }: Props) {
     setSaving(true)
     setSaveError(null)
     try {
+      // Snapshot elapsed BEFORE any state mutation so the saved row reflects
+      // the exact value shown on screen at tap time (including paused gaps
+      // already excluded).
+      const totalSecs = elapsedSeconds()
       const startedAt = new Date(timer.start_time)
       const now = new Date()
-      const durationSecs = Math.round((now.getTime() - startedAt.getTime()) / 1000)
-      const durationForLog = durationSecs >= 1 ? parseFloat((durationSecs / 60).toFixed(2)) : null
+      const durationForLog = totalSecs >= 1 ? parseFloat((totalSecs / 60).toFixed(2)) : null
 
       const { data: entry, error } = await supabase
         .from('daily_log_entries')
@@ -79,6 +82,14 @@ export default function SleepPage({ onBack, onSaved }: Props) {
     }
   }
 
+  async function handleDelete() {
+    if (!timer) return
+    if (!window.confirm(DELETE_CONFIRM)) return
+    await remove(timer.id)
+    onSaved?.()
+    onBack()
+  }
+
   if (loading) {
     return (
       <ActionPageLayout title="שינה" emoji="😴" accent={ACCENT} onBack={onBack}>
@@ -87,7 +98,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
     )
   }
 
-  // ── DURING state ───────────────────────────────────────────────────────
+  // ── DURING state (running or paused) ──────────────────────────────────
   if (timer) {
     const startedAt = new Date(timer.start_time)
     return (
@@ -105,9 +116,13 @@ export default function SleepPage({ onBack, onSaved }: Props) {
       >
         <TimerControls
           running={true}
+          paused={paused}
           elapsedSeconds={elapsedSeconds()}
           onStart={() => {}}
+          onPause={pause}
+          onResume={resume}
           onStop={handleStop}
+          onDelete={handleDelete}
           accent={ACCENT}
           stopLabel={saving ? 'שומרת…' : 'עצור ושמור'}
         />
@@ -125,7 +140,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
       status={<span>{formatTimeSince(lastSleep, 'טרם נרשמה שינה')}</span>}
       bottom={
         <p className="text-[11px] text-sand-400 text-center">
-          ניתן לעצור את הטיימר ולשמור בכל רגע
+          אפשר להשהות ולהמשיך אם התינוק מתעורר לרגע
         </p>
       }
     >
@@ -133,7 +148,10 @@ export default function SleepPage({ onBack, onSaved }: Props) {
         running={false}
         elapsedSeconds={0}
         onStart={handleStart}
+        onPause={() => {}}
+        onResume={() => {}}
         onStop={() => {}}
+        onDelete={() => {}}
         accent={ACCENT}
         startLabel="התחל שינה"
       />

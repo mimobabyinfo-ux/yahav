@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Square } from 'lucide-react'
+import { Square, Pause } from 'lucide-react'
 import { supabase, ActiveTimer } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatElapsed } from '../utils/dateUtils'
+import { formatSeconds, timerElapsedSeconds, timerIsPaused } from '../hooks/useActiveTimer'
 import type { Page } from '../App'
 
 // App-level banner that surfaces any running timer no matter which page
@@ -95,6 +95,7 @@ export default function ActiveTimerBanner({ onNavigate, refetchKey = 0 }: Props)
         const meta = META[t.timer_type] ?? { emoji: '⏱️', label: t.timer_type }
         const targetPage = PAGE_FOR_TIMER[t.timer_type]
         const clickable = targetPage !== undefined
+        const paused = timerIsPaused(t)
         return (
           <button
             key={t.id}
@@ -103,17 +104,22 @@ export default function ActiveTimerBanner({ onNavigate, refetchKey = 0 }: Props)
             className="w-full flex items-center justify-between gap-3 px-4 text-white"
             style={{
               height: BANNER_HEIGHT_PX,
-              background: 'linear-gradient(135deg, #5C7CB8, #A35C3D)',
+              // Paused: muted slate. Running: brand gradient.
+              background: paused
+                ? 'linear-gradient(135deg, #7a7a92, #5a5a72)'
+                : 'linear-gradient(135deg, #5C7CB8, #A35C3D)',
               cursor: clickable ? 'pointer' : 'default',
             }}
           >
             <span className="flex items-center gap-2 text-xs font-semibold">
               <span className="text-base leading-none">{meta.emoji}</span>
-              <span>{meta.label} פעיל</span>
+              <span>{meta.label} {paused ? 'מושהית' : 'פעיל'}</span>
             </span>
             <span className="flex items-center gap-1 text-xs font-mono font-bold tabular-nums">
-              <Square className="w-2.5 h-2.5 fill-current" />
-              {formatElapsed(t.start_time)}
+              {paused
+                ? <Pause className="w-2.5 h-2.5 fill-current" />
+                : <Square className="w-2.5 h-2.5 fill-current" />}
+              {formatSeconds(timerElapsedSeconds(t))}
             </span>
           </button>
         )

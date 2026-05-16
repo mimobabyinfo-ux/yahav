@@ -17,6 +17,7 @@ type Props = {
 // Tummy-time accent — matches the warm orange used on the dashboard tile
 // (tailwind orange-50/600).
 const ACCENT = '#E89651'
+const DELETE_CONFIRM = 'ביטול זמן הבטן? הטיימר יימחק ולא תישמר רשומה.'
 
 // Mirrors the duration label used by ActivityTimers.stopTimer so timeline
 // and journal rendering stay consistent: short sessions show seconds,
@@ -29,15 +30,13 @@ function buildDurationLabel(durationSecs: number): string {
 
 export default function TummyTimePage({ onBack, onSaved }: Props) {
   const { user, selectedChild } = useAuth()
-  const { timer, loading, start, remove, elapsedSeconds } = useActiveTimer('tummy_time')
+  const { timer, loading, paused, start, pause, resume, remove, elapsedSeconds } = useActiveTimer('tummy_time')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [refetchTick, setRefetchTick] = useState(0)
   const lastTummy = useLastEntry('tummy_time', refetchTick)
 
-  // Safety-net ticker for the elapsed display (useActiveTimer also ticks,
-  // but a local tick keeps this page responsive even if React batches
-  // re-renders aggressively).
+  // Safety-net ticker for the elapsed display (useActiveTimer ticks too).
   const [, setNow] = useState(0)
   useEffect(() => {
     if (!timer) return
@@ -55,10 +54,12 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
     setSaving(true)
     setSaveError(null)
     try {
+      // Pull elapsed BEFORE any state mutation so the saved value reflects
+      // exactly what's on screen (paused gaps excluded).
+      const totalSecs = elapsedSeconds()
       const startedAt = new Date(timer.start_time)
       const now = new Date()
-      const durationSecs = Math.round((now.getTime() - startedAt.getTime()) / 1000)
-      const notes = durationSecs > 0 ? `משך: ${buildDurationLabel(durationSecs)}` : null
+      const notes = totalSecs > 0 ? `משך: ${buildDurationLabel(totalSecs)}` : null
 
       const { error } = await supabase
         .from('daily_log_entries')
@@ -82,6 +83,14 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
     }
   }
 
+  async function handleDelete() {
+    if (!timer) return
+    if (!window.confirm(DELETE_CONFIRM)) return
+    await remove(timer.id)
+    onSaved?.()
+    onBack()
+  }
+
   if (loading) {
     return (
       <ActionPageLayout title="זמן בטן" emoji="🐣" accent={ACCENT} onBack={onBack}>
@@ -90,7 +99,7 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
     )
   }
 
-  // ── DURING state ───────────────────────────────────────────────────────
+  // ── DURING state (running or paused) ──────────────────────────────────
   if (timer) {
     const startedAt = new Date(timer.start_time)
     return (
@@ -108,9 +117,13 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
       >
         <TimerControls
           running={true}
+          paused={paused}
           elapsedSeconds={elapsedSeconds()}
           onStart={() => {}}
+          onPause={pause}
+          onResume={resume}
           onStop={handleStop}
+          onDelete={handleDelete}
           accent={ACCENT}
           stopLabel={saving ? 'שומרת…' : 'עצור ושמור'}
         />
@@ -128,7 +141,7 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
       status={<span>{formatTimeSince(lastTummy, 'טרם נרשם זמן בטן')}</span>}
       bottom={
         <p className="text-[11px] text-sand-400 text-center">
-          ניתן לעצור את הטיימר ולשמור בכל רגע
+          אפשר להשהות ולהמשיך כשהתינוק מתעייף
         </p>
       }
     >
@@ -136,7 +149,10 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
         running={false}
         elapsedSeconds={0}
         onStart={handleStart}
+        onPause={() => {}}
+        onResume={() => {}}
         onStop={() => {}}
+        onDelete={() => {}}
         accent={ACCENT}
         startLabel="התחל זמן בטן"
       />
