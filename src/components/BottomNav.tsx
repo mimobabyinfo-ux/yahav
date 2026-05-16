@@ -133,6 +133,10 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
   const isPregnant = !!(profile?.user_mode === 'pregnant')
   const navItems = isPregnant ? pregnancyItems : userItems
 
+  // Logout used to be a 5th/4th tab here; it now lives in UserSettingsPage
+  // ("?settings"). The signOut handler is still used by the guest + admin
+  // navs above, so the import stays.
+
   return (
     <nav className="fixed bottom-0 right-0 left-0 max-w-[480px] mx-auto bg-white border-t border-sand-100 shadow-xl z-50">
       {/* "Back to Admin" banner when viewing as user */}
@@ -161,13 +165,6 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
             </button>
           )
         })}
-        <button
-          onClick={signOut}
-          className="flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-2xl transition-all text-red-300 hover:text-red-500"
-        >
-          <LogOut className="w-5 h-5" />
-          <span className="text-[10px] font-medium">יציאה</span>
-        </button>
       </div>
     </nav>
   )
