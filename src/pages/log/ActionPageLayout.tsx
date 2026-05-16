@@ -34,6 +34,9 @@ type Props = {
   onBack: () => void
   /** Optional accent color for the title/icon. */
   accent?: string
+  /** Optional top-left node (RTL — opposite the back arrow). Typically a
+   *  "+" button for manual past-time entry on timer-based pages. */
+  headerAction?: ReactNode
 }
 
 export default function ActionPageLayout({
@@ -44,6 +47,7 @@ export default function ActionPageLayout({
   bottom,
   onBack,
   accent = '#A35C3D',
+  headerAction,
 }: Props) {
   const { selectedChild } = useAuth()
 
@@ -69,8 +73,13 @@ export default function ActionPageLayout({
         {selectedChild?.name && (
           <span className="text-sm font-semibold text-sand-700">{selectedChild.name}</span>
         )}
-        {/* Spacer to balance back button width */}
-        <span className="w-9" />
+        {/* Top-left action slot (typically "+" for manual entry). When unset,
+            spacer keeps the title centered relative to the back button. */}
+        {headerAction ? (
+          <div className="flex items-center">{headerAction}</div>
+        ) : (
+          <span className="w-9" />
+        )}
       </div>
 
       {/* Center content — scroll if too tall */}

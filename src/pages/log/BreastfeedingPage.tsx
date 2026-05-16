@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Pause, Square } from 'lucide-react'
+import { Play, Pause, Plus, Square } from 'lucide-react'
 import { supabase, ActiveTimer } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatDate, formatTime } from '../../utils/dateUtils'
@@ -7,6 +7,16 @@ import { formatSeconds } from '../../hooks/useActiveTimer'
 import { useLastEntry } from '../../hooks/useLastEntry'
 import { formatTimeSince } from '../../utils/timeSince'
 import ActionPageLayout from './ActionPageLayout'
+import ManualEntrySheet from './ManualEntrySheet'
+
+function defaultManualStart(): string {
+  // Breast default: 30 minutes ago per spec.
+  return toLocalDatetimeInput(new Date(Date.now() - 30 * 60 * 1000))
+}
+function toLocalDatetimeInput(d: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 type Props = {
   onBack: () => void
@@ -79,6 +89,20 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [refetchTick, setRefetchTick] = useState(0)
   const lastFeeding = useLastEntry('feeding', refetchTick)
+
+  // Notes — local state only, sent on save.
+  const [notes, setNotes] = useState('')
+
+  // Manual entry sheet
+  const [manualOpen, setManualOpen] = useState(false)
+  const [mSide, setMSide] = useState<'left' | 'right' | 'both'>('right')
+  const [mLeftMins, setMLeftMins] = useState('')
+  const [mRightMins, setMRightMins] = useState('')
+  const [mTotalMins, setMTotalMins] = useState('')
+  const [mStart, setMStart] = useState(defaultManualStart())
+  const [mNotes, setMNotes] = useState('')
+  const [mSaving, setMSaving] = useState(false)
+  const [mError, setMError] = useState<string | null>(null)
 
   // Re-render once a second so the ticking side updates.
   const [, setNow] = useState(0)
@@ -219,7 +243,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
           entry_date: formatDate(now),
           entry_time: formatTime(startedAt),
           entry_type: 'feeding',
-          notes: null,
+          notes: notes.trim() || null,
         })
         .select()
         .single()
@@ -237,6 +261,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
 
       await supabase.from('active_timers').delete().eq('id', timer.id)
       setTimer(null)
+      setNotes('')
       setRefetchTick(t => t + 1)
       onSaved?.()
       onBack()
@@ -255,10 +280,100 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
     onBack()
   }
 
+  // ── Manual entry ──────────────────────────────────────────────────────
+  function manualDurations(): { left: number; right: number } | null {
+    // Returns SECONDS per side. Returns null if input invalid / zero.
+    if (mSide === 'left') {
+      const m = parseFloat(mTotalMins)
+      if (!Number.isFinite(m) || m <= 0) return null
+      return { left: Math.round(m * 60), right: 0 }
+    }
+    if (mSide === 'right') {
+      const m = parseFloat(mTotalMins)
+      if (!Number.isFinite(m) || m <= 0) return null
+      return { left: 0, right: Math.round(m * 60) }
+    }
+    // both
+    const l = parseFloat(mLeftMins)
+    const r = parseFloat(mRightMins)
+    if (!Number.isFinite(l) || !Number.isFinite(r) || (l <= 0 && r <= 0)) return null
+    return { left: Math.round(l * 60), right: Math.round(r * 60) }
+  }
+
+  async function handleManualSave() {
+    if (!user || mSaving) return
+    const dur = manualDurations()
+    if (!dur) {
+      setMError('יש להזין משך תקין (בדקות, גדול מ-0)')
+      return
+    }
+    setMSaving(true)
+    setMError(null)
+    try {
+      const startDate = new Date(mStart)
+      if (Number.isNaN(startDate.getTime())) throw new Error('שעת התחלה לא תקינה')
+      const totalSecs = dur.left + dur.right
+      const durationMins = totalSecs >= 1 ? parseFloat((totalSecs / 60).toFixed(2)) : null
+      const breastSide: 'left' | 'right' | 'both' | null =
+        dur.left > 0 && dur.right > 0 ? 'both' :
+        dur.left > 0 ? 'left' :
+        dur.right > 0 ? 'right' : null
+
+      const { data: entry, error } = await supabase
+        .from('daily_log_entries')
+        .insert({
+          user_id: user.id,
+          child_id: selectedChild?.id ?? null,
+          entry_date: formatDate(startDate),
+          entry_time: formatTime(startDate),
+          entry_type: 'feeding',
+          notes: mNotes.trim() || null,
+        })
+        .select()
+        .single()
+      if (error || !entry) throw error ?? new Error('שגיאה בשמירה')
+
+      const { error: detErr } = await supabase.from('feeding_details').insert({
+        log_entry_id: entry.id,
+        feeding_type: 'breast',
+        breast_side: breastSide,
+        duration_minutes: durationMins,
+        left_duration_seconds: dur.left,
+        right_duration_seconds: dur.right,
+      })
+      if (detErr) throw detErr
+
+      setManualOpen(false)
+      setMSide('right')
+      setMLeftMins('')
+      setMRightMins('')
+      setMTotalMins('')
+      setMStart(defaultManualStart())
+      setMNotes('')
+      setRefetchTick(t => t + 1)
+      onSaved?.()
+    } catch (err) {
+      setMError(err instanceof Error ? err.message : 'שגיאה בשמירה')
+    } finally {
+      setMSaving(false)
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────
+  const headerAction = (
+    <button
+      onClick={() => setManualOpen(true)}
+      className="p-2 rounded-xl hover:bg-sand-100 text-sand-600 transition-colors"
+      aria-label="הוספת רשומה ידנית"
+      title="הוספת רשומה ידנית"
+    >
+      <Plus className="w-5 h-5" />
+    </button>
+  )
+
   if (loading) {
     return (
-      <ActionPageLayout title="הנקה" emoji="🤱" accent={ACCENT} onBack={onBack}>
+      <ActionPageLayout title="הנקה" emoji="🤱" accent={ACCENT} onBack={onBack} headerAction={headerAction}>
         <div className="text-center text-sand-400 text-sm py-8">טוענת…</div>
       </ActionPageLayout>
     )
@@ -277,12 +392,27 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
     return hasAccumulated ? 'בהפסקה' : 'מוכן להתחלה'
   })()
 
+  const notesField = (
+    <div className="mt-6 max-w-xs mx-auto">
+      <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">הערות</label>
+      <textarea
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        placeholder="כל מה שתרצי לזכור על ההאכלה הזו…"
+        rows={2}
+        className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-right"
+      />
+    </div>
+  )
+
   return (
+    <>
     <ActionPageLayout
       title="הנקה"
       emoji="🤱"
       accent={ACCENT}
       onBack={onBack}
+      headerAction={headerAction}
       status={
         <span>
           {statusLine}
@@ -348,7 +478,114 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
           את הצד הפעיל ומפעיל את השני.
         </p>
       )}
+
+      {/* Notes — visible in all states (before/during/paused). */}
+      {notesField}
     </ActionPageLayout>
+
+    {/* Manual entry sheet */}
+    <ManualEntrySheet
+      open={manualOpen}
+      title="הוספת הנקה ידנית"
+      onClose={() => setManualOpen(false)}
+      bottom={
+        <>
+          {mError && <p className="text-xs text-red-500 text-center">{mError}</p>}
+          <button
+            onClick={handleManualSave}
+            disabled={mSaving}
+            className="w-full font-semibold py-4 rounded-2xl text-white shadow-md transition-all disabled:opacity-50"
+            style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}dd)` }}
+          >
+            {mSaving ? 'שומרת…' : 'שמירה ✓'}
+          </button>
+        </>
+      }
+    >
+      <div>
+        <label className="block text-xs font-semibold text-sand-600 mb-2">צד</label>
+        <div className="flex gap-2">
+          {(['right', 'left', 'both'] as const).map(s => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setMSide(s)}
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all border-2 ${
+                mSide === s
+                  ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
+                  : 'border-sand-200 text-sand-600'
+              }`}
+            >
+              {s === 'left' ? 'שמאל' : s === 'right' ? 'ימין' : 'שניהם'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {mSide !== 'both' ? (
+        <div>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5">משך (דקות)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            placeholder="0"
+            value={mTotalMins}
+            onChange={e => setMTotalMins(e.target.value)}
+            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
+          />
+        </div>
+      ) : (
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5">שמאל (דקות)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              placeholder="0"
+              value={mLeftMins}
+              onChange={e => setMLeftMins(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5">ימין (דקות)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              placeholder="0"
+              value={mRightMins}
+              onChange={e => setMRightMins(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
+            />
+          </div>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-xs font-semibold text-sand-600 mb-1.5">התחלה</label>
+        <input
+          type="datetime-local"
+          value={mStart}
+          onChange={e => setMStart(e.target.value)}
+          className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-sand-600 mb-1.5">הערות</label>
+        <textarea
+          value={mNotes}
+          onChange={e => setMNotes(e.target.value)}
+          placeholder="הערות (אופציונלי)"
+          rows={3}
+          className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none"
+        />
+      </div>
+    </ManualEntrySheet>
+    </>
   )
 }
 
