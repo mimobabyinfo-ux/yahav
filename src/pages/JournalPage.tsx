@@ -1,56 +1,30 @@
-﻿import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Share2 } from 'lucide-react'
 import { supabase, DailyLogEntryWithDetails } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { formatDate, formatDisplayDate, entryTypeLabel } from '../utils/dateUtils'
-import HorizontalCalendar from '../components/HorizontalCalendar'
-import ActivityTimers from '../components/ActivityTimers'
-import DailyTimeline from '../components/DailyTimeline'
 import { ENTRY_COLORS } from '../components/DailyTimeline'
-import DailySummary from '../components/DailySummary'
 import LogEntryModal from '../components/LogEntryModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import ShareBabyModal from '../components/ShareBabyModal'
+import JournalTabs, { JournalTab } from '../components/journal/JournalTabs'
+import DayView from '../components/journal/DayView'
+import WeekView from '../components/journal/WeekView'
+import ListView from '../components/journal/ListView'
+import SummaryView from '../components/journal/SummaryView'
 import type { Page } from '../App'
 
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
-type ViewMode = 'day' | 'week' | 'month'
 type TimelineFilter = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time'
 
-const TIMELINE_FILTERS: { value: TimelineFilter; emoji: string; label: string }[] = [
-  { value: 'all',        emoji: '',   label: 'הכל' },
-  { value: 'feeding',    emoji: '🍼', label: 'האכלה' },
-  { value: 'sleep',      emoji: '😴', label: 'שינה' },
-  { value: 'diaper',     emoji: '💩', label: 'חיתול' },
-  { value: 'tummy_time', emoji: '🐣', label: 'בטן' },
-]
-
+// ── Upsell hooks shown briefly after a manual log entry on a past date ──
+// (Kept local — only the journal page surfaces these.)
 const UPSELLS: Record<string, { emoji: string; text: string; cta: string; wa: string }> = {
-  sleep: {
-    emoji: '😴',
-    text: 'מתמודדת עם שינה קשה?',
-    cta: 'סדנת שינה לתינוקות',
-    wa: 'היי! אני מתמודדת עם שינה קשה ורוצה לשמוע על הסדנה',
-  },
-  diaper: {
-    emoji: '🍼',
-    text: 'הרבה חיתולים מלוכלכים? נסי עיסוי בטן',
-    cta: 'סדנת עיסוי תינוקות',
-    wa: 'היי! אני מעוניינת לשמוע על סדנת עיסוי תינוקות',
-  },
-  note: {
-    emoji: '💛',
-    text: 'כתבת הערה — אנחנו כאן לכל שאלה',
-    cta: 'שאלי אותנו בוואטסאפ',
-    wa: 'היי! יש לי שאלה לגבי התינוק שלי',
-  },
-  feeding: {
-    emoji: '🤱',
-    text: 'רוצה תמיכה בהנקה?',
-    cta: 'להתייעצות עם מנחה',
-    wa: 'היי! אני מעוניינת בייעוץ הנקה',
-  },
+  sleep:   { emoji: '😴', text: 'מתמודדת עם שינה קשה?',   cta: 'סדנת שינה לתינוקות',    wa: 'היי! אני מתמודדת עם שינה קשה ורוצה לשמוע על הסדנה' },
+  diaper:  { emoji: '🍼', text: 'הרבה חיתולים מלוכלכים? נסי עיסוי בטן', cta: 'סדנת עיסוי תינוקות', wa: 'היי! אני מעוניינת לשמוע על סדנת עיסוי תינוקות' },
+  note:    { emoji: '💛', text: 'כתבת הערה — אנחנו כאן לכל שאלה',       cta: 'שאלי אותנו בוואטסאפ',  wa: 'היי! יש לי שאלה לגבי התינוק שלי' },
+  feeding: { emoji: '🤱', text: 'רוצה תמיכה בהנקה?',     cta: 'להתייעצות עם מנחה',     wa: 'היי! אני מעוניינת בייעוץ הנקה' },
 }
 
 function UpsellCard({ type, onDismiss, ownerWhatsapp }: { type: EntryType; onDismiss: () => void; ownerWhatsapp: string }) {
@@ -62,13 +36,7 @@ function UpsellCard({ type, onDismiss, ownerWhatsapp }: { type: EntryType; onDis
       <span className="text-2xl flex-shrink-0">{u.emoji}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-sand-800">{u.text}</p>
-        <a
-          href={waUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block mt-2 text-xs font-bold text-white px-3 py-1.5 rounded-xl"
-          style={{ background: '#E7C78A' }}
-        >
+        <a href={waUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-xs font-bold text-white px-3 py-1.5 rounded-xl" style={{ background: '#E7C78A' }}>
           {u.cta} →
         </a>
       </div>
@@ -77,144 +45,17 @@ function UpsellCard({ type, onDismiss, ownerWhatsapp }: { type: EntryType; onDis
   )
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── helpers preserved from the pre-refactor file (used by week-tab arrows) ──
 function startOfWeek(date: Date): Date {
   const d = new Date(date)
   const day = d.getDay() // 0=Sun
   d.setDate(d.getDate() - day)
   return d
 }
-
 function addDays(date: Date, n: number): Date {
   const d = new Date(date)
   d.setDate(d.getDate() + n)
   return d
-}
-
-function isoDate(d: Date) { return formatDate(d) }
-
-const DAY_LABELS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']
-const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
-
-// ── Weekly view ───────────────────────────────────────────────────────────────
-function WeekView({ entries, weekStart, onDayClick }: { entries: DailyLogEntryWithDetails[]; weekStart: Date; onDayClick: (date: string) => void }) {
-  const today = isoDate(new Date())
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
-
-  const byDate: Record<string, DailyLogEntryWithDetails[]> = {}
-  entries.forEach(e => {
-    if (!byDate[e.entry_date]) byDate[e.entry_date] = []
-    byDate[e.entry_date].push(e)
-  })
-
-  return (
-    <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
-      {/* Day headers */}
-      <div className="grid grid-cols-7 border-b border-sand-100">
-        {days.map((d, i) => {
-          const ds = isoDate(d)
-          const isToday = ds === today
-          return (
-            <button
-              key={ds}
-              onClick={() => onDayClick(ds)}
-              className="flex flex-col items-center py-2 hover:bg-mustard-50 transition-colors"
-            >
-              <span className="text-[10px] text-sand-400">{DAY_LABELS[i]}</span>
-              <span className={`text-sm font-bold mt-0.5 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'text-white' : 'text-sand-700'}`}
-                style={isToday ? { background: '#E7C78A' } : {}}>
-                {d.getDate()}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Entry color dots grid */}
-      <div className="grid grid-cols-7 min-h-[120px] p-2 gap-1">
-        {days.map((d) => {
-          const ds = isoDate(d)
-          const dayEntries = byDate[ds] ?? []
-          return (
-            <button
-              key={ds}
-              onClick={() => onDayClick(ds)}
-              className="flex flex-col gap-1 items-center pt-1 hover:bg-sand-50 rounded-xl transition-colors min-h-[100px]"
-            >
-              {dayEntries.slice(0, 6).map(e => {
-                const col = ENTRY_COLORS[e.entry_type] ?? { dot: '#9ca3af' }
-                return (
-                  <div key={e.id} className="w-4 h-4 rounded-md flex-shrink-0" style={{ background: col.dot }} title={e.entry_type} />
-                )
-              })}
-              {dayEntries.length > 6 && (
-                <span className="text-[9px] text-sand-400">+{dayEntries.length - 6}</span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      <p className="text-center text-xs text-sand-300 pb-2">לחצי על יום לצפייה מפורטת</p>
-    </div>
-  )
-}
-
-// ── Monthly view ──────────────────────────────────────────────────────────────
-function MonthView({ entries, month, year, onDayClick }: { entries: DailyLogEntryWithDetails[]; month: number; year: number; onDayClick: (date: string) => void }) {
-  const today = isoDate(new Date())
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
-  const startOffset = firstDay.getDay() // 0=Sun
-  const totalCells = startOffset + lastDay.getDate()
-  const rows = Math.ceil(totalCells / 7)
-
-  const byDate: Record<string, { type: string }[]> = {}
-  entries.forEach(e => {
-    if (!byDate[e.entry_date]) byDate[e.entry_date] = []
-    byDate[e.entry_date].push({ type: e.entry_type })
-  })
-
-  return (
-    <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
-      <div className="grid grid-cols-7 border-b border-sand-100">
-        {DAY_LABELS.map(l => (
-          <div key={l} className="text-center text-[10px] text-sand-400 py-2 font-semibold">{l}</div>
-        ))}
-      </div>
-      <div className="p-2">
-        {Array.from({ length: rows }, (_, r) => (
-          <div key={r} className="grid grid-cols-7 mb-1">
-            {Array.from({ length: 7 }, (_, c) => {
-              const dayNum = r * 7 + c - startOffset + 1
-              if (dayNum < 1 || dayNum > lastDay.getDate()) return <div key={c} />
-              const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-              const dayEntries = byDate[ds] ?? []
-              const isToday = ds === today
-              return (
-                <button
-                  key={c}
-                  onClick={() => onDayClick(ds)}
-                  className="flex flex-col items-center py-1 rounded-xl hover:bg-mustard-50 transition-colors"
-                >
-                  <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'text-white' : 'text-sand-700'}`}
-                    style={isToday ? { background: '#D9B978' } : {}}>
-                    {dayNum}
-                  </span>
-                  <div className="flex flex-wrap gap-0.5 justify-center mt-0.5 max-w-[24px]">
-                    {[...new Set(dayEntries.map(e => e.type))].slice(0, 3).map(type => {
-                      const col = ENTRY_COLORS[type as EntryType] ?? { dot: '#9ca3af' }
-                      return <div key={type} className="w-1.5 h-1.5 rounded-full" style={{ background: col.dot }} />
-                    })}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -228,21 +69,24 @@ type JournalPageProps = {
 export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   const { user, selectedChild, profile, isGuest } = useAuth()
   const { ownerWhatsapp } = useOwnerSettings()
-  const [viewMode, setViewMode] = useState<ViewMode>('day')
+
+  const [tab, setTab] = useState<JournalTab>('day')
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()))
   const [entries, setEntries] = useState<DailyLogEntryWithDetails[]>([])
   const [allEntries, setAllEntries] = useState<DailyLogEntryWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [modalType, setModalType] = useState<EntryType | null>(null)
   const [presetFeedingType, setPresetFeedingType] = useState<'breast' | 'bottle' | 'solid' | undefined>(undefined)
+  // Phase 3 / C3: tap-to-edit. When set, LogEntryModal opens prefilled
+  // from the entry and saves via UPDATE rather than INSERT.
+  const [editingEntry, setEditingEntry] = useState<DailyLogEntryWithDetails | null>(null)
   const [upsellType, setUpsellType] = useState<EntryType | null>(null)
   const [refetchKey, setRefetchKey] = useState(0)
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>('all')
   const [shareOpen, setShareOpen] = useState(false)
 
-  // Week/month navigation
+  // Week navigation
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()))
-  const [monthDate, setMonthDate] = useState<Date>(() => new Date())
 
   // Helper: get all relevant user IDs (self + family members)
   const getFamilyUserIds = useCallback(async (): Promise<string[]> => {
@@ -255,12 +99,10 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
     return data?.map(r => r.id) ?? [user.id]
   }, [user, profile?.family_id])
 
-  // Fetch entries for the selected date (daily view)
+  // Fetch entries for the selected date (day view)
   const fetchEntries = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    // When a child is selected, filter by child_id — works for all family members & guests
-    // Otherwise fall back to user_id-based family query
     let query = supabase
       .from('daily_log_entries')
       .select(`*, feeding_details(*), sleep_details(*), diaper_details(*)`)
@@ -277,14 +119,14 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
     setLoading(false)
   }, [user, selectedDate, selectedChild, getFamilyUserIds])
 
-  // Called when an entry is saved/edited/deleted — both refreshes the day's
-  // entries AND bumps refetchKey so "time since" badges update immediately.
+  // Refresh after a save/edit/delete — bumps the quick-add bar's "time since"
+  // counters AND re-pulls today's entries.
   const handleEntrySaved = useCallback(() => {
     setRefetchKey(k => k + 1)
     fetchEntries()
   }, [fetchEntries])
 
-  // Fetch all entries for the week/month range
+  // Fetch all entries for a range (week view)
   const fetchRangeEntries = useCallback(async (from: string, to: string) => {
     if (!user) return
     let query = supabase
@@ -304,24 +146,27 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   }, [user, selectedChild, getFamilyUserIds])
 
   useEffect(() => {
-    if (viewMode === 'day') {
+    if (tab === 'day') {
       fetchEntries()
-    } else if (viewMode === 'week') {
-      const from = isoDate(weekStart)
-      const to = isoDate(addDays(weekStart, 6))
-      fetchRangeEntries(from, to)
-    } else {
-      const from = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}-01`
-      const last = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0)
-      const to = isoDate(last)
+    } else if (tab === 'week') {
+      const from = formatDate(weekStart)
+      const to = formatDate(addDays(weekStart, 6))
       fetchRangeEntries(from, to)
     }
-  }, [viewMode, selectedDate, weekStart, monthDate, fetchEntries, fetchRangeEntries])
+    // list + summary tabs are placeholders in C3 — no fetch.
+  }, [tab, selectedDate, weekStart, fetchEntries, fetchRangeEntries])
 
   function handleDayClick(date: string) {
     setSelectedDate(date)
-    setViewMode('day')
+    setTab('day')
   }
+
+  // ── Header label per tab ─────────────────────────────────────────────
+  const headerSubLabel =
+    tab === 'day'  ? formatDisplayDate(selectedDate) :
+    tab === 'week' ? `שבוע ${formatDate(weekStart)} – ${formatDate(addDays(weekStart, 6))}` :
+    tab === 'list' ? 'תצוגת רשימה' :
+    'תצוגת סיכום'
 
   return (
     <div className="min-h-screen p-4 pb-28 relative" dir="rtl">
@@ -355,109 +200,45 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
               </button>
             )}
           </div>
-          <p className="text-sand-400 text-sm">
-            {viewMode === 'day' ? formatDisplayDate(selectedDate)
-             : viewMode === 'week' ? `שבוע ${isoDate(weekStart)} – ${isoDate(addDays(weekStart, 6))}`
-             : `${MONTH_NAMES[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
-          </p>
+          <p className="text-sand-400 text-sm">{headerSubLabel}</p>
         </div>
 
-        {/* Child Switcher */}
         <ChildSwitcher />
 
-        {/* View mode tabs */}
-        <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
-          {([['day','יום'], ['week','שבוע'], ['month','חודש']] as [ViewMode, string][]).map(([v, label]) => (
-            <button
-              key={v}
-              onClick={() => setViewMode(v)}
-              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${viewMode === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
-              style={viewMode === v ? { background: '#E7C78A' } : {}}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <JournalTabs value={tab} onChange={setTab} />
 
-        {/* ── Day view ─────────────────────────────────────────── */}
-        {viewMode === 'day' && (
-          <>
-            <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
-              <HorizontalCalendar selectedDate={selectedDate} onSelect={setSelectedDate} />
-            </div>
-
-            {/* Unified quick-add bar. On today: timer-based (feeding picker
-                opens; sleep/tummy start a live timer; diaper opens modal).
-                On past dates: forceModal routes every tap to a modal so the
-                user can backfill entries with selectedDate. */}
-            <div className="bg-[#F5F1EB] rounded-3xl p-3 shadow-sm">
-              <ActivityTimers
-                onEntrySaved={handleEntrySaved}
-                refetchKey={refetchKey}
-                onModalRequest={(t, preset) => {
-                  setModalType(t as EntryType)
-                  setPresetFeedingType(preset?.feedingType)
-                }}
-                forceModal={selectedDate !== formatDate(new Date())}
-                onOpenLogPage={onNavigate ? (logType) => {
-                  if (logType === 'sleep') onNavigate('log-sleep')
-                  else if (logType === 'tummy_time') onNavigate('log-tummy')
-                  else if (logType === 'feeding-breast') onNavigate('log-feeding-breast')
-                  else if (logType === 'feeding-bottle') onNavigate('log-feeding-bottle')
-                  else if (logType === 'feeding-solid') onNavigate('log-feeding-solid')
-                  else if (logType === 'diaper') onNavigate('log-diaper')
-                  else if (logType === 'doctor_visit') onNavigate('log-medical')
-                  else if (logType === 'milestone') onNavigate('log-milestone')
-                  else if (logType === 'note') onNavigate('log-note')
-                } : undefined}
-              />
-            </div>
-
-            <DailySummary entries={entries} />
-
-            {upsellType && (
-              <UpsellCard type={upsellType} onDismiss={() => setUpsellType(null)} ownerWhatsapp={ownerWhatsapp} />
-            )}
-
-            {/* Timeline filter — narrows the timeline below to a single entry type */}
-            <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
-              {TIMELINE_FILTERS.map(f => (
-                <button
-                  key={f.value}
-                  onClick={() => setTimelineFilter(f.value)}
-                  className={`flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-semibold transition-all leading-tight ${
-                    timelineFilter === f.value ? 'text-white shadow-sm' : 'text-sand-500'
-                  }`}
-                  style={timelineFilter === f.value ? { background: '#E7C78A' } : {}}
-                >
-                  {f.emoji && <span className="text-base">{f.emoji}</span>}
-                  <span>{f.label}</span>
-                </button>
-              ))}
-            </div>
-
-            {loading ? (
-              <div className="text-center py-8">
-                <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
-              </div>
-            ) : (
-              <DailyTimeline
-                entries={timelineFilter === 'all' ? entries : entries.filter(e => e.entry_type === timelineFilter)}
-                onRefresh={handleEntrySaved}
-              />
-            )}
-          </>
+        {/* Upsell card surfaces briefly after a past-date manual log save. */}
+        {tab === 'day' && upsellType && (
+          <UpsellCard type={upsellType} onDismiss={() => setUpsellType(null)} ownerWhatsapp={ownerWhatsapp} />
         )}
 
-        {/* ── Week view ─────────────────────────────────────────── */}
-        {viewMode === 'week' && (
+        {tab === 'day' && (
+          <DayView
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+            entries={entries}
+            loading={loading}
+            filter={timelineFilter}
+            onFilterChange={setTimelineFilter}
+            refetchKey={refetchKey}
+            onEntrySaved={handleEntrySaved}
+            onModalRequest={(t, preset) => {
+              setModalType(t as EntryType)
+              setPresetFeedingType(preset?.feedingType)
+            }}
+            onNavigate={onNavigate}
+            onEditEntry={setEditingEntry}
+          />
+        )}
+
+        {tab === 'week' && (
           <>
             <div className="flex items-center justify-between">
               <button onClick={() => setWeekStart(d => addDays(d, -7))} className="p-2 rounded-xl bg-white shadow-sm hover:bg-sand-50">
                 <ChevronRight className="w-4 h-4 text-sand-500" />
               </button>
               <span className="text-sm font-semibold text-sand-600">
-                {isoDate(weekStart)} – {isoDate(addDays(weekStart, 6))}
+                {formatDate(weekStart)} – {formatDate(addDays(weekStart, 6))}
               </span>
               <button onClick={() => setWeekStart(d => addDays(d, 7))} className="p-2 rounded-xl bg-white shadow-sm hover:bg-sand-50">
                 <ChevronLeft className="w-4 h-4 text-sand-500" />
@@ -480,43 +261,11 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
           </>
         )}
 
-        {/* ── Month view ────────────────────────────────────────── */}
-        {viewMode === 'month' && (
-          <>
-            <div className="flex items-center justify-between">
-              <button onClick={() => setMonthDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="p-2 rounded-xl bg-white shadow-sm hover:bg-sand-50">
-                <ChevronRight className="w-4 h-4 text-sand-500" />
-              </button>
-              <span className="text-sm font-semibold text-sand-600">
-                {MONTH_NAMES[monthDate.getMonth()]} {monthDate.getFullYear()}
-              </span>
-              <button onClick={() => setMonthDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="p-2 rounded-xl bg-white shadow-sm hover:bg-sand-50">
-                <ChevronLeft className="w-4 h-4 text-sand-500" />
-              </button>
-            </div>
-            <MonthView
-              entries={allEntries}
-              month={monthDate.getMonth()}
-              year={monthDate.getFullYear()}
-              onDayClick={handleDayClick}
-            />
-
-            {/* Legend */}
-            <div className="bg-[#F5F1EB] rounded-2xl p-4 shadow-sm">
-              <p className="text-xs font-semibold text-musgo-600 mb-2">מקרא</p>
-              <div className="flex flex-wrap gap-3">
-                {Object.entries(ENTRY_COLORS).map(([type, col]) => (
-                  <div key={type} className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: col.dot }} />
-                    <span className="text-xs text-sand-500">{entryTypeLabel(type)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+        {tab === 'list' && <ListView onBackToDay={() => setTab('day')} />}
+        {tab === 'summary' && <SummaryView onBackToDay={() => setTab('day')} />}
       </div>
 
+      {/* Create modal (past-date taps + non-hybrid action types) */}
       {modalType && (
         <LogEntryModal
           entryType={modalType}
@@ -531,6 +280,23 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
           }}
         />
       )}
+
+      {/* Edit modal — only fires for entry types the modal can round-trip
+          without data loss (sleep / tummy_time / note / doctor_visit).
+          Other types render with cursor-default in DailyTimeline. */}
+      {editingEntry && (
+        <LogEntryModal
+          entryType={editingEntry.entry_type as EntryType}
+          date={editingEntry.entry_date}
+          entry={editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onSaved={() => {
+            handleEntrySaved()
+            setEditingEntry(null)
+          }}
+        />
+      )}
+
       {shareOpen && <ShareBabyModal onClose={() => setShareOpen(false)} />}
     </div>
   )

@@ -1,13 +1,21 @@
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import type { DailyLogEntryWithDetails } from '../lib/supabase'
 import { entryTypeLabel, entryTypeEmoji, formatDuration } from '../utils/dateUtils'
 import { supabase } from '../lib/supabase'
 import DiaperPhotoThumbnail from './DiaperPhotoThumbnail'
 
+// Phase 3 / C3: entry types whose timeline cards are tappable to edit.
+// Other types (feeding/diaper/milestone) need data-faithful edit UIs that
+// LogEntryModal doesn't yet provide; tapping them is a no-op and the card
+// renders without the editable cursor / pencil affordance.
+const EDITABLE_TYPES: ReadonlySet<string> = new Set(['sleep', 'tummy_time', 'note', 'doctor_visit'])
+
 type Props = {
   entries: DailyLogEntryWithDetails[]
   onRefresh: () => void
+  /** Tap-to-edit dispatch. Fires only for entry types in EDITABLE_TYPES. */
+  onEditEntry?: (entry: DailyLogEntryWithDetails) => void
 }
 
 // Color scheme per entry type. Used by DailyTimeline, DailySummary, and the
@@ -102,7 +110,7 @@ function entrySubtitle(entry: DailyLogEntryWithDetails): string {
   return ''
 }
 
-export default function DailyTimeline({ entries, onRefresh }: Props) {
+export default function DailyTimeline({ entries, onRefresh, onEditEntry }: Props) {
   const [photoDeletedIds, setPhotoDeletedIds] = useState<Set<string>>(new Set())
 
   async function deleteEntry(id: string) {
@@ -122,6 +130,8 @@ export default function DailyTimeline({ entries, onRefresh }: Props) {
       {entries.map((entry, idx) => {
         const colors = entryColors(entry)
         const subtitle = entrySubtitle(entry)
+        const editable = !!onEditEntry && EDITABLE_TYPES.has(entry.entry_type)
+        const cardTap = editable ? () => onEditEntry!(entry) : undefined
         return (
           <div key={entry.id} className="flex gap-2 items-start group">
             {/* Timeline dot + line */}
@@ -142,9 +152,14 @@ export default function DailyTimeline({ entries, onRefresh }: Props) {
               </span>
             </div>
 
-            {/* Card */}
+            {/* Card — tappable to edit when entry_type is in EDITABLE_TYPES.
+                Other types render with cursor-default + no pencil icon. */}
             <div
-              className="flex-1 rounded-2xl p-3 mb-1 transition-shadow group-hover:shadow-md"
+              role={editable ? 'button' : undefined}
+              tabIndex={editable ? 0 : undefined}
+              onClick={cardTap}
+              onKeyDown={editable ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cardTap?.() } } : undefined}
+              className={`flex-1 rounded-2xl p-3 mb-1 transition-shadow ${editable ? 'cursor-pointer group-hover:shadow-md' : 'cursor-default'}`}
               style={{ background: colors.bg, border: `1.5px solid ${colors.border}` }}
             >
               <div className="flex items-start justify-between gap-2">
@@ -154,6 +169,13 @@ export default function DailyTimeline({ entries, onRefresh }: Props) {
                     <span className="text-sm font-bold" style={{ color: colors.label }}>
                       {entryTypeLabel(entry.entry_type)}
                     </span>
+                    {editable && (
+                      <Pencil
+                        className="w-3 h-3 ml-auto opacity-50"
+                        style={{ color: colors.label }}
+                        aria-hidden="true"
+                      />
+                    )}
                   </div>
                   {subtitle && (
                     <p className="text-xs mt-0.5" style={{ color: colors.label + 'BB' }}>
@@ -184,8 +206,9 @@ export default function DailyTimeline({ entries, onRefresh }: Props) {
                   />
                 )}
                 <button
-                  onClick={() => deleteEntry(entry.id)}
+                  onClick={e => { e.stopPropagation(); deleteEntry(entry.id) }}
                   className="opacity-0 group-hover:opacity-100 p-1 text-sand-300 hover:text-red-400 transition-all flex-shrink-0"
+                  aria-label="מחיקה"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

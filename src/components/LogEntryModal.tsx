@@ -1,11 +1,19 @@
 import { X, Camera, Trash2 } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import type { DailyLogEntryWithDetails, SleepDetail } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatTime } from '../utils/dateUtils'
 import { MILESTONE_CHIPS } from '../constants/milestones'
 import { sleepTypeFromStartTime } from '../utils/sleepTypeFromTime'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
+
+// PostgREST returns 1:1 detail joins as arrays at runtime. Match the
+// firstOf pattern used by DashboardPanel + DailyTimeline.
+function firstOf<T>(v: T[] | T | null | undefined): T | null {
+  if (v == null) return null
+  return Array.isArray(v) ? (v[0] ?? null) : v
+}
 
 async function compressImage(file: File): Promise<Blob> {
   return new Promise(resolve => {
@@ -48,6 +56,13 @@ type Props = {
   // When set, the feeding type-picker is hidden and the form opens directly
   // in that mode. Used by FeedingTypePicker → bottle / solid / breast (past).
   presetFeedingType?: 'breast' | 'bottle' | 'solid'
+  // Phase 3 / C3 edit mode: when set, the modal opens prefilled and saves
+  // via UPDATE rather than INSERT. The entry's own entry_type / entry_date
+  // take precedence over the entryType/date props. Edit is enabled in the
+  // timeline only for sleep / tummy_time / note / doctor_visit — other
+  // types have data shapes (per-side seconds, photo uploads, milestone
+  // chips) that this modal can't faithfully round-trip yet.
+  entry?: DailyLogEntryWithDetails
 }
 
 const TYPE_LABELS: Record<EntryType, string> = {
@@ -60,29 +75,73 @@ const TYPE_LABELS: Record<EntryType, string> = {
   note: 'הערה',
 }
 
-export default function LogEntryModal({ entryType, date, onClose, onSaved, presetFeedingType }: Props) {
+export default function LogEntryModal({ entryType, date, onClose, onSaved, presetFeedingType, entry }: Props) {
   const { user, selectedChild } = useAuth()
+  const isEdit = !!entry
+  // Use the entry's own type/date when editing — falls back to the props
+  // (which are still required for the create path).
+  const effectiveEntryType = (entry?.entry_type ?? entryType) as EntryType
+  const effectiveDate = entry?.entry_date ?? date
+
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
   const saveButtonRef = useRef<HTMLButtonElement>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [time, setTime] = useState(formatTime(new Date()))
-  const [notes, setNotes] = useState('')
 
-  // Feeding
+  // Prefill state from the entry on mount (lazy initializer). Each block
+  // covers one entry_type — fields that don't apply stay at their defaults.
+
+  const [time, setTime] = useState(() =>
+    entry?.entry_time ? entry.entry_time.slice(0, 5) : formatTime(new Date()),
+  )
+
+  const [notes, setNotes] = useState(() => {
+    if (!entry?.notes) return ''
+    // Tummy entries encode duration as a "משך: N דקות —" prefix on notes.
+    // Strip it so the textarea shows just the user-typed part; the
+    // tummyDuration state below holds the parsed number.
+    if (entry.entry_type === 'tummy_time') {
+      return entry.notes.replace(/^משך:\s*\d+(?:\.\d+)?\s*דקות(?:\s*—\s*)?/, '')
+    }
+    return entry.notes
+  })
+
+  // Feeding (not edited via this modal in C3, but state still needs to
+  // exist for the create path)
   const [feedingType, setFeedingType] = useState<'breast' | 'bottle' | 'solid'>(presetFeedingType ?? 'breast')
   const [breastSide, setBreastSide] = useState<'left' | 'right' | 'both'>('right')
   const [durationMins, setDurationMins] = useState('')
   const [amountMl, setAmountMl] = useState('')
 
-  // Tummy time
-  const [tummyDuration, setTummyDuration] = useState('')
+  // Tummy time — duration parsed out of notes for edit mode.
+  const [tummyDuration, setTummyDuration] = useState(() => {
+    if (entry?.entry_type === 'tummy_time' && entry.notes) {
+      const m = entry.notes.match(/^משך:\s*(\d+(?:\.\d+)?)\s*דקות/)
+      if (m) return m[1]
+    }
+    return ''
+  })
 
   // Sleep — manual entry uses start/end time pair (more intuitive than minutes
   // when logging retroactively). duration_minutes is computed at save time.
   // sleep_type is auto-derived from the start time (silent rule, no toggle).
-  const [sleepEndTime, setSleepEndTime] = useState('')
-  const [sleepQuality, setSleepQuality] = useState<'good' | 'fair' | 'poor'>('good')
+  const [sleepEndTime, setSleepEndTime] = useState(() => {
+    if (entry?.entry_type !== 'sleep') return ''
+    const sd = firstOf<SleepDetail>(entry.sleep_details as SleepDetail | SleepDetail[] | null)
+    if (sd?.duration_minutes == null || !entry.entry_time) return ''
+    const [sh, sm] = entry.entry_time.slice(0, 5).split(':').map(Number)
+    const totalMin = ((sh * 60 + sm) + Math.round(sd.duration_minutes)) % 1440
+    const eh = Math.floor(totalMin / 60)
+    const em = totalMin % 60
+    return `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`
+  })
+  const [sleepQuality, setSleepQuality] = useState<'good' | 'fair' | 'poor'>(() => {
+    if (entry?.entry_type === 'sleep') {
+      const sd = firstOf<SleepDetail>(entry.sleep_details as SleepDetail | SleepDetail[] | null)
+      if (sd?.quality === 'good' || sd?.quality === 'fair' || sd?.quality === 'poor') return sd.quality
+    }
+    return 'good'
+  })
 
   function computeSleepDurationMins(): number | null {
     if (!time || !sleepEndTime) return null
@@ -152,6 +211,40 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
     if (milestoneMediaInputRef.current) milestoneMediaInputRef.current.value = ''
   }
 
+  // Delete the entry currently being edited. Cascades to detail rows
+  // via ON DELETE CASCADE on the FK. Confirms via native confirm — same
+  // pattern as the dedicated action pages.
+  async function handleDelete() {
+    if (!entry || savingRef.current) return
+    if (!window.confirm('למחוק את הרשומה? לא ניתן לשחזר.')) return
+    savingRef.current = true
+    if (saveButtonRef.current) saveButtonRef.current.disabled = true
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const { error } = await supabase.from('daily_log_entries').delete().eq('id', entry.id)
+      if (error) throw error
+      onSaved()
+      onClose()
+    } catch (err) {
+      setSaving(false)
+      savingRef.current = false
+      if (saveButtonRef.current) saveButtonRef.current.disabled = false
+      setSaveError(err instanceof Error ? err.message : 'שגיאה במחיקה')
+    }
+  }
+
+  // Build the final notes string. Tummy-time entries fold the duration
+  // into notes as "משך: N דקות —" prefix (legacy contract that the
+  // timeline + summary parse back out).
+  function composeNotes(): string | null {
+    if (effectiveEntryType !== 'tummy_time') return notes || null
+    if (!tummyDuration) return notes || null
+    return notes
+      ? `משך: ${tummyDuration} דקות — ${notes}`
+      : `משך: ${tummyDuration} דקות`
+  }
+
   async function handleSave(e?: React.MouseEvent) {
     // Defensive: block bubbling/default in case anything wraps this in a form-like context.
     if (e) { e.preventDefault(); e.stopPropagation() }
@@ -163,51 +256,82 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
     setSaveError(null)
     try {
       const now = new Date()
-      // For tummy_time, merge duration into the notes field on INSERT.
-      let finalNotes = notes || null
-      if (entryType === 'tummy_time' && tummyDuration) {
-        finalNotes = notes
-          ? `משך: ${tummyDuration} דקות — ${notes}`
-          : `משך: ${tummyDuration} דקות`
+      const finalNotes = composeNotes()
+      const entryTimeValue = time || formatTime(now)
+
+      if (isEdit && entry) {
+        // ── EDIT: UPDATE daily_log_entries + the relevant detail row ──
+        const { error } = await supabase
+          .from('daily_log_entries')
+          .update({
+            entry_time: entryTimeValue,
+            notes: finalNotes,
+          })
+          .eq('id', entry.id)
+        if (error) throw error
+
+        if (effectiveEntryType === 'sleep') {
+          const sd = firstOf<SleepDetail>(entry.sleep_details as SleepDetail | SleepDetail[] | null)
+          const startDate = new Date(`${effectiveDate}T${entryTimeValue}:00`)
+          const sleepPayload = {
+            sleep_type: sleepTypeFromStartTime(startDate),
+            duration_minutes: computeSleepDurationMins(),
+            quality: sleepQuality,
+          }
+          if (sd) {
+            await supabase.from('sleep_details').update(sleepPayload).eq('id', sd.id)
+          } else {
+            // Defensive: insert if a sleep entry somehow lacks its detail row.
+            await supabase.from('sleep_details').insert({ log_entry_id: entry.id, ...sleepPayload })
+          }
+        }
+        // tummy_time + note + doctor_visit: no detail update needed. Tummy
+        // duration lives in notes; medical_details (when present) is
+        // intentionally not edited from this modal — that needs the
+        // dedicated MedicalPage form.
+
+        onSaved()
+        onClose()
+        return
       }
-      const { data: entry, error } = await supabase
+
+      // ── CREATE: INSERT daily_log_entries + the relevant detail row ──
+      const { data: created, error } = await supabase
         .from('daily_log_entries')
         .insert({
           user_id: user.id,
           child_id: selectedChild?.id ?? null,
-          entry_date: date,
-          entry_time: time || formatTime(now),
-          entry_type: entryType,
+          entry_date: effectiveDate,
+          entry_time: entryTimeValue,
+          entry_type: effectiveEntryType,
           notes: finalNotes,
         })
         .select()
         .single()
 
-      if (error || !entry) throw error ?? new Error('שגיאה בשמירה')
+      if (error || !created) throw error ?? new Error('שגיאה בשמירה')
 
-      if (entryType === 'feeding') {
+      if (effectiveEntryType === 'feeding') {
         await supabase.from('feeding_details').insert({
-          log_entry_id: entry.id,
+          log_entry_id: created.id,
           feeding_type: feedingType,
           breast_side: feedingType === 'breast' ? breastSide : null,
           duration_minutes: durationMins ? parseFloat(durationMins) : null,
           amount_ml: amountMl ? parseInt(amountMl) : null,
         })
-      } else if (entryType === 'sleep') {
+      } else if (effectiveEntryType === 'sleep') {
         // sleep_type derived from the start time on the entry's date.
-        // `date` is YYYY-MM-DD and `time` is HH:MM — combined into a
-        // local Date so the hour reflects the user's input. Invalid
-        // inputs (empty time) fall through to 'nap' inside the util.
-        const startDate = new Date(`${date}T${time || '00:00'}:00`)
+        // Combined into a local Date so the hour reflects the user's input.
+        const startDate = new Date(`${effectiveDate}T${time || '00:00'}:00`)
         await supabase.from('sleep_details').insert({
-          log_entry_id: entry.id,
+          log_entry_id: created.id,
           sleep_type: sleepTypeFromStartTime(startDate),
           duration_minutes: computeSleepDurationMins(),
           quality: sleepQuality,
         })
-      } else if (entryType === 'diaper') {
+      } else if (effectiveEntryType === 'diaper') {
         await supabase.from('diaper_details').insert({
-          log_entry_id: entry.id,
+          log_entry_id: created.id,
           diaper_type: diaperType,
           notes: notes || null,
         })
@@ -219,10 +343,10 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
             .from('diaper-photos')
             .upload(path, diaperPhoto, { contentType: 'image/jpeg' })
           if (!uploadErr) {
-            await supabase.from('daily_log_entries').update({ photo_url: path }).eq('id', entry.id)
+            await supabase.from('daily_log_entries').update({ photo_url: path }).eq('id', created.id)
           }
         }
-      } else if (entryType === 'milestone' && milestoneMedia) {
+      } else if (effectiveEntryType === 'milestone' && milestoneMedia) {
         const ext = milestoneIsVideo ? 'mp4' : 'jpg'
         const contentType = milestoneIsVideo ? 'video/mp4' : 'image/jpeg'
         const childSegment = selectedChild?.id ?? user.id
@@ -231,7 +355,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           .from('milestone-media')
           .upload(path, milestoneMedia, { contentType })
         if (!uploadErr) {
-          await supabase.from('daily_log_entries').update({ photo_url: path }).eq('id', entry.id)
+          await supabase.from('daily_log_entries').update({ photo_url: path }).eq('id', created.id)
         }
       }
 
@@ -260,7 +384,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
 
         {/* Header */}
         <div className="px-5 pb-3 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-lg font-bold text-sand-800">הוספת {TYPE_LABELS[entryType]}</h2>
+          <h2 className="text-lg font-bold text-sand-800">{isEdit ? 'עריכת' : 'הוספת'} {TYPE_LABELS[effectiveEntryType]}</h2>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-sand-100 text-sand-400">
             <X className="w-5 h-5" />
           </button>
@@ -284,7 +408,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           )}
 
           {/* Feeding fields */}
-          {entryType === 'feeding' && (
+          {effectiveEntryType === 'feeding' && (
             <>
               {/* Hide the type picker when caller preset the type — the choice
                   was made via FeedingTypePicker before the modal opened. */}
@@ -358,7 +482,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           )}
 
           {/* Sleep fields */}
-          {entryType === 'sleep' && (
+          {effectiveEntryType === 'sleep' && (
             <>
               {/* Start / end times — easier than computing minutes when logging
                   retroactively. Wraps past midnight automatically on save. */}
@@ -411,7 +535,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           )}
 
           {/* Diaper fields */}
-          {entryType === 'diaper' && (
+          {effectiveEntryType === 'diaper' && (
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-sand-600 mb-2">סוג חיתול</label>
@@ -469,7 +593,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           )}
 
           {/* Tummy time fields */}
-          {entryType === 'tummy_time' && (
+          {effectiveEntryType === 'tummy_time' && (
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות) — אופציונלי</label>
               <input
@@ -485,7 +609,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           )}
 
           {/* Milestone: chip suggestions + media upload */}
-          {entryType === 'milestone' && (
+          {effectiveEntryType === 'milestone' && (
             <div className="space-y-3">
               {/* Suggested milestone chips */}
               <div>
@@ -548,13 +672,13 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
 
           {/* Notes — generic notes box for these types. Solid feeding uses
               its own labelled "what did baby eat?" textarea above. */}
-          {(['milestone', 'doctor_visit', 'note', 'tummy_time'].includes(entryType) ||
-            (entryType === 'feeding' && feedingType === 'bottle')) && (
+          {(['milestone', 'doctor_visit', 'note', 'tummy_time'].includes(effectiveEntryType) ||
+            (effectiveEntryType === 'feeding' && feedingType === 'bottle')) && (
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1">
-                {entryType === 'note' ? 'הערה' :
-                 entryType === 'milestone' ? 'אם בא לך לכתוב משהו' :
-                 entryType === 'feeding' ? 'הערות (אופציונלי)' :
+                {effectiveEntryType === 'note' ? 'הערה' :
+                 effectiveEntryType === 'milestone' ? 'אם בא לך לכתוב משהו' :
+                 effectiveEntryType === 'feeding' ? 'הערות (אופציונלי)' :
                  'הערות'}
               </label>
               <textarea
@@ -568,7 +692,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           )}
         </div>
 
-        {/* Sticky save button */}
+        {/* Sticky save button (+ delete link in edit mode) */}
         <div className="px-5 pb-5 pt-3 flex-shrink-0 border-t border-sand-100 space-y-2">
           {saveError && (
             <p className="text-xs text-red-500 text-center">{saveError}</p>
@@ -580,8 +704,17 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
             disabled={saving}
             className="w-full bg-gradient-to-r from-mustard-500 to-mustard-600 hover:from-mustard-600 hover:to-mustard-700 text-white font-semibold py-4 rounded-2xl transition-all shadow-lg disabled:opacity-50"
           >
-            {saving ? 'שומרת...' : 'שמירה ✓'}
+            {saving ? 'שומרת...' : isEdit ? 'עדכון ✓' : 'שמירה ✓'}
           </button>
+          {isEdit && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="block mx-auto text-xs text-sand-400 hover:text-red-500 underline underline-offset-2 transition-colors pt-1"
+            >
+              מחיקת רשומה
+            </button>
+          )}
         </div>
       </div>
     </div>
