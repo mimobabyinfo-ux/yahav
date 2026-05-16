@@ -7,6 +7,7 @@ import { formatDate, formatDisplayDate } from '../utils/dateUtils'
 import LogEntryModal from '../components/LogEntryModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import ShareBabyModal from '../components/ShareBabyModal'
+import ActivityTimers from '../components/ActivityTimers'
 import JournalTabs, { JournalTab } from '../components/journal/JournalTabs'
 import DayView from '../components/journal/DayView'
 import WeekView from '../components/journal/WeekView'
@@ -212,6 +213,34 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
 
         <ChildSwitcher />
 
+        {/* Quick-add bar — promoted to top of the page (Phase 3 / C4 UX
+            restructure). Visible on every tab so logging is always one
+            tap away. forceModal kicks in only when the Day tab is on a
+            past date; on other tabs taps go to the dedicated action
+            pages regardless of selectedDate. */}
+        <div className="bg-[#F5F1EB] rounded-3xl p-3 shadow-sm">
+          <ActivityTimers
+            onEntrySaved={handleEntrySaved}
+            refetchKey={refetchKey}
+            onModalRequest={(t, preset) => {
+              setModalType(t as EntryType)
+              setPresetFeedingType(preset?.feedingType)
+            }}
+            forceModal={tab === 'day' && selectedDate !== formatDate(new Date())}
+            onOpenLogPage={onNavigate ? (logType) => {
+              if (logType === 'sleep') onNavigate('log-sleep')
+              else if (logType === 'tummy_time') onNavigate('log-tummy')
+              else if (logType === 'feeding-breast') onNavigate('log-feeding-breast')
+              else if (logType === 'feeding-bottle') onNavigate('log-feeding-bottle')
+              else if (logType === 'feeding-solid') onNavigate('log-feeding-solid')
+              else if (logType === 'diaper') onNavigate('log-diaper')
+              else if (logType === 'doctor_visit') onNavigate('log-medical')
+              else if (logType === 'milestone') onNavigate('log-milestone')
+              else if (logType === 'note') onNavigate('log-note')
+            } : undefined}
+          />
+        </div>
+
         <JournalTabs value={tab} onChange={setTab} />
 
         {/* Upsell card surfaces briefly after a past-date manual log save. */}
@@ -227,13 +256,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
             loading={loading}
             filter={timelineFilter}
             onFilterChange={setTimelineFilter}
-            refetchKey={refetchKey}
             onEntrySaved={handleEntrySaved}
-            onModalRequest={(t, preset) => {
-              setModalType(t as EntryType)
-              setPresetFeedingType(preset?.feedingType)
-            }}
-            onNavigate={onNavigate}
             onEditEntry={setEditingEntry}
           />
         )}
