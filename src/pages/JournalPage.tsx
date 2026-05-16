@@ -406,7 +406,9 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
                   else if (logType === 'feeding-bottle') onNavigate('log-feeding-bottle')
                   else if (logType === 'feeding-solid') onNavigate('log-feeding-solid')
                   else if (logType === 'diaper') onNavigate('log-diaper')
-                  // doctor_visit / milestone / note pages land in C4.
+                  else if (logType === 'doctor_visit') onNavigate('log-medical')
+                  else if (logType === 'milestone') onNavigate('log-milestone')
+                  else if (logType === 'note') onNavigate('log-note')
                 } : undefined}
               />
             </div>

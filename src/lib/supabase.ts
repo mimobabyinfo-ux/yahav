@@ -245,6 +245,17 @@ export type DiaperDetail = {
   notes: string | null
 }
 
+// Structured details for entries with entry_type='doctor_visit'. The table
+// is named medical_details (TypeScript convention) even though the parent
+// entry_type stays as the legacy 'doctor_visit' string per Q2/N2.
+export type MedicalDetail = {
+  id: string
+  log_entry_id: string
+  medical_type: 'vaccination' | 'checkup' | 'illness' | 'medication' | 'other' | null
+  details: string | null
+  created_at: string
+}
+
 export type ActiveTimer = {
   id: string
   user_id: string

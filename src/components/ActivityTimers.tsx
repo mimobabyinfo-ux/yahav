@@ -62,12 +62,12 @@ const MORE_TILES: Tile[] = [
   { key: 'note',         emoji: '📝',         label: 'הערה',    modalEntry: 'note',         more: true },
 ]
 
-// Tiles whose dedicated action page exists. Bottle / solid / diaper land
-// in C3; doctor / milestone / note in C4. Anything not here falls through
-// to onModalRequest (LogEntryModal).
+// All nine tiles now have dedicated action pages (Phase 2 fully landed).
+// Past-date taps still route through onModalRequest via forceModal.
 const PAGE_BUILT: ReadonlySet<LogPageRoute> = new Set<LogPageRoute>([
   'sleep', 'tummy_time', 'feeding-breast',
   'feeding-bottle', 'feeding-solid', 'diaper',
+  'doctor_visit', 'milestone', 'note',
 ])
 
 type Props = {

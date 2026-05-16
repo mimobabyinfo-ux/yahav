@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatTime } from '../utils/dateUtils'
+import { MILESTONE_CHIPS } from '../constants/milestones'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
 
 async function compressImage(file: File): Promise<Blob> {
@@ -500,7 +501,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
               <div>
                 <label className="block text-xs font-semibold text-sand-600 mb-2">בחרי אבן דרך</label>
                 <div className="flex flex-wrap gap-2">
-                  {['חיוך ראשון 😊','שינה כל הלילה 🌙','הפיכה מבטן לגב','הפיכה מגב לבטן','ישיבה עצמאית','זחילה ראשונה','עמידה ראשונה','צעד ראשון 👣','מילה ראשונה 🗣️','שן ראשונה 🦷','אוכל מוצקים 🥣','פה פה / ביי ביי 👋','מחיאות כפיים 👏','חיבוק ראשון 🤗'].map(chip => (
+                  {MILESTONE_CHIPS.map(chip => (
                     <button
                       key={chip}
                       type="button"
