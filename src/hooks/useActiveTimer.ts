@@ -127,12 +127,17 @@ export function useActiveTimer(type?: string) {
   const pause = useCallback(async (): Promise<void> => {
     if (!timer) return
     const data = (timer.additional_data ?? {}) as AdditionalData
-    if (data.segment_started_at == null) return  // legacy → no concept of pause yet (treat as already-running);
-                                                  // new-schema paused → no-op
-    const acc = typeof data.accumulated_seconds === 'number' ? data.accumulated_seconds : 0
-    const segMs = typeof data.segment_started_at === 'string'
+    const hasNewSchema = 'segment_started_at' in data
+    // Already paused — nothing to do.
+    if (hasNewSchema && data.segment_started_at === null) return
+
+    // Legacy rows (created by ActivityTimers.startTimer or by code from
+    // before this PR) don't carry segment_started_at. Treat them as a fresh
+    // running session that began at row.start_time, so pause still works.
+    const segMs = hasNewSchema && typeof data.segment_started_at === 'string'
       ? new Date(data.segment_started_at).getTime()
-      : Date.now()
+      : new Date(timer.start_time).getTime()
+    const acc = typeof data.accumulated_seconds === 'number' ? data.accumulated_seconds : 0
     const addedSecs = Math.max(0, (Date.now() - segMs) / 1000)
     const merged: AdditionalData = {
       ...data,
@@ -147,10 +152,11 @@ export function useActiveTimer(type?: string) {
   const resume = useCallback(async (): Promise<void> => {
     if (!timer) return
     const data = (timer.additional_data ?? {}) as AdditionalData
-    if (data.segment_started_at !== null && data.segment_started_at !== undefined) return
+    // Already running — nothing to do.
+    if (typeof data.segment_started_at === 'string') return
     const merged: AdditionalData = {
       ...data,
-      // Preserve accumulated_seconds; default to 0 if a half-migrated row is missing it.
+      // Preserve accumulated_seconds; default to 0 for half-migrated rows.
       accumulated_seconds: typeof data.accumulated_seconds === 'number' ? data.accumulated_seconds : 0,
       segment_started_at: new Date().toISOString(),
     }

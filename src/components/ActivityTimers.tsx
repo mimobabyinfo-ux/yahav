@@ -168,7 +168,15 @@ export default function ActivityTimers({
 
   async function startTimer(type: TimerType) {
     if (!user) return
-    const additionalData: AdditionalData = {}
+    // Seed the Phase-2 segmented-timer schema (accumulated_seconds +
+    // segment_started_at) so pause/resume on the dedicated action pages
+    // work on timers started from the quick-add bar. Legacy consumers
+    // (this file's own stopTimer below, plus useActiveTimer helpers)
+    // already tolerate missing keys; this seeds them positively.
+    const additionalData: Record<string, unknown> = {
+      accumulated_seconds: 0,
+      segment_started_at: new Date().toISOString(),
+    }
     if (type === 'feeding') {
       additionalData.feeding_type = 'breast'
       additionalData.breast_side = 'right'

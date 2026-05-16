@@ -113,7 +113,7 @@ export default function ActiveTimerBanner({ onNavigate, refetchKey = 0 }: Props)
           >
             <span className="flex items-center gap-2 text-xs font-semibold">
               <span className="text-base leading-none">{meta.emoji}</span>
-              <span>{meta.label} {paused ? 'מושהית' : 'פעיל'}</span>
+              <span>{paused ? `${meta.label} — בהפסקה` : `${meta.label} פעיל`}</span>
             </span>
             <span className="flex items-center gap-1 text-xs font-mono font-bold tabular-nums">
               {paused

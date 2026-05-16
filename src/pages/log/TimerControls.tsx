@@ -58,7 +58,7 @@ export default function TimerControls({
         </div>
 
         <div className="text-sm text-sand-500">
-          {paused ? 'הטיימר מושהה' : 'הטיימר רץ'}
+          {paused ? 'בהפסקה' : 'הטיימר רץ'}
         </div>
 
         {/* Pause / Resume toggle — secondary action */}
@@ -69,7 +69,7 @@ export default function TimerControls({
             style={{ borderColor: accent, color: accent, background: 'white' }}
           >
             <Play className="w-5 h-5 fill-current" />
-            המשך
+            המשיכי
           </button>
         ) : (
           <button
@@ -78,7 +78,7 @@ export default function TimerControls({
             style={{ borderColor: accent, color: accent, background: 'white' }}
           >
             <Pause className="w-5 h-5 fill-current" />
-            השהי
+            הפסקה
           </button>
         )}
 
