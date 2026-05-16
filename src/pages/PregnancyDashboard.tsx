@@ -7,7 +7,9 @@ import {
 import { supabase, PregnancyChecklistItem, PregnancyWeeklyGuide, UserPregnancyItem, UserReminder } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MyTasksPanel from '../components/MyTasksPanel'
+import DailyTipCard from '../components/dashboard/DailyTipCard'
 import { formatDate } from '../utils/dateUtils'
+import { pregnancyWeek, daysUntilDue } from '../utils/pregnancyWeek'
 import { PREGNANCY_REMINDER_TEMPLATES, PregnancyReminderTemplate } from '../data/pregnancyReminderTemplates'
 import { BUYING_SUBCATEGORIES, BuyingSubcategoryId } from '../data/buyingSubcategories'
 import type { Page } from '../App'
@@ -16,13 +18,8 @@ type Props = { onNavigate: (page: Page) => void }
 type DashTab = 'medical' | 'buying' | 'reminders'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-function pregnancyWeek(dueDate: string): number {
-  const daysLeft = Math.round((new Date(dueDate).getTime() - Date.now()) / 86400000)
-  return Math.max(1, Math.min(42, Math.floor((280 - daysLeft) / 7)))
-}
-function daysUntilDue(dueDate: string): number {
-  return Math.max(0, Math.round((new Date(dueDate).getTime() - Date.now()) / 86400000))
-}
+// pregnancyWeek + daysUntilDue moved to src/utils/pregnancyWeek.ts so the
+// daily-tip targeting (and any future consumer) shares one source of truth.
 function groupByWeek(items: PregnancyChecklistItem[]) {
   const buckets: { label: string; key: string; items: PregnancyChecklistItem[] }[] = []
   const seen = new Set<string>()
@@ -585,6 +582,9 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
       <div className="max-w-sm mx-auto px-4 pt-4 space-y-3">
         {/* ── Assigned tasks ── */}
         <MyTasksPanel />
+
+        {/* ── Daily tip (Phase 3 / C2) ── */}
+        <DailyTipCard />
 
         {/* ── Weekly Guide Card ── */}
         {guide && week && <WeekGuideCard guide={guide} week={week} items={itemsForWeek(week)} />}

@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState, useCallback } from 'react'
 import { ChevronLeft, Settings as SettingsIcon } from 'lucide-react'
-import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
+import { supabase, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { getBabyAge } from '../utils/dateUtils'
@@ -10,6 +10,7 @@ import MyTasksPanel from '../components/MyTasksPanel'
 import ActivityTimers from '../components/ActivityTimers'
 import LogEntryModal from '../components/LogEntryModal'
 import TodaysJournalPanel from '../components/dashboard/TodaysJournalPanel'
+import DailyTipCard from '../components/dashboard/DailyTipCard'
 import type { Page } from '../App'
 
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
@@ -22,7 +23,6 @@ type Props = {
 export default function DashboardPage({ onNavigate }: Props) {
   const { profile, selectedChild, children, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
   const { ownerName, ownerWhatsapp } = useOwnerSettings()
-  const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
   const [modalType, setModalType] = useState<EntryType | null>(null)
@@ -33,21 +33,8 @@ export default function DashboardPage({ onNavigate }: Props) {
   }, [])
 
   useEffect(() => {
-    fetchTip()
     fetchPerks()
   }, [])
-
-  async function fetchTip() {
-    const { data } = await supabase
-      .from('daily_tips')
-      .select('*')
-      .eq('is_active', true)
-      .limit(50)
-    if (data && data.length > 0) {
-      const random = data[Math.floor(Math.random() * data.length)]
-      setTip(random)
-    }
-  }
 
   async function fetchPerks() {
     const { data } = await supabase
@@ -138,18 +125,8 @@ export default function DashboardPage({ onNavigate }: Props) {
         {/* Assigned tasks */}
         <MyTasksPanel />
 
-        {/* Daily Tip */}
-        {tip && (
-          <div className="bg-gradient-to-r from-mustard-50 to-beige-50 rounded-3xl p-5 border border-mustard-100">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">💡</span>
-              <div>
-                <p className="text-xs font-semibold text-mustard-600 mb-1">טיפ היום</p>
-                <p className="text-sm text-sand-700 leading-relaxed">{tip.tip_text}</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Daily tip (Phase 3 / C2) — age-matched + deterministic per day. */}
+        <DailyTipCard />
 
         {/* Featured Perks — compact 2-per-row grid */}
         {featuredPerks.length > 0 && (

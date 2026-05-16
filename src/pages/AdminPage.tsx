@@ -1965,71 +1965,299 @@ function LeadStatusEditor({ user, onSaved }: { user: User360; onSaved: () => voi
 }
 
 // ─── Tips Tab ────────────────────────────────────────────────────────────────
+// Phase 3 / C2: tips now carry an optional title, an article link, a target
+// audience ('mom' or 'pregnancy'), and either a baby-age range (in days)
+// or a pregnancy-week range. The dashboard's DailyTipCard queries by these
+// fields + picks one deterministically per day.
+
+type TipDraft = {
+  title: string
+  tip_text: string
+  article_link: string
+  tip_for: 'mom' | 'pregnancy'
+  age_range_start_days: string  // string so the input controls them; coerced on save
+  age_range_end_days: string
+  pregnancy_week_start: string
+  pregnancy_week_end: string
+}
+
+const EMPTY_DRAFT: TipDraft = {
+  title: '',
+  tip_text: '',
+  article_link: '',
+  tip_for: 'mom',
+  age_range_start_days: '0',
+  age_range_end_days: '730',
+  pregnancy_week_start: '',
+  pregnancy_week_end: '',
+}
+
+function tipToDraft(t: DailyTip): TipDraft {
+  return {
+    title: t.title ?? '',
+    tip_text: t.tip_text,
+    article_link: t.article_link ?? '',
+    tip_for: (t.tip_for ?? 'mom') as 'mom' | 'pregnancy',
+    age_range_start_days: t.age_range_start_days != null ? String(t.age_range_start_days) : '0',
+    age_range_end_days: t.age_range_end_days != null ? String(t.age_range_end_days) : '730',
+    pregnancy_week_start: t.pregnancy_week_start != null ? String(t.pregnancy_week_start) : '',
+    pregnancy_week_end: t.pregnancy_week_end != null ? String(t.pregnancy_week_end) : '',
+  }
+}
+
+function describeRange(tip: DailyTip): string {
+  if (tip.tip_for === 'pregnancy') {
+    const a = tip.pregnancy_week_start ?? '?'
+    const b = tip.pregnancy_week_end ?? '?'
+    return `הריון · שבוע ${a}–${b}`
+  }
+  const a = tip.age_range_start_days ?? 0
+  const b = tip.age_range_end_days ?? 730
+  const labelA = formatAgeDays(a)
+  const labelB = formatAgeDays(b)
+  return `אמהות · ${labelA} – ${labelB}`
+}
+
+function formatAgeDays(days: number): string {
+  if (days < 14) return `${days} ימים`
+  if (days < 60) return `${Math.round(days / 7)} שבועות`
+  return `${Math.round(days / 30)} חודשים`
+}
+
 function TipsTab() {
   const [tips, setTips] = useState<DailyTip[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<DailyTip | null>(null)
-  const [text, setText] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<TipDraft>(EMPTY_DRAFT)
+  const [filter, setFilter] = useState<'all' | 'mom' | 'pregnancy'>('all')
 
   const load = useCallback(() => {
     supabase.from('daily_tips').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => setTips(data ?? []))
+      .then(({ data }) => setTips((data ?? []) as DailyTip[]))
   }, [])
   useEffect(() => { load() }, [load])
 
+  function resetForm() {
+    setDraft(EMPTY_DRAFT)
+    setEditingId(null)
+    setShowForm(false)
+  }
+
   async function save() {
-    if (!text.trim()) return
-    if (editing) {
-      await supabase.from('daily_tips').update({ tip_text: text }).eq('id', editing.id)
-    } else {
-      await supabase.from('daily_tips').insert({ tip_text: text, is_active: true })
+    if (!draft.tip_text.trim()) return
+
+    // Coerce numeric inputs; clamp where the CHECK constraints care.
+    const ageStart = parseInt(draft.age_range_start_days, 10)
+    const ageEnd = parseInt(draft.age_range_end_days, 10)
+    const wkStart = draft.pregnancy_week_start ? parseInt(draft.pregnancy_week_start, 10) : null
+    const wkEnd = draft.pregnancy_week_end ? parseInt(draft.pregnancy_week_end, 10) : null
+
+    const payload = {
+      title: draft.title.trim() || null,
+      tip_text: draft.tip_text.trim(),
+      article_link: draft.article_link.trim() || null,
+      tip_for: draft.tip_for,
+      age_range_start_days: draft.tip_for === 'mom' && Number.isFinite(ageStart) ? Math.max(0, ageStart) : null,
+      age_range_end_days: draft.tip_for === 'mom' && Number.isFinite(ageEnd) ? Math.max(0, ageEnd) : null,
+      pregnancy_week_start: draft.tip_for === 'pregnancy' && wkStart != null && Number.isFinite(wkStart)
+        ? Math.min(42, Math.max(1, wkStart)) : null,
+      pregnancy_week_end: draft.tip_for === 'pregnancy' && wkEnd != null && Number.isFinite(wkEnd)
+        ? Math.min(42, Math.max(1, wkEnd)) : null,
     }
-    setText(''); setEditing(null); setShowForm(false); load()
+
+    if (editingId) {
+      await supabase.from('daily_tips').update(payload).eq('id', editingId)
+    } else {
+      await supabase.from('daily_tips').insert({ ...payload, is_active: true })
+    }
+    resetForm()
+    load()
   }
 
   async function del(id: string) {
-    await supabase.from('daily_tips').delete().eq('id', id); load()
+    if (!window.confirm('למחוק את הטיפ?')) return
+    await supabase.from('daily_tips').delete().eq('id', id)
+    load()
   }
 
   async function toggle(tip: DailyTip) {
-    await supabase.from('daily_tips').update({ is_active: !tip.is_active }).eq('id', tip.id); load()
+    await supabase.from('daily_tips').update({ is_active: !tip.is_active }).eq('id', tip.id)
+    load()
   }
+
+  function startEdit(tip: DailyTip) {
+    setEditingId(tip.id)
+    setDraft(tipToDraft(tip))
+    setShowForm(true)
+  }
+
+  function startCreate() {
+    setEditingId(null)
+    setDraft(EMPTY_DRAFT)
+    setShowForm(true)
+  }
+
+  const visible = tips.filter(t => filter === 'all' || (t.tip_for ?? 'mom') === filter)
 
   return (
     <div className="space-y-3">
       <button
-        onClick={() => { setShowForm(true); setEditing(null); setText('') }}
+        onClick={startCreate}
         className="w-full flex items-center justify-center gap-2 bg-mustard-500 text-white font-semibold py-3 rounded-2xl hover:bg-mustard-600 transition-colors"
       >
         <Plus className="w-4 h-4" />
         טיפ חדש
       </button>
 
-      {(showForm || editing) && (
+      {/* Filter chips */}
+      <div className="flex gap-2">
+        {([
+          { id: 'all' as const, label: `הכל (${tips.length})` },
+          { id: 'mom' as const, label: `אמהות (${tips.filter(t => (t.tip_for ?? 'mom') === 'mom').length})` },
+          { id: 'pregnancy' as const, label: `הריון (${tips.filter(t => t.tip_for === 'pregnancy').length})` },
+        ]).map(opt => (
+          <button
+            key={opt.id}
+            onClick={() => setFilter(opt.id)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all ${
+              filter === opt.id
+                ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
+                : 'border-sand-200 text-sand-600'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {showForm && (
         <div className="bg-[#F5F1EB] rounded-2xl p-4 shadow-sm space-y-3">
-          <textarea
-            value={text}
-            onChange={e => setText(e.target.value)}
-            placeholder="כתוב טיפ יומי..."
-            rows={3}
-            className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none"
-          />
-          <div className="flex gap-2">
+          {/* Audience toggle */}
+          <div>
+            <label className="block text-xs font-semibold text-sand-600 mb-2">למי</label>
+            <div className="flex gap-2">
+              {(['mom', 'pregnancy'] as const).map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setDraft(d => ({ ...d, tip_for: t }))}
+                  className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all border-2 ${
+                    draft.tip_for === t
+                      ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
+                      : 'border-sand-200 text-sand-600'
+                  }`}
+                >
+                  {t === 'mom' ? 'לאמהות' : 'להריון'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-sand-600 mb-1">כותרת (אופציונלי)</label>
+            <input
+              type="text"
+              value={draft.title}
+              onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
+              placeholder="כותרת קצרה ומזמינה"
+              className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-sand-600 mb-1">תוכן</label>
+            <textarea
+              value={draft.tip_text}
+              onChange={e => setDraft(d => ({ ...d, tip_text: e.target.value }))}
+              placeholder="כתבי טיפ יומי..."
+              rows={4}
+              className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-sand-600 mb-1">קישור למאמר (אופציונלי)</label>
+            <input
+              type="url"
+              value={draft.article_link}
+              onChange={e => setDraft(d => ({ ...d, article_link: e.target.value }))}
+              placeholder="https://..."
+              className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
+            />
+          </div>
+
+          {draft.tip_for === 'mom' ? (
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1">טווח גיל (בימים)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  value={draft.age_range_start_days}
+                  onChange={e => setDraft(d => ({ ...d, age_range_start_days: e.target.value }))}
+                  className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
+                />
+                <span className="text-xs text-sand-400">עד</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={draft.age_range_end_days}
+                  onChange={e => setDraft(d => ({ ...d, age_range_end_days: e.target.value }))}
+                  className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
+                />
+              </div>
+              <p className="text-[11px] text-sand-400 mt-1">
+                ≈ {formatAgeDays(parseInt(draft.age_range_start_days, 10) || 0)} – {formatAgeDays(parseInt(draft.age_range_end_days, 10) || 0)}
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1">טווח שבוע הריון (1–42)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="42"
+                  value={draft.pregnancy_week_start}
+                  onChange={e => setDraft(d => ({ ...d, pregnancy_week_start: e.target.value }))}
+                  className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
+                  placeholder="התחלה"
+                />
+                <span className="text-xs text-sand-400">עד</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="42"
+                  value={draft.pregnancy_week_end}
+                  onChange={e => setDraft(d => ({ ...d, pregnancy_week_end: e.target.value }))}
+                  className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
+                  placeholder="סיום"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
             <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold">שמירה</button>
-            <button onClick={() => { setShowForm(false); setEditing(null); setText('') }} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
+            <button onClick={resetForm} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
           </div>
         </div>
       )}
 
-      {tips.map(tip => (
+      {visible.map(tip => (
         <div key={tip.id} className={`bg-[#F5F1EB] rounded-2xl p-4 shadow-sm ${!tip.is_active ? 'opacity-50' : ''}`}>
+          <p className="text-[10px] font-bold text-mustard-600 mb-1.5 uppercase tracking-wide">{describeRange(tip)}</p>
+          {tip.title && <p className="text-sm font-bold text-sand-800 leading-snug mb-1">{tip.title}</p>}
           <p className="text-sm text-sand-700 leading-relaxed mb-2">{tip.tip_text}</p>
-          <div className="flex items-center justify-between">
+          {tip.article_link && (
+            <a href={tip.article_link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-mustard-700 underline mb-2 inline-block">קישור למאמר ←</a>
+          )}
+          <div className="flex items-center justify-between mt-2">
             <button onClick={() => toggle(tip)} className="text-sand-400 hover:text-mustard-500">
               {tip.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
             </button>
             <div className="flex gap-2">
-              <button onClick={() => { setEditing(tip); setText(tip.tip_text); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+              <button onClick={() => startEdit(tip)} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
               <button onClick={() => del(tip.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>

@@ -75,6 +75,15 @@ export type DailyTip = {
   tip_text: string
   is_active: boolean
   created_at: string
+  // Phase 3 / C2 — age & pregnancy-week targeting (migration 20260601150000).
+  // All additive + nullable; existing rows get tip_for='mom', 0–730 day window.
+  title: string | null
+  article_link: string | null
+  age_range_start_days: number | null
+  age_range_end_days: number | null
+  tip_for: 'mom' | 'pregnancy' | null
+  pregnancy_week_start: number | null
+  pregnancy_week_end: number | null
 }
 
 export type ContentCategory = {
