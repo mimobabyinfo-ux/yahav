@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatTime } from '../utils/dateUtils'
 import { MILESTONE_CHIPS } from '../constants/milestones'
+import { sleepTypeFromStartTime } from '../utils/sleepTypeFromTime'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
 
 async function compressImage(file: File): Promise<Blob> {
@@ -79,7 +80,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
 
   // Sleep — manual entry uses start/end time pair (more intuitive than minutes
   // when logging retroactively). duration_minutes is computed at save time.
-  const [sleepType, setSleepType] = useState<'nap' | 'night'>('nap')
+  // sleep_type is auto-derived from the start time (silent rule, no toggle).
   const [sleepEndTime, setSleepEndTime] = useState('')
   const [sleepQuality, setSleepQuality] = useState<'good' | 'fair' | 'poor'>('good')
 
@@ -193,9 +194,14 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           amount_ml: amountMl ? parseInt(amountMl) : null,
         })
       } else if (entryType === 'sleep') {
+        // sleep_type derived from the start time on the entry's date.
+        // `date` is YYYY-MM-DD and `time` is HH:MM — combined into a
+        // local Date so the hour reflects the user's input. Invalid
+        // inputs (empty time) fall through to 'nap' inside the util.
+        const startDate = new Date(`${date}T${time || '00:00'}:00`)
         await supabase.from('sleep_details').insert({
           log_entry_id: entry.id,
-          sleep_type: sleepType,
+          sleep_type: sleepTypeFromStartTime(startDate),
           duration_minutes: computeSleepDurationMins(),
           quality: sleepQuality,
         })
@@ -387,24 +393,8 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                   </p>
                 )
               })()}
-              <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-2">סוג שינה</label>
-                <div className="flex gap-2">
-                  {(['nap', 'night'] as const).map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setSleepType(t)}
-                      className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all border-2 ${
-                        sleepType === t
-                          ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
-                          : 'border-sand-200 text-sand-600'
-                      }`}
-                    >
-                      {t === 'nap' ? 'שנת יום' : 'שנת לילה'}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Sleep type (nap / night) is auto-derived from the start
+                  time at save — silent rule, no UI toggle. */}
               <div>
                 <label className="block text-xs font-semibold text-sand-600 mb-1">איכות</label>
                 <select

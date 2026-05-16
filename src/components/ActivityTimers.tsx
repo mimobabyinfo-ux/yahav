@@ -6,6 +6,7 @@ import { formatDate, formatTime } from '../utils/dateUtils'
 import { formatTimeSince } from '../utils/timeSince'
 import { useLastEntry } from '../hooks/useLastEntry'
 import { formatSeconds, timerElapsedSeconds } from '../hooks/useActiveTimer'
+import { sleepTypeFromStartTime } from '../utils/sleepTypeFromTime'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
 
 // ── Quick-add tile config ──────────────────────────────────────────────────
@@ -196,7 +197,7 @@ export default function ActivityTimers({
         } else if (timer.timer_type === 'sleep') {
           await supabase.from('sleep_details').insert({
             log_entry_id: entry.id,
-            sleep_type: 'nap',
+            sleep_type: sleepTypeFromStartTime(startedAt),
             duration_minutes: durationForLog,
           })
         }

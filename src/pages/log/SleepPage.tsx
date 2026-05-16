@@ -6,6 +6,7 @@ import { formatDate, formatTime } from '../../utils/dateUtils'
 import { useActiveTimer } from '../../hooks/useActiveTimer'
 import { useLastEntry } from '../../hooks/useLastEntry'
 import { formatTimeSince } from '../../utils/timeSince'
+import { sleepTypeFromStartTime } from '../../utils/sleepTypeFromTime'
 import ActionPageLayout from './ActionPageLayout'
 import TimerControls from './TimerControls'
 import ManualEntrySheet from './ManualEntrySheet'
@@ -62,7 +63,10 @@ export default function SleepPage({ onBack, onSaved }: Props) {
 
   async function handleStart() {
     setSaveError(null)
-    await start('sleep', { sleep_type: 'nap' })
+    // sleep_type is derived from start time at save time (handleStop), so
+    // we don't seed it in additional_data — keeping a stale guess here
+    // would just be misleading.
+    await start('sleep')
   }
 
   async function handleStop() {
@@ -91,7 +95,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
 
       await supabase.from('sleep_details').insert({
         log_entry_id: entry.id,
-        sleep_type: 'nap',
+        sleep_type: sleepTypeFromStartTime(startedAt),
         duration_minutes: durationForLog,
       })
 
@@ -149,7 +153,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
       if (error || !entry) throw error ?? new Error('שגיאה בשמירה')
       await supabase.from('sleep_details').insert({
         log_entry_id: entry.id,
-        sleep_type: 'nap',
+        sleep_type: sleepTypeFromStartTime(startDate),
         duration_minutes: dur,
       })
       setManualOpen(false)
