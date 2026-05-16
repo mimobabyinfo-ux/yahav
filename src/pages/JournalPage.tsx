@@ -413,6 +413,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
                 forceModal={selectedDate !== formatDate(new Date())}
                 onOpenLogPage={onNavigate ? (logType) => {
                   if (logType === 'sleep') onNavigate('log-sleep')
+                  else if (logType === 'tummy_time') onNavigate('log-tummy')
                 } : undefined}
               />
             </div>

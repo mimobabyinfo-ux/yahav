@@ -21,6 +21,7 @@ import PublicRegisterPage from './pages/PublicRegisterPage'
 import ThankYouPage from './pages/ThankYouPage'
 import UserSettingsPage from './pages/UserSettingsPage'
 import SleepPage from './pages/log/SleepPage'
+import TummyTimePage from './pages/log/TummyTimePage'
 import BottomNav from './components/BottomNav'
 import AdminSidebar from './components/AdminSidebar'
 import MimoLogo from './components/MimoLogo'
@@ -28,7 +29,7 @@ import FormTriggerModal from './components/FormTriggerModal'
 import ActiveTimerBanner from './components/ActiveTimerBanner'
 import InstallPrompt from './components/InstallPrompt'
 
-export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'community' | 'marketplace' | 'log-sleep'
+export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'community' | 'marketplace' | 'log-sleep' | 'log-tummy'
 export type AdminSection = 'insights' | 'users' | 'workshops' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'registrations' | 'settings'
 
 // Detect public URLs
@@ -176,6 +177,7 @@ function AppInner() {
       case 'marketplace': return <ServicesMarketplacePage />
       case 'community':  return <CommunityPage />
       case 'log-sleep':  return <SleepPage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
+      case 'log-tummy':  return <TummyTimePage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
       default:           return isPregnant
         ? <PregnancyDashboard onNavigate={setCurrentPage} />
         : <DashboardPage onNavigate={setCurrentPage} />

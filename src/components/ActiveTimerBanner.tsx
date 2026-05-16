@@ -22,10 +22,11 @@ type Props = {
 
 const BANNER_HEIGHT_PX = 36
 
-// Map timer_type → dedicated page (only sleep is wired in Phase 2 step 1;
-// the rest will route here as each page lands).
+// Map timer_type → dedicated page. Sleep + tummy_time are wired; feeding
+// will route here once BreastfeedingPage lands.
 const PAGE_FOR_TIMER: Record<string, Page | undefined> = {
   sleep: 'log-sleep',
+  tummy_time: 'log-tummy',
 }
 
 const META: Record<string, { emoji: string; label: string }> = {
