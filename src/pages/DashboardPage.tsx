@@ -112,6 +112,7 @@ export default function DashboardPage({ onNavigate }: Props) {
               onOpenLogPage={(logType) => {
                 if (logType === 'sleep') onNavigate('log-sleep')
                 else if (logType === 'tummy_time') onNavigate('log-tummy')
+                else if (logType === 'feeding-breast') onNavigate('log-feeding-breast')
               }}
             />
           </div>

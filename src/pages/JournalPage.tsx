@@ -414,6 +414,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
                 onOpenLogPage={onNavigate ? (logType) => {
                   if (logType === 'sleep') onNavigate('log-sleep')
                   else if (logType === 'tummy_time') onNavigate('log-tummy')
+                  else if (logType === 'feeding-breast') onNavigate('log-feeding-breast')
                 } : undefined}
               />
             </div>

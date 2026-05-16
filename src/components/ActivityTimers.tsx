@@ -38,11 +38,12 @@ type Props = {
   // When true, ALL action taps open modals via onModalRequest instead of
   // starting a timer. Used in past-date views where "now" timers don't apply.
   forceModal?: boolean
-  // Hybrid quick-add (Phase 2): when set, sleep / tummy_time taps on today
-  // bypass the TimerOrManualPicker — they start the timer immediately and
-  // call this to navigate to the dedicated action page. Feeding routes
-  // through onModalRequest until BreastfeedingPage lands.
-  onOpenLogPage?: (logType: 'sleep' | 'tummy_time') => void
+  // Hybrid quick-add (Phase 2):
+  //  - 'sleep' / 'tummy_time' taps on today bypass the TimerOrManualPicker:
+  //    timer starts immediately + this callback navigates to the page.
+  //  - 'feeding-breast' is fired after the feeding type picker resolves to
+  //    breast: no timer pre-start (mom picks the side on the page itself).
+  onOpenLogPage?: (logType: 'sleep' | 'tummy_time' | 'feeding-breast') => void
 }
 
 type TimerType = 'feeding' | 'sleep' | 'tummy_time'
@@ -114,11 +115,15 @@ export default function ActivityTimers({
   function handleFeedingPick(choice: FeedingChoice) {
     setFeedingPickerOpen(false)
     if (choice === 'breast') {
-      // On today: route through the 2-option timer/manual sheet.
-      // On past-date: there's no timer option — skip straight to the modal.
       if (forceModal) {
+        // Past-date: no live-timer option — straight to the modal.
         onModalRequest?.('feeding', { feedingType: 'breast' })
+      } else if (onOpenLogPage) {
+        // Today + hybrid quick-add: navigate to BreastfeedingPage. Per Q1(a)
+        // no pre-start — mom picks the starting side on the page itself.
+        onOpenLogPage('feeding-breast')
       } else {
+        // Legacy fallback (no onOpenLogPage wired) — old 2-option picker.
         setPendingTimerChoice('feeding-breast')
       }
     } else {
@@ -309,14 +314,17 @@ export default function ActivityTimers({
   }
 
   // Compact in-grid running cell — used in grid-2 layout so the cell stays
-  // the same shape when a timer is running. The big card below still renders
-  // for advanced controls (BreastfeedingQuickSwitch). Sleep + tummy_time
-  // timers route the tap to their dedicated action page in Phase 2 (hybrid).
+  // the same shape when a timer is running. Sleep, tummy_time, and feeding
+  // (breast) timers route the tap to their dedicated action page in Phase 2.
   function renderCompactRunningCell(timer: ActiveTimer) {
     const def = timerDefs.find(d => d.type === timer.timer_type)
     const t = timer.timer_type
-    const hybridType: 'sleep' | 'tummy_time' | null =
-      (t === 'sleep' || t === 'tummy_time') && onOpenLogPage ? t : null
+    const hybridType: 'sleep' | 'tummy_time' | 'feeding-breast' | null = onOpenLogPage
+      ? (t === 'sleep' ? 'sleep'
+        : t === 'tummy_time' ? 'tummy_time'
+        : t === 'feeding' ? 'feeding-breast'
+        : null)
+      : null
     return (
       <button
         key={timer.id}
@@ -351,11 +359,11 @@ export default function ActivityTimers({
       ...extraActions.map(renderExtraActionButton),
     ]
 
-    // Sleep + tummy_time big-cards are suppressed in hybrid mode — the
-    // dedicated action pages own the stop/save UI. The compact running cell
-    // still navigates there.
+    // In hybrid mode the dedicated action pages own the stop/save UI, so
+    // we suppress the big inline card for every hybrid timer type (sleep /
+    // tummy_time / feeding). The compact running cell still navigates there.
     const bigCardTimers = activeTimers.filter(t =>
-      !((t.timer_type === 'sleep' || t.timer_type === 'tummy_time') && onOpenLogPage),
+      !(onOpenLogPage && (t.timer_type === 'sleep' || t.timer_type === 'tummy_time' || t.timer_type === 'feeding')),
     )
 
     return (
@@ -427,8 +435,12 @@ export default function ActivityTimers({
           {timerDefs.map(def => runningTypes.has(def.type) ? null : renderTimerStartButton(def))}
         </div>
 
-        {/* Active timers */}
-        {activeTimers.map(timer => {
+        {/* Active timers — same hybrid suppression as grid-2: hide the
+            big inline card for any timer whose dedicated action page owns
+            the stop/save UI. */}
+        {activeTimers
+          .filter(t => !(onOpenLogPage && (t.timer_type === 'sleep' || t.timer_type === 'tummy_time' || t.timer_type === 'feeding')))
+          .map(timer => {
           const def = timerDefs.find(d => d.type === timer.timer_type)
           const addl = (timer.additional_data ?? {}) as AdditionalData
           return (

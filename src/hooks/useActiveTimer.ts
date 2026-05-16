@@ -26,9 +26,26 @@ type AdditionalData = Record<string, unknown>
 
 // ── Pure helpers (also exported for the banner / page components) ──────────
 
+// Detect the per-side breastfeeding schema by the presence of any of its
+// dedicated keys. BreastfeedingPage stores active_side / left_accumulated_seconds
+// / right_accumulated_seconds / side_started_at. We check the union of those
+// keys so a half-written row still routes correctly.
+function isPerSideFeedingSchema(data: AdditionalData): boolean {
+  return (
+    'active_side' in data ||
+    'left_accumulated_seconds' in data ||
+    'right_accumulated_seconds' in data ||
+    'side_started_at' in data
+  )
+}
+
 export function timerIsPaused(timer: ActiveTimer): boolean {
   const data = (timer.additional_data ?? {}) as AdditionalData
-  // New-schema row: paused iff segment_started_at is explicitly null.
+  if (isPerSideFeedingSchema(data)) {
+    // Breast feeding: paused when no side is active.
+    return data.active_side == null
+  }
+  // Single-segment schema (sleep, tummy): paused iff segment_started_at is null.
   if ('segment_started_at' in data) return data.segment_started_at === null
   // Legacy: always running.
   return false
@@ -36,6 +53,21 @@ export function timerIsPaused(timer: ActiveTimer): boolean {
 
 export function timerElapsedSeconds(timer: ActiveTimer): number {
   const data = (timer.additional_data ?? {}) as AdditionalData
+
+  // Per-side breastfeeding schema → total = L_acc + R_acc + active segment delta.
+  if (isPerSideFeedingSchema(data)) {
+    const left = typeof data.left_accumulated_seconds === 'number' ? data.left_accumulated_seconds : 0
+    const right = typeof data.right_accumulated_seconds === 'number' ? data.right_accumulated_seconds : 0
+    const segStr = data.side_started_at
+    const activeSide = data.active_side
+    if (typeof segStr !== 'string' || activeSide == null) {
+      return Math.max(0, Math.floor(left + right))
+    }
+    const segMs = new Date(segStr).getTime()
+    if (Number.isNaN(segMs)) return Math.max(0, Math.floor(left + right))
+    return Math.max(0, Math.floor(left + right + (Date.now() - segMs) / 1000))
+  }
+
   const hasNewSchema = 'segment_started_at' in data || 'accumulated_seconds' in data
 
   if (!hasNewSchema) {
