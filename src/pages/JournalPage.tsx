@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Share2 } from 'lucide-react'
+import { Share2 } from 'lucide-react'
 import { supabase, DailyLogEntryWithDetails } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
-import { formatDate, formatDisplayDate, entryTypeLabel } from '../utils/dateUtils'
-import { ENTRY_COLORS } from '../components/DailyTimeline'
+import { formatDate, formatDisplayDate } from '../utils/dateUtils'
 import LogEntryModal from '../components/LogEntryModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import ShareBabyModal from '../components/ShareBabyModal'
@@ -149,7 +148,10 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
     if (tab === 'day') {
       fetchEntries()
     } else if (tab === 'week') {
-      const from = formatDate(weekStart)
+      // Widen by one day so cross-midnight sleeps that began on the
+      // Saturday BEFORE weekStart still appear on Sunday's column in
+      // the chart (C4 / Q7). Chart filters to the 7 visible days.
+      const from = formatDate(addDays(weekStart, -1))
       const to = formatDate(addDays(weekStart, 6))
       fetchRangeEntries(from, to)
     }
@@ -232,33 +234,12 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
         )}
 
         {tab === 'week' && (
-          <>
-            <div className="flex items-center justify-between">
-              <button onClick={() => setWeekStart(d => addDays(d, -7))} className="p-2 rounded-xl bg-white shadow-sm hover:bg-sand-50">
-                <ChevronRight className="w-4 h-4 text-sand-500" />
-              </button>
-              <span className="text-sm font-semibold text-sand-600">
-                {formatDate(weekStart)} – {formatDate(addDays(weekStart, 6))}
-              </span>
-              <button onClick={() => setWeekStart(d => addDays(d, 7))} className="p-2 rounded-xl bg-white shadow-sm hover:bg-sand-50">
-                <ChevronLeft className="w-4 h-4 text-sand-500" />
-              </button>
-            </div>
-            <WeekView entries={allEntries} weekStart={weekStart} onDayClick={handleDayClick} />
-
-            {/* Legend */}
-            <div className="bg-[#F5F1EB] rounded-2xl p-4 shadow-sm">
-              <p className="text-xs font-semibold text-musgo-600 mb-2">מקרא</p>
-              <div className="flex flex-wrap gap-3">
-                {Object.entries(ENTRY_COLORS).map(([type, col]) => (
-                  <div key={type} className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm" style={{ background: col.dot }} />
-                    <span className="text-xs text-sand-500">{entryTypeLabel(type)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
+          <WeekView
+            entries={allEntries}
+            weekStart={weekStart}
+            onWeekShift={setWeekStart}
+            onDayClick={handleDayClick}
+          />
         )}
 
         {tab === 'list' && <ListView onBackToDay={() => setTab('day')} />}

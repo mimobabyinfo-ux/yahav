@@ -72,3 +72,14 @@ body {
   animation: pulse-ring 1.5s ease-out infinite;
   opacity: 0.4;
 }
+
+/* Fade-in for chart segments + the UpsellCard. The chart bumps a key on
+   weekStart change, remounting the segments container, so the animation
+   re-fires on each week navigation. */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.22s ease-out;
+}
