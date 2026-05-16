@@ -4,12 +4,10 @@ import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { getBabyAge } from '../utils/dateUtils'
-import { formatTimeSince } from '../utils/timeSince'
-import { useLastEntry } from '../hooks/useLastEntry'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import MyTasksPanel from '../components/MyTasksPanel'
-import ActivityTimers, { ExtraAction } from '../components/ActivityTimers'
+import ActivityTimers from '../components/ActivityTimers'
 import LogEntryModal from '../components/LogEntryModal'
 import type { Page } from '../App'
 
@@ -29,13 +27,6 @@ export default function DashboardPage({ onNavigate }: Props) {
   const [modalType, setModalType] = useState<EntryType | null>(null)
   const [presetFeedingType, setPresetFeedingType] = useState<'breast' | 'bottle' | 'solid' | undefined>(undefined)
   const [refetchKey, setRefetchKey] = useState(0)
-  const lastDiaper = useLastEntry('diaper', refetchKey)
-  const diaperExtraAction: ExtraAction = {
-    type: 'diaper',
-    emoji: '💩',
-    label: 'חיתול',
-    sinceText: formatTimeSince(lastDiaper, 'טרם נרשם חיתול'),
-  }
   const handleEntrySaved = useCallback(() => {
     setRefetchKey(k => k + 1)
   }, [])
@@ -103,8 +94,6 @@ export default function DashboardPage({ onNavigate }: Props) {
             <ActivityTimers
               onEntrySaved={handleEntrySaved}
               refetchKey={refetchKey}
-              layout="grid-2"
-              extraActions={[diaperExtraAction]}
               onModalRequest={(t, preset) => {
                 setModalType(t as EntryType)
                 setPresetFeedingType(preset?.feedingType)
@@ -113,6 +102,9 @@ export default function DashboardPage({ onNavigate }: Props) {
                 if (logType === 'sleep') onNavigate('log-sleep')
                 else if (logType === 'tummy_time') onNavigate('log-tummy')
                 else if (logType === 'feeding-breast') onNavigate('log-feeding-breast')
+                // Other routes (bottle/solid/diaper/doctor/milestone/note) fall
+                // through to ActivityTimers' built-in modal fallback in C1;
+                // dedicated pages land in C3/C4.
               }}
             />
           </div>

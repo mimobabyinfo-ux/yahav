@@ -4,15 +4,12 @@ import { supabase, DailyLogEntryWithDetails } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { formatDate, formatDisplayDate, entryTypeLabel } from '../utils/dateUtils'
-import { formatTimeSince } from '../utils/timeSince'
-import { useLastEntry } from '../hooks/useLastEntry'
 import HorizontalCalendar from '../components/HorizontalCalendar'
-import ActivityTimers, { ExtraAction } from '../components/ActivityTimers'
+import ActivityTimers from '../components/ActivityTimers'
 import DailyTimeline from '../components/DailyTimeline'
 import { ENTRY_COLORS } from '../components/DailyTimeline'
 import DailySummary from '../components/DailySummary'
 import LogEntryModal from '../components/LogEntryModal'
-import QuickActionButtons from '../components/QuickActionButtons'
 import ChildSwitcher from '../components/ChildSwitcher'
 import ShareBabyModal from '../components/ShareBabyModal'
 import type { Page } from '../App'
@@ -242,13 +239,6 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   const [refetchKey, setRefetchKey] = useState(0)
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>('all')
   const [shareOpen, setShareOpen] = useState(false)
-  const lastDiaper = useLastEntry('diaper', refetchKey)
-  const diaperExtraAction: ExtraAction = {
-    type: 'diaper',
-    emoji: '💩',
-    label: 'חיתול',
-    sinceText: formatTimeSince(lastDiaper, 'טרם נרשם חיתול'),
-  }
 
   // Week/month navigation
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()))
@@ -404,8 +394,6 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
               <ActivityTimers
                 onEntrySaved={handleEntrySaved}
                 refetchKey={refetchKey}
-                layout="grid-2"
-                extraActions={[diaperExtraAction]}
                 onModalRequest={(t, preset) => {
                   setModalType(t as EntryType)
                   setPresetFeedingType(preset?.feedingType)
@@ -415,14 +403,10 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
                   if (logType === 'sleep') onNavigate('log-sleep')
                   else if (logType === 'tummy_time') onNavigate('log-tummy')
                   else if (logType === 'feeding-breast') onNavigate('log-feeding-breast')
+                  // Bottle / solid / diaper / doctor / milestone / note fall
+                  // through to the modal fallback in C1; pages land in C3/C4.
                 } : undefined}
               />
-            </div>
-
-            {/* Secondary actions: less-frequent log types (milestone / doctor / note) */}
-            <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-musgo-600 mb-3">פעולות נוספות</h2>
-              <QuickActionButtons onSelect={setModalType} />
             </div>
 
             <DailySummary entries={entries} />
