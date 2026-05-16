@@ -217,6 +217,11 @@ export type FeedingDetail = {
   breast_side: 'left' | 'right' | 'both' | null
   duration_minutes: number | null
   amount_ml: number | null
+  // Per-side seconds — populated by the dedicated Breastfeeding action page
+  // (Phase 2). NULL for bottle/solid and for legacy breast entries that
+  // only stored an aggregate duration_minutes.
+  left_duration_seconds: number | null
+  right_duration_seconds: number | null
 }
 
 export type SleepDetail = {

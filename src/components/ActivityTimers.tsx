@@ -38,6 +38,12 @@ type Props = {
   // When true, ALL action taps open modals via onModalRequest instead of
   // starting a timer. Used in past-date views where "now" timers don't apply.
   forceModal?: boolean
+  // Hybrid quick-add (Phase 2): when set, sleep / tummy_time taps on today
+  // bypass the TimerOrManualPicker — they start the timer immediately and
+  // call this to navigate to the dedicated action page. Only 'sleep' is
+  // wired in step 1; tummy_time falls through to the picker until its page
+  // lands.
+  onOpenLogPage?: (logType: 'sleep') => void
 }
 
 type TimerType = 'feeding' | 'sleep' | 'tummy_time'
@@ -58,6 +64,7 @@ export default function ActivityTimers({
   extraActions = [],
   onModalRequest,
   forceModal = false,
+  onOpenLogPage,
 }: Props) {
   const { user, selectedChild } = useAuth()
   const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([])
@@ -80,7 +87,10 @@ export default function ActivityTimers({
 
   // Tap behavior dispatch:
   //  - feeding → always opens the 3-option type picker
-  //  - sleep / tummy_time on today → opens the 2-option timer/manual picker
+  //  - sleep on today (hybrid quick-add) → start timer immediately + navigate
+  //    to the dedicated SleepPage. No picker.
+  //  - tummy_time on today → opens the 2-option timer/manual picker (its
+  //    dedicated page hasn't shipped yet)
   //  - sleep / tummy_time on past-date → opens modal directly (forceModal)
   function handleTimerCellClick(type: TimerType) {
     if (type === 'feeding') {
@@ -89,9 +99,19 @@ export default function ActivityTimers({
     }
     if (forceModal) {
       onModalRequest?.(type)
-    } else {
-      setPendingTimerChoice(type)
+      return
     }
+    if (type === 'sleep' && onOpenLogPage) {
+      // Hybrid: start timer first, then navigate. SleepPage reads the
+      // running timer from active_timers on mount and shows the DURING
+      // state immediately.
+      void (async () => {
+        await startTimer('sleep')
+        onOpenLogPage('sleep')
+      })()
+      return
+    }
+    setPendingTimerChoice(type)
   }
 
   function handleFeedingPick(choice: FeedingChoice) {
@@ -285,13 +305,18 @@ export default function ActivityTimers({
 
   // Compact in-grid running cell — used in grid-2 layout so the cell stays
   // the same shape when a timer is running. The big card below still renders
-  // for advanced controls (BreastfeedingQuickSwitch).
+  // for advanced controls (BreastfeedingQuickSwitch). Sleep timers route the
+  // tap to the dedicated SleepPage in Phase 2 (hybrid).
   function renderCompactRunningCell(timer: ActiveTimer) {
     const def = timerDefs.find(d => d.type === timer.timer_type)
+    const routesToPage = timer.timer_type === 'sleep' && !!onOpenLogPage
     return (
       <button
         key={timer.id}
-        onClick={() => stopTimer(timer)}
+        onClick={() => {
+          if (routesToPage) onOpenLogPage?.('sleep')
+          else stopTimer(timer)
+        }}
         className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl shadow-sm border-2 border-mustard-200"
         style={{ background: '#FFF7E5' }}
       >
@@ -319,13 +344,17 @@ export default function ActivityTimers({
       ...extraActions.map(renderExtraActionButton),
     ]
 
+    // Sleep big-card is suppressed in hybrid mode — the dedicated SleepPage
+    // owns the stop/save UI. The compact running cell still navigates there.
+    const bigCardTimers = activeTimers.filter(t => !(t.timer_type === 'sleep' && onOpenLogPage))
+
     return (
       <>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">{cells}</div>
 
           {/* Big active-timer cards (for BreastfeedingQuickSwitch etc.) */}
-          {activeTimers.map(timer => {
+          {bigCardTimers.map(timer => {
             const def = timerDefs.find(d => d.type === timer.timer_type)
             const addl = (timer.additional_data ?? {}) as AdditionalData
             return (

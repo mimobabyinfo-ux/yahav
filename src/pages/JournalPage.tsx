@@ -15,6 +15,7 @@ import LogEntryModal from '../components/LogEntryModal'
 import QuickActionButtons from '../components/QuickActionButtons'
 import ChildSwitcher from '../components/ChildSwitcher'
 import ShareBabyModal from '../components/ShareBabyModal'
+import type { Page } from '../App'
 
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 type ViewMode = 'day' | 'week' | 'month'
@@ -220,7 +221,14 @@ function MonthView({ entries, month, year, onDayClick }: { entries: DailyLogEntr
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function JournalPage() {
+type JournalPageProps = {
+  /** Optional — provided by App.tsx for Phase-2 hybrid quick-add (sleep tap
+   *  on today routes to the dedicated SleepPage). Guest-mode rendering of
+   *  this page doesn't pass it, so the picker fallback still works. */
+  onNavigate?: (page: Page) => void
+}
+
+export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   const { user, selectedChild, profile, isGuest } = useAuth()
   const { ownerWhatsapp } = useOwnerSettings()
   const [viewMode, setViewMode] = useState<ViewMode>('day')
@@ -403,6 +411,9 @@ export default function JournalPage() {
                   setPresetFeedingType(preset?.feedingType)
                 }}
                 forceModal={selectedDate !== formatDate(new Date())}
+                onOpenLogPage={onNavigate ? (logType) => {
+                  if (logType === 'sleep') onNavigate('log-sleep')
+                } : undefined}
               />
             </div>
 

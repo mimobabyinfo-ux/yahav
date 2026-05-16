@@ -109,6 +109,9 @@ export default function DashboardPage({ onNavigate }: Props) {
                 setModalType(t as EntryType)
                 setPresetFeedingType(preset?.feedingType)
               }}
+              onOpenLogPage={(logType) => {
+                if (logType === 'sleep') onNavigate('log-sleep')
+              }}
             />
           </div>
         )}

@@ -20,13 +20,15 @@ import PublicPartnerPage from './pages/PublicPartnerPage'
 import PublicRegisterPage from './pages/PublicRegisterPage'
 import ThankYouPage from './pages/ThankYouPage'
 import UserSettingsPage from './pages/UserSettingsPage'
+import SleepPage from './pages/log/SleepPage'
 import BottomNav from './components/BottomNav'
 import AdminSidebar from './components/AdminSidebar'
 import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
+import ActiveTimerBanner from './components/ActiveTimerBanner'
 import InstallPrompt from './components/InstallPrompt'
 
-export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'community' | 'marketplace'
+export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'community' | 'marketplace' | 'log-sleep'
 export type AdminSection = 'insights' | 'users' | 'workshops' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'registrations' | 'settings'
 
 // Detect public URLs
@@ -48,10 +50,16 @@ function AppInner() {
   const [viewAsUser, setViewAsUser] = useState(false)
   const [unreadForms, setUnreadForms] = useState(0)
   const [unreadRegistrations, setUnreadRegistrations] = useState(0)
+  // Bumps when a timer starts/stops on a log page so the global banner
+  // refetches without a full page reload. ActivityTimers / SleepPage also
+  // mutate active_timers, so a bump on every page change captures those.
+  const [timerVersion, setTimerVersion] = useState(0)
   const { track } = useTracker()
 
   useEffect(() => {
     track('page_view', { page: currentPage })
+    // Banner picks up any timer changes that happened on the previous page.
+    setTimerVersion(v => v + 1)
   }, [currentPage]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-land admins on the admin page (unless viewing as user)
@@ -160,13 +168,14 @@ function AppInner() {
     }
     switch (currentPage) {
       case 'dashboard':  return <DashboardPage onNavigate={setCurrentPage} />
-      case 'journal':    return isPregnant ? <PregnancyDashboard onNavigate={setCurrentPage} /> : <JournalPage />
+      case 'journal':    return isPregnant ? <PregnancyDashboard onNavigate={setCurrentPage} /> : <JournalPage onNavigate={setCurrentPage} />
       case 'benefits':   return <BenefitsPage />
       case 'workshops':  return <WorkshopsPage />
       case 'pro':        return <ProAreaPage />
       case 'admin':      return <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} />
       case 'marketplace': return <ServicesMarketplacePage />
       case 'community':  return <CommunityPage />
+      case 'log-sleep':  return <SleepPage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
       default:           return isPregnant
         ? <PregnancyDashboard onNavigate={setCurrentPage} />
         : <DashboardPage onNavigate={setCurrentPage} />
@@ -214,17 +223,26 @@ function AppInner() {
     )
   }
 
+  // Dedicated action pages get a full screen — no bottom nav, no install prompt
+  // (they have their own back button + sticky CTA).
+  const isLogPage = currentPage.startsWith('log-')
+
   return (
-    <div className="min-h-screen pb-20" style={{ background: '#FFFFFF' }}>
+    <div className={`min-h-screen ${isLogPage ? '' : 'pb-20'}`} style={{ background: '#FFFFFF' }}>
+      <ActiveTimerBanner onNavigate={setCurrentPage} refetchKey={timerVersion} />
       {renderPage()}
-      <BottomNav
-        currentPage={currentPage} onNavigate={navigate}
-        isAdminMode={false} isGuest={isGuest}
-        adminSection={adminSection} onAdminSection={navigateAdmin}
-        viewAsUser={viewAsUser} onToggleUserView={toggleUserView}
-      />
+      {!isLogPage && (
+        <>
+          <BottomNav
+            currentPage={currentPage} onNavigate={navigate}
+            isAdminMode={false} isGuest={isGuest}
+            adminSection={adminSection} onAdminSection={navigateAdmin}
+            viewAsUser={viewAsUser} onToggleUserView={toggleUserView}
+          />
+          <InstallPrompt />
+        </>
+      )}
       <FormTriggerModal />
-      <InstallPrompt />
     </div>
   )
 }
