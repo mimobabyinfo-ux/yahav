@@ -1,6 +1,9 @@
 ﻿import { useState, useEffect } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
+
+const REMEMBERED_EMAIL_KEY = 'mimo_remembered_email'
 
 function moveSessionToSessionStorage() {
   const key = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.includes('auth-token'))
@@ -14,6 +17,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -24,6 +28,13 @@ export default function LoginPage() {
     supabase.from('global_settings').select('setting_value')
       .eq('setting_key', 'app_subtitle').limit(1)
       .then(({ data }) => { const v = data?.[0]?.setting_value; if (v) setSubtitle(v) })
+
+    // Restore remembered email (Remember-Me)
+    const saved = localStorage.getItem(REMEMBERED_EMAIL_KEY)
+    if (saved) {
+      setEmail(saved)
+      setRememberMe(true)
+    }
   }, [])
 
   async function handleGoogle() {
@@ -52,7 +63,12 @@ export default function LoginPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-        if (!rememberMe) moveSessionToSessionStorage()
+        if (rememberMe) {
+          localStorage.setItem(REMEMBERED_EMAIL_KEY, email)
+        } else {
+          localStorage.removeItem(REMEMBERED_EMAIL_KEY)
+          moveSessionToSessionStorage()
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'שגיאה, נסי שוב'
@@ -144,25 +160,36 @@ export default function LoginPage() {
               <label className="block text-sm text-right mb-1.5" style={{ color: '#818267' }}>
                 סיסמה
               </label>
-              <input
-                type="password"
-                name="password"
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••"
-                required
-                minLength={6}
-                className="w-full px-4 py-3.5 rounded-2xl text-right focus:outline-none transition-colors"
-                style={{
-                  border: '1.5px solid #C6BDA0',
-                  color: '#3D2E20',
-                  background: 'white',
-                  fontSize: '0.95rem',
-                }}
-                onFocus={e => (e.target.style.borderColor = '#D9B978')}
-                onBlur={e => (e.target.style.borderColor = '#C6BDA0')}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••"
+                  required
+                  minLength={6}
+                  className="w-full pr-4 pl-11 py-3.5 rounded-2xl text-right focus:outline-none transition-colors"
+                  style={{
+                    border: '1.5px solid #C6BDA0',
+                    color: '#3D2E20',
+                    background: 'white',
+                    fontSize: '0.95rem',
+                  }}
+                  onFocus={e => (e.target.style.borderColor = '#D9B978')}
+                  onBlur={e => (e.target.style.borderColor = '#C6BDA0')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute top-1/2 -translate-y-1/2 left-3 p-1 text-sand-400 hover:text-sand-600"
+                  aria-label={showPassword ? 'הסתר סיסמה' : 'הצג סיסמה'}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
 
             {mode === 'login' && (

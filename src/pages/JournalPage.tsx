@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Share2 } from 'lucide-react'
 import { supabase, DailyLogEntryWithDetails } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
@@ -14,6 +14,7 @@ import DailySummary from '../components/DailySummary'
 import LogEntryModal from '../components/LogEntryModal'
 import QuickActionButtons from '../components/QuickActionButtons'
 import ChildSwitcher from '../components/ChildSwitcher'
+import ShareBabyModal from '../components/ShareBabyModal'
 
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 type ViewMode = 'day' | 'week' | 'month'
@@ -232,6 +233,7 @@ export default function JournalPage() {
   const [upsellType, setUpsellType] = useState<EntryType | null>(null)
   const [refetchKey, setRefetchKey] = useState(0)
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>('all')
+  const [shareOpen, setShareOpen] = useState(false)
   const lastDiaper = useLastEntry('diaper', refetchKey)
   const diaperExtraAction: ExtraAction = {
     type: 'diaper',
@@ -342,14 +344,24 @@ export default function JournalPage() {
 
         {/* Header */}
         <div className="pt-2 flex items-center justify-between">
-          <div>
+          <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-sand-800">יומן</h1>
-            <p className="text-sand-400 text-sm">
-              {viewMode === 'day' ? formatDisplayDate(selectedDate)
-               : viewMode === 'week' ? `שבוע ${isoDate(weekStart)} – ${isoDate(addDays(weekStart, 6))}`
-               : `${MONTH_NAMES[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
-            </p>
+            {selectedChild && !isGuest && (
+              <button
+                onClick={() => setShareOpen(true)}
+                className="p-2 rounded-xl text-sand-400 hover:text-mustard-600 hover:bg-mustard-50 transition-colors"
+                title="שיתוף יומן"
+                aria-label="שיתוף יומן"
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
+            )}
           </div>
+          <p className="text-sand-400 text-sm">
+            {viewMode === 'day' ? formatDisplayDate(selectedDate)
+             : viewMode === 'week' ? `שבוע ${isoDate(weekStart)} – ${isoDate(addDays(weekStart, 6))}`
+             : `${MONTH_NAMES[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
+          </p>
         </div>
 
         {/* Child Switcher */}
@@ -518,6 +530,7 @@ export default function JournalPage() {
           }}
         />
       )}
+      {shareOpen && <ShareBabyModal onClose={() => setShareOpen(false)} />}
     </div>
   )
 }

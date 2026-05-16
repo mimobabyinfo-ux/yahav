@@ -39,6 +39,18 @@ export default function UserSettingsPage() {
   const [savingDueDate, setSavingDueDate] = useState(false)
   const [dueDateError, setDueDateError] = useState('')
 
+  // Mother name editor
+  const [editingName, setEditingName] = useState(false)
+  const [newMotherName, setNewMotherName] = useState('')
+  const [savingName, setSavingName] = useState(false)
+  const [nameError, setNameError] = useState('')
+
+  // Phone editor
+  const [editingPhone, setEditingPhone] = useState(false)
+  const [newPhone, setNewPhone] = useState('')
+  const [savingPhone, setSavingPhone] = useState(false)
+  const [phoneError, setPhoneError] = useState('')
+
   async function saveDueDate() {
     if (!user) return
     if (!newDueDate) { setDueDateError('נא לבחור תאריך'); return }
@@ -49,6 +61,30 @@ export default function UserSettingsPage() {
     if (error) { setDueDateError('שגיאה בשמירה — נסי שוב'); return }
     await refreshProfile()
     setEditingDueDate(false)
+  }
+
+  async function saveMotherName() {
+    if (!user) return
+    if (!newMotherName.trim()) { setNameError('נא למלא שם'); return }
+    setNameError('')
+    setSavingName(true)
+    const { error } = await supabase.from('user_profiles').update({ mother_name: newMotherName.trim() }).eq('id', user.id)
+    setSavingName(false)
+    if (error) { setNameError('שגיאה בשמירה — נסי שוב'); return }
+    await refreshProfile()
+    setEditingName(false)
+  }
+
+  async function savePhone() {
+    if (!user) return
+    if (!newPhone.trim()) { setPhoneError('נא למלא טלפון'); return }
+    setPhoneError('')
+    setSavingPhone(true)
+    const { error } = await supabase.from('user_profiles').update({ phone_number: newPhone.trim() }).eq('id', user.id)
+    setSavingPhone(false)
+    if (error) { setPhoneError('שגיאה בשמירה — נסי שוב'); return }
+    await refreshProfile()
+    setEditingPhone(false)
   }
 
   function startAdd() {
@@ -107,22 +143,93 @@ export default function UserSettingsPage() {
           </button>
         </div>
 
-        {/* פרטים אישיים — read-only */}
+        {/* פרטים אישיים — name + phone editable */}
         <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
           <h2 className="text-sm font-bold text-sand-700">פרטים אישיים</h2>
           <div className="space-y-2.5">
+            {/* Name */}
             <div>
-              <p className="text-[11px] text-sand-400">שם</p>
-              <p className="text-sm text-sand-800 font-medium">
-                {profile?.mother_name || <span className="text-sand-400 italic">לא הוגדר</span>}
-              </p>
+              <p className="text-[11px] text-sand-400 mb-1">שם</p>
+              {editingName ? (
+                <div className="space-y-2">
+                  <input
+                    autoFocus
+                    value={newMotherName}
+                    onChange={e => setNewMotherName(e.target.value)}
+                    placeholder="שם פרטי ומשפחה"
+                    className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                  />
+                  {nameError && <p className="text-xs text-red-500">{nameError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={saveMotherName} disabled={savingName}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-50"
+                      style={{ background: '#E7C78A' }}>
+                      {savingName ? '...' : <><Check className="w-4 h-4" /> שמירה</>}
+                    </button>
+                    <button type="button" onClick={() => { setEditingName(false); setNameError('') }}
+                      className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-sm">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm text-sand-800 font-medium">
+                    {profile?.mother_name || <span className="text-sand-400 italic">לא הוגדר</span>}
+                  </p>
+                  <button type="button"
+                    onClick={() => { setNewMotherName(profile?.mother_name ?? ''); setEditingName(true) }}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-700 hover:text-mustard-800">
+                    <Pencil className="w-3.5 h-3.5" />
+                    ערכי
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* Phone */}
             <div>
-              <p className="text-[11px] text-sand-400">טלפון</p>
-              <p className="text-sm text-sand-800 font-medium" dir="ltr">
-                {profile?.phone_number || <span className="text-sand-400 italic">לא הוגדר</span>}
-              </p>
+              <p className="text-[11px] text-sand-400 mb-1">טלפון</p>
+              {editingPhone ? (
+                <div className="space-y-2">
+                  <input
+                    autoFocus
+                    type="tel"
+                    dir="ltr"
+                    value={newPhone}
+                    onChange={e => setNewPhone(e.target.value)}
+                    placeholder="050-0000000"
+                    className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                  />
+                  {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={savePhone} disabled={savingPhone}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-50"
+                      style={{ background: '#E7C78A' }}>
+                      {savingPhone ? '...' : <><Check className="w-4 h-4" /> שמירה</>}
+                    </button>
+                    <button type="button" onClick={() => { setEditingPhone(false); setPhoneError('') }}
+                      className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-sm">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm text-sand-800 font-medium" dir="ltr">
+                    {profile?.phone_number || <span className="text-sand-400 italic">לא הוגדר</span>}
+                  </p>
+                  <button type="button"
+                    onClick={() => { setNewPhone(profile?.phone_number ?? ''); setEditingPhone(true) }}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-700 hover:text-mustard-800">
+                    <Pencil className="w-3.5 h-3.5" />
+                    ערכי
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* Email — read-only */}
             <div>
               <p className="text-[11px] text-sand-400">אימייל</p>
               <p className="text-sm text-sand-800 font-medium" dir="ltr">

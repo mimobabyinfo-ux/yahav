@@ -1,47 +1,31 @@
-﻿import { useState } from 'react'
-import { Plus, Trash2, Check } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, Trash2, Check, ArrowRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLogo from '../components/MimoLogo'
+import { CITIES } from '../data/cities'
 
 type Mode = 'mom' | 'pregnant'
 
 type Baby = {
-  name: string
+  firstName: string
+  lastName: string
   dob: string
   gender: 'girl' | 'boy' | 'other'
 }
 
-const genderOptions = [
-  { value: 'girl', label: 'בת 👧' },
-  { value: 'boy',  label: 'בן 👶🏻' },
+const genderOptions: { value: 'boy' | 'girl'; label: string }[] = [
+  { value: 'boy',  label: 'זכר' },
+  { value: 'girl', label: 'נקבה' },
 ]
 
-const CITIES = [
-  'אילת', 'אור יהודה', 'אור עקיבא', 'אריאל', 'אשדוד', 'אשקלון',
-  'באר שבע', 'בית שאן', 'בית שמש', 'בני ברק', 'בת ים',
-  'גבעת שמואל', 'גבעתיים', 'גדרה',
-  'הוד השרון', 'הרצליה', 'חדרה', 'חולון', 'חיפה',
-  'טבריה', 'טירת כרמל',
-  'יבנה', 'יהוד', 'ירושלים',
-  'כפר סבא', 'כרמיאל',
-  'לוד',
-  'מזכרת בתיה', 'מודיעין', 'מעלה אדומים',
-  'נהריה', 'נס ציונה', 'נצרת', 'נצרת עילית', 'נתיבות', 'נתניה',
-  'עכו', 'עפולה',
-  'פתח תקווה',
-  'צפת',
-  'קריית אתא', 'קריית ביאליק', 'קריית גת', 'קריית מוצקין', 'קריית שמונה',
-  'ראש העין', 'ראשון לציון', 'רחובות', 'רמלה', 'רמת גן', 'רמת השרון', 'רעננה',
-  'תל אביב', 'תל מונד',
-  'אחר',
-]
-
-const emptyBaby = (): Baby => ({ name: '', dob: '', gender: 'girl' })
+const emptyBaby = (): Baby => ({ firstName: '', lastName: '', dob: '', gender: 'girl' })
 
 export default function OnboardingPage() {
   const { user, refreshProfile, refreshChildren } = useAuth()
-  const [mode, setMode] = useState<Mode>('mom')
+  // 2-step flow: mode is null until the user explicitly picks one,
+  // then the rest of the form unlocks. A back arrow returns here.
+  const [mode, setMode] = useState<Mode | null>(null)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [area, setArea] = useState('')
@@ -61,13 +45,18 @@ export default function OnboardingPage() {
   function addBaby() { setBabies(prev => [...prev, emptyBaby()]) }
   function removeBaby(idx: number) { setBabies(prev => prev.filter((_, i) => i !== idx)) }
 
+  function backToModeSelection() {
+    setMode(null)
+    setError('')
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!user) return
+    if (!user || !mode) return
 
     if (!firstName.trim()) { setError('אנא הכניסי שם פרטי'); return }
     if (!lastName.trim()) { setError('אנא הכניסי שם משפחה'); return }
-    if (!area) { setError('אנא בחרי עיר / אזור'); return }
+    if (!area) { setError('אנא בחרי עיר מגורים'); return }
     if (!phone.trim()) { setError('אנא הכניסי מספר טלפון'); return }
 
     if (mode === 'pregnant') {
@@ -75,7 +64,8 @@ export default function OnboardingPage() {
     }
 
     if (mode === 'mom') {
-      if (babies.some(b => !b.name.trim())) { setError('אנא מלאי שם לכל תינוק/ת'); return }
+      if (babies.some(b => !b.firstName.trim())) { setError('אנא מלאי שם פרטי לכל תינוק/ת'); return }
+      if (babies.some(b => !b.lastName.trim())) { setError('אנא מלאי שם משפחה לכל תינוק/ת'); return }
       if (babies.some(b => !b.dob)) { setError('אנא מלאי תאריך לידה לכל תינוק/ת'); return }
     }
 
@@ -87,7 +77,7 @@ export default function OnboardingPage() {
         id: user.id,
         email: user.email ?? '',
         mother_name: motherName,
-        baby_name: mode === 'mom' ? babies[0].name : null,
+        baby_name: mode === 'mom' ? `${babies[0].firstName.trim()} ${babies[0].lastName.trim()}`.trim() : null,
         baby_dob: mode === 'mom' ? babies[0].dob || null : null,
         baby_gender: mode === 'mom' ? babies[0].gender : null,
         display_name: motherName,
@@ -104,7 +94,7 @@ export default function OnboardingPage() {
         const { error: childError } = await supabase.from('children').insert(
           babies.map(b => ({
             user_id: user.id,
-            name: b.name.trim(),
+            name: `${b.firstName.trim()} ${b.lastName.trim()}`.trim(),
             dob: b.dob || null,
             gender: b.gender,
           }))
@@ -123,32 +113,47 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen flex flex-col justify-center p-6 pb-10" style={{ background: '#FFFFFF' }} dir="rtl">
-      <div className="w-full max-w-sm mx-auto space-y-5">
+      <div className="w-full max-w-sm mx-auto space-y-5 relative">
+        {/* Back arrow — visible only after a mode was selected */}
+        {mode !== null && (
+          <button
+            type="button"
+            onClick={backToModeSelection}
+            className="absolute top-0 left-0 p-2 rounded-xl text-sand-400 hover:text-sand-700 hover:bg-sand-50 transition-colors"
+            aria-label="חזרה לבחירת מצב"
+          >
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        )}
+
         {/* Header */}
         <div className="text-center">
           <div className="flex justify-center mb-2">
             <MimoLogo size={100} />
           </div>
           <h1 className="text-2xl font-bold text-sand-800">ברוכה הבאה!</h1>
-          <p className="text-sand-500 mt-1 text-sm">ספרי לנו קצת עליך</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Mode selector */}
-          <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-4">
-            <p className="text-xs font-semibold text-sand-600 mb-3 text-center">איפה את בתהליך?</p>
+        {/* Step 1: Mode selection only */}
+        {mode === null && (
+          <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
+            <p className="text-sm font-semibold text-sand-700 text-center">איפה את בתהליך?</p>
             <div className="flex gap-2">
               <button type="button" onClick={() => setMode('pregnant')}
-                className={`flex-1 py-3 rounded-2xl text-sm font-bold border-2 transition-all ${mode === 'pregnant' ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}>
+                className="flex-1 py-4 rounded-2xl text-sm font-bold border-2 border-sand-200 text-sand-500 hover:border-mustard-400 hover:bg-mustard-50 hover:text-mustard-700 transition-all">
                 🤰 בהיריון
               </button>
               <button type="button" onClick={() => setMode('mom')}
-                className={`flex-1 py-3 rounded-2xl text-sm font-bold border-2 transition-all ${mode === 'mom' ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}>
+                className="flex-1 py-4 rounded-2xl text-sm font-bold border-2 border-sand-200 text-sand-500 hover:border-mustard-400 hover:bg-mustard-50 hover:text-mustard-700 transition-all">
                 👶 כבר אמא
               </button>
             </div>
           </div>
+        )}
 
+        {/* Step 2: Full form once a mode is picked */}
+        {mode !== null && (
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Mother details */}
           <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-4">
             {/* Name — split */}
@@ -169,7 +174,7 @@ export default function OnboardingPage() {
 
             {/* City combobox */}
             <div className="relative">
-              <label className="block text-xs font-semibold text-sand-600 mb-1.5">עיר / אזור <span className="text-red-400">*</span></label>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">עיר מגורים / יישוב <span className="text-red-400">*</span></label>
               <input
                 type="text"
                 value={citySearch}
@@ -212,20 +217,20 @@ export default function OnboardingPage() {
                 {showPhone && <Check className="w-3 h-3 text-white" />}
               </div>
               <span className="text-xs text-sand-600 leading-relaxed">
-                אני מסכימה לשתף את מספר הטלפון שלי עם אמהות אחרות בקהילה
+                אני מסכימה לשתף את מספר הטלפון שלי עם אמהות אחרות בקהילת מימו
               </span>
             </label>
           </div>
 
           {/* Due date — pregnant only, required */}
           {mode === 'pregnant' && (
-            <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 overflow-hidden">
+            <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5">
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
                 תאריך לידה משוער <span className="text-red-400">*</span>
               </label>
               <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
                 min={new Date().toISOString().split('T')[0]} required dir="ltr"
-                className="w-full max-w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
+                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 text-sm" />
             </div>
           )}
 
@@ -244,11 +249,20 @@ export default function OnboardingPage() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם התינוק/ת <span className="text-red-400">*</span></label>
-                <input type="text" value={baby.name} onChange={e => updateBaby(idx, { name: e.target.value })}
-                  placeholder="שם התינוק שלך" required
-                  className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
+              {/* Baby name — split */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם פרטי <span className="text-red-400">*</span></label>
+                  <input type="text" value={baby.firstName} onChange={e => updateBaby(idx, { firstName: e.target.value })}
+                    placeholder="שם פרטי" required
+                    className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 text-sm" />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם משפחה <span className="text-red-400">*</span></label>
+                  <input type="text" value={baby.lastName} onChange={e => updateBaby(idx, { lastName: e.target.value })}
+                    placeholder="שם משפחה" required
+                    className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 text-sm" />
+                </div>
               </div>
 
               <div>
@@ -266,11 +280,11 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              <div className="overflow-hidden">
+              <div>
                 <label className="block text-xs font-semibold text-sand-600 mb-1.5">תאריך לידה <span className="text-red-400">*</span></label>
                 <input type="date" value={baby.dob} onChange={e => updateBaby(idx, { dob: e.target.value })}
                   max={new Date().toISOString().split('T')[0]} required dir="ltr"
-                  className="w-full max-w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
+                  className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 text-sm" />
               </div>
             </div>
           ))}
@@ -296,6 +310,7 @@ export default function OnboardingPage() {
             {loading ? 'שומרת...' : 'בואי נתחיל! 🎉'}
           </button>
         </form>
+        )}
       </div>
     </div>
   )

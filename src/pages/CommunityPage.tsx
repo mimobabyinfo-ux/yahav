@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { getBabyAge } from '../utils/dateUtils'
+import { CITIES } from '../data/cities'
 
 type CommunityProfile = {
   id: string
@@ -56,6 +57,8 @@ export default function CommunityPage() {
   const [registeredInSession, setRegisteredInSession] = useState(false)
   const initialized = useRef(false)
   const [areaInput, setAreaInput] = useState('')
+  const [citySearch, setCitySearch] = useState('')
+  const [showCities, setShowCities] = useState(false)
   const [phoneInput, setPhoneInput] = useState('')
   const [bioInput, setBioInput] = useState('')
   const [consentChecked, setConsentChecked] = useState(false)
@@ -66,6 +69,7 @@ export default function CommunityPage() {
     if (profile && !initialized.current) {
       initialized.current = true
       setAreaInput(profile.area ?? '')
+      setCitySearch(profile.area ?? '')
       setPhoneInput(profile.phone_number ?? '')
       setBioInput(profile.community_bio ?? '')
       setConsentChecked(profile.community_consent ?? false)
@@ -157,12 +161,7 @@ export default function CommunityPage() {
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
         {/* Header */}
         <div className="pt-2 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-sand-800">קהילה</h1>
-            <p className="text-sand-400 text-sm">
-              {isPregnant ? 'בנות בהריון בשלב דומה' : 'אמהות בשלב דומה כמוך'}
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold text-sand-800">קהילת מימו</h1>
           {profileComplete && !editMode && (
             <button
               onClick={() => setEditMode(true)}
@@ -177,24 +176,38 @@ export default function CommunityPage() {
         {/* Community profile form */}
         {showEditSection && (
           <div className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm space-y-4">
-            <div>
-              <p className="text-base font-bold text-sand-800">
-                {isPregnant ? 'הצטרפי לקהילת הריון 🤰' : 'הצטרפי לקהילה 🌸'}
-              </p>
-              <p className="text-xs text-sand-400 mt-0.5">מלאי פרטים כדי שנשים אחרות יוכלו להתחבר איתך</p>
-            </div>
+            <p className="text-base font-bold text-sand-800">
+              {isPregnant ? 'הצטרפי לקהילת הריון 🤰' : 'הצטרפי לקהילה 🌸'}
+            </p>
 
-            <div>
+            <div className="relative">
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
                 <MapPin className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
-                עיר / אזור
+                עיר מגורים / יישוב
               </label>
               <input
-                value={areaInput}
-                onChange={e => setAreaInput(e.target.value)}
-                placeholder="למשל: תל אביב, ירושלים, חיפה..."
-                className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+                value={citySearch}
+                onChange={e => { setCitySearch(e.target.value); setAreaInput(''); setShowCities(true) }}
+                onFocus={() => setShowCities(true)}
+                onBlur={() => setTimeout(() => setShowCities(false), 150)}
+                placeholder="חיפוש עיר..."
+                autoComplete="off"
+                className={`w-full px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none bg-white ${areaInput ? 'border-mustard-400' : 'border-sand-200 focus:border-mustard-400'}`}
               />
+              {showCities && (
+                <div className="absolute top-full right-0 left-0 z-50 bg-white border-2 border-mustard-200 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto">
+                  {CITIES.filter(c => !citySearch || c.includes(citySearch)).map(c => (
+                    <button key={c} type="button"
+                      onMouseDown={() => { setAreaInput(c); setCitySearch(c); setShowCities(false) }}
+                      className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-800 border-b border-sand-50 last:border-0 transition-colors">
+                      {c}
+                    </button>
+                  ))}
+                  {CITIES.filter(c => !citySearch || c.includes(citySearch)).length === 0 && (
+                    <p className="text-center text-sand-400 text-sm py-3">לא נמצאו תוצאות</p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -237,7 +250,7 @@ export default function CommunityPage() {
                 {consentChecked && <Check className="w-3 h-3 text-white" />}
               </div>
               <span className="text-xs text-sand-600 leading-relaxed">
-                אני מסכימה לשתף את מספר הטלפון שלי עם נשים אחרות בקהילה
+                אני מסכימה לשתף את מספר הטלפון שלי עם נשים אחרות בקהילת מימו
               </span>
             </label>
 
@@ -437,22 +450,6 @@ export default function CommunityPage() {
           )
         )}
 
-        {/* CTA */}
-        <div className="bg-mustard-50 border border-mustard-200 rounded-3xl p-4 text-center space-y-2">
-          <p className="text-sm font-semibold text-sand-800">
-            {isPregnant ? 'רוצה קבוצת וואטסאפ עם בנות בהריון מהאזור?' : 'רוצה קבוצת וואטסאפ עם אמהות מהאזור?'}
-          </p>
-          <a
-            href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(isPregnant ? 'היי! אני בהריון ורוצה להצטרף לקבוצת בנות בהריון 🤰' : 'היי! אני רוצה להצטרף לקבוצת אמהות מהאזור שלי 🌿')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-white text-sm font-bold"
-            style={{ background: '#E7C78A' }}
-          >
-            <MessageCircle className="w-4 h-4" />
-            בקשי להצטרף
-          </a>
-        </div>
       </div>
     </div>
   )

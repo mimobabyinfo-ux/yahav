@@ -1,4 +1,4 @@
-import { Home, BookOpen, ShoppingBag, Users, BarChart2, LogOut, ShieldAlert, Eye, PlayCircle } from 'lucide-react'
+import { Home, BookOpen, ShoppingBag, Users, BarChart2, LogOut, ShieldAlert, Eye } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import type { Page, AdminSection } from '../App'
 
@@ -115,17 +115,17 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
   }
 
   // ── User nav ──────────────────────────────────────────────────────────────
+  // Note: 'pro' (סדנאות / ProAreaPage) is intentionally hidden from nav in
+  // Phase 1 but the route stays functional for direct admin access.
   const userItems: { id: Page; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard',  label: 'בית',     icon: <Home className="w-5 h-5" /> },
     { id: 'journal',    label: 'יומן',    icon: <BookOpen className="w-5 h-5" /> },
-    { id: 'pro',        label: 'סדנאות',  icon: <PlayCircle className="w-5 h-5" /> },
     { id: 'community',  label: 'קהילה',   icon: <span className="text-lg leading-none">🌸</span> },
     { id: 'workshops',  label: 'מוצרים',  icon: <ShoppingBag className="w-5 h-5" /> },
   ]
 
   const pregnancyItems: { id: Page; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard',  label: 'מעקב',    icon: <Home className="w-5 h-5" /> },
-    { id: 'pro',        label: 'סדנאות',  icon: <PlayCircle className="w-5 h-5" /> },
     { id: 'community',  label: 'קהילה',   icon: <span className="text-lg leading-none">🌸</span> },
     { id: 'workshops',  label: 'מוצרים',  icon: <ShoppingBag className="w-5 h-5" /> },
   ]

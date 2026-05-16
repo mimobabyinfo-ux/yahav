@@ -1,9 +1,9 @@
 ﻿import { useEffect, useState, useCallback } from 'react'
-import { ChevronLeft, UserPlus, Copy, Check, MessageCircle, Settings as SettingsIcon } from 'lucide-react'
+import { ChevronLeft, Settings as SettingsIcon } from 'lucide-react'
 import { supabase, DailyTip, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
-import { getBabyAge, getIsraelHour } from '../utils/dateUtils'
+import { getBabyAge } from '../utils/dateUtils'
 import { formatTimeSince } from '../utils/timeSince'
 import { useLastEntry } from '../hooks/useLastEntry'
 import PerkDetailsModal from '../components/PerkDetailsModal'
@@ -21,14 +21,11 @@ type Props = {
 
 
 export default function DashboardPage({ onNavigate }: Props) {
-  const { profile, selectedChild, children, family, createFamily, createFamilyInvite, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
+  const { profile, selectedChild, children, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
   const { ownerName, ownerWhatsapp } = useOwnerSettings()
   const [tip, setTip] = useState<DailyTip | null>(null)
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
-  const [inviteLink, setInviteLink] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-  const [inviteLoading, setInviteLoading] = useState(false)
   const [modalType, setModalType] = useState<EntryType | null>(null)
   const [presetFeedingType, setPresetFeedingType] = useState<'breast' | 'bottle' | 'solid' | undefined>(undefined)
   const [refetchKey, setRefetchKey] = useState(0)
@@ -70,35 +67,6 @@ export default function DashboardPage({ onNavigate }: Props) {
     setFeaturedPerks(data ?? [])
   }
 
-  async function handleCreateInvite() {
-    if (!selectedChild) return
-    setInviteLoading(true)
-    let familyId = family?.id ?? profile?.family_id ?? undefined
-    if (!family) {
-      const newId = await createFamily(profile?.mother_name ?? 'המשפחה שלי')
-      if (newId) familyId = newId
-    }
-    const token = await createFamilyInvite(selectedChild.id, familyId)
-    setInviteLoading(false)
-    if (token) setInviteLink(`${window.location.origin}?join=${token}`)
-  }
-
-  function copyLink() {
-    if (!inviteLink) return
-    navigator.clipboard.writeText(inviteLink)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const greeting = () => {
-    const h = getIsraelHour()
-    if (h < 5) return 'לילה טוב'
-    if (h < 12) return 'בוקר טוב'
-    if (h < 17) return 'צהריים טובים'
-    if (h < 21) return 'ערב טוב'
-    return 'לילה טוב'
-  }
-
   return (
     <div className="min-h-screen p-5 pb-24 relative" dir="rtl">
       {/* Watermark */}
@@ -107,18 +75,14 @@ export default function DashboardPage({ onNavigate }: Props) {
       </div>
 
       <div className="relative z-10 space-y-5 max-w-sm mx-auto">
-        {/* Header */}
+        {/* Header — child name large + age small. Settings cog in corner. */}
         <div className="flex items-start justify-between pt-2">
           <div>
-            <p className="text-sand-400 text-sm">{greeting()},</p>
             <h1 className="text-2xl font-bold text-sand-800">
-              {profile?.mother_name ?? 'אמא'}! 👋
+              {selectedChild?.name ?? profile?.mother_name ?? 'ברוכה הבאה'}
             </h1>
-            {selectedChild && (
-              <p className="text-sand-500 text-sm mt-0.5">
-                {selectedChild.name}
-                {selectedChild.dob && ` · ${getBabyAge(selectedChild.dob)}`}
-              </p>
+            {selectedChild?.dob && (
+              <p className="text-sand-500 text-sm mt-0.5">{getBabyAge(selectedChild.dob)}</p>
             )}
           </div>
           <a
@@ -129,6 +93,9 @@ export default function DashboardPage({ onNavigate }: Props) {
             <SettingsIcon className="w-5 h-5" />
           </a>
         </div>
+
+        {/* Child Switcher — moved above the action bar */}
+        {children.length > 0 && <ChildSwitcher />}
 
         {/* Quick-add bar (above the fold for tired moms) */}
         {selectedChild && (
@@ -154,9 +121,6 @@ export default function DashboardPage({ onNavigate }: Props) {
           </div>
         )}
 
-        {/* Child Switcher */}
-        {children.length > 0 && <ChildSwitcher />}
-
         {/* Assigned tasks */}
         <MyTasksPanel />
 
@@ -173,93 +137,11 @@ export default function DashboardPage({ onNavigate }: Props) {
           </div>
         )}
 
-        {/* Quick access */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => onNavigate('journal')}
-            className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
-          >
-            <span className="text-3xl block mb-2">📔</span>
-            <p className="font-bold text-sand-800">יומן</p>
-            <p className="text-xs text-musgo-600 mt-0.5">מעקב יומיומי על האכלות, שינה והתפתחות</p>
-          </button>
-          <button
-            onClick={() => onNavigate('community')}
-            className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
-          >
-            <span className="text-3xl block mb-2">🌸</span>
-            <p className="font-bold text-sand-800">קהילה</p>
-            <p className="text-xs text-musgo-600 mt-0.5">הכירי אמהות בשלב דומה אלייך</p>
-          </button>
-          <button
-            onClick={() => onNavigate('workshops')}
-            className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-right"
-          >
-            <span className="text-3xl block mb-2">🛍️</span>
-            <p className="font-bold text-sand-800">מוצרים</p>
-            <p className="text-xs text-musgo-600 mt-0.5">סדנאות, ליווי וכל מה שמימו מציעה</p>
-          </button>
-        </div>
-
-        {/* Family invite */}
-        {selectedChild && (
-          <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-mustard-50 flex items-center justify-center flex-shrink-0">
-                <UserPlus className="w-4 h-4 text-mustard-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-sand-800">שתפי את היומן</p>
-                <p className="text-xs text-musgo-600">הזמיני את המשפחה לראות את היומיום של התינוק</p>
-              </div>
-              {!inviteLink && (
-                <button
-                  onClick={handleCreateInvite}
-                  disabled={inviteLoading}
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0 disabled:opacity-50"
-                  style={{ background: '#E7C78A' }}
-                >
-                  {inviteLoading ? '...' : 'צור קישור'}
-                </button>
-              )}
-            </div>
-            {inviteLink && (
-              <div className="mt-3 space-y-2">
-                <p className="text-[10px] text-sand-400 break-all leading-relaxed">{inviteLink}</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={copyLink}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
-                    style={{ background: '#E7C78A' }}
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? 'הועתק!' : 'העתק'}
-                  </button>
-                  <a
-                    href={`https://wa.me/?text=${encodeURIComponent(`היי! הנה קישור לראות ולעדכן את היומן של ${selectedChild.name}: ${inviteLink}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-green-500 text-white"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    שלחי בוואטסאפ
-                  </a>
-                </div>
-                <p className="text-[10px] text-sand-400 text-center">הקישור תקף ל-30 יום</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Featured Perks */}
+        {/* Featured Perks — compact 2-per-row grid */}
         {featuredPerks.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="w-8 h-0.5 rounded-full mb-1.5" style={{ background: '#A35C3D' }} />
-                <h2 className="text-base font-bold text-sand-800">הטבות מומלצות</h2>
-                <p className="text-xs text-musgo-600">הנחות בלעדיות לאמהות מימו</p>
-              </div>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-bold text-sand-800">הטבות מומלצות</h2>
               <button
                 onClick={() => onNavigate('benefits')}
                 className="flex items-center gap-1 text-xs text-mustard-600 font-medium"
@@ -268,27 +150,23 @@ export default function DashboardPage({ onNavigate }: Props) {
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
             </div>
-            <div className="flex gap-3 overflow-x-auto scroll-hide pb-1">
-              {featuredPerks.map(perk => (
+            <div className="grid grid-cols-2 gap-2">
+              {featuredPerks.slice(0, 4).map(perk => (
                 <button
                   key={perk.id}
                   onClick={() => setSelectedPerk(perk)}
-                  className="flex-shrink-0 bg-[#F5F1EB] rounded-2xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all w-44 text-right"
+                  className="bg-[#F5F1EB] rounded-2xl p-3 shadow-sm hover:shadow-md transition-all text-right"
                 >
-                  {perk.logo_url ? (
-                    <img
-                      src={perk.logo_url}
-                      alt={perk.partner_name}
-                      className="w-10 h-10 rounded-xl object-contain mb-3 bg-sand-50 p-1"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-xl bg-mustard-100 flex items-center justify-center mb-3 text-xl">
-                      🎁
-                    </div>
-                  )}
-                  <p className="text-sm font-bold text-sand-800 truncate">{perk.partner_name}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    {perk.logo_url ? (
+                      <img src={perk.logo_url} alt={perk.partner_name} className="w-7 h-7 rounded-lg object-contain bg-sand-50 p-0.5 flex-shrink-0" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-lg bg-mustard-100 flex items-center justify-center text-sm flex-shrink-0">🎁</div>
+                    )}
+                    <p className="text-sm font-bold text-sand-800 truncate">{perk.partner_name}</p>
+                  </div>
                   {perk.short_description && (
-                    <p className="text-xs text-musgo-600 mt-0.5 line-clamp-2">{perk.short_description}</p>
+                    <p className="text-[11px] text-musgo-600 line-clamp-2 leading-snug">{perk.short_description}</p>
                   )}
                 </button>
               ))}
