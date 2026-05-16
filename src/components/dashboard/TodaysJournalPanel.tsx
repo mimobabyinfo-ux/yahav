@@ -49,6 +49,39 @@ function buildFeedingAggregate(f: TodaysSummary['feeding']): string {
   return parts.join(' · ')
 }
 
+// Sleep aggregate line. Splits naps and nights with proper Hebrew
+// pluralization, then a unified "סה"כ" total. Empty string when no
+// completed sleeps today (so the row shows the since-text only — possibly
+// referencing a still-running timer surfaced by the hook).
+//
+// Examples (per spec):
+//   only naps  → "2 שינות יום · 1.8 שעות סה"כ"
+//   only night → "שנת לילה אחת · 9.5 שעות סה"כ"
+//   mixed      → "2 שינות יום · שנת לילה אחת · 11 שעות סה"כ"
+//   one nap    → "שינת יום אחת · 45 דק' סה"כ"
+function buildSleepAggregate(s: TodaysSummary['sleep']): string {
+  if (s.napCount === 0 && s.nightCount === 0) return ''
+
+  const parts: string[] = []
+  if (s.napCount === 1) parts.push('שינת יום אחת')
+  else if (s.napCount > 1) parts.push(`${s.napCount} שינות יום`)
+
+  if (s.nightCount === 1) parts.push('שנת לילה אחת')
+  else if (s.nightCount > 1) parts.push(`${s.nightCount} שנות לילה`)
+
+  // Total: dק' under 1h, otherwise hours with optional 1-decimal place.
+  if (s.totalMinutes < 60) {
+    parts.push(`${Math.round(s.totalMinutes)} דק' סה"כ`)
+  } else {
+    const hrs = s.totalMinutes / 60
+    const rounded = Math.round(hrs * 10) / 10
+    // Drop the trailing .0 so "11" prints as "11" not "11.0".
+    const label = Number.isInteger(rounded) ? `${rounded}` : `${rounded}`
+    parts.push(`${label} שעות סה"כ`)
+  }
+  return parts.join(' · ')
+}
+
 function buildDiaperAggregate(d: TodaysSummary['diaper']): string {
   if (d.count === 0) return ''
   // Breakdown chip lists wet/dirty/both. 'dry' is a separate axis — counted,
@@ -93,18 +126,16 @@ export default function TodaysJournalPanel({ refetchKey = 0, onNavigate }: Props
             isEmpty={s.feeding.count === 0}
           />
 
-          {/* Sleep */}
+          {/* Sleep — `isEmpty` keyed off `last === null` so a row showing
+              only an active sleep timer (no completed entries yet) renders
+              fully-coloured rather than muted. */}
           <Row
             emoji="😴"
             label="שינה אחרונה"
             sinceText={formatTimeSince(s.sleep.last, 'עוד לא היום!')}
-            detail={
-              s.sleep.count > 0
-                ? `${s.sleep.count} שלוקים · ${fmtHoursMins(s.sleep.totalMinutes)} סה"כ`
-                : ''
-            }
+            detail={buildSleepAggregate(s.sleep)}
             onTap={() => onNavigate('journal')}
-            isEmpty={s.sleep.count === 0}
+            isEmpty={s.sleep.last === null}
           />
 
           {/* Diaper */}
