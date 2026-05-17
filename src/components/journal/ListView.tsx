@@ -13,14 +13,14 @@ import DailyTimeline from '../DailyTimeline'
 type FilterChip = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'doctor_visit' | 'milestone' | 'note'
 
 // Chip definitions. Feeding stays a single "האכלה" chip (breast/bottle/
-// solid lumped, per the approved spec). Tummy uses 🐣 to match the
-// Day-view filter strip's existing emoji.
+// solid lumped, per the approved spec). Tummy uses 🤸 to match the
+// Day-view filter strip + TummyTimePage's accent emoji.
 const FILTER_CHIPS: { id: FilterChip; emoji: string; label: string }[] = [
   { id: 'all',          emoji: '',    label: 'הכל' },
   { id: 'feeding',      emoji: '🍼',  label: 'האכלה' },
   { id: 'sleep',        emoji: '😴',  label: 'שינה' },
   { id: 'diaper',       emoji: '💩',  label: 'חיתול' },
-  { id: 'tummy_time',   emoji: '🐣',  label: 'בטן' },
+  { id: 'tummy_time',   emoji: '🤸',  label: 'בטן' },
   { id: 'doctor_visit', emoji: '👨‍⚕️', label: 'רופא' },
   { id: 'milestone',    emoji: '🎯',  label: 'אבן דרך' },
   { id: 'note',         emoji: '📝',  label: 'הערה' },

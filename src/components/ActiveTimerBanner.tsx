@@ -32,7 +32,7 @@ const PAGE_FOR_TIMER: Record<string, Page | undefined> = {
 const META: Record<string, { emoji: string; label: string }> = {
   sleep: { emoji: '😴', label: 'שינה' },
   feeding: { emoji: '🍼', label: 'האכלה' },
-  tummy_time: { emoji: '🐣', label: 'זמן בטן' },
+  tummy_time: { emoji: '🤸', label: 'זמן בטן' },
 }
 
 export default function ActiveTimerBanner({ onNavigate, refetchKey = 0 }: Props) {

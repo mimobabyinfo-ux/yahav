@@ -139,7 +139,7 @@ export default function PublicBabyPage({ token }: Props) {
               { type: 'feeding',    emoji: '🍼', label: 'האכלות' },
               { type: 'sleep',      emoji: '😴', label: 'שינות'   },
               { type: 'diaper',     emoji: '💩', label: 'חיתולים' },
-              { type: 'tummy_time', emoji: '🐣', label: 'זמן בטן' },
+              { type: 'tummy_time', emoji: '🤸', label: 'זמן בטן' },
             ].map(item => (
               <div key={item.type} className="bg-[#F5F1EB] rounded-2xl p-3 shadow-sm text-center">
                 <div className="text-2xl">{item.emoji}</div>

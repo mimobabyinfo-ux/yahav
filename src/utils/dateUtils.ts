@@ -125,10 +125,10 @@ export function entryTypeEmoji(type: string): string {
     feeding: '🍼',
     sleep: '😴',
     diaper: '💩',
-    tummy_time: '🐣',
+    tummy_time: '🤸',
     pumping: '🥛',
-    milestone: '⭐',
-    doctor_visit: '🏥',
+    milestone: '🎯',
+    doctor_visit: '👨‍⚕️',
     note: '📝',
   }
   return emojis[type] ?? '•'

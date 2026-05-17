@@ -15,7 +15,7 @@ const TIMELINE_FILTERS: { value: TimelineFilter; emoji: string; label: string }[
   { value: 'feeding',    emoji: '🍼', label: 'האכלה' },
   { value: 'sleep',      emoji: '😴', label: 'שינה' },
   { value: 'diaper',     emoji: '💩', label: 'חיתול' },
-  { value: 'tummy_time', emoji: '🐣', label: 'בטן' },
+  { value: 'tummy_time', emoji: '🤸', label: 'בטן' },
 ]
 
 // Phase 3 / C4 UX restructure: Day-view now toggles between 3
