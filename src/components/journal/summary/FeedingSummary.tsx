@@ -87,7 +87,7 @@ export default function FeedingSummary({ entries, buckets, granularity, dayCount
     <div className="space-y-4">
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5">
         <p className="text-xs font-semibold text-sand-500 mb-1">ממוצע יומי</p>
-        <p className="text-4xl font-bold text-sand-800 leading-none">{avgPerDay.toFixed(1)} <span className="text-base font-semibold text-sand-500">האכלות</span></p>
+        <p className="text-2xl font-bold text-sand-800 leading-none">{avgPerDay.toFixed(1)} <span className="text-sm font-semibold text-sand-500">האכלות</span></p>
         {subStats.length > 0 && (
           <p className="text-xs text-sand-600 mt-3 leading-relaxed">{subStats.join(' · ')}</p>
         )}
@@ -99,14 +99,17 @@ export default function FeedingSummary({ entries, buckets, granularity, dayCount
       </div>
 
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-3 pt-4">
-        <div dir="ltr" style={{ height: 220 }}>
+        <div dir="ltr" style={{ height: 240 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
               <CartesianGrid strokeDasharray="2 4" stroke="#E5E0D2" vertical={false} />
               <XAxis
                 dataKey="label"
                 tick={{ fontSize: 10, fill: '#9F8F71' }}
-                interval={data.length > 14 ? Math.ceil(data.length / 7) - 1 : 0}
+                interval={Math.max(0, Math.ceil(data.length / 7) - 1)}
+                angle={-35}
+                textAnchor="end"
+                height={42}
                 axisLine={{ stroke: '#E5E0D2' }}
                 tickLine={false}
               />

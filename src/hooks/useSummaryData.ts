@@ -44,11 +44,12 @@ function addDays(d: Date, n: number): Date {
   return out
 }
 
-function pad2(n: number): string { return n.toString().padStart(2, '0') }
-
 function ddmmLabel(iso: string): string {
+  // Compact label for X-axis ticks. No leading zero on month so
+  // dense charts (90D/1Y) don't run out of horizontal room. e.g.
+  // "15/2" rather than "15/02".
   const d = new Date(iso + 'T12:00:00')
-  return `${d.getDate()}/${pad2(d.getMonth() + 1)}`
+  return `${d.getDate()}/${d.getMonth() + 1}`
 }
 
 // Walk back from `iso` to the Sunday of that week (Israeli convention).
