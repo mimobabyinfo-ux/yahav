@@ -1,10 +1,14 @@
 ﻿import { useEffect, useState, useCallback, useRef } from 'react'
-import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft } from 'lucide-react'
+import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft, Tag } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { getBabyAge } from '../utils/dateUtils'
 import { CITIES } from '../data/cities'
+import { COMMUNITY_TAGS, tagDef, type CommunityTagId } from '../constants/communityTags'
+import TagSelector from '../components/community/TagSelector'
+import CommunityTagFilter from '../components/community/CommunityTagFilter'
+import CommunityMemberSheet from '../components/community/CommunityMemberSheet'
 
 type CommunityProfile = {
   id: string
@@ -13,6 +17,7 @@ type CommunityProfile = {
   phone_number: string | null
   community_consent: boolean | null
   community_bio: string | null
+  community_tags: string[] | null
   child_id: string
   child_dob: string | null
   child_gender: 'boy' | 'girl' | 'other' | null
@@ -25,6 +30,7 @@ type PregnantProfile = {
   phone_number: string | null
   community_consent: boolean | null
   community_bio: string | null
+  community_tags: string[] | null
   due_date: string | null
 }
 
@@ -61,9 +67,22 @@ export default function CommunityPage() {
   const [showCities, setShowCities] = useState(false)
   const [phoneInput, setPhoneInput] = useState('')
   const [bioInput, setBioInput] = useState('')
+  const [tagsInput, setTagsInput] = useState<string[]>([])
   const [consentChecked, setConsentChecked] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [saveError, setSaveError] = useState('')
+
+  // Phase 4 / C2: single-select tag filter (independent of age/area
+  // strip). null = "הכל" — no tag narrowing.
+  const [tagFilter, setTagFilter] = useState<CommunityTagId | null>(null)
+  // Open member profile in a bottom sheet. Discriminated union over the
+  // two view types so the sheet's caller knows whether to render mom
+  // or pregnant copy.
+  const [openMember, setOpenMember] = useState<
+    | { kind: 'mom'; member: CommunityProfile }
+    | { kind: 'pregnant'; member: PregnantProfile }
+    | null
+  >(null)
 
   useEffect(() => {
     if (profile && !initialized.current) {
@@ -72,6 +91,7 @@ export default function CommunityPage() {
       setCitySearch(profile.area ?? '')
       setPhoneInput(profile.phone_number ?? '')
       setBioInput(profile.community_bio ?? '')
+      setTagsInput(profile.community_tags ?? [])
       setConsentChecked(profile.community_consent ?? false)
     }
   }, [profile])
@@ -103,6 +123,7 @@ export default function CommunityPage() {
         area: areaInput.trim() || null,
         phone_number: phoneInput.trim() || null,
         community_bio: bioInput.trim() || null,
+        community_tags: tagsInput,
         community_consent: consentChecked,
       })
       .eq('id', user.id)
@@ -122,18 +143,26 @@ export default function CommunityPage() {
   const myArea = (registeredInSession ? areaInput : (profile?.area ?? areaInput)).trim().toLowerCase()
   const myWeek = profile?.due_date ? pregnancyWeek(profile.due_date) : null
 
+  // Tag filter — applied AFTER the age/area chip. A null tagFilter
+  // means "no tag narrowing"; an untagged mom is hidden whenever a tag
+  // is selected (filter intent = "actively looking for X").
+  function matchesTag(tags: string[] | null): boolean {
+    if (tagFilter == null) return true
+    return !!tags?.includes(tagFilter)
+  }
+
   // Filter mom profiles
   const filteredMoms = profiles.filter(p => {
     if (p.id === user?.id) return false
     if (filterMode === 'age') {
       if (myMonths == null || !p.child_dob) return false
-      return Math.abs(ageMonths(p.child_dob) - myMonths) <= 2
+      if (Math.abs(ageMonths(p.child_dob) - myMonths) > 2) return false
     }
     if (filterMode === 'area') {
       if (!myArea || !p.area) return false
-      return p.area.trim().toLowerCase() === myArea
+      if (p.area.trim().toLowerCase() !== myArea) return false
     }
-    return true
+    return matchesTag(p.community_tags)
   })
 
   // Filter pregnant profiles
@@ -141,13 +170,13 @@ export default function CommunityPage() {
     if (p.id === user?.id) return false
     if (pregnancyFilter === 'week') {
       if (myWeek == null || !p.due_date) return false
-      return Math.abs(pregnancyWeek(p.due_date) - myWeek) <= 2
+      if (Math.abs(pregnancyWeek(p.due_date) - myWeek) > 2) return false
     }
     if (pregnancyFilter === 'area') {
       if (!myArea || !p.area) return false
-      return p.area.trim().toLowerCase() === myArea
+      if (p.area.trim().toLowerCase() !== myArea) return false
     }
-    return true
+    return matchesTag(p.community_tags)
   })
 
   const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏻' : g === 'girl' ? '👧' : '👶'
@@ -241,6 +270,19 @@ export default function CommunityPage() {
               />
             </div>
 
+            {/* Phase 4 / C2: structured tags. Optional — empty array
+                = mom not surfaced under any tag filter. */}
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">
+                <Tag className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
+                מה את מחפשת בקהילה?
+              </label>
+              <TagSelector value={tagsInput} onChange={setTagsInput} />
+              <p className="text-[11px] text-sand-400 mt-1.5 leading-relaxed">
+                בחירת תגיות תופיע בפרופיל שלך וגם תעזור לאמהות אחרות למצוא אותך.
+              </p>
+            </div>
+
             <label className="flex items-start gap-3 cursor-pointer">
               <div
                 onClick={() => setConsentChecked(v => !v)}
@@ -311,6 +353,10 @@ export default function CommunityPage() {
           </div>
         )}
 
+        {/* Phase 4 / C2: tag filter — independent of age/area, single
+            select. Overflows horizontally on narrow screens. */}
+        <CommunityTagFilter value={tagFilter} onChange={setTagFilter} />
+
         {/* ── Pregnant community results ─────────────────────────────────────── */}
         {isPregnant && (
           filteredPregnant.length === 0 ? (
@@ -321,6 +367,8 @@ export default function CommunityPage() {
                   ? 'הוסיפי תאריך לידה משוער בפרופיל שלך כדי לסנן לפי שבוע'
                   : pregnancyFilter === 'area' && !myArea
                   ? 'הזיני עיר / אזור בפרופיל שלך כדי לחפש'
+                  : tagFilter
+                  ? 'אין בנות בהריון עם התגית הזו — נסי "הכל" או תגית אחרת'
                   : 'לא נמצאו בנות בהריון בסינון זה — נסי "כולן"'}
               </p>
             </div>
@@ -332,8 +380,16 @@ export default function CommunityPage() {
               </p>
               {filteredPregnant.map(p => {
                 const week = p.due_date ? pregnancyWeek(p.due_date) : null
+                const memberTags = (p.community_tags ?? []).map(tagDef).filter((t): t is (typeof COMMUNITY_TAGS)[number] => !!t)
                 return (
-                  <div key={p.id} className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
+                  <div
+                    key={p.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setOpenMember({ kind: 'pregnant', member: p })}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMember({ kind: 'pregnant', member: p }) } }}
+                    className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                  >
                     <div className="flex items-start gap-3">
                       <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 mt-0.5"
                         style={{ background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)' }}>
@@ -350,8 +406,17 @@ export default function CommunityPage() {
                         {p.community_bio && (
                           <p className="text-xs text-sand-600 mt-1.5 leading-relaxed line-clamp-2">{p.community_bio}</p>
                         )}
+                        {memberTags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {memberTags.slice(0, 3).map(t => (
+                              <span key={t.id} className="text-[10px] text-mustard-700">
+                                {t.emoji} {t.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex-shrink-0">
+                      <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
                         {p.community_consent && p.phone_number ? (
                           <a
                             href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת הריון של Mimo 🤰')}`}
@@ -392,6 +457,8 @@ export default function CommunityPage() {
                   ? 'הזיני עיר / אזור בפרופיל שלך כדי לחפש'
                   : filterMode === 'age' && myMonths == null
                   ? 'הוסיפי תאריך לידה לתינוק/ת כדי לסנן לפי גיל'
+                  : tagFilter
+                  ? 'אין אמהות עם התגית הזו — נסי "הכל" או תגית אחרת'
                   : 'לא נמצאו אמהות בסינון זה — נסי "כולן"'}
               </p>
             </div>
@@ -401,56 +468,110 @@ export default function CommunityPage() {
                 <Filter className="w-3.5 h-3.5" />
                 {filteredMoms.length} אמהות נמצאו
               </p>
-              {filteredMoms.map(p => (
-                <div key={p.child_id} className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 mt-0.5"
-                      style={{ background: '#FFFFFF' }}>
-                      {genderEmoji(p.child_gender)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sand-800 text-sm">
-                        {p.mother_name ? p.mother_name.split(' ')[0] : 'אמא'}
-                      </p>
-                      <p className="text-xs text-sand-400">
-                        {p.child_dob ? getBabyAge(p.child_dob) : ''}
-                        {p.area && ` · ${p.area}`}
-                      </p>
-                      {p.community_bio && (
-                        <p className="text-xs text-sand-600 mt-1.5 leading-relaxed line-clamp-2">{p.community_bio}</p>
-                      )}
-                    </div>
-                    <div className="flex-shrink-0">
-                      {p.community_consent && p.phone_number ? (
-                        <a
-                          href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת Mimo 🌿')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5" />
-                          WhatsApp
-                        </a>
-                      ) : (
-                        <a
-                          href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוק${p.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5" />
-                          חיבור
-                        </a>
-                      )}
+              {filteredMoms.map(p => {
+                const memberTags = (p.community_tags ?? []).map(tagDef).filter((t): t is (typeof COMMUNITY_TAGS)[number] => !!t)
+                return (
+                  <div
+                    key={p.child_id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setOpenMember({ kind: 'mom', member: p })}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMember({ kind: 'mom', member: p }) } }}
+                    className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 mt-0.5"
+                        style={{ background: '#FFFFFF' }}>
+                        {genderEmoji(p.child_gender)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sand-800 text-sm">
+                          {p.mother_name ? p.mother_name.split(' ')[0] : 'אמא'}
+                        </p>
+                        <p className="text-xs text-sand-400">
+                          {p.child_dob ? getBabyAge(p.child_dob) : ''}
+                          {p.area && ` · ${p.area}`}
+                        </p>
+                        {p.community_bio && (
+                          <p className="text-xs text-sand-600 mt-1.5 leading-relaxed line-clamp-2">{p.community_bio}</p>
+                        )}
+                        {memberTags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {memberTags.slice(0, 3).map(t => (
+                              <span key={t.id} className="text-[10px] text-mustard-700">
+                                {t.emoji} {t.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
+                        {p.community_consent && p.phone_number ? (
+                          <a
+                            href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת Mimo 🌿')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            WhatsApp
+                          </a>
+                        ) : (
+                          <a
+                            href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוק${p.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            חיבור
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )
         )}
 
       </div>
+
+      {/* Phase 4 / C2: member profile bottom-sheet. Mom and pregnant
+          variants share the same component, parameterized via props. */}
+      {openMember?.kind === 'mom' && (() => {
+        const m = openMember.member
+        const firstName = m.mother_name?.split(' ')[0] ?? 'אמא'
+        const secondary = m.child_dob ? `אמא ל${m.child_gender === 'girl' ? 'תינוקת' : 'תינוק'} (${getBabyAge(m.child_dob)})` : 'אמא בקהילה'
+        return (
+          <CommunityMemberSheet
+            member={m}
+            avatarEmoji={genderEmoji(m.child_gender)}
+            secondaryLine={secondary}
+            whatsappGreeting={`היי ${firstName}! מצאתי אותך בקהילת Mimo 🌿`}
+            fallbackGreeting={`היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוק${m.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`}
+            onClose={() => setOpenMember(null)}
+          />
+        )
+      })()}
+
+      {openMember?.kind === 'pregnant' && (() => {
+        const m = openMember.member
+        const firstName = m.mother_name?.split(' ')[0] ?? 'בהריון'
+        const week = m.due_date ? pregnancyWeek(m.due_date) : null
+        const secondary = week != null ? `שבוע ${week} להריון` : 'בהריון'
+        return (
+          <CommunityMemberSheet
+            member={m}
+            avatarEmoji="🤰"
+            secondaryLine={secondary}
+            whatsappGreeting={`היי ${firstName}! מצאתי אותך בקהילת הריון של Mimo 🤰`}
+            fallbackGreeting="היי! אני בהריון ורוצה להתחבר עם בנות בשבוע דומה 🤰"
+            onClose={() => setOpenMember(null)}
+          />
+        )
+      })()}
     </div>
   )
 }

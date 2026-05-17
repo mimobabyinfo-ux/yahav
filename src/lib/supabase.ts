@@ -25,6 +25,11 @@ export type UserProfile = {
   phone_number: string | null
   community_consent: boolean
   community_bio: string | null
+  // Phase 4 / C2: preset tags mom can pick to surface in the community
+  // filter (coffee/park/workout/...). Empty array = no preference, mom
+  // is hidden from any tag-scoped filter (filter intent = "actively
+  // looking for X"). IDs enumerated in src/constants/communityTags.ts.
+  community_tags: string[]
   // Phase 4 / C1: when this profile belongs to a guest who redeemed a
   // family invite, the role + custom display name picked by mom flow
   // through here so the journal can greet them by name.
