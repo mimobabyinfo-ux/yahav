@@ -82,7 +82,6 @@ export default function SolidSummary({ entries, buckets, granularity, dayCount, 
                 height={42}
                 axisLine={{ stroke: '#E5E0D2' }}
                 tickLine={false}
-                reversed
               />
               <YAxis
                 tick={{ fontSize: 10, fill: '#9F8F71' }}
