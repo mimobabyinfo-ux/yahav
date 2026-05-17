@@ -1,7 +1,7 @@
 import { X, Camera, Trash2 } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import type { DailyLogEntryWithDetails, SleepDetail } from '../lib/supabase'
+import type { DailyLogEntryWithDetails, SleepDetail, FeedingDetail, DiaperDetail } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatTime } from '../utils/dateUtils'
 import { MILESTONE_CHIPS } from '../constants/milestones'
@@ -106,12 +106,75 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
     return entry.notes
   })
 
-  // Feeding (not edited via this modal in C3, but state still needs to
-  // exist for the create path)
-  const [feedingType, setFeedingType] = useState<'breast' | 'bottle' | 'solid'>(presetFeedingType ?? 'breast')
-  const [breastSide, setBreastSide] = useState<'left' | 'right' | 'both'>('right')
-  const [durationMins, setDurationMins] = useState('')
-  const [amountMl, setAmountMl] = useState('')
+  // Feeding — prefilled from entry in edit mode (C7 unlocks feeding edit).
+  // For breast entries that carry per-side seconds (created by
+  // BreastfeedingPage in Phase 2), we render a 2-input L/R form instead
+  // of the legacy single duration_minutes input. usesBreastPerSide
+  // captures which branch we're in.
+  const [feedingType, setFeedingType] = useState<'breast' | 'bottle' | 'solid'>(() => {
+    if (entry?.entry_type === 'feeding') {
+      const fd = firstOf<FeedingDetail>(entry.feeding_details as FeedingDetail | FeedingDetail[] | null)
+      if (fd?.feeding_type === 'breast' || fd?.feeding_type === 'bottle' || fd?.feeding_type === 'solid') return fd.feeding_type
+    }
+    return presetFeedingType ?? 'breast'
+  })
+  const [breastSide, setBreastSide] = useState<'left' | 'right' | 'both'>(() => {
+    if (entry?.entry_type === 'feeding') {
+      const fd = firstOf<FeedingDetail>(entry.feeding_details as FeedingDetail | FeedingDetail[] | null)
+      if (fd?.breast_side === 'left' || fd?.breast_side === 'right' || fd?.breast_side === 'both') return fd.breast_side
+    }
+    return 'right'
+  })
+  const [durationMins, setDurationMins] = useState(() => {
+    if (entry?.entry_type === 'feeding') {
+      const fd = firstOf<FeedingDetail>(entry.feeding_details as FeedingDetail | FeedingDetail[] | null)
+      if (fd?.duration_minutes != null) return String(fd.duration_minutes)
+    }
+    return ''
+  })
+  const [amountMl, setAmountMl] = useState(() => {
+    if (entry?.entry_type === 'feeding') {
+      const fd = firstOf<FeedingDetail>(entry.feeding_details as FeedingDetail | FeedingDetail[] | null)
+      if (fd?.amount_ml != null) return String(fd.amount_ml)
+    }
+    return ''
+  })
+  const [milkType, setMilkType] = useState<'pumped' | 'formula' | null>(() => {
+    if (entry?.entry_type === 'feeding') {
+      const fd = firstOf<FeedingDetail>(entry.feeding_details as FeedingDetail | FeedingDetail[] | null)
+      if (fd?.milk_type === 'pumped' || fd?.milk_type === 'formula') return fd.milk_type
+    }
+    return null
+  })
+  // Per-side breast inputs — only used when the entry being edited has
+  // per-side seconds populated. Default to empty for create flow.
+  const [leftMins, setLeftMins] = useState(() => {
+    if (entry?.entry_type === 'feeding') {
+      const fd = firstOf<FeedingDetail>(entry.feeding_details as FeedingDetail | FeedingDetail[] | null)
+      if (fd?.left_duration_seconds != null && fd.left_duration_seconds > 0) {
+        return String(Math.round(fd.left_duration_seconds / 60 * 10) / 10)
+      }
+    }
+    return ''
+  })
+  const [rightMins, setRightMins] = useState(() => {
+    if (entry?.entry_type === 'feeding') {
+      const fd = firstOf<FeedingDetail>(entry.feeding_details as FeedingDetail | FeedingDetail[] | null)
+      if (fd?.right_duration_seconds != null && fd.right_duration_seconds > 0) {
+        return String(Math.round(fd.right_duration_seconds / 60 * 10) / 10)
+      }
+    }
+    return ''
+  })
+  // True only when editing a breast entry that ALREADY has per-side
+  // data. The 2-input L/R form preserves that structured data; the
+  // legacy single-input form is used for everything else.
+  const usesBreastPerSide = (() => {
+    if (!entry || entry.entry_type !== 'feeding') return false
+    const fd = firstOf<FeedingDetail>(entry.feeding_details as FeedingDetail | FeedingDetail[] | null)
+    if (fd?.feeding_type !== 'breast') return false
+    return (fd.left_duration_seconds ?? 0) > 0 || (fd.right_duration_seconds ?? 0) > 0
+  })()
 
   // Tummy time — duration parsed out of notes for edit mode.
   const [tummyDuration, setTummyDuration] = useState(() => {
@@ -154,8 +217,16 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
     return ((endMin - startMin) + 1440) % 1440
   }
 
-  // Diaper
-  const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both'>('wet')
+  // Diaper — 'dry' added in C3 (Phase 2 migration 20260601130000) and
+  // surfaced in the dedicated DiaperPage. Edit mode in C7 needs to
+  // round-trip it too.
+  const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both' | 'dry'>(() => {
+    if (entry?.entry_type === 'diaper') {
+      const dd = firstOf<DiaperDetail>(entry.diaper_details as DiaperDetail | DiaperDetail[] | null)
+      if (dd?.diaper_type === 'wet' || dd?.diaper_type === 'dirty' || dd?.diaper_type === 'both' || dd?.diaper_type === 'dry') return dd.diaper_type
+    }
+    return 'wet'
+  })
   const [diaperPhoto, setDiaperPhoto] = useState<Blob | null>(null)
   const [diaperPhotoPreview, setDiaperPhotoPreview] = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
@@ -284,11 +355,65 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
             // Defensive: insert if a sleep entry somehow lacks its detail row.
             await supabase.from('sleep_details').insert({ log_entry_id: entry.id, ...sleepPayload })
           }
+        } else if (effectiveEntryType === 'feeding') {
+          // C7: unlock feeding edit (breast/bottle/solid). Per-side
+          // breast entries from Phase 2 round-trip through the L/R
+          // input pair below; legacy single-duration entries fall
+          // through to the standard payload.
+          const fd = firstOf<FeedingDetail>(entry.feeding_details as FeedingDetail | FeedingDetail[] | null)
+          const payload: Record<string, unknown> = {
+            feeding_type: feedingType,
+            breast_side: feedingType === 'breast' ? breastSide : null,
+            duration_minutes: durationMins ? parseFloat(durationMins) : null,
+            amount_ml: feedingType === 'bottle' && amountMl ? parseInt(amountMl) : null,
+            milk_type: feedingType === 'bottle' ? milkType : null,
+          }
+          // Per-side branch: when the user is editing a breast entry
+          // that already carried per-side seconds, save back to those
+          // columns AND recompute the legacy duration_minutes +
+          // breast_side aggregates so older readers still work.
+          if (usesBreastPerSide && feedingType === 'breast') {
+            const lMins = parseFloat(leftMins) || 0
+            const rMins = parseFloat(rightMins) || 0
+            payload.left_duration_seconds = Math.round(lMins * 60)
+            payload.right_duration_seconds = Math.round(rMins * 60)
+            payload.duration_minutes = parseFloat((lMins + rMins).toFixed(2))
+            payload.breast_side =
+              lMins > 0 && rMins > 0 ? 'both' :
+              lMins > 0 ? 'left' :
+              rMins > 0 ? 'right' : null
+          } else if (feedingType !== 'breast') {
+            // Non-breast feeds shouldn't carry per-side data. Null
+            // them out so a feeding-type switch (breast → bottle)
+            // doesn't leave stale per-side values.
+            payload.left_duration_seconds = null
+            payload.right_duration_seconds = null
+          }
+          if (fd) {
+            await supabase.from('feeding_details').update(payload).eq('id', fd.id)
+          } else {
+            await supabase.from('feeding_details').insert({ log_entry_id: entry.id, ...payload })
+          }
+        } else if (effectiveEntryType === 'diaper') {
+          const dd = firstOf<DiaperDetail>(entry.diaper_details as DiaperDetail | DiaperDetail[] | null)
+          const diaperPayload = {
+            diaper_type: diaperType,
+            notes: notes || null,
+          }
+          if (dd) {
+            await supabase.from('diaper_details').update(diaperPayload).eq('id', dd.id)
+          } else {
+            await supabase.from('diaper_details').insert({ log_entry_id: entry.id, ...diaperPayload })
+          }
+          // Photo intentionally NOT edited in v1 — existing diaper photo
+          // preserved as-is (the daily_log_entries.photo_url field is
+          // not touched by this UPDATE).
         }
-        // tummy_time + note + doctor_visit: no detail update needed. Tummy
-        // duration lives in notes; medical_details (when present) is
-        // intentionally not edited from this modal — that needs the
-        // dedicated MedicalPage form.
+        // tummy_time + note + doctor_visit + milestone: no detail
+        // update needed beyond the daily_log_entries.notes UPDATE
+        // already done above. Tummy duration lives in notes; milestone
+        // chip/custom + extra also live in notes; medical_details is
+        // intentionally not edited from this modal.
 
         onSaved()
         onClose()
@@ -438,20 +563,65 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                   <BreastfeedingQuickSwitch side={breastSide} onChange={setBreastSide} />
                 </div>
               )}
-              {feedingType !== 'solid' && (
+              {/* Breast with per-side data (Phase 2 BreastfeedingPage entries):
+                  L/R 2-input form preserves the structured per-side seconds.
+                  Legacy single-duration entries fall through to the single
+                  input below. */}
+              {feedingType === 'breast' && usesBreastPerSide && (
                 <div className="flex gap-3">
                   <div className="flex-1">
-                    <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות)</label>
+                    <label className="block text-xs font-semibold text-sand-600 mb-1">שמאל (דקות)</label>
                     <input
                       type="number"
                       min="0"
+                      step="0.1"
                       placeholder="0"
-                      value={durationMins}
-                      onChange={e => setDurationMins(e.target.value)}
+                      value={leftMins}
+                      onChange={e => setLeftMins(e.target.value)}
                       className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
                     />
                   </div>
-                  {feedingType === 'bottle' && (
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-sand-600 mb-1">ימין (דקות)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="0"
+                      value={rightMins}
+                      onChange={e => setRightMins(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
+                    />
+                  </div>
+                </div>
+              )}
+              {feedingType === 'breast' && !usesBreastPerSide && (
+                <div>
+                  <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={durationMins}
+                    onChange={e => setDurationMins(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
+                  />
+                </div>
+              )}
+              {feedingType === 'bottle' && (
+                <>
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={durationMins}
+                        onChange={e => setDurationMins(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
+                      />
+                    </div>
                     <div className="flex-1">
                       <label className="block text-xs font-semibold text-sand-600 mb-1">כמות (מ"ל)</label>
                       <input
@@ -463,8 +633,27 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                         className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500"
                       />
                     </div>
-                  )}
-                </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-sand-600 mb-2">סוג חלב</label>
+                    <div className="flex gap-2">
+                      {([['pumped', 'חלב אם שאוב'], ['formula', 'תמ"ל']] as const).map(([k, label]) => (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => setMilkType(milkType === k ? null : k)}
+                          className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all border-2 ${
+                            milkType === k
+                              ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
+                              : 'border-sand-200 text-sand-600 hover:border-sand-300'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
               {feedingType === 'solid' && (
                 <div>
@@ -539,18 +728,20 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-sand-600 mb-2">סוג חיתול</label>
-                <div className="flex gap-2">
-                  {(['wet', 'dirty', 'both'] as const).map(t => (
+                {/* 2x2 grid — DiaperPage uses the same layout for its 4
+                    types so the 480px width stays readable. */}
+                <div className="grid grid-cols-2 gap-2">
+                  {(['wet', 'dirty', 'both', 'dry'] as const).map(t => (
                     <button
                       key={t}
                       onClick={() => setDiaperType(t)}
-                      className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all border-2 ${
+                      className={`py-2 rounded-xl text-sm font-medium transition-all border-2 ${
                         diaperType === t
                           ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
                           : 'border-sand-200 text-sand-600'
                       }`}
                     >
-                      {t === 'wet' ? 'פיפי' : t === 'dirty' ? 'קקי' : 'שניהם'}
+                      {t === 'wet' ? 'פיפי' : t === 'dirty' ? 'קקי' : t === 'both' ? 'שניהם' : 'יבש'}
                     </button>
                   ))}
                 </div>

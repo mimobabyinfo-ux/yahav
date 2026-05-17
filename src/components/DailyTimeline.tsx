@@ -5,11 +5,14 @@ import { entryTypeLabel, entryTypeEmoji, formatDuration } from '../utils/dateUti
 import { supabase } from '../lib/supabase'
 import DiaperPhotoThumbnail from './DiaperPhotoThumbnail'
 
-// Phase 3 / C3: entry types whose timeline cards are tappable to edit.
-// Other types (feeding/diaper/milestone) need data-faithful edit UIs that
-// LogEntryModal doesn't yet provide; tapping them is a no-op and the card
-// renders without the editable cursor / pencil affordance.
-const EDITABLE_TYPES: ReadonlySet<string> = new Set(['sleep', 'tummy_time', 'note', 'doctor_visit'])
+// Phase 3 / C7: tap-to-edit is wired for every standard log type. Feeding
+// (incl. per-side breast), diaper (with 'dry'), and milestone joined in C7
+// — LogEntryModal now round-trips their data. Photos/videos on diaper +
+// milestone entries are preserved as-is; the modal doesn't expose a
+// re-upload UI yet (deferred — out of scope for v1 edit).
+const EDITABLE_TYPES: ReadonlySet<string> = new Set([
+  'sleep', 'tummy_time', 'note', 'doctor_visit', 'feeding', 'diaper', 'milestone',
+])
 
 type Props = {
   entries: DailyLogEntryWithDetails[]
