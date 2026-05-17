@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase, UserProfile, Child, Family, PurchasedWorkshop } from '../lib/supabase'
+import type { ShareRole } from '../constants/shareRoles'
 
 type AuthContextType = {
   user: User | null
@@ -16,7 +17,13 @@ type AuthContextType = {
   family: Family | null
   familyMembers: UserProfile[]
   createFamily: (name: string) => Promise<string | null>
-  createFamilyInvite: (childId: string, familyId?: string) => Promise<string | null>
+  // Phase 4 / C1: role + recipient_name flow through to the invite row so
+  // the guest's profile can be greeted by name. familyId stays optional
+  // — falls back to the caller's own family_id.
+  createFamilyInvite: (
+    childId: string,
+    opts?: { role?: ShareRole; recipientName?: string; familyId?: string },
+  ) => Promise<string | null>
   redeemFamilyInvite: (token: string) => Promise<boolean>
   hasActiveWorkshopAccess: boolean
   activeAccessUntil: string | null
@@ -162,8 +169,11 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
     return fam.id
   }
 
-  async function createFamilyInvite(childId: string, familyId?: string): Promise<string | null> {
-    const fid = familyId ?? profile?.family_id
+  async function createFamilyInvite(
+    childId: string,
+    opts?: { role?: ShareRole; recipientName?: string; familyId?: string },
+  ): Promise<string | null> {
+    const fid = opts?.familyId ?? profile?.family_id
     if (!user || !fid) return null
     const token = Math.random().toString(36).substring(2, 8).toUpperCase()
     const { error } = await supabase.from('family_invite_tokens').insert({
@@ -171,18 +181,23 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       child_id: childId,
       token,
       created_by: user.id,
+      role: opts?.role ?? null,
+      recipient_name: opts?.recipientName?.trim() || null,
     })
     if (error) return null
     return token
   }
 
   async function redeemFamilyInvite(token: string): Promise<boolean> {
-    // Look up the token (anon RLS allows this)
+    // Look up the token (anon RLS allows this). Phase 4 / C1: also
+    // filter out revoked invites — mom can kill access from the
+    // management page by stamping revoked_at.
     const { data: invite } = await supabase
       .from('family_invite_tokens')
       .select('*')
       .eq('token', token.toUpperCase())
       .gt('expires_at', new Date().toISOString())
+      .is('revoked_at', null)
       .maybeSingle()
     if (!invite) return false
 
@@ -198,7 +213,9 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       return false
     }
 
-    // Upsert profile immediately with a unique email to avoid conflicts
+    // Upsert profile immediately with a unique email to avoid conflicts.
+    // Phase 4 / C1: mirror role + recipient_name onto the guest profile
+    // so the journal greeting doesn't need to re-query the invite row.
     await supabase.from('user_profiles').upsert({
       id: authData.user.id,
       email: `guest-${authData.user.id.slice(0, 12)}@mimo.internal`,
@@ -206,7 +223,18 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       is_pro: false,
       is_admin: false,
       lead_status: 'new_lead',
+      family_role: invite.role ?? null,
+      family_display_name: invite.recipient_name ?? null,
     }, { onConflict: 'id' })
+
+    // Stamp last_accessed_at on the invite so the management page can
+    // show "נכנס לאחרונה: …". Fire-and-forget — failure here shouldn't
+    // block the redeem flow.
+    supabase
+      .from('family_invite_tokens')
+      .update({ last_accessed_at: new Date().toISOString() })
+      .eq('id', invite.id)
+      .then(() => {})
 
     // Force refresh so App.tsx sees the profile without waiting for onAuthStateChange
     const prof = await fetchProfile(authData.user.id)

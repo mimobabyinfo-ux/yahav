@@ -3,6 +3,7 @@ import { ArrowRight, LogOut, Plus, Check, X, Pencil } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
+import SharingManagementPanel from '../components/sharing/SharingManagementPanel'
 
 function genderEmoji(g: string | null) {
   return g === 'boy' ? '👶🏻' : g === 'girl' ? '👧' : '👶'
@@ -412,6 +413,16 @@ export default function UserSettingsPage() {
             </button>
           )}
         </section>
+        )}
+
+        {/* ניהול שיתופים — Phase 4 / C1. Mom-mode only (no journal to
+            share for pregnant users), hidden when no child exists since
+            invites are per-child. */}
+        {profile?.user_mode !== 'pregnant' && children.length > 0 && (
+          <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
+            <h2 className="text-sm font-bold text-sand-700">ניהול שיתופים</h2>
+            <SharingManagementPanel />
+          </section>
         )}
 
         {/* יציאה */}

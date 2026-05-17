@@ -190,15 +190,32 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
       </div>
 
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
-        {/* Guest banner */}
-        {isGuest && selectedChild && (
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={{ background: 'linear-gradient(135deg, #FFF8E7, #FFF0CC)' }}>
-            <span className="text-lg">👁️</span>
-            <p className="text-xs font-semibold text-mustard-800">
-              צופה ביומן של {selectedChild.name} — הצטרפת כבן/בת משפחה
-            </p>
-          </div>
-        )}
+        {/* Guest banner — Phase 4 / C1 surfaces role + custom name from
+            the redeemed invite so the greeting feels personal. Falls
+            back to the generic "בן/בת משפחה" label for legacy guests
+            whose invites predate the role column. */}
+        {isGuest && selectedChild && (() => {
+          const roleLabelMap: Record<string, { emoji: string; label: string }> = {
+            father:  { emoji: '👨',    label: 'אבא' },
+            grandma: { emoji: '👵',    label: 'סבתא' },
+            grandpa: { emoji: '👴',    label: 'סבא' },
+            aunt:    { emoji: '👩',    label: 'דודה' },
+            nanny:   { emoji: '👩‍⚕️', label: 'מטפלת' },
+          }
+          const def = profile?.family_role ? roleLabelMap[profile.family_role] : null
+          const name = profile?.family_display_name?.trim()
+          const greeting = name
+            ? `היי ${name}! זה היומן של ${selectedChild.name}`
+            : def
+              ? `שלום ${def.label} — זה היומן של ${selectedChild.name}`
+              : `צופה ביומן של ${selectedChild.name} — הצטרפת כבן/בת משפחה`
+          return (
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={{ background: 'linear-gradient(135deg, #FFF8E7, #FFF0CC)' }}>
+              <span className="text-lg">{def?.emoji ?? '👁️'}</span>
+              <p className="text-xs font-semibold text-mustard-800">{greeting}</p>
+            </div>
+          )
+        })()}
 
         {/* Header */}
         <div className="pt-2 flex items-center justify-between">

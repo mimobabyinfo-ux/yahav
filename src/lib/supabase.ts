@@ -25,6 +25,11 @@ export type UserProfile = {
   phone_number: string | null
   community_consent: boolean
   community_bio: string | null
+  // Phase 4 / C1: when this profile belongs to a guest who redeemed a
+  // family invite, the role + custom display name picked by mom flow
+  // through here so the journal can greet them by name.
+  family_role: 'father' | 'grandma' | 'grandpa' | 'aunt' | 'nanny' | null
+  family_display_name: string | null
   user_mode: 'pregnant' | 'mom' | null
   due_date: string | null
   reminder_water_enabled: boolean
@@ -46,6 +51,22 @@ export type Family = {
   family_name: string | null
   invite_code: string
   created_at: string
+}
+
+// Phase 4 / C1: a row in family_invite_tokens. role + recipient_name +
+// revoked_at + last_accessed_at added by migration 20260603000000.
+export type FamilyInviteToken = {
+  id: string
+  family_id: string
+  child_id: string | null
+  token: string
+  created_by: string | null
+  expires_at: string
+  created_at: string
+  role: 'father' | 'grandma' | 'grandpa' | 'aunt' | 'nanny' | null
+  recipient_name: string | null
+  revoked_at: string | null
+  last_accessed_at: string | null
 }
 
 export type PurchasedWorkshop = {
