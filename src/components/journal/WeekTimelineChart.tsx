@@ -208,14 +208,11 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
     <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
       {/* Day headers — letter + date, tappable to day view. Rendered in
           RTL order: Sunday on the right, Saturday on the left.
-          dir="ltr" on the grid container is REQUIRED — without it, the
-          inherited dir="rtl" from JournalPage causes CSS Grid to mirror
-          its columns, which would re-flip our daysRtl array back to
-          chronological order. Forcing LTR here keeps the time-rail
-          (column 1) leftmost and the day columns rendering in our
-          intended reversed order. */}
-      <div dir="ltr" className="grid grid-cols-[28px_repeat(7,minmax(0,1fr))] border-b border-sand-100">
-        <div /> {/* spacer aligned with time-axis column */}
+          Time rail moved to column 8 (rightmost) for full-RTL feel —
+          dir="ltr" on the grid container still required so daysRtl
+          isn't re-flipped by inherited RTL (see WeekTimelineChart fix
+          commit 60a5cf4 for the grid-mirror bug). */}
+      <div dir="ltr" className="grid grid-cols-[repeat(7,minmax(0,1fr))_28px] border-b border-sand-100">
         {daysRtl.map(d => {
           const ds = formatDate(d)
           const isToday = ds === todayIso
@@ -237,30 +234,20 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
             </button>
           )
         })}
+        <div /> {/* spacer aligned with time-axis column (now rightmost) */}
       </div>
 
       {/* Chart body — key on weekStart so the animate-fade-in fires on
           every week navigation. dir="ltr" matches the header strip above
-          (see comment there for why — RTL parent would mirror the grid). */}
+          (see comment there for why — RTL parent would mirror the grid).
+          Time rail is column 8 (rightmost) to match the RTL feel — the
+          day columns flow Sat→Sun from left→right, then the rail. */}
       <div
         dir="ltr"
         key={weekStart.toISOString()}
-        className="grid grid-cols-[28px_repeat(7,minmax(0,1fr))] animate-fade-in"
+        className="grid grid-cols-[repeat(7,minmax(0,1fr))_28px] animate-fade-in"
         style={{ height: CHART_HEIGHT_PX }}
       >
-        {/* Time axis — 6/12/18 labels in LTR so digits read naturally */}
-        <div className="relative border-l border-sand-100" dir="ltr">
-          {GRID_HOURS.map(h => (
-            <span
-              key={h}
-              className="absolute text-[9px] text-sand-300 right-1"
-              style={{ top: `calc(${(h / 24) * 100}% - 5px)` }}
-            >
-              {String(h).padStart(2, '0')}:00
-            </span>
-          ))}
-        </div>
-
         {/* 7 day columns — RTL render order matches the header strip. */}
         {daysRtl.map(d => {
           const ds = formatDate(d)
@@ -318,6 +305,23 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
             </button>
           )
         })}
+
+        {/* Time rail — now rightmost (column 8 of the grid template).
+            Labels use `left-1` so they sit at the rail's INNER edge,
+            right next to the day-column boundary, rather than floating
+            at the far-right of the chart. Internal text stays LTR via
+            dir="ltr" so "06:00" reads naturally. */}
+        <div className="relative border-l border-sand-100" dir="ltr">
+          {GRID_HOURS.map(h => (
+            <span
+              key={h}
+              className="absolute text-[9px] text-sand-300 left-1"
+              style={{ top: `calc(${(h / 24) * 100}% - 5px)` }}
+            >
+              {String(h).padStart(2, '0')}:00
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   )
