@@ -16,6 +16,9 @@ type Props = {
   onRefresh: () => void
   /** Tap-to-edit dispatch. Fires only for entry types in EDITABLE_TYPES. */
   onEditEntry?: (entry: DailyLogEntryWithDetails) => void
+  /** When true, suppress the "ציר זמן" section header. ListView sets this
+   *  because each date group already carries its own date header above. */
+  hideHeading?: boolean
 }
 
 // Color scheme per entry type. Used by DailyTimeline, DailySummary, and the
@@ -110,7 +113,7 @@ function entrySubtitle(entry: DailyLogEntryWithDetails): string {
   return ''
 }
 
-export default function DailyTimeline({ entries, onRefresh, onEditEntry }: Props) {
+export default function DailyTimeline({ entries, onRefresh, onEditEntry, hideHeading }: Props) {
   const [photoDeletedIds, setPhotoDeletedIds] = useState<Set<string>>(new Set())
 
   async function deleteEntry(id: string) {
@@ -126,7 +129,7 @@ export default function DailyTimeline({ entries, onRefresh, onEditEntry }: Props
 
   return (
     <div className="space-y-1.5">
-      <h3 className="text-sm font-semibold text-musgo-600 px-1">ציר זמן</h3>
+      {!hideHeading && <h3 className="text-sm font-semibold text-musgo-600 px-1">ציר זמן</h3>}
       {entries.map((entry, idx) => {
         const colors = entryColors(entry)
         const subtitle = entrySubtitle(entry)

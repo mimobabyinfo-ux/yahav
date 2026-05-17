@@ -75,6 +75,10 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   const [entries, setEntries] = useState<DailyLogEntryWithDetails[]>([])
   const [allEntries, setAllEntries] = useState<DailyLogEntryWithDetails[]>([])
   const [loading, setLoading] = useState(true)
+  // Separate loading flag for the week-range fetch (used by Week + List
+  // tabs). The day-tab `loading` flag is unrelated; both can be in flight
+  // simultaneously as the user switches tabs.
+  const [rangeLoading, setRangeLoading] = useState(false)
   const [modalType, setModalType] = useState<EntryType | null>(null)
   const [presetFeedingType, setPresetFeedingType] = useState<'breast' | 'bottle' | 'solid' | undefined>(undefined)
   // Phase 3 / C3: tap-to-edit. When set, LogEntryModal opens prefilled
@@ -131,9 +135,10 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
     fetchEntries()
   }, [fetchEntries])
 
-  // Fetch all entries for a range (week view)
+  // Fetch all entries for a range (week + list views)
   const fetchRangeEntries = useCallback(async (from: string, to: string) => {
     if (!user) return
+    setRangeLoading(true)
     let query = supabase
       .from('daily_log_entries')
       .select(`*, feeding_details(*), sleep_details(*), diaper_details(*)`)
@@ -148,20 +153,22 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
     }
     const { data } = await query
     setAllEntries((data ?? []) as DailyLogEntryWithDetails[])
+    setRangeLoading(false)
   }, [user, selectedChild, getFamilyUserIds])
 
   useEffect(() => {
     if (tab === 'day') {
       fetchEntries()
-    } else if (tab === 'week') {
-      // Widen by one day so cross-midnight sleeps that began on the
-      // Saturday BEFORE weekStart still appear on Sunday's column in
-      // the chart (C4 / Q7). Chart filters to the 7 visible days.
+    } else if (tab === 'week' || tab === 'list') {
+      // Week tab widens by one day on the LEFT so cross-midnight sleeps
+      // from the Saturday BEFORE weekStart still appear on Sunday's
+      // column in the chart (C4 / Q7). List view reuses the same range
+      // (visible 7 days only — the chart's filter logic ignores any extra).
       const from = formatDate(addDays(weekStart, -1))
       const to = formatDate(addDays(weekStart, 6))
       fetchRangeEntries(from, to)
     }
-    // list + summary tabs are placeholders in C3 — no fetch.
+    // summary tab is still a placeholder (lands in C6).
   }, [tab, selectedDate, weekStart, fetchEntries, fetchRangeEntries])
 
   function handleDayClick(date: string) {
@@ -270,7 +277,16 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
           />
         )}
 
-        {tab === 'list' && <ListView onBackToDay={() => setTab('day')} />}
+        {tab === 'list' && (
+          <ListView
+            entries={allEntries}
+            weekStart={weekStart}
+            onWeekShift={setWeekStart}
+            loading={rangeLoading}
+            onEntrySaved={handleEntrySaved}
+            onEditEntry={setEditingEntry}
+          />
+        )}
         {tab === 'summary' && <SummaryView onBackToDay={() => setTab('day')} />}
       </div>
 

@@ -2,13 +2,11 @@ import { useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
 import type { DailyLogEntryWithDetails } from '../../lib/supabase'
 import { formatDate, formatDisplayDate } from '../../utils/dateUtils'
+import { hebrewDateHeader } from '../../utils/hebrewDate'
 import HorizontalCalendar from '../HorizontalCalendar'
 import DailySummary from '../DailySummary'
 import DailyTimeline from '../DailyTimeline'
 import DayTimelineChart from './DayTimelineChart'
-
-// Hebrew weekday labels for the date header (e.g. "יום שישי").
-const HE_WEEKDAY = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'שבת']
 
 // Timeline filter — shown only inside the "list" sub-view.
 type TimelineFilter = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time'
@@ -47,13 +45,6 @@ function shiftDate(iso: string, days: number): string {
   const d = new Date(iso + 'T00:00:00')
   d.setDate(d.getDate() + days)
   return formatDate(d)
-}
-function hebrewDateHeader(iso: string): string {
-  // "יום שישי · 14 ביולי"
-  const d = new Date(iso + 'T00:00:00')
-  const weekday = HE_WEEKDAY[d.getDay()]
-  const dm = d.toLocaleDateString('he-IL', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'long' })
-  return `${weekday} · ${dm}`
 }
 
 export default function DayView({
