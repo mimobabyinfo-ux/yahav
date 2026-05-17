@@ -71,7 +71,7 @@ export default function SolidSummary({ entries, buckets, granularity, dayCount, 
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-3 pt-4">
         <div dir="ltr" style={{ height: 240 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
+            <BarChart data={data} margin={{ top: 4, right: -16, bottom: 4, left: 4 }}>
               <CartesianGrid strokeDasharray="2 4" stroke="#E5E0D2" vertical={false} />
               <XAxis
                 dataKey="label"
@@ -84,6 +84,7 @@ export default function SolidSummary({ entries, buckets, granularity, dayCount, 
                 tickLine={false}
               />
               <YAxis
+                orientation="right"
                 tick={{ fontSize: 10, fill: '#9F8F71' }}
                 axisLine={false}
                 tickLine={false}
