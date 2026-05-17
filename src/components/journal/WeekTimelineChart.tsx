@@ -198,13 +198,19 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
   const visibleDates = new Set(days.map(d => formatDate(d)))
   const segmentsByDate = buildSegmentsByDate(entries, visibleDates)
   const nowMin = currentMinuteOfDay()
+  // Render order: Sunday on the RIGHT, Saturday on the LEFT (Hebrew RTL —
+  // time flows right-to-left through the week). Reverse a render-only copy
+  // so segment building (which keyed off the chronological order) stays
+  // unaffected.
+  const daysRtl = [...days].reverse()
 
   return (
     <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
-      {/* Day headers — letter + date, tappable to day view */}
+      {/* Day headers — letter + date, tappable to day view. Rendered in
+          RTL order: Sunday on the right, Saturday on the left. */}
       <div className="grid grid-cols-[28px_repeat(7,minmax(0,1fr))] border-b border-sand-100">
         <div /> {/* spacer aligned with time-axis column */}
-        {days.map((d, i) => {
+        {daysRtl.map(d => {
           const ds = formatDate(d)
           const isToday = ds === todayIso
           return (
@@ -213,7 +219,9 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
               onClick={() => onDayClick(ds)}
               className="flex flex-col items-center py-2 hover:bg-mustard-50 transition-colors"
             >
-              <span className="text-[10px] text-sand-400">{DAY_LABELS[i]}</span>
+              {/* DAY_LABELS keyed by getDay() so the letter is correct
+                  regardless of render order. */}
+              <span className="text-[10px] text-sand-400">{DAY_LABELS[d.getDay()]}</span>
               <span
                 className={`text-sm font-bold mt-0.5 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'text-white' : 'text-sand-700'}`}
                 style={isToday ? { background: '#E7C78A' } : {}}
@@ -245,8 +253,8 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
           ))}
         </div>
 
-        {/* 7 day columns */}
-        {days.map(d => {
+        {/* 7 day columns — RTL render order matches the header strip. */}
+        {daysRtl.map(d => {
           const ds = formatDate(d)
           const isToday = ds === todayIso
           const segs = segmentsByDate[ds] ?? []
