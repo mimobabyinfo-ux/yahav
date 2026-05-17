@@ -207,8 +207,14 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
   return (
     <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
       {/* Day headers — letter + date, tappable to day view. Rendered in
-          RTL order: Sunday on the right, Saturday on the left. */}
-      <div className="grid grid-cols-[28px_repeat(7,minmax(0,1fr))] border-b border-sand-100">
+          RTL order: Sunday on the right, Saturday on the left.
+          dir="ltr" on the grid container is REQUIRED — without it, the
+          inherited dir="rtl" from JournalPage causes CSS Grid to mirror
+          its columns, which would re-flip our daysRtl array back to
+          chronological order. Forcing LTR here keeps the time-rail
+          (column 1) leftmost and the day columns rendering in our
+          intended reversed order. */}
+      <div dir="ltr" className="grid grid-cols-[28px_repeat(7,minmax(0,1fr))] border-b border-sand-100">
         <div /> {/* spacer aligned with time-axis column */}
         {daysRtl.map(d => {
           const ds = formatDate(d)
@@ -234,8 +240,10 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
       </div>
 
       {/* Chart body — key on weekStart so the animate-fade-in fires on
-          every week navigation. */}
+          every week navigation. dir="ltr" matches the header strip above
+          (see comment there for why — RTL parent would mirror the grid). */}
       <div
+        dir="ltr"
         key={weekStart.toISOString()}
         className="grid grid-cols-[28px_repeat(7,minmax(0,1fr))] animate-fade-in"
         style={{ height: CHART_HEIGHT_PX }}
