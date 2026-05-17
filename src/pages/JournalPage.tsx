@@ -287,7 +287,15 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
             onEditEntry={setEditingEntry}
           />
         )}
-        {tab === 'summary' && <SummaryView onBackToDay={() => setTab('day')} />}
+        {tab === 'summary' && (
+          <SummaryView
+            refetchKey={refetchKey}
+            onNavigateToDay={(iso) => {
+              setSelectedDate(iso)
+              setTab('day')
+            }}
+          />
+        )}
       </div>
 
       {/* Create modal (past-date taps + non-hybrid action types) */}
