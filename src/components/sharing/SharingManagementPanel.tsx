@@ -57,11 +57,15 @@ export default function SharingManagementPanel() {
   async function revoke(id: string) {
     if (!window.confirm('לבטל את הגישה? המקבל לא יוכל להיכנס יותר.')) return
     setRevokingId(id)
-    await supabase
+    const { error } = await supabase
       .from('family_invite_tokens')
       .update({ revoked_at: new Date().toISOString() })
       .eq('id', id)
     setRevokingId(null)
+    if (error) {
+      alert('שגיאה בביטול הגישה — נסי שנית')
+      return
+    }
     setRows(prev => prev.filter(r => r.id !== id))
   }
 

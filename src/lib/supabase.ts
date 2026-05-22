@@ -236,6 +236,7 @@ export type GlobalSetting = {
 export type DailyLogEntry = {
   id: string
   user_id: string
+  child_id: string | null
   entry_date: string
   entry_time: string
   entry_type: 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'pumping' | 'milestone' | 'doctor_visit' | 'note'
