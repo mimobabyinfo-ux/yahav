@@ -105,14 +105,19 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
               onCreate={async (role, recipientName) => {
                 if (!baby?.id) return
                 // Lazy-create the mom's family on the very first invite.
-                if (!profile?.family_id) {
+                // Capture the family ID immediately from createFamily's return
+                // value — reading profile?.family_id after await would still
+                // see the stale closure value before React re-renders.
+                let familyId = profile?.family_id ?? null
+                if (!familyId) {
                   const familyName = profile?.mother_name
                     ? `המשפחה של ${profile.mother_name}`
                     : 'המשפחה שלי'
-                  await createFamily(familyName)
+                  familyId = await createFamily(familyName)
                   await refreshProfile()
                 }
-                const token = await createFamilyInvite(baby.id, { role, recipientName })
+                if (!familyId) return
+                const token = await createFamilyInvite(baby.id, { role, recipientName, familyId })
                 if (token) {
                   setStage({ kind: 'family-success', token, role, recipientName })
                 }
