@@ -77,6 +77,17 @@ export default function PublicRegisterPage() {
     return [sel, ...workshops.filter(w => w.id !== selected)]
   }, [workshops, selected])
 
+  // Phase 5 / B: per-workshop dedicated links. When ?register=<id>
+  // matches an active public-registration workshop, lock the form to
+  // that single workshop — no chip strip, no other options. Invalid /
+  // inactive / wrong-id values fall through silently to the full list
+  // (existing behavior preserved for backwards compat with bare
+  // ?register links).
+  const lockedWorkshop = useMemo(() => {
+    if (!preselect) return null
+    return workshops.find(w => w.id === preselect) ?? null
+  }, [workshops, preselect])
+
   function validate() {
     const e: Record<string, string> = {}
     if (!name.trim()) e.name = 'שם מלא נדרש'
@@ -173,34 +184,47 @@ export default function PublicRegisterPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-sand-600 mb-0.5">בחירת מוצר</label>
-            <p className="text-xs text-sand-400 mb-2">את כל המוצרים ניתן לקנות גם כמתנת לידה</p>
-            {orderedWorkshops.length === 0 && (
+            <label className="block text-xs font-semibold text-sand-600 mb-0.5">
+              {lockedWorkshop ? 'המוצר שנבחר עבורך' : 'בחירת מוצר'}
+            </label>
+            {!lockedWorkshop && (
+              <p className="text-xs text-sand-400 mb-2">את כל המוצרים ניתן לקנות גם כמתנת לידה</p>
+            )}
+            {!lockedWorkshop && orderedWorkshops.length === 0 && (
               <div className="text-center text-sand-400 text-sm py-6">אין סדנאות זמינות כרגע</div>
             )}
             <div className="space-y-2">
-              {orderedWorkshops.map(w => {
+              {(lockedWorkshop ? [lockedWorkshop] : orderedWorkshops).map(w => {
                 const active = selected === w.id
-                const isExpanded = expanded.has(w.id)
+                const isExpanded = expanded.has(w.id) || (!!lockedWorkshop && !!w.description)
+                const locked = !!lockedWorkshop
                 return (
                   <div
                     key={w.id}
-                    onClick={() => setSelected(w.id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(w.id) } }}
-                    className={`w-full text-right p-3 rounded-2xl border-2 transition-all cursor-pointer ${active ? 'border-mustard-400 bg-mustard-50' : 'border-sand-200 bg-white hover:border-mustard-200'}`}
+                    onClick={locked ? undefined : () => setSelected(w.id)}
+                    role={locked ? undefined : 'button'}
+                    tabIndex={locked ? undefined : 0}
+                    onKeyDown={locked ? undefined : e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(w.id) } }}
+                    className={`w-full text-right p-3 rounded-2xl border-2 transition-all ${
+                      locked
+                        ? 'border-mustard-400 bg-mustard-50'
+                        : active
+                          ? 'border-mustard-400 bg-mustard-50 cursor-pointer'
+                          : 'border-sand-200 bg-white hover:border-mustard-200 cursor-pointer'
+                    }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${active ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
-                        {active && <div className="w-2 h-2 rounded-full bg-white" />}
-                      </div>
+                      {!locked && (
+                        <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${active ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
+                          {active && <div className="w-2 h-2 rounded-full bg-white" />}
+                        </div>
+                      )}
                       {w.image_url && <img src={w.image_url} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />}
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sand-800 text-sm">{w.title}</p>
                         {w.price != null && <p className="text-xs font-bold text-mustard-600 mt-0.5">₪{w.price}</p>}
                       </div>
-                      {w.description && (
+                      {!locked && w.description && (
                         <button
                           type="button"
                           onClick={e => { e.stopPropagation(); toggleExpand(w.id) }}

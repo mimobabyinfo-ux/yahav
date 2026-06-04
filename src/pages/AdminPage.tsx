@@ -1002,6 +1002,16 @@ function WorkshopsTabDesktop() {
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+  // Phase 5 / B: per-workshop registration link copy.
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  function copyRegisterLink(id: string) {
+    const link = `${window.location.origin}?register=${id}`
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(prev => prev === id ? null : prev), 1500)
+    })
+  }
 
   async function uploadImage(file: File): Promise<string | null> {
     const ext = file.name.split('.').pop()
@@ -1129,6 +1139,15 @@ function WorkshopsTabDesktop() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100">📂 תוכן</button>
+                      {(w as unknown as { public_registration?: boolean }).public_registration && (
+                        <button
+                          onClick={() => copyRegisterLink(w.id)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100"
+                          title="העתקת לינק להרשמה ישירה למוצר הזה"
+                        >
+                          {copiedId === w.id ? '✓ הועתק' : '🔗 לינק'}
+                        </button>
+                      )}
                       <button onClick={() => openEdit(w)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
                       <button onClick={() => del(w.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
@@ -2741,6 +2760,17 @@ function WorkshopsTab() {
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false })
   const [uploadingImage, setUploadingImage] = useState(false)
+  // Phase 5 / B: per-workshop registration link copy. Tracks which row
+  // just showed the "copied" feedback so the icon flips for ~1.5s.
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  function copyRegisterLink(id: string) {
+    const link = `${window.location.origin}?register=${id}`
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(prev => prev === id ? null : prev), 1500)
+    })
+  }
 
   async function uploadImage(file: File): Promise<string | null> {
     const ext = file.name.split('.').pop()
@@ -2890,12 +2920,23 @@ function WorkshopsTab() {
               <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
-          <button
-            onClick={() => setContentWorkshop(w)}
-            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-mustard-50 text-mustard-700 hover:bg-mustard-100 transition-colors"
-          >
-            📂 ניהול תוכן
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setContentWorkshop(w)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-mustard-50 text-mustard-700 hover:bg-mustard-100 transition-colors"
+            >
+              📂 ניהול תוכן
+            </button>
+            {(w as unknown as { public_registration?: boolean }).public_registration && (
+              <button
+                onClick={() => copyRegisterLink(w.id)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                title="העתקת לינק להרשמה ישירה למוצר הזה"
+              >
+                {copiedId === w.id ? '✓ הועתק' : '🔗 לינק ייעודי'}
+              </button>
+            )}
+          </div>
         </div>
       ))}
 
