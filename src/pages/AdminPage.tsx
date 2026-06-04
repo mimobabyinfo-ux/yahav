@@ -4752,6 +4752,37 @@ function RegistrationsTab() {
   const [search, setSearch] = useState('')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
+  // Phase 5 / A3: bulk-action selection. Persists across filter and
+  // view-mode changes for convenience, but bulk actions act ONLY on
+  // rows that are both selected AND currently visible — the bar
+  // always displays the visible/total split so the user sees exactly
+  // what an action will hit. Reset on tab switch (component unmount).
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectGroup(groupLeads: RegistrationLead[]) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      const allOn = groupLeads.every(l => next.has(l.id))
+      if (allOn) {
+        for (const l of groupLeads) next.delete(l.id)
+      } else {
+        for (const l of groupLeads) next.add(l.id)
+      }
+      return next
+    })
+  }
+
+  function clearSelection() {
+    setSelected(new Set())
+  }
 
   const load = useCallback(async () => {
     const [{ data: l }, { data: w }, { data: c }] = await Promise.all([
@@ -4804,6 +4835,35 @@ function RegistrationsTab() {
     paid: leads.filter(l => l.status === 'paid').length,
     handled: leads.filter(l => l.status === 'handled').length,
   }), [leads])
+
+  // Phase 5 / A3: visible-selected = intersection of `selected` with
+  // the currently-filtered list. Bulk actions act on this set, NEVER
+  // on hidden selections — guarantees no surprise edits.
+  const visibleSelectedIds = useMemo(() => {
+    if (selected.size === 0) return [] as string[]
+    return filtered.filter(l => selected.has(l.id)).map(l => l.id)
+  }, [filtered, selected])
+
+  async function bulkSetStatus(status: RegistrationLead['status']) {
+    if (visibleSelectedIds.length === 0) return
+    const idSet = new Set(visibleSelectedIds)
+    await supabase.from('registration_leads').update({ status }).in('id', visibleSelectedIds)
+    setLeads(prev => prev.map(l => idSet.has(l.id) ? { ...l, status } : l))
+    // Selection NOT cleared — user may want to chain another action
+    // (e.g. copy phones, then mark שילמה). Explicit × clears.
+  }
+
+  function bulkCopyPhones(): string {
+    // Digits only, newline-separated, no country code prefix —
+    // identical format to the cohort-header copy-phones button.
+    const idSet = new Set(visibleSelectedIds)
+    const phones = filtered
+      .filter(l => idSet.has(l.id))
+      .map(l => l.phone.replace(/\D/g, ''))
+      .filter(Boolean)
+      .join('\n')
+    return phones
+  }
 
   // Phase 5 / A1 Stage 2: view mode — flat list vs grouped by cohort.
   // Filters apply to BOTH modes; grouped is just a render strategy.
@@ -4906,6 +4966,8 @@ function RegistrationsTab() {
           onUpdateCohort={updateCohort}
           onDelete={del}
           onAddCohort={ws => setCohortsForRegWorkshop(ws)}
+          selected={selected.has(l.id)}
+          onToggleSelect={toggleSelect}
         />
       ))}
 
@@ -4918,6 +4980,9 @@ function RegistrationsTab() {
           onUpdateCohort={updateCohort}
           onDelete={del}
           onAddCohort={ws => setCohortsForRegWorkshop(ws)}
+          selected={selected}
+          onToggleSelect={toggleSelect}
+          onToggleSelectGroup={toggleSelectGroup}
         />
       )}
 
@@ -4927,6 +4992,25 @@ function RegistrationsTab() {
           onClose={() => { setCohortsForRegWorkshop(null); load() }}
         />
       )}
+
+      {/* Phase 5 / A3: bulk action bar — shown when ≥1 visible
+          registration is selected. Actions act on visible-selected
+          only; the count makes the split clear. */}
+      <BulkActionBar
+        visibleCount={visibleSelectedIds.length}
+        totalSelected={selected.size}
+        onClear={clearSelection}
+        onMarkPaid={() => bulkSetStatus('paid')}
+        onMarkHandled={() => bulkSetStatus('handled')}
+        onMarkPending={() => bulkSetStatus('pending')}
+        onCopyPhones={() => {
+          const phones = bulkCopyPhones()
+          if (phones) navigator.clipboard.writeText(phones)
+        }}
+      />
+
+      {/* Spacer so the last card isn't hidden under the sticky bar */}
+      {visibleSelectedIds.length > 0 && <div className="h-24" aria-hidden="true" />}
     </div>
   )
 }
@@ -4945,6 +5029,9 @@ type RegistrationCardProps = {
   onAddCohort: (w: Workshop) => void
   hideWorkshopMeta?: boolean
   hideCohortRow?: boolean
+  // Phase 5 / A3: selection plumbing for bulk actions.
+  selected?: boolean
+  onToggleSelect?: (id: string) => void
 }
 
 function RegistrationCard({
@@ -4957,12 +5044,28 @@ function RegistrationCard({
   onAddCohort,
   hideWorkshopMeta,
   hideCohortRow,
+  selected,
+  onToggleSelect,
 }: RegistrationCardProps) {
+  // Selected cards get a subtle mustard ring + tint — scannable but
+  // doesn't break the existing aesthetic.
+  const cardClass = selected
+    ? 'bg-mustard-50 ring-2 ring-mustard-400 rounded-2xl shadow-sm p-4 space-y-2'
+    : 'bg-[#F5F1EB] rounded-2xl shadow-sm p-4 space-y-2'
   return (
-    <div className="bg-[#F5F1EB] rounded-2xl shadow-sm p-4 space-y-2">
+    <div className={cardClass}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
+            {onToggleSelect && (
+              <input
+                type="checkbox"
+                checked={!!selected}
+                onChange={() => onToggleSelect(l.id)}
+                aria-label={`בחירת ${l.name}`}
+                className="w-5 h-5 accent-mustard-500 flex-shrink-0 cursor-pointer"
+              />
+            )}
             <p className="font-bold text-sand-800 text-sm">{l.name}</p>
             <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold" style={{ color: REG_STATUS_LABELS[l.status].color, background: REG_STATUS_LABELS[l.status].bg }}>
               {REG_STATUS_LABELS[l.status].label}
@@ -5048,6 +5151,10 @@ type GroupedViewProps = {
   onUpdateCohort: (id: string, cohortId: string | null) => void
   onDelete: (id: string) => void
   onAddCohort: (w: Workshop) => void
+  // Phase 5 / A3: selection plumbing.
+  selected: Set<string>
+  onToggleSelect: (id: string) => void
+  onToggleSelectGroup: (groupLeads: RegistrationLead[]) => void
 }
 
 function todayLocalIso(): string {
@@ -5066,6 +5173,9 @@ function RegistrationsGroupedView({
   onUpdateCohort,
   onDelete,
   onAddCohort,
+  selected,
+  onToggleSelect,
+  onToggleSelectGroup,
 }: GroupedViewProps) {
   const cohortById = useMemo(() => {
     const m = new Map<string, WorkshopCohort>()
@@ -5144,7 +5254,7 @@ function RegistrationsGroupedView({
     })
   }
 
-  const handlers = { onUpdateStatus, onUpdateCohort, onDelete, onAddCohort }
+  const handlers = { onUpdateStatus, onUpdateCohort, onDelete, onAddCohort, selected, onToggleSelect, onToggleSelectGroup }
 
   return (
     <>
@@ -5226,6 +5336,10 @@ type CohortGroupProps = {
   onUpdateCohort: (id: string, cohortId: string | null) => void
   onDelete: (id: string) => void
   onAddCohort: (w: Workshop) => void
+  // Phase 5 / A3
+  selected: Set<string>
+  onToggleSelect: (id: string) => void
+  onToggleSelectGroup: (groupLeads: RegistrationLead[]) => void
 }
 
 function CohortGroup({
@@ -5244,7 +5358,19 @@ function CohortGroup({
   onUpdateCohort,
   onDelete,
   onAddCohort,
+  selected,
+  onToggleSelect,
+  onToggleSelectGroup,
 }: CohortGroupProps) {
+  // Tri-state group checkbox: none / some (indeterminate) / all.
+  let selectedInGroup = 0
+  for (const l of leads) if (selected.has(l.id)) selectedInGroup++
+  const allSelected = leads.length > 0 && selectedInGroup === leads.length
+  const someSelected = selectedInGroup > 0 && !allSelected
+  // useRef-style imperative on the input for indeterminate visual.
+  const checkboxRef = (el: HTMLInputElement | null) => {
+    if (el) el.indeterminate = someSelected
+  }
   // Status breakdown — only non-zero buckets render.
   let pending = 0, paid = 0, handled = 0
   for (const l of leads) {
@@ -5279,6 +5405,15 @@ function CohortGroup({
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="checkbox"
+              ref={checkboxRef}
+              checked={allSelected}
+              onChange={() => onToggleSelectGroup(leads)}
+              onClick={e => e.stopPropagation()}
+              aria-label={`בחירת כל ההרשמות בקבוצה ${headerLabel}`}
+              className="w-5 h-5 accent-mustard-500 flex-shrink-0 cursor-pointer"
+            />
             {expanded
               ? <ChevronDown className="w-4 h-4 text-sand-400 flex-shrink-0" />
               : <ChevronUp className="w-4 h-4 text-sand-400 flex-shrink-0 rotate-180" />}
@@ -5316,10 +5451,106 @@ function CohortGroup({
               onAddCohort={onAddCohort}
               hideWorkshopMeta={headerKind !== 'no-cohort'}
               hideCohortRow={headerKind !== 'no-cohort'}
+              selected={selected.has(l.id)}
+              onToggleSelect={onToggleSelect}
             />
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── BulkActionBar (Phase 5 / A3) ───────────────────────────────────
+// Sticky-bottom bar that slides up when there's at least one
+// visible-selected registration. Actions act ONLY on the visible
+// selection — the count makes the split explicit so there are no
+// surprise edits when filters are active.
+//
+// ממתינה is visually deprioritized (smaller, neutral) as the
+// "undo a mis-tag" affordance; שילמה + טופלה are the primary
+// daily actions.
+//
+// Layout uses flex-wrap so the bar stays usable down to 320px:
+// labels wrap to a second line rather than overflow.
+function BulkActionBar({
+  visibleCount,
+  totalSelected,
+  onClear,
+  onMarkPaid,
+  onMarkHandled,
+  onMarkPending,
+  onCopyPhones,
+}: {
+  visibleCount: number
+  totalSelected: number
+  onClear: () => void
+  onMarkPaid: () => void
+  onMarkHandled: () => void
+  onMarkPending: () => void
+  onCopyPhones: () => void
+}) {
+  if (visibleCount === 0) return null
+  const hiddenSelected = totalSelected - visibleCount
+  // Count display: when all selected are visible → "N נבחרו".
+  // When some are hidden behind active filters → "M מתוך N נבחרו"
+  // so the user sees exactly what an action will hit.
+  const countLabel = hiddenSelected > 0
+    ? `${visibleCount} מתוך ${totalSelected} נבחרו`
+    : `${visibleCount} נבחרו`
+  const [copiedFlash, setCopiedFlash] = useState(false)
+  function handleCopy() {
+    onCopyPhones()
+    setCopiedFlash(true)
+    setTimeout(() => setCopiedFlash(false), 1500)
+  }
+  return (
+    <div
+      className="fixed bottom-0 left-0 right-0 z-40 bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.08)] border-t border-sand-200"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      dir="rtl"
+    >
+      <div className="max-w-2xl mx-auto px-3 py-2.5 flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={onClear}
+            className="p-1.5 rounded-lg hover:bg-sand-100 text-sand-500"
+            aria-label="בטלי בחירה"
+            title="בטלי בחירה"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <span className="text-xs font-semibold text-sand-700">{countLabel}</span>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            onClick={onMarkPending}
+            className="px-2 py-1.5 rounded-lg text-[11px] font-semibold bg-sand-100 text-sand-600 hover:bg-sand-200 transition-colors"
+            title="החזרה לסטטוס ממתינה — לשחזור מתיוג שגוי"
+          >
+            ⏳ ממתינה
+          </button>
+          <button
+            onClick={onMarkPaid}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+          >
+            ✅ שילמה
+          </button>
+          <button
+            onClick={onMarkHandled}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+          >
+            📞 טופלה
+          </button>
+          <button
+            onClick={handleCopy}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-mustard-50 text-mustard-700 hover:bg-mustard-100 transition-colors"
+            title="העתקת טלפונים — מוכן להדבקה בקבוצת WhatsApp"
+          >
+            {copiedFlash ? '✓ הועתק' : '📋 טלפונים'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
