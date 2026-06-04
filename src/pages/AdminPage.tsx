@@ -4,10 +4,11 @@ import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSe
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
-import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent } from '../lib/supabase'
+import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent, type WorkshopCohort } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { BUYING_SUBCATEGORIES } from '../data/buyingSubcategories'
 import type { AdminSection } from '../App'
+import CohortsModal from '../components/admin/CohortsModal'
 
 type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
@@ -997,6 +998,8 @@ const EMPTY_WORKSHOP_FORM = { title: '', description: '', summary: '', price: ''
 function WorkshopsTabDesktop() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
+  // Phase 5 / A1: cohort manager modal. User-facing label "מחזורים".
+  const [cohortsWorkshop, setCohortsWorkshop] = useState<Workshop | null>(null)
   const [drawer, setDrawer] = useState<'create' | 'edit' | null>(null)
   const [form, setForm] = useState({ ...EMPTY_WORKSHOP_FORM })
   const [editing, setEditing] = useState<Workshop | null>(null)
@@ -1139,6 +1142,13 @@ function WorkshopsTabDesktop() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100">📂 תוכן</button>
+                      <button
+                        onClick={() => setCohortsWorkshop(w)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100"
+                        title="ניהול מחזורים"
+                      >
+                        📅 מחזורים
+                      </button>
                       {(w as unknown as { public_registration?: boolean }).public_registration && (
                         <button
                           onClick={() => copyRegisterLink(w.id)}
@@ -1235,6 +1245,7 @@ function WorkshopsTabDesktop() {
       )}
 
       {contentWorkshop && <WorkshopContentModal workshop={contentWorkshop} onClose={() => setContentWorkshop(null)} />}
+      {cohortsWorkshop && <CohortsModal workshop={cohortsWorkshop} onClose={() => setCohortsWorkshop(null)} />}
     </div>
   )
 }
@@ -2758,6 +2769,8 @@ function WorkshopsTab() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Workshop | null>(null)
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
+  // Phase 5 / A1: cohort manager modal. User-facing label "מחזורים".
+  const [cohortsWorkshop, setCohortsWorkshop] = useState<Workshop | null>(null)
   const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false })
   const [uploadingImage, setUploadingImage] = useState(false)
   // Phase 5 / B: per-workshop registration link copy. Tracks which row
@@ -2920,17 +2933,24 @@ function WorkshopsTab() {
               <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setContentWorkshop(w)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-mustard-50 text-mustard-700 hover:bg-mustard-100 transition-colors"
+              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-mustard-50 text-mustard-700 hover:bg-mustard-100 transition-colors"
             >
               📂 ניהול תוכן
+            </button>
+            <button
+              onClick={() => setCohortsWorkshop(w)}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+              title="ניהול מחזורים — תאריכי התחלה למוצר הזה"
+            >
+              📅 מחזורים
             </button>
             {(w as unknown as { public_registration?: boolean }).public_registration && (
               <button
                 onClick={() => copyRegisterLink(w.id)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
                 title="העתקת לינק להרשמה ישירה למוצר הזה"
               >
                 {copiedId === w.id ? '✓ הועתק' : '🔗 לינק ייעודי'}
@@ -2941,6 +2961,7 @@ function WorkshopsTab() {
       ))}
 
       {contentWorkshop && <WorkshopContentModal workshop={contentWorkshop} onClose={() => setContentWorkshop(null)} />}
+      {cohortsWorkshop && <CohortsModal workshop={cohortsWorkshop} onClose={() => setCohortsWorkshop(null)} />}
     </div>
   )
 }
@@ -4684,6 +4705,9 @@ type RegistrationLead = {
   status: 'pending' | 'paid' | 'handled'
   source: string | null
   created_at: string
+  // Phase 5 / A1: attached cohort ("מחזור"). Nullable — existing
+  // registrations remain valid until admin assigns one.
+  cohort_id: string | null
   workshops?: { title: string } | null
 }
 
@@ -4696,6 +4720,15 @@ const REG_STATUS_LABELS: Record<RegistrationLead['status'], { label: string; col
 function RegistrationsTab() {
   const [leads, setLeads] = useState<RegistrationLead[]>([])
   const [workshops, setWorkshops] = useState<Workshop[]>([])
+  // Phase 5 / A1: all cohorts loaded once and filtered client-side per
+  // registration's workshop in the picker. Includes inactive cohorts so
+  // existing assignments to deactivated cohorts still render their
+  // label (no orphan rows).
+  const [cohorts, setCohorts] = useState<WorkshopCohort[]>([])
+  // Lazy-create cohort flow: when a registration's workshop has no
+  // cohorts yet, the row exposes a "+ הוסיפי מחזור" link that opens the
+  // CohortsModal for THAT workshop. Closing the modal reloads.
+  const [cohortsForRegWorkshop, setCohortsForRegWorkshop] = useState<Workshop | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | RegistrationLead['status']>('all')
   const [workshopFilter, setWorkshopFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
@@ -4703,18 +4736,25 @@ function RegistrationsTab() {
   const [toDate, setToDate] = useState('')
 
   const load = useCallback(async () => {
-    const [{ data: l }, { data: w }] = await Promise.all([
+    const [{ data: l }, { data: w }, { data: c }] = await Promise.all([
       supabase.from('registration_leads').select('*, workshops:selected_workshop_id(title)').order('created_at', { ascending: false }),
-      supabase.from('workshops').select('id,title').order('display_order'),
+      supabase.from('workshops').select('*').order('display_order'),
+      supabase.from('workshop_cohorts').select('*').order('start_date', { ascending: false }),
     ])
     setLeads((l ?? []) as RegistrationLead[])
     setWorkshops((w ?? []) as Workshop[])
+    setCohorts((c ?? []) as WorkshopCohort[])
   }, [])
   useEffect(() => { load() }, [load])
 
   async function updateStatus(id: string, status: RegistrationLead['status']) {
     await supabase.from('registration_leads').update({ status }).eq('id', id)
     setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l))
+  }
+
+  async function updateCohort(id: string, cohortId: string | null) {
+    await supabase.from('registration_leads').update({ cohort_id: cohortId }).eq('id', id)
+    setLeads(prev => prev.map(l => l.id === id ? { ...l, cohort_id: cohortId } : l))
   }
 
   async function del(id: string) {
@@ -4876,8 +4916,88 @@ function RegistrationsTab() {
               <option value="handled">טופלה</option>
             </select>
           </div>
+
+          {/* Phase 5 / A1: cohort assignment — the high-frequency action.
+              Native <select> for max mobile speed (single tap opens
+              iOS/Android picker wheel). Options scoped to the
+              registration's workshop. */}
+          <CohortPickerRow
+            lead={l}
+            workshops={workshops}
+            cohorts={cohorts}
+            onChange={updateCohort}
+            onAddCohort={ws => setCohortsForRegWorkshop(ws)}
+          />
         </div>
       ))}
+
+      {cohortsForRegWorkshop && (
+        <CohortsModal
+          workshop={cohortsForRegWorkshop}
+          onClose={() => { setCohortsForRegWorkshop(null); load() }}
+        />
+      )}
+    </div>
+  )
+}
+
+// Phase 5 / A1: shared cohort picker row used by Registrations (mobile
+// + desktop). Extracted so the desktop table cell can reuse the same
+// matching logic. Renders:
+//   - native <select> when the registration's workshop has cohorts
+//   - "+ הוסיפי מחזור" link when the workshop exists but has no cohorts
+//   - "← בחרי סדנה קודם" hint when no workshop is assigned
+function CohortPickerRow({
+  lead,
+  workshops,
+  cohorts,
+  onChange,
+  onAddCohort,
+  inline,
+}: {
+  lead: RegistrationLead
+  workshops: Workshop[]
+  cohorts: WorkshopCohort[]
+  onChange: (id: string, cohortId: string | null) => void
+  onAddCohort: (w: Workshop) => void
+  inline?: boolean
+}) {
+  const workshop = workshops.find(w => w.id === lead.selected_workshop_id) ?? null
+  const matching = lead.selected_workshop_id
+    ? cohorts.filter(c => c.workshop_id === lead.selected_workshop_id)
+    : []
+
+  const wrapClass = inline
+    ? 'flex items-center gap-2'
+    : 'flex items-center gap-2 pt-1'
+
+  return (
+    <div className={wrapClass}>
+      <label className="text-xs text-sand-500">מחזור:</label>
+      {!workshop ? (
+        <span className="text-xs text-sand-400">← בחרי סדנה קודם</span>
+      ) : matching.length === 0 ? (
+        <button
+          type="button"
+          onClick={() => onAddCohort(workshop)}
+          className="text-xs text-mustard-600 hover:text-mustard-700 underline underline-offset-2"
+        >
+          + הוסיפי מחזור
+        </button>
+      ) : (
+        <select
+          value={lead.cohort_id ?? ''}
+          onChange={e => onChange(lead.id, e.target.value || null)}
+          className="px-2 py-1 rounded-lg border border-sand-200 bg-white text-xs focus:outline-none focus:border-mustard-400 max-w-[60vw] truncate"
+        >
+          <option value="">ללא מחזור</option>
+          {matching.map(c => {
+            const [y, m, d] = c.start_date.split('-')
+            const label = `${d}/${m}/${y.slice(2)}${c.label ? ' · ' + c.label : ''}${!c.is_active ? ' (לא פעיל)' : ''}`
+            return <option key={c.id} value={c.id}>{label}</option>
+          })}
+        </select>
+      )}
     </div>
   )
 }

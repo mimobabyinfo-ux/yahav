@@ -177,6 +177,21 @@ export type Workshop = {
   updated_at: string
 }
 
+// Phase 5 / A1: workshops have recurring cohorts (Hebrew label: "מחזור").
+// Each cohort is one workshop × one start_date with optional label /
+// advisory capacity / free-text notes. registration_leads.cohort_id
+// (nullable) attaches a registration to a cohort post-signup.
+export type WorkshopCohort = {
+  id: string
+  workshop_id: string
+  start_date: string  // YYYY-MM-DD
+  label: string | null
+  capacity: number | null
+  notes: string | null
+  is_active: boolean
+  created_at: string
+}
+
 export type WorkshopContent = {
   id: string
   workshop_id: string
