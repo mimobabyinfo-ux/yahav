@@ -5614,6 +5614,7 @@ function BulkActionBar({
   onMarkPending: () => void
   onCopyPhones: () => void
 }) {
+  const [copiedFlash, setCopiedFlash] = useState(false)
   if (visibleCount === 0) return null
   const hiddenSelected = totalSelected - visibleCount
   // Count display: when all selected are visible → "N נבחרו".
@@ -5622,7 +5623,6 @@ function BulkActionBar({
   const countLabel = hiddenSelected > 0
     ? `${visibleCount} מתוך ${totalSelected} נבחרו`
     : `${visibleCount} נבחרו`
-  const [copiedFlash, setCopiedFlash] = useState(false)
   function handleCopy() {
     onCopyPhones()
     setCopiedFlash(true)
