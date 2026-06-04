@@ -4711,10 +4711,14 @@ type RegistrationLead = {
   workshops?: { title: string } | null
 }
 
+// Phase 5 / A3 fix-2: 'handled' label renamed to 'מומש' (workshop happened
+// and the registrant attended/used it). DB enum unchanged (`handled`
+// stays the technical name); the new label flows through every display
+// site via this map.
 const REG_STATUS_LABELS: Record<RegistrationLead['status'], { label: string; color: string; bg: string }> = {
   pending: { label: 'ממתינה',  color: '#b45309', bg: '#fef3c7' },
   paid:    { label: 'שילמה',   color: '#15803d', bg: '#dcfce7' },
-  handled: { label: 'טופלה',   color: '#475569', bg: '#f1f5f9' },
+  handled: { label: 'מומש',    color: '#475569', bg: '#f1f5f9' },
 }
 
 // Phase 5 / A1 Stage 2 helpers ───────────────────────────────────────
@@ -4733,6 +4737,50 @@ function cohortDateTimeLabel(c: WorkshopCohort, opts: { shortYear?: boolean } = 
   const year = opts.shortYear ? y.slice(2) : y
   const time = c.start_time ? ` ${c.start_time.slice(0, 5)}` : ''
   return `${d}/${m}/${year}${time}`
+}
+
+// Phase 5 / A3 fix-2: cohort considered "past" once its start moment
+// is behind us. NULL start_time = whole-day event, so a date-only
+// cohort isn't past until the day itself has fully passed (i.e.
+// today's local date > start_date).
+function isCohortPast(c: WorkshopCohort): boolean {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const today = `${y}-${m}-${day}`
+  if (c.start_date < today) return true
+  if (c.start_date > today) return false
+  // Same calendar day: depends on start_time. NULL = not past yet.
+  if (!c.start_time) return false
+  const [hh, mm] = c.start_time.split(':').map(Number)
+  const cohortMoment = new Date()
+  cohortMoment.setHours(hh, mm, 0, 0)
+  return d > cohortMoment
+}
+
+// Display-derived effective status. The DB still holds the financial
+// truth (paid stays paid); the display rolls 'paid' → 'handled' once
+// the assigned cohort is past, so admin sees מומש without a cron job
+// destroying the original record. Reversible: move the cohort date,
+// the display flips back.
+//
+// Rules:
+//   - stored 'pending' → always 'pending'
+//   - stored 'handled' → always 'handled' (manual override sticks even
+//     on future cohorts)
+//   - stored 'paid' → 'handled' iff cohort assigned AND cohort past;
+//     otherwise stays 'paid'
+//   - no cohort / cohort missing from map → no auto-flip (safe default)
+function effectiveStatus(
+  lead: RegistrationLead,
+  cohortById: Map<string, WorkshopCohort>,
+): RegistrationLead['status'] {
+  if (lead.status !== 'paid') return lead.status
+  if (!lead.cohort_id) return lead.status
+  const c = cohortById.get(lead.cohort_id)
+  if (!c) return lead.status
+  return isCohortPast(c) ? 'handled' : 'paid'
 }
 
 function RegistrationsTab() {
@@ -4780,6 +4828,22 @@ function RegistrationsTab() {
     })
   }
 
+  // Phase 5 / A3 fix-1: "select all visible" entry point for the flat
+  // list. Same visible-only contract — only acts on rows currently
+  // matching the filter. Hidden selections stay untouched.
+  function toggleSelectAllVisible(visible: RegistrationLead[]) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      const allOn = visible.length > 0 && visible.every(l => next.has(l.id))
+      if (allOn) {
+        for (const l of visible) next.delete(l.id)
+      } else {
+        for (const l of visible) next.add(l.id)
+      }
+      return next
+    })
+  }
+
   function clearSelection() {
     setSelected(new Set())
   }
@@ -4812,9 +4876,19 @@ function RegistrationsTab() {
     setLeads(prev => prev.filter(l => l.id !== id))
   }
 
+  // Phase 5 / A3 fix-2: cohorts keyed by id for fast effective-status
+  // lookup. Recompute when the cohorts list changes.
+  const cohortById = useMemo(() => {
+    const m = new Map<string, WorkshopCohort>()
+    for (const c of cohorts) m.set(c.id, c)
+    return m
+  }, [cohorts])
+
   const filtered = useMemo(() => {
     return leads.filter(l => {
-      if (statusFilter !== 'all' && l.status !== statusFilter) return false
+      // Filter chip targets the EFFECTIVE status. Picking "מומש"
+      // surfaces both stored-'handled' and stored-'paid'+past-cohort.
+      if (statusFilter !== 'all' && effectiveStatus(l, cohortById) !== statusFilter) return false
       if (workshopFilter !== 'all' && l.selected_workshop_id !== workshopFilter) return false
       if (fromDate && new Date(l.created_at) < new Date(fromDate)) return false
       if (toDate) {
@@ -4827,14 +4901,15 @@ function RegistrationsTab() {
       }
       return true
     })
-  }, [leads, statusFilter, workshopFilter, search, fromDate, toDate])
+  }, [leads, statusFilter, workshopFilter, search, fromDate, toDate, cohortById])
 
-  const counts = useMemo(() => ({
-    all: leads.length,
-    pending: leads.filter(l => l.status === 'pending').length,
-    paid: leads.filter(l => l.status === 'paid').length,
-    handled: leads.filter(l => l.status === 'handled').length,
-  }), [leads])
+  // Chip counts also reflect effective status so the numbers match
+  // what the filter would actually surface.
+  const counts = useMemo(() => {
+    const c = { all: leads.length, pending: 0, paid: 0, handled: 0 } as Record<'all' | RegistrationLead['status'], number>
+    for (const l of leads) c[effectiveStatus(l, cohortById)]++
+    return c
+  }, [leads, cohortById])
 
   // Phase 5 / A3: visible-selected = intersection of `selected` with
   // the currently-filtered list. Bulk actions act on this set, NEVER
@@ -4956,6 +5031,30 @@ function RegistrationsTab() {
         </div>
       )}
 
+      {/* Phase 5 / A3 fix-1: tri-state "select all visible" row. Flat
+          list only — grouped view has per-cohort select-all in each
+          header. Stays in sync with selection: empty / indeterminate
+          / fully checked. Acts only on currently-visible rows. */}
+      {filtered.length > 0 && viewMode === 'list' && (() => {
+        const allVisibleOn = filtered.every(l => selected.has(l.id))
+        const someVisibleOn = !allVisibleOn && filtered.some(l => selected.has(l.id))
+        return (
+          <label className="flex items-center gap-2 px-3 py-2 bg-[#F5F1EB] rounded-2xl shadow-sm cursor-pointer">
+            <input
+              type="checkbox"
+              ref={el => { if (el) el.indeterminate = someVisibleOn }}
+              checked={allVisibleOn}
+              onChange={() => toggleSelectAllVisible(filtered)}
+              aria-label="בחירת כל ההרשמות הגלויות"
+              className="w-5 h-5 accent-mustard-500 cursor-pointer"
+            />
+            <span className="text-xs font-semibold text-sand-700">
+              {allVisibleOn ? `בטלי בחירת הכל (${filtered.length})` : `בחרי הכל גלוי (${filtered.length})`}
+            </span>
+          </label>
+        )
+      })()}
+
       {filtered.length > 0 && viewMode === 'list' && filtered.map(l => (
         <RegistrationCard
           key={l.id}
@@ -4968,6 +5067,7 @@ function RegistrationsTab() {
           onAddCohort={ws => setCohortsForRegWorkshop(ws)}
           selected={selected.has(l.id)}
           onToggleSelect={toggleSelect}
+          effectiveStatus={effectiveStatus(l, cohortById)}
         />
       ))}
 
@@ -5032,6 +5132,9 @@ type RegistrationCardProps = {
   // Phase 5 / A3: selection plumbing for bulk actions.
   selected?: boolean
   onToggleSelect?: (id: string) => void
+  // Phase 5 / A3 fix-2: badge displays effective status (paid + past
+  // cohort → מומש). Dropdown still binds to lead.status (stored).
+  effectiveStatus?: RegistrationLead['status']
 }
 
 function RegistrationCard({
@@ -5046,7 +5149,9 @@ function RegistrationCard({
   hideCohortRow,
   selected,
   onToggleSelect,
+  effectiveStatus: effective,
 }: RegistrationCardProps) {
+  const badgeStatus = effective ?? l.status
   // Selected cards get a subtle mustard ring + tint — scannable but
   // doesn't break the existing aesthetic.
   const cardClass = selected
@@ -5067,8 +5172,8 @@ function RegistrationCard({
               />
             )}
             <p className="font-bold text-sand-800 text-sm">{l.name}</p>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold" style={{ color: REG_STATUS_LABELS[l.status].color, background: REG_STATUS_LABELS[l.status].bg }}>
-              {REG_STATUS_LABELS[l.status].label}
+            <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold" style={{ color: REG_STATUS_LABELS[badgeStatus].color, background: REG_STATUS_LABELS[badgeStatus].bg }}>
+              {REG_STATUS_LABELS[badgeStatus].label}
             </span>
             {l.source && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-600">{l.source}</span>}
           </div>
@@ -5115,7 +5220,7 @@ function RegistrationCard({
         >
           <option value="pending">ממתינה לתשלום</option>
           <option value="paid">שילמה</option>
-          <option value="handled">טופלה</option>
+          <option value="handled">מומש</option>
         </select>
       </div>
 
@@ -5264,6 +5369,7 @@ function RegistrationsGroupedView({
           headerLabel="ללא מחזור"
           subLabel="הרשמות שעוד לא משויכות למחזור"
           leads={groups.noCohort}
+          cohort={null}
           expanded={isExpanded('no-cohort', true)}
           onToggle={() => toggle('no-cohort', true)}
           onCopyPhones={() => copyPhones('no-cohort', groups.noCohort)}
@@ -5283,6 +5389,7 @@ function RegistrationsGroupedView({
             subLabel={sub}
             capacity={cohort.capacity}
             leads={gl}
+            cohort={cohort}
             expanded={isExpanded(cohort.id, true)}
             onToggle={() => toggle(cohort.id, true)}
             onCopyPhones={() => copyPhones(cohort.id, gl)}
@@ -5303,6 +5410,7 @@ function RegistrationsGroupedView({
             subLabel={sub}
             capacity={cohort.capacity}
             leads={gl}
+            cohort={cohort}
             expanded={isExpanded(cohort.id, false)}
             onToggle={() => toggle(cohort.id, false)}
             onCopyPhones={() => copyPhones(cohort.id, gl)}
@@ -5326,6 +5434,10 @@ type CohortGroupProps = {
   subLabel: string
   capacity?: number | null
   leads: RegistrationLead[]
+  // Phase 5 / A3 fix-2: full cohort (null for "ללא מחזור") so the
+  // group can compute effective status once and apply it to the
+  // status breakdown + each nested card badge.
+  cohort: WorkshopCohort | null
   expanded: boolean
   onToggle: () => void
   onCopyPhones: () => void
@@ -5348,6 +5460,7 @@ function CohortGroup({
   subLabel,
   capacity,
   leads,
+  cohort,
   expanded,
   onToggle,
   onCopyPhones,
@@ -5371,12 +5484,22 @@ function CohortGroup({
   const checkboxRef = (el: HTMLInputElement | null) => {
     if (el) el.indeterminate = someSelected
   }
-  // Status breakdown — only non-zero buckets render.
+  // Effective status per lead (paid + past cohort → handled). All
+  // leads in this group share the same cohort, so isPast is one
+  // boolean we can reuse for breakdown counts AND the nested card
+  // badges below.
+  const past = cohort ? isCohortPast(cohort) : false
+  function effOf(l: RegistrationLead): RegistrationLead['status'] {
+    if (l.status === 'paid' && past) return 'handled'
+    return l.status
+  }
+  // Status breakdown — effective status, only non-zero buckets render.
   let pending = 0, paid = 0, handled = 0
   for (const l of leads) {
-    if (l.status === 'pending') pending++
-    else if (l.status === 'paid') paid++
-    else if (l.status === 'handled') handled++
+    const s = effOf(l)
+    if (s === 'pending') pending++
+    else if (s === 'paid') paid++
+    else if (s === 'handled') handled++
   }
   const count = leads.length
   const cap = capacity ?? null
@@ -5392,7 +5515,7 @@ function CohortGroup({
   const breakdownParts: string[] = []
   if (pending > 0) breakdownParts.push(`⏳ ${pending} ממתינות`)
   if (paid > 0) breakdownParts.push(`✅ ${paid} שילמו`)
-  if (handled > 0) breakdownParts.push(`📞 ${handled} טופלו`)
+  if (handled > 0) breakdownParts.push(`🎓 ${handled} מומשו`)
 
   return (
     <div className="bg-[#F5F1EB] rounded-2xl shadow-sm overflow-hidden">
@@ -5453,6 +5576,7 @@ function CohortGroup({
               hideCohortRow={headerKind !== 'no-cohort'}
               selected={selected.has(l.id)}
               onToggleSelect={onToggleSelect}
+              effectiveStatus={effOf(l)}
             />
           ))}
         </div>
@@ -5506,7 +5630,10 @@ function BulkActionBar({
   }
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-40 bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.08)] border-t border-sand-200"
+      // Lifted to 88px on mobile to clear the admin BottomNav + its
+      // "צפי כמשתמשת" banner. Desktop has no BottomNav, so the bar
+      // sits flush at the bottom (lg:bottom-0).
+      className="fixed bottom-[88px] lg:bottom-0 left-0 right-0 z-40 bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.08)] border-t border-sand-200"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       dir="rtl"
     >
@@ -5540,7 +5667,7 @@ function BulkActionBar({
             onClick={onMarkHandled}
             className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
           >
-            📞 טופלה
+            🎓 מומש
           </button>
           <button
             onClick={handleCopy}
