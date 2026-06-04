@@ -185,6 +185,10 @@ export type WorkshopCohort = {
   id: string
   workshop_id: string
   start_date: string  // YYYY-MM-DD
+  // Phase 5 / A1 Stage 2: optional local start time as HH:MM:SS. Two
+  // cohorts on the same date with different times are distinct
+  // entities. NULL = date-only cohort (admin hasn't set a time yet).
+  start_time: string | null
   label: string | null
   capacity: number | null
   notes: string | null

@@ -17,6 +17,7 @@ type Props = {
 
 type Draft = {
   start_date: string
+  start_time: string  // HH:MM or '' for none
   label: string
   capacity: string
   notes: string
@@ -25,17 +26,21 @@ type Draft = {
 
 const EMPTY_DRAFT: Draft = {
   start_date: '',
+  start_time: '',
   label: '',
   capacity: '',
   notes: '',
   is_active: true,
 }
 
-function ddmmyyyy(iso: string): string {
-  // Display-only Hebrew date — input value stays YYYY-MM-DD for the
-  // <input type="date"> field. Show as DD/MM/YYYY in the list.
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
+// Display-only Hebrew date+time. Input <date>/<time> values stay
+// YYYY-MM-DD / HH:MM. Returns DD/MM/YYYY HH:MM when time is set,
+// DD/MM/YYYY alone otherwise.
+function ddmmyyyyhhmm(date: string, time: string | null): string {
+  const [y, m, d] = date.split('-')
+  const base = `${d}/${m}/${y}`
+  if (!time) return base
+  return `${base} ${time.slice(0, 5)}`
 }
 
 export default function CohortsModal({ workshop, onClose }: Props) {
@@ -89,6 +94,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
     setEditingId(cohort.id)
     setDraft({
       start_date: cohort.start_date,
+      start_time: cohort.start_time?.slice(0, 5) ?? '',
       label: cohort.label ?? '',
       capacity: cohort.capacity?.toString() ?? '',
       notes: cohort.notes ?? '',
@@ -117,6 +123,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
     const payload = {
       workshop_id: workshop.id,
       start_date: draft.start_date,
+      start_time: draft.start_time || null,
       label: draft.label.trim() || null,
       capacity: cap,
       notes: draft.notes.trim() || null,
@@ -192,7 +199,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-bold text-sand-800">{ddmmyyyy(c.start_date)}</span>
+                          <span className="text-sm font-bold text-sand-800">{ddmmyyyyhhmm(c.start_date, c.start_time)}</span>
                           {c.label && <span className="text-xs text-sand-500">· {c.label}</span>}
                           {!c.is_active && (
                             <span className="text-[10px] font-semibold text-sand-500 bg-sand-100 px-2 py-0.5 rounded-full">לא פעיל</span>
@@ -237,15 +244,28 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                   <p className="text-xs font-bold text-sand-700">
                     {editingId ? 'עריכת מחזור' : 'הוספת מחזור'}
                   </p>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-sand-500 mb-1">תאריך התחלה</label>
-                    <div dir="ltr">
-                      <input
-                        type="date"
-                        value={draft.start_date}
-                        onChange={e => setDraft(d => ({ ...d, start_date: e.target.value }))}
-                        className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
-                      />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-sand-500 mb-1">תאריך התחלה</label>
+                      <div dir="ltr">
+                        <input
+                          type="date"
+                          value={draft.start_date}
+                          onChange={e => setDraft(d => ({ ...d, start_date: e.target.value }))}
+                          className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-sand-500 mb-1">שעה (אופציונלי)</label>
+                      <div dir="ltr">
+                        <input
+                          type="time"
+                          value={draft.start_time}
+                          onChange={e => setDraft(d => ({ ...d, start_time: e.target.value }))}
+                          className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                        />
+                      </div>
                     </div>
                   </div>
                   <div>
