@@ -12,6 +12,7 @@ import CohortsModal from '../components/admin/CohortsModal'
 import FormSubmissionsView from '../components/admin/FormSubmissionsView'
 import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
+import GlobalSearchBar from '../components/admin/GlobalSearchBar'
 
 type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
@@ -125,6 +126,10 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
           ADMIN MODE
         </div>
       </div>
+
+      {/* Phase 5 / A2 Stage 3: global search — sticky bar above every
+          tab's content. Tapping a result opens the customer card. */}
+      <GlobalSearchBar />
 
       {/* ── Mobile content ── */}
       <div className="lg:hidden max-w-sm mx-auto px-4 pt-4 space-y-4">
