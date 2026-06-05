@@ -1,4 +1,4 @@
-import { Home, BookOpen, ShoppingBag, Users, BarChart2, LogOut, ShieldAlert, Eye } from 'lucide-react'
+import { Home, BookOpen, ShoppingBag, Users, LogOut, ShieldAlert, Eye } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import type { Page, AdminSection } from '../App'
 
@@ -59,11 +59,13 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
 
   // ── Admin nav ─────────────────────────────────────────────────────────────
   if (isAdminMode) {
+    // Phase 5 / A2 Part 1: top-5 admin items — matches the new
+    // sidebar order so the muscle memory stays consistent.
     const adminItems: { id: AdminSection; label: string; icon: React.ReactNode }[] = [
-      { id: 'insights',  label: 'BI',       icon: <BarChart2 className="w-4 h-4" /> },
-      { id: 'users',     label: 'משתמשים',  icon: <Users className="w-4 h-4" /> },
-      { id: 'workshops', label: 'סדנאות',   icon: <span className="text-base leading-none">🎓</span> },
+      { id: 'registrations', label: 'הרשמות',   icon: <span className="text-base leading-none">📝</span> },
       { id: 'forms',     label: 'טפסים',    icon: <span className="text-base leading-none">📋</span> },
+      { id: 'workshops', label: 'סדנאות',   icon: <span className="text-base leading-none">🎓</span> },
+      { id: 'users',     label: 'משתמשים',  icon: <Users className="w-4 h-4" /> },
       { id: 'leads',     label: 'לידים',    icon: <span className="text-base leading-none">📞</span> },
     ]
 

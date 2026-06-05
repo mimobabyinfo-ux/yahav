@@ -171,6 +171,10 @@ export type Workshop = {
   payment_link: string | null
   next_workshop_id: string | null
   public_registration: boolean
+  // Phase 5 / A2 Part 2: optional questionnaire linked to this workshop
+  // (FK to forms). Powers the customer card's "did this mother fill
+  // the questionnaire" indicator and the cohort-side gap report.
+  linked_form_id: string | null
   display_order: number
   is_active: boolean
   created_at: string

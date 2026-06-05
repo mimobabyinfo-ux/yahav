@@ -31,18 +31,21 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
   settings:  'settings',
 }
 
+// Phase 5 / A2 Part 1: mirrors the desktop sidebar order — daily-use
+// sections (הרשמות / טפסים / סדנאות) leftmost in RTL so they're under
+// the thumb on mobile.
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'users',     label: 'משתמשים',      icon: <Users className="w-3.5 h-3.5" /> },
-  { id: 'insights',  label: 'תובנות',        icon: <BarChart2 className="w-3.5 h-3.5" /> },
+  { id: 'registrations', label: 'הרשמות',     icon: <span className="text-xs">📝</span> },
+  { id: 'forms',     label: 'טפסים',         icon: <span className="text-xs">📋</span> },
   { id: 'workshops', label: 'סדנאות',        icon: <span className="text-xs">🎓</span> },
+  { id: 'users',     label: 'משתמשים',      icon: <Users className="w-3.5 h-3.5" /> },
+  { id: 'leads',     label: 'לידים',         icon: <span className="text-xs">📞</span> },
+  { id: 'insights',  label: 'תובנות',        icon: <BarChart2 className="w-3.5 h-3.5" /> },
   { id: 'videos',    label: 'סרטונים',       icon: <Video className="w-3.5 h-3.5" /> },
   { id: 'tips',      label: 'טיפים',         icon: <Lightbulb className="w-3.5 h-3.5" /> },
   { id: 'perks',     label: 'הטבות',         icon: <Gift className="w-3.5 h-3.5" /> },
   { id: 'pregnancy', label: 'הריון',          icon: <span className="text-xs">🤰</span> },
   { id: 'partners',  label: 'שירותים',       icon: <span className="text-xs">🌿</span> },
-  { id: 'leads',     label: 'לידים',         icon: <span className="text-xs">📞</span> },
-  { id: 'forms',     label: 'טפסים',         icon: <span className="text-xs">📋</span> },
-  { id: 'registrations', label: 'הרשמות',     icon: <span className="text-xs">📝</span> },
   { id: 'settings',  label: 'הגדרות',        icon: <Settings className="w-3.5 h-3.5" /> },
 ]
 
@@ -995,7 +998,7 @@ function LeadsTabDesktop() {
 }
 
 // ─── Workshops Desktop Table ──────────────────────────────────────────────────
-const EMPTY_WORKSHOP_FORM = { title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false }
+const EMPTY_WORKSHOP_FORM = { title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '' }
 
 function WorkshopsTabDesktop() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
@@ -1009,6 +1012,8 @@ function WorkshopsTabDesktop() {
   const [uploadingImage, setUploadingImage] = useState(false)
   // Phase 5 / B: per-workshop registration link copy.
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  // Phase 5 / A2 Part 2: forms list for the "שאלון משויך" dropdown.
+  const [formsList, setFormsList] = useState<{ id: string; title: string }[]>([])
 
   function copyRegisterLink(id: string) {
     const link = `${window.location.origin}?register=${id}`
@@ -1038,9 +1043,13 @@ function WorkshopsTabDesktop() {
     e.target.value = ''
   }
 
-  const load = useCallback(() => {
-    supabase.from('workshops').select('*').order('display_order')
-      .then(({ data }) => setWorkshops(data ?? []))
+  const load = useCallback(async () => {
+    const [{ data: ws }, { data: fs }] = await Promise.all([
+      supabase.from('workshops').select('*').order('display_order'),
+      supabase.from('forms').select('id, title').eq('is_active', true).order('title'),
+    ])
+    setWorkshops(ws ?? [])
+    setFormsList((fs ?? []) as { id: string; title: string }[])
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -1060,7 +1069,7 @@ function WorkshopsTabDesktop() {
 
   function openEdit(w: Workshop) {
     setEditing(w)
-    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false })
+    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '' })
     setDrawer('edit')
   }
 
@@ -1084,6 +1093,7 @@ function WorkshopsTabDesktop() {
       next_workshop_id: form.next_workshop_id || null,
       workshop_type: form.workshop_type || null,
       public_registration: form.public_registration,
+      linked_form_id: form.linked_form_id || null,
     }
     if (editing) {
       await supabase.from('workshops').update(payload).eq('id', editing.id)
@@ -1227,6 +1237,22 @@ function WorkshopsTabDesktop() {
                 <option key={w.id} value={w.id}>{w.title}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">שאלון משויך</label>
+            <select
+              value={form.linked_form_id}
+              onChange={e => setForm(f => ({ ...f, linked_form_id: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white"
+            >
+              <option value="">ללא שאלון</option>
+              {formsList.map(f => (
+                <option key={f.id} value={f.id}>{f.title}</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+              משויך לטופס שמופיע בכרטיס הלקוחה כשאלון התפתחותי ובדו"ח המחזורים.
+            </p>
           </div>
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
@@ -2834,7 +2860,7 @@ function WorkshopsTab() {
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   // Phase 5 / A1: cohort manager modal. User-facing label "מחזורים".
   const [cohortsWorkshop, setCohortsWorkshop] = useState<Workshop | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '' })
   const [uploadingImage, setUploadingImage] = useState(false)
   // Phase 5 / B: per-workshop registration link copy. Tracks which row
   // just showed the "copied" feedback so the icon flips for ~1.5s.
@@ -2868,9 +2894,16 @@ function WorkshopsTab() {
     e.target.value = ''
   }
 
-  const load = useCallback(() => {
-    supabase.from('workshops').select('*').order('display_order')
-      .then(({ data }) => setWorkshops(data ?? []))
+  // Phase 5 / A2 Part 2: forms list for the "שאלון משויך" dropdown.
+  const [formsList, setFormsList] = useState<{ id: string; title: string }[]>([])
+
+  const load = useCallback(async () => {
+    const [{ data: ws }, { data: fs }] = await Promise.all([
+      supabase.from('workshops').select('*').order('display_order'),
+      supabase.from('forms').select('id, title').eq('is_active', true).order('title'),
+    ])
+    setWorkshops(ws ?? [])
+    setFormsList((fs ?? []) as { id: string; title: string }[])
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -2890,6 +2923,7 @@ function WorkshopsTab() {
       next_workshop_id: form.next_workshop_id || null,
       workshop_type: form.workshop_type || null,
       public_registration: form.public_registration,
+      linked_form_id: form.linked_form_id || null,
     }
     if (editing) {
       await supabase.from('workshops').update(payload).eq('id', editing.id)
@@ -2897,7 +2931,7 @@ function WorkshopsTab() {
       const maxOrder = workshops.length > 0 ? Math.max(...workshops.map(w => w.display_order)) : 0
       await supabase.from('workshops').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false })
+    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '' })
     setEditing(null); setShowForm(false); load()
   }
 
@@ -2965,6 +2999,22 @@ function WorkshopsTab() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="text-xs text-sand-500 mb-1 block">שאלון משויך</label>
+            <select
+              value={form.linked_form_id}
+              onChange={e => setForm(f => ({ ...f, linked_form_id: e.target.value }))}
+              className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white"
+            >
+              <option value="">ללא שאלון</option>
+              {formsList.map(f => (
+                <option key={f.id} value={f.id}>{f.title}</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
+              משויך לטופס שמופיע בכרטיס הלקוחה כשאלון התפתחותי ובדו"ח המחזורים.
+            </p>
+          </div>
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -2992,7 +3042,7 @@ function WorkshopsTab() {
               <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
                 {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
               </button>
-              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
               <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>

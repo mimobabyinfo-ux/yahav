@@ -11,16 +11,19 @@ type Props = {
   unreadRegistrations?: number
 }
 
+// Phase 5 / A2 Part 1: ordered for daily-use frequency — registrations
+// + forms + workshops at the top, analytics + content management
+// below, settings always last.
 const NAV: { id: AdminSection; label: string; icon?: React.ReactNode; emoji?: string }[] = [
-  { id: 'insights',  label: 'BI & Analytics', icon: <BarChart2 className="w-4 h-4" /> },
-  { id: 'users',     label: 'משתמשים',         icon: <Users className="w-4 h-4" /> },
+  { id: 'registrations', label: 'הרשמות',        emoji: '📝' },
+  { id: 'forms',     label: 'טפסים',            emoji: '📋' },
   { id: 'workshops', label: 'סדנאות / מוצרים',   emoji: '🎓' },
+  { id: 'users',     label: 'משתמשים',         icon: <Users className="w-4 h-4" /> },
+  { id: 'leads',     label: 'לידים & CRM',      emoji: '📞' },
+  { id: 'insights',  label: 'BI & Analytics', icon: <BarChart2 className="w-4 h-4" /> },
   { id: 'videos',    label: 'סרטונים',          icon: <Video className="w-4 h-4" /> },
   { id: 'tips',      label: 'טיפים יומיים',     icon: <Lightbulb className="w-4 h-4" /> },
   { id: 'perks',     label: 'הטבות',            icon: <Gift className="w-4 h-4" /> },
-  { id: 'forms',     label: 'טפסים',            emoji: '📋' },
-  { id: 'leads',     label: 'לידים & CRM',      emoji: '📞' },
-  { id: 'registrations', label: 'הרשמות',        emoji: '📝' },
   { id: 'pregnancy', label: 'הריון',             emoji: '🤰' },
   { id: 'partners',  label: 'שירותים',           emoji: '🌿' },
   { id: 'settings',  label: 'הגדרות',            icon: <Settings className="w-4 h-4" /> },
