@@ -8,6 +8,7 @@ import {
   type FieldRole,
   type LeadMatch,
 } from './formSubmissionResolver'
+import { useOpenCustomer } from './CustomerCardContext'
 
 // Phase 5 / A4: replaces the cramped side-panel-per-respondent with
 // expand-inline rows that are comfortably readable on mobile.
@@ -130,6 +131,13 @@ type RowProps = {
 function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete }: RowProps) {
   const resolved = useMemo(() => resolveSubmitter(form, submission), [form, submission])
   const match = useMemo(() => findRegistrationMatch(resolved, leads), [resolved, leads])
+  // Phase 5 / A2 Part 3: submitter name + 🔗 badge open the unified
+  // customer card. Resolver gives us a phone or email to key on.
+  const openCustomer = useOpenCustomer()
+  const canOpenCard = !!(resolved.phone || resolved.email)
+  function openCardFor() {
+    openCustomer({ phone: resolved.phone, email: resolved.email })
+  }
 
   // Display fallback chain: name → phone → "אנונימי"
   const displayName = resolved.name ?? resolved.phone ?? 'אנונימי'
@@ -167,7 +175,18 @@ function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete }
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-sm font-bold text-sand-800 truncate">{displayName}</span>
+              {canOpenCard ? (
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); openCardFor() }}
+                  className="text-sm font-bold text-sand-800 hover:text-mustard-600 hover:underline underline-offset-2 transition-colors truncate text-right"
+                  title="פתיחת כרטיס לקוחה"
+                >
+                  {displayName}
+                </button>
+              ) : (
+                <span className="text-sm font-bold text-sand-800 truncate">{displayName}</span>
+              )}
               {resolved.source === 'responses' && (
                 <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded-md whitespace-nowrap">
                   מקור: טופס
@@ -179,9 +198,14 @@ function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete }
                 </span>
               )}
               {match && (
-                <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); openCardFor() }}
+                  className="text-[10px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded-md whitespace-nowrap transition-colors"
+                  title="פתיחת כרטיס לקוחה"
+                >
                   🔗 רשומה גם בהרשמות
-                </span>
+                </button>
               )}
             </div>
             <p className="text-xs text-sand-500 mt-0.5">

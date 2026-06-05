@@ -11,6 +11,7 @@ import type { AdminSection } from '../App'
 import CohortsModal from '../components/admin/CohortsModal'
 import FormSubmissionsView from '../components/admin/FormSubmissionsView'
 import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
+import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
 
 type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
@@ -75,6 +76,9 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
   const tabLabel = TABS.find(t => t.id === tab)?.label ?? ''
 
   return (
+    // Phase 5 / A2 Part 3: any admin descendant can call
+    // useOpenCustomer({ phone, email }) to summon the unified card.
+    <CustomerCardProvider>
     <div className="min-h-screen pb-24 lg:pb-6" dir="rtl">
       {/* ── Mobile header (hidden on desktop, sidebar handles nav) ── */}
       <div className="lg:hidden bg-white border-b border-sand-100 shadow-sm px-4 pt-5 pb-3">
@@ -154,6 +158,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'settings'   && <SettingsTab />}
       </div>
     </div>
+    </CustomerCardProvider>
   )
 }
 
@@ -5278,6 +5283,9 @@ function RegistrationCard({
   const cardClass = selected
     ? 'bg-mustard-50 ring-2 ring-mustard-400 rounded-2xl shadow-sm p-4 space-y-2'
     : 'bg-[#F5F1EB] rounded-2xl shadow-sm p-4 space-y-2'
+  // Phase 5 / A2 Part 3: tapping the mother's name opens the unified
+  // customer card with this registration's phone+email as the key.
+  const openCustomer = useOpenCustomer()
   return (
     <div className={cardClass}>
       <div className="flex items-start justify-between gap-2">
@@ -5292,7 +5300,14 @@ function RegistrationCard({
                 className="w-5 h-5 accent-mustard-500 flex-shrink-0 cursor-pointer"
               />
             )}
-            <p className="font-bold text-sand-800 text-sm">{l.name}</p>
+            <button
+              type="button"
+              onClick={() => openCustomer({ phone: l.phone, email: l.email })}
+              className="font-bold text-sand-800 text-sm hover:text-mustard-600 hover:underline underline-offset-2 transition-colors text-right"
+              title="פתיחת כרטיס לקוחה"
+            >
+              {l.name}
+            </button>
             <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold" style={{ color: REG_STATUS_LABELS[badgeStatus].color, background: REG_STATUS_LABELS[badgeStatus].bg }}>
               {REG_STATUS_LABELS[badgeStatus].label}
             </span>
