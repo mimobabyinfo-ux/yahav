@@ -5160,6 +5160,19 @@ function RegistrationsTab() {
 
   return (
     <div className="space-y-3" dir="rtl">
+      {/* TEMP DIAGNOSTIC — gap report not rendering. Remove with the
+          real fix. Each line answers one step in the data chain so we
+          can pinpoint which lookup is empty. */}
+      <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3 text-xs space-y-1" dir="ltr">
+        <p className="font-bold text-amber-900">[gap diag — TEMP, remove after fix]</p>
+        <p className="text-amber-900">workshops loaded: <b>{workshops.length}</b></p>
+        <p className="text-amber-900">with linked_form_id: <b>{workshops.filter(w => !!w.linked_form_id).length}</b></p>
+        <p className="text-amber-900">linkedFormDefs size: <b>{linkedFormDefs.size}</b></p>
+        <p className="text-amber-900">linkedSubmissions: <b>{linkedSubmissions.length}</b></p>
+        <p className="text-amber-900 break-all">first workshop linked_form_id: <b>{JSON.stringify(workshops[0]?.linked_form_id)}</b></p>
+        <p className="text-amber-900 break-all">first workshop has 'linked_form_id' key: <b>{workshops[0] ? String('linked_form_id' in workshops[0]) : 'N/A'}</b></p>
+      </div>
+
       {/* Phase 5 / A2 Stage 3: large mustard "+ הרשמה חדשה" button
           at the top of the page — for moms who registered directly
           via WhatsApp / phone / in person, not the public form. */}
