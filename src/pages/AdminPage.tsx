@@ -9,6 +9,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { BUYING_SUBCATEGORIES } from '../data/buyingSubcategories'
 import type { AdminSection } from '../App'
 import CohortsModal from '../components/admin/CohortsModal'
+import FormSubmissionsView from '../components/admin/FormSubmissionsView'
+import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 
 type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
@@ -1279,10 +1281,17 @@ function exportCSV(form: FormRecord, submissions: Submission[], filterQuestion: 
   const rows = [
     ['תאריך', 'מגישה', ...cols.map(f => f.label)],
     ...submissions.map(s => {
-      const up = s.user_profiles as { mother_name: string | null; email: string } | undefined
+      // Phase 5 / A4: resolved name beats the joined-profile fallback
+      // so anonymous submissions still surface their real identity in
+      // the CSV.
+      const resolved = resolveSubmitter(
+        { fields_json: form.fields_json },
+        { responses_json: s.responses_json, user_profiles: s.user_profiles ?? null },
+      )
+      const submitter = resolved.name ?? resolved.phone ?? resolved.email ?? 'אנונימי'
       return [
         new Date(s.created_at).toLocaleDateString('he-IL'),
-        up?.mother_name ?? up?.email ?? 'אנונימי',
+        submitter,
         ...cols.map(f => s.responses_json[f.label] ?? ''),
       ]
     }),
@@ -1390,10 +1399,24 @@ function FormsTabDesktop() {
   const [showCreate, setShowCreate] = useState(false)
   const [triggerType, setTriggerType] = useState('after_video_views')
   const [triggerCount, setTriggerCount] = useState('3')
+  // Phase 5 / A4: per-form { count, lastAt } so the list shows
+  // response volume without having to open each form.
+  const [submissionStats, setSubmissionStats] = useState<Map<string, { count: number; lastAt: string }>>(new Map())
 
-  const load = useCallback(() => {
-    supabase.from('forms').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => setForms((data ?? []) as FormRecord[]))
+  const load = useCallback(async () => {
+    const [{ data: formsData }, { data: subsData }] = await Promise.all([
+      supabase.from('forms').select('*').order('created_at', { ascending: false }),
+      supabase.from('form_submissions').select('form_id, created_at'),
+    ])
+    setForms((formsData ?? []) as FormRecord[])
+    const stats = new Map<string, { count: number; lastAt: string }>()
+    for (const s of (subsData ?? []) as { form_id: string; created_at: string }[]) {
+      const cur = stats.get(s.form_id) ?? { count: 0, lastAt: '' }
+      cur.count++
+      if (s.created_at > cur.lastAt) cur.lastAt = s.created_at
+      stats.set(s.form_id, cur)
+    }
+    setSubmissionStats(stats)
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -1405,6 +1428,16 @@ function FormsTabDesktop() {
     setSubmissions((data ?? []) as Submission[])
     setLoadingSubs(false)
   }
+
+  // Phase 5 / A4: re-pull the form after the admin saves field-role
+  // overrides so the resolver picks up the new fields_json. Also
+  // refresh the list view's counts.
+  const refreshSelectedForm = useCallback(async () => {
+    if (!selected) return
+    const { data } = await supabase.from('forms').select('*').eq('id', selected.id).maybeSingle()
+    if (data) setSelected(data as FormRecord)
+    load()
+  }, [selected, load])
 
   function copyFormLink(formId: string) {
     navigator.clipboard.writeText(`${window.location.origin}/?form=${formId}`)
@@ -1634,18 +1667,31 @@ function FormsTabDesktop() {
               <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
                 <th className="px-6 py-3">שם</th>
                 <th className="px-4 py-3">תיקייה</th>
+                <th className="px-4 py-3">תשובות</th>
                 <th className="px-4 py-3">סטטוס</th>
                 <th className="px-4 py-3">פעולות</th>
               </tr>
             </thead>
             <tbody>
-              {forms.map(f => (
+              {forms.map(f => {
+                const stat = submissionStats.get(f.id)
+                return (
                 <tr key={f.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors group cursor-pointer ${selected?.id === f.id ? 'bg-yellow-50' : ''}`} onClick={() => loadSubmissions(f)}>
                   <td className="px-6 py-3">
                     <p className="font-semibold text-gray-800">{f.title}</p>
                     {f.description && <p className="text-xs text-gray-400 truncate max-w-xs">{f.description}</p>}
                   </td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{f.folder ?? '—'}</td>
+                  <td className="px-4 py-3 text-xs">
+                    {stat && stat.count > 0 ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-50 text-purple-700 font-semibold">
+                        {stat.count} תשובות
+                        <span className="text-purple-400 font-normal">· {new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <button onClick={e => { e.stopPropagation(); toggleForm(f) }} className={`text-xs px-2.5 py-1 rounded-lg font-semibold ${f.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                       {f.is_active ? 'פעיל' : 'כבוי'}
@@ -1662,7 +1708,8 @@ function FormsTabDesktop() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
           {forms.length === 0 && <p className="text-center text-gray-400 text-sm py-12">אין טפסים</p>}
@@ -1690,37 +1737,12 @@ function FormsTabDesktop() {
           <div className="max-h-[65vh] overflow-y-auto p-4 space-y-3">
             {loadingSubs && <p className="text-center text-gray-400 text-sm py-8">טוען...</p>}
             {!loadingSubs && subsView === 'list' && (
-              <>
-                {submissions.length === 0 && <p className="text-center text-gray-400 text-sm py-8">אין תשובות עדיין</p>}
-                {submissions.map(s => (
-                  <div key={s.id} className="border border-gray-100 rounded-xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-700">
-                        {(s.user_profiles as { mother_name: string | null; email: string } | undefined)?.mother_name
-                          ?? (s.user_profiles as { mother_name: string | null; email: string } | undefined)?.email
-                          ?? 'אנונימי'}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs text-gray-400">{new Date(s.created_at).toLocaleDateString('he-IL')}</p>
-                        <button onClick={() => deleteSubmission(s.id)} className="p-1 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3" /></button>
-                      </div>
-                    </div>
-                    {/* Iterate fields in canonical question order — NOT JSONB key insertion order. */}
-                    {selected.fields_json
-                      .filter(f => f.type !== 'info' && f.type !== 'link')
-                      .map(field => {
-                        const val = s.responses_json[field.label]
-                        if (val === undefined || val === '' || val === null) return null
-                        return (
-                          <div key={field.id} className="border-t border-gray-50 pt-1.5">
-                            <p className="text-[10px] text-gray-400">{field.label}</p>
-                            <p className="text-xs text-gray-700">{String(val)}</p>
-                          </div>
-                        )
-                      })}
-                  </div>
-                ))}
-              </>
+              <FormSubmissionsView
+                form={selected}
+                submissions={submissions}
+                onDeleteSubmission={deleteSubmission}
+                onFormSaved={refreshSelectedForm}
+              />
             )}
             {!loadingSubs && subsView === 'aggregate' && (
               <FormAggregatePanel
@@ -3106,7 +3128,10 @@ function PerksTab() {
 }
 
 // ─── Forms Tab ────────────────────────────────────────────────────────────────
-type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating' | 'date' | 'info' | 'link'; label: string; options?: string[]; required?: boolean }
+// Phase 5 / A4: optional `role` lets admin override the
+// formSubmissionResolver's heuristic per text field. Stored inside
+// fields_json — no migration needed.
+type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating' | 'date' | 'info' | 'link'; label: string; options?: string[]; required?: boolean; role?: 'name' | 'phone' | 'email' | 'none' }
 type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[]; trigger_rule: { type: string; count: number } | null; is_active: boolean; public_link_enabled: boolean; folder: string | null; created_at: string }
 type Submission = { id: string; user_id: string; responses_json: Record<string, string>; created_at: string; user_profiles?: { mother_name: string | null; email: string } }
 type Assignment = { id: string; user_id: string; user_profiles?: { mother_name: string | null; email: string } }
@@ -3357,6 +3382,9 @@ function FormsTab() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [subsView, setSubsView] = useState<'list' | 'aggregate'>('list')
   const [filterQuestion, setFilterQuestion] = useState<string | null>(null)
+  // Phase 5 / A4: per-form { count, lastAt } so the list shows
+  // response volume without having to open each form.
+  const [submissionStats, setSubmissionStats] = useState<Map<string, { count: number; lastAt: string }>>(new Map())
 
   function copyFormLink(formId: string) {
     const url = `${window.location.origin}/?form=${formId}`
@@ -3396,11 +3424,31 @@ function FormsTab() {
     })
   }
 
-  const load = useCallback(() => {
-    supabase.from('forms').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => setForms((data ?? []) as FormRecord[]))
+  const load = useCallback(async () => {
+    const [{ data: formsData }, { data: subsData }] = await Promise.all([
+      supabase.from('forms').select('*').order('created_at', { ascending: false }),
+      supabase.from('form_submissions').select('form_id, created_at'),
+    ])
+    setForms((formsData ?? []) as FormRecord[])
+    const stats = new Map<string, { count: number; lastAt: string }>()
+    for (const s of (subsData ?? []) as { form_id: string; created_at: string }[]) {
+      const cur = stats.get(s.form_id) ?? { count: 0, lastAt: '' }
+      cur.count++
+      if (s.created_at > cur.lastAt) cur.lastAt = s.created_at
+      stats.set(s.form_id, cur)
+    }
+    setSubmissionStats(stats)
   }, [])
   useEffect(() => { load() }, [load])
+
+  // Phase 5 / A4: refetch the open form so the resolver picks up
+  // updated field-role overrides; also refresh the list view's counts.
+  const refreshViewSubmissions = useCallback(async () => {
+    if (!viewSubmissions) return
+    const { data } = await supabase.from('forms').select('*').eq('id', viewSubmissions.id).maybeSingle()
+    if (data) setViewSubmissions(data as FormRecord)
+    load()
+  }, [viewSubmissions, load])
 
   const [focusFieldId, setFocusFieldId] = useState<string | null>(null)
   function addField() {
@@ -3552,39 +3600,12 @@ function FormsTab() {
           )}
         </div>
         {subsView === 'list' && (
-          <>
-            {submissions.map(s => (
-              <div key={s.id} className="bg-[#F5F1EB] rounded-2xl p-4 shadow-sm space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-sand-700">
-                    {(s.user_profiles as { mother_name: string | null; email: string } | undefined)?.mother_name
-                      ?? (s.user_profiles as { mother_name: string | null; email: string } | undefined)?.email
-                      ?? 'אנונימי'}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs text-sand-400">{new Date(s.created_at).toLocaleDateString('he-IL')}</p>
-                    <button onClick={() => deleteSubmission(s.id)} className="p-1 text-sand-300 hover:text-red-500 transition-colors" title="מחק תשובה">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                {/* Iterate fields in canonical question order — NOT JSONB key insertion order. */}
-                {viewSubmissions.fields_json
-                  .filter(f => f.type !== 'info' && f.type !== 'link')
-                  .map(field => {
-                    const val = s.responses_json[field.label]
-                    if (val === undefined || val === '' || val === null) return null
-                    return (
-                      <div key={field.id} className="border-t border-sand-50 pt-1.5">
-                        <p className="text-xs text-sand-400">{field.label}</p>
-                        <p className="text-sm text-sand-800">{String(val)}</p>
-                      </div>
-                    )
-                  })}
-              </div>
-            ))}
-            {submissions.length === 0 && <p className="text-center text-sand-400 text-sm py-8">אין תשובות עדיין</p>}
-          </>
+          <FormSubmissionsView
+            form={viewSubmissions}
+            submissions={submissions}
+            onDeleteSubmission={deleteSubmission}
+            onFormSaved={refreshViewSubmissions}
+          />
         )}
         {subsView === 'aggregate' && (
           <FormAggregatePanel
@@ -3789,12 +3810,20 @@ function FormsTab() {
               <span className="text-sand-400 text-xs">{openFolders.has(folderName) ? '▲' : '▼'}</span>
             </button>
 
-            {openFolders.has(folderName) && folderForms.map(form => (
+            {openFolders.has(folderName) && folderForms.map(form => {
+              const stat = submissionStats.get(form.id)
+              return (
               <div key={form.id} className={`bg-[#F5F1EB] rounded-2xl p-4 shadow-sm mr-2 ${!form.is_active ? 'opacity-50' : ''}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <p className="font-bold text-sand-800 text-sm">{form.title}</p>
                     <p className="text-xs text-sand-400 mt-0.5">{form.fields_json.length} שדות</p>
+                    {stat && stat.count > 0 && (
+                      <p className="text-xs text-purple-700 font-semibold mt-1">
+                        {stat.count} תשובות
+                        <span className="text-purple-400 font-normal"> · אחרון {new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 flex-wrap justify-end">
                     <button onClick={() => startEdit(form)} className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100">✏️ ערכי</button>
@@ -3810,7 +3839,8 @@ function FormsTab() {
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         ))
       })()}
