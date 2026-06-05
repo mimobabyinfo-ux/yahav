@@ -5011,15 +5011,26 @@ function RegistrationsTab() {
       setLinkedSubmissions([])
       return
     }
-    const [{ data: forms }, { data: subs }] = await Promise.all([
-      supabase.from('forms').select('id, title, fields_json, public_link_enabled').in('id', linkedFormIds),
+    // Phase 5 / A2 Stage 3 fix: use select('*') instead of an explicit
+    // column list. The explicit list silently returned 0 rows even
+    // though linked_form_id arrived on workshops and form_submissions
+    // returned 26 rows for the same IDs — likely a PostgREST
+    // schema-cache fragility on one of `fields_json` /
+    // `public_link_enabled`. select('*') mirrors the FormsTab pattern
+    // (known-working) and brings all columns the resolver needs.
+    // Errors are logged to the console so future silent failures are
+    // visible.
+    const [formsRes, subsRes] = await Promise.all([
+      supabase.from('forms').select('*').in('id', linkedFormIds),
       supabase
         .from('form_submissions')
         .select('id, form_id, user_id, responses_json, created_at, user_profiles(mother_name, email)')
         .in('form_id', linkedFormIds),
     ])
-    setLinkedFormDefs(new Map(((forms ?? []) as LinkedFormDef[]).map(f => [f.id, f])))
-    setLinkedSubmissions((subs ?? []) as unknown as LinkedSubmission[])
+    if (formsRes.error) console.error('[gap-report] forms query error:', formsRes.error)
+    if (subsRes.error) console.error('[gap-report] form_submissions query error:', subsRes.error)
+    setLinkedFormDefs(new Map(((formsRes.data ?? []) as LinkedFormDef[]).map(f => [f.id, f])))
+    setLinkedSubmissions((subsRes.data ?? []) as unknown as LinkedSubmission[])
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -5160,19 +5171,6 @@ function RegistrationsTab() {
 
   return (
     <div className="space-y-3" dir="rtl">
-      {/* TEMP DIAGNOSTIC — gap report not rendering. Remove with the
-          real fix. Each line answers one step in the data chain so we
-          can pinpoint which lookup is empty. */}
-      <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3 text-xs space-y-1" dir="ltr">
-        <p className="font-bold text-amber-900">[gap diag — TEMP, remove after fix]</p>
-        <p className="text-amber-900">workshops loaded: <b>{workshops.length}</b></p>
-        <p className="text-amber-900">with linked_form_id: <b>{workshops.filter(w => !!w.linked_form_id).length}</b></p>
-        <p className="text-amber-900">linkedFormDefs size: <b>{linkedFormDefs.size}</b></p>
-        <p className="text-amber-900">linkedSubmissions: <b>{linkedSubmissions.length}</b></p>
-        <p className="text-amber-900 break-all">first workshop linked_form_id: <b>{JSON.stringify(workshops[0]?.linked_form_id)}</b></p>
-        <p className="text-amber-900 break-all">first workshop has 'linked_form_id' key: <b>{workshops[0] ? String('linked_form_id' in workshops[0]) : 'N/A'}</b></p>
-      </div>
-
       {/* Phase 5 / A2 Stage 3: large mustard "+ הרשמה חדשה" button
           at the top of the page — for moms who registered directly
           via WhatsApp / phone / in person, not the public form. */}
