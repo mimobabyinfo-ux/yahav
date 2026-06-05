@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { X, MessageCircle, Mail, ChevronDown, ChevronUp, Loader2, ChevronLeft } from 'lucide-react'
+import { X, MessageCircle, Mail, ChevronDown, ChevronUp, Loader2, ChevronLeft, Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import AddRegistrationModal from './AddRegistrationModal'
 import {
   lookupCustomer,
   type CustomerKey,
@@ -230,7 +231,15 @@ function ProfileView({
       </div>
 
       {/* Registrations history */}
-      <Section title={`הרשמות (${profile.registrations.length})`}>
+      <Section
+        title={`הרשמות (${profile.registrations.length})`}
+        action={
+          <AddRegistrationButton
+            profile={profile}
+            onSaved={onProfileChanged}
+          />
+        }
+      >
         {profile.registrations.length === 0 ? (
           <p className="text-sm text-sand-500">אין הרשמות.</p>
         ) : (
@@ -261,12 +270,51 @@ function ProfileView({
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="space-y-2.5">
-      <h3 className="text-base font-bold text-sand-800 border-b border-sand-200 pb-1.5">{title}</h3>
+      <div className="flex items-center justify-between gap-2 border-b border-sand-200 pb-1.5">
+        <h3 className="text-base font-bold text-sand-800">{title}</h3>
+        {action}
+      </div>
       {children}
     </div>
+  )
+}
+
+// Phase 5 / A2 Stage 3 (Part 3): "+ הוסף הרשמה" — existing-mother
+// path. Pre-fills name/phone/email; admin picks workshop+cohort+status.
+function AddRegistrationButton({
+  profile,
+  onSaved,
+}: {
+  profile: CustomerProfile
+  onSaved: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-mustard-50 text-mustard-700 hover:bg-mustard-100 text-xs font-bold transition-colors"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        הוסף הרשמה
+      </button>
+      {open && (
+        <AddRegistrationModal
+          mode="existing-mother"
+          prefill={{
+            name: profile.displayName,
+            phone: profile.phone ?? '',
+            email: profile.email ?? '',
+          }}
+          onClose={() => setOpen(false)}
+          onSaved={onSaved}
+        />
+      )}
+    </>
   )
 }
 

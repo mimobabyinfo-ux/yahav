@@ -14,6 +14,7 @@ import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
 import { normalizeIlPhone } from '../components/admin/customerLookup'
+import AddRegistrationModal from '../components/admin/AddRegistrationModal'
 
 type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
@@ -5154,9 +5155,30 @@ function RegistrationsTab() {
   // Phase 5 / A1 Stage 2: view mode — flat list vs grouped by cohort.
   // Filters apply to BOTH modes; grouped is just a render strategy.
   const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list')
+  // Phase 5 / A2 Stage 3 (Part 3): manual "+ הרשמה חדשה" entry point.
+  const [addRegOpen, setAddRegOpen] = useState(false)
 
   return (
     <div className="space-y-3" dir="rtl">
+      {/* Phase 5 / A2 Stage 3: large mustard "+ הרשמה חדשה" button
+          at the top of the page — for moms who registered directly
+          via WhatsApp / phone / in person, not the public form. */}
+      <button
+        type="button"
+        onClick={() => setAddRegOpen(true)}
+        className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-2xl text-white font-bold text-sm shadow-sm transition-all hover:shadow-md"
+        style={{ background: 'linear-gradient(135deg, #E7C78A, #d4af6e)' }}
+      >
+        <Plus className="w-4 h-4" />
+        הרשמה חדשה
+      </button>
+      {addRegOpen && (
+        <AddRegistrationModal
+          mode="new-mother"
+          onClose={() => setAddRegOpen(false)}
+          onSaved={load}
+        />
+      )}
       <div className="bg-[#F5F1EB] rounded-2xl shadow-sm p-4 space-y-3 lg:p-5">
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-sand-800 text-sm lg:text-base">הרשמות מעמוד ?register ({counts.all})</h2>
