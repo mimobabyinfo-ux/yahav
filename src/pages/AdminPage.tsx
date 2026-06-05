@@ -13,6 +13,7 @@ import FormSubmissionsView from '../components/admin/FormSubmissionsView'
 import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
+import { normalizeIlPhone } from '../components/admin/customerLookup'
 
 type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
@@ -4922,6 +4923,13 @@ function RegistrationsTab() {
   // existing assignments to deactivated cohorts still render their
   // label (no orphan rows).
   const [cohorts, setCohorts] = useState<WorkshopCohort[]>([])
+  // Phase 5 / A2 Stage 3: linked-form submissions for the gap report.
+  // One batched query per RegistrationsTab load — admin scale, totally
+  // fine. The resolver runs over these once to build filledIndex.
+  type LinkedFormDef = { id: string; title: string; fields_json: { id: string; type: string; label: string; role?: 'name' | 'phone' | 'email' | 'none' }[]; public_link_enabled: boolean }
+  type LinkedSubmission = { id: string; form_id: string; user_id: string | null; responses_json: Record<string, unknown>; created_at: string; user_profiles?: { mother_name: string | null; email: string | null } | null }
+  const [linkedFormDefs, setLinkedFormDefs] = useState<Map<string, LinkedFormDef>>(new Map())
+  const [linkedSubmissions, setLinkedSubmissions] = useState<LinkedSubmission[]>([])
   // Lazy-create cohort flow: when a registration's workshop has no
   // cohorts yet, the row exposes a "+ הוסיפי מחזור" link that opens the
   // CohortsModal for THAT workshop. Closing the modal reloads.
@@ -4986,8 +4994,31 @@ function RegistrationsTab() {
       supabase.from('workshop_cohorts').select('*').order('start_date', { ascending: false }),
     ])
     setLeads((l ?? []) as RegistrationLead[])
-    setWorkshops((w ?? []) as Workshop[])
+    const wsList = (w ?? []) as Workshop[]
+    setWorkshops(wsList)
     setCohorts((c ?? []) as WorkshopCohort[])
+
+    // Phase 5 / A2 Stage 3: load all submissions for the union of
+    // workshop linked forms. Batched — one query each for the forms
+    // (need fields_json for the resolver + public_link_enabled +
+    // title) and the submissions themselves.
+    const linkedFormIds = Array.from(
+      new Set(wsList.map(x => x.linked_form_id).filter((x): x is string => !!x)),
+    )
+    if (linkedFormIds.length === 0) {
+      setLinkedFormDefs(new Map())
+      setLinkedSubmissions([])
+      return
+    }
+    const [{ data: forms }, { data: subs }] = await Promise.all([
+      supabase.from('forms').select('id, title, fields_json, public_link_enabled').in('id', linkedFormIds),
+      supabase
+        .from('form_submissions')
+        .select('id, form_id, user_id, responses_json, created_at, user_profiles(mother_name, email)')
+        .in('form_id', linkedFormIds),
+    ])
+    setLinkedFormDefs(new Map(((forms ?? []) as LinkedFormDef[]).map(f => [f.id, f])))
+    setLinkedSubmissions((subs ?? []) as unknown as LinkedSubmission[])
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -5014,6 +5045,55 @@ function RegistrationsTab() {
     for (const c of cohorts) m.set(c.id, c)
     return m
   }, [cohorts])
+
+  // Phase 5 / A2 Stage 3: filledIndex maps "<formId>|p|<normalizedPhone>"
+  // and "<formId>|e|<lowerEmail>" → present iff that person has
+  // submitted that linked form. Built once per load using the A4
+  // resolver. Per-row gap lookup is then O(1) Set check.
+  const workshopById = useMemo(() => {
+    const m = new Map<string, Workshop>()
+    for (const w of workshops) m.set(w.id, w)
+    return m
+  }, [workshops])
+
+  const filledIndex = useMemo(() => {
+    const idx = new Set<string>()
+    for (const sub of linkedSubmissions) {
+      const form = linkedFormDefs.get(sub.form_id)
+      if (!form) continue
+      const r = resolveSubmitter(
+        { fields_json: form.fields_json },
+        { responses_json: sub.responses_json, user_profiles: sub.user_profiles ?? null },
+      )
+      const phone = normalizeIlPhone(r.phone)
+      const emailL = r.email?.toLowerCase().trim()
+      if (phone) idx.add(`${sub.form_id}|p|${phone}`)
+      if (emailL) idx.add(`${sub.form_id}|e|${emailL}`)
+    }
+    return idx
+  }, [linkedSubmissions, linkedFormDefs])
+
+  // Per-lead gap status: which linked form (if any), and whether she
+  // filled it. Cached by lead.id so re-renders are cheap.
+  type GapStatus = {
+    form: { id: string; title: string; public_link_enabled: boolean }
+    isFilled: boolean
+  }
+  const gapByLeadId = useMemo(() => {
+    const m = new Map<string, GapStatus | null>()
+    for (const lead of leads) {
+      const w = lead.selected_workshop_id ? workshopById.get(lead.selected_workshop_id) : null
+      if (!w?.linked_form_id) { m.set(lead.id, null); continue }
+      const form = linkedFormDefs.get(w.linked_form_id)
+      if (!form) { m.set(lead.id, null); continue }
+      const phone = normalizeIlPhone(lead.phone)
+      const emailL = lead.email?.toLowerCase().trim()
+      const isFilled = (!!phone && filledIndex.has(`${form.id}|p|${phone}`))
+        || (!!emailL && filledIndex.has(`${form.id}|e|${emailL}`))
+      m.set(lead.id, { form: { id: form.id, title: form.title, public_link_enabled: form.public_link_enabled }, isFilled })
+    }
+    return m
+  }, [leads, workshopById, linkedFormDefs, filledIndex])
 
   const filtered = useMemo(() => {
     return leads.filter(l => {
@@ -5199,6 +5279,7 @@ function RegistrationsTab() {
           selected={selected.has(l.id)}
           onToggleSelect={toggleSelect}
           effectiveStatus={effectiveStatus(l, cohortById)}
+          gapStatus={gapByLeadId.get(l.id) ?? null}
         />
       ))}
 
@@ -5214,6 +5295,7 @@ function RegistrationsTab() {
           selected={selected}
           onToggleSelect={toggleSelect}
           onToggleSelectGroup={toggleSelectGroup}
+          gapByLeadId={gapByLeadId}
         />
       )}
 
@@ -5250,6 +5332,11 @@ function RegistrationsTab() {
 // Shared card body used by both the flat list and the grouped view.
 // hideWorkshopMeta drops the workshop-name line for grouped use where
 // the group header already names the workshop.
+type GapStatusType = {
+  form: { id: string; title: string; public_link_enabled: boolean }
+  isFilled: boolean
+}
+
 type RegistrationCardProps = {
   lead: RegistrationLead
   workshops: Workshop[]
@@ -5266,6 +5353,10 @@ type RegistrationCardProps = {
   // Phase 5 / A3 fix-2: badge displays effective status (paid + past
   // cohort → מומש). Dropdown still binds to lead.status (stored).
   effectiveStatus?: RegistrationLead['status']
+  // Phase 5 / A2 Stage 3: per-row questionnaire status. null when the
+  // row's workshop has no linked form. {isFilled:true} → ✅ chip,
+  // {isFilled:false} → ⚠️ chip + reminder button.
+  gapStatus?: GapStatusType | null
 }
 
 function RegistrationCard({
@@ -5281,8 +5372,33 @@ function RegistrationCard({
   selected,
   onToggleSelect,
   effectiveStatus: effective,
+  gapStatus,
 }: RegistrationCardProps) {
   const badgeStatus = effective ?? l.status
+  // Phase 5 / A2 Stage 3: build the reminder WhatsApp link only when
+  // there's an unfilled linked form. Cohort context is woven into
+  // the message: "...לקראת [workshop] [date+time]".
+  const reminderHref = useMemo(() => {
+    if (!gapStatus || gapStatus.isFilled) return null
+    const c = l.cohort_id ? cohorts.find(x => x.id === l.cohort_id) : null
+    const w = l.selected_workshop_id ? workshops.find(x => x.id === l.selected_workshop_id) : null
+    const firstName = l.name?.split(' ')[0] ?? ''
+    let context = ''
+    if (c) {
+      const [y, m, d] = c.start_date.split('-')
+      const t = c.start_time ? ` ${c.start_time.slice(0, 5)}` : ''
+      context = `${w?.title ?? ''} ${d}/${m}/${y.slice(2)}${t}${c.label ? ' · ' + c.label : ''}`.trim()
+    } else if (w?.title) {
+      context = w.title
+    }
+    const url = `${window.location.origin}/?form=${gapStatus.form.id}`
+    const msg = `היי ${firstName}! זה Mimo 🤍\nעדיין לא קיבלנו ממך את התשובות ל"${gapStatus.form.title}"${context ? ` לקראת ${context}` : ''}.\nאשמח אם תמלאי כאן: ${url}`
+    const phoneDigits = (l.phone ?? '').replace(/\D/g, '')
+    const waPhone = phoneDigits.startsWith('0') ? '972' + phoneDigits.slice(1) : phoneDigits
+    if (!waPhone) return null
+    return `https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`
+  }, [gapStatus, l, cohorts, workshops])
+
   // Selected cards get a subtle mustard ring + tint — scannable but
   // doesn't break the existing aesthetic.
   const cardClass = selected
@@ -5316,6 +5432,16 @@ function RegistrationCard({
             <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold" style={{ color: REG_STATUS_LABELS[badgeStatus].color, background: REG_STATUS_LABELS[badgeStatus].bg }}>
               {REG_STATUS_LABELS[badgeStatus].label}
             </span>
+            {gapStatus && gapStatus.isFilled && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold bg-green-50 text-green-700">
+                ✅ שאלון מולא
+              </span>
+            )}
+            {gapStatus && !gapStatus.isFilled && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold bg-amber-50 text-amber-700">
+                ⚠️ שאלון לא מולא
+              </span>
+            )}
             {l.source && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-600">{l.source}</span>}
           </div>
           <p className="text-xs text-sand-400 mt-0.5">
@@ -5350,6 +5476,17 @@ function RegistrationCard({
           <Mail className="w-3.5 h-3.5" />
           {l.email}
         </a>
+        {reminderHref && (
+          <a
+            href={reminderHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 font-semibold"
+            title={`תזכורת למילוי ${gapStatus?.form.title ?? 'השאלון'}`}
+          >
+            📲 שלחי תזכורת
+          </a>
+        )}
       </div>
 
       <div className="flex items-center gap-2 pt-1">
@@ -5401,6 +5538,8 @@ type GroupedViewProps = {
   selected: Set<string>
   onToggleSelect: (id: string) => void
   onToggleSelectGroup: (groupLeads: RegistrationLead[]) => void
+  // Phase 5 / A2 Stage 3: gap-report status per lead.
+  gapByLeadId: Map<string, GapStatusType | null>
 }
 
 function todayLocalIso(): string {
@@ -5422,6 +5561,7 @@ function RegistrationsGroupedView({
   selected,
   onToggleSelect,
   onToggleSelectGroup,
+  gapByLeadId,
 }: GroupedViewProps) {
   const cohortById = useMemo(() => {
     const m = new Map<string, WorkshopCohort>()
@@ -5500,7 +5640,7 @@ function RegistrationsGroupedView({
     })
   }
 
-  const handlers = { onUpdateStatus, onUpdateCohort, onDelete, onAddCohort, selected, onToggleSelect, onToggleSelectGroup }
+  const handlers = { onUpdateStatus, onUpdateCohort, onDelete, onAddCohort, selected, onToggleSelect, onToggleSelectGroup, gapByLeadId }
 
   return (
     <>
@@ -5593,6 +5733,9 @@ type CohortGroupProps = {
   selected: Set<string>
   onToggleSelect: (id: string) => void
   onToggleSelectGroup: (groupLeads: RegistrationLead[]) => void
+  // Phase 5 / A2 Stage 3: per-lead gap status. The cohort's workshop's
+  // linked-form fill rate drives the "X מתוך Y מילאו" counter.
+  gapByLeadId: Map<string, GapStatusType | null>
 }
 
 function CohortGroup({
@@ -5615,6 +5758,7 @@ function CohortGroup({
   selected,
   onToggleSelect,
   onToggleSelectGroup,
+  gapByLeadId,
 }: CohortGroupProps) {
   // Tri-state group checkbox: none / some (indeterminate) / all.
   let selectedInGroup = 0
@@ -5658,6 +5802,25 @@ function CohortGroup({
   if (paid > 0) breakdownParts.push(`✅ ${paid} שילמו`)
   if (handled > 0) breakdownParts.push(`🎓 ${handled} מומשו`)
 
+  // Phase 5 / A2 Stage 3: gap counter — only meaningful when the
+  // group's leads share a workshop with a linked form. All leads in a
+  // cohort group share the same workshop by definition, so we look at
+  // the first lead's gap status. ללא מחזור group skipped (mixed
+  // workshops).
+  let gapCounter: { filled: number; total: number } | null = null
+  if (headerKind !== 'no-cohort' && leads.length > 0) {
+    let hasLinkedForm = false
+    let filledCount = 0
+    for (const l of leads) {
+      const g = gapByLeadId.get(l.id)
+      if (g) {
+        hasLinkedForm = true
+        if (g.isFilled) filledCount++
+      }
+    }
+    if (hasLinkedForm) gapCounter = { filled: filledCount, total: leads.length }
+  }
+
   return (
     <div className="bg-[#F5F1EB] rounded-2xl shadow-sm overflow-hidden">
       <div
@@ -5691,6 +5854,11 @@ function CohortGroup({
           {breakdownParts.length > 0 && (
             <p className="text-[11px] text-sand-600 mt-1">{breakdownParts.join(' · ')}</p>
           )}
+          {gapCounter && (
+            <p className={`text-[11px] mt-1 font-semibold ${gapCounter.filled === gapCounter.total ? 'text-green-700' : 'text-amber-700'}`}>
+              📋 {gapCounter.filled} מתוך {gapCounter.total} מילאו את השאלון
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -5718,6 +5886,7 @@ function CohortGroup({
               selected={selected.has(l.id)}
               onToggleSelect={onToggleSelect}
               effectiveStatus={effOf(l)}
+              gapStatus={gapByLeadId.get(l.id) ?? null}
             />
           ))}
         </div>
