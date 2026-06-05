@@ -1311,67 +1311,108 @@ function FormAggregatePanel({ form, submissions, filterQuestion, setFilterQuesti
 }) {
   const inputFields = form.fields_json.filter(f => f.type !== 'info' && f.type !== 'link')
   const visible = filterQuestion ? inputFields.filter(f => f.label === filterQuestion) : inputFields
+
+  // Phase 5 / A4 fix-3: each submission's resolved submitter (mother
+  // name) so each text answer can be attributed. Computed once per
+  // panel render; submissions are small (admin scale).
+  const submitterNameById = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const s of submissions) {
+      const r = resolveSubmitter(
+        { fields_json: form.fields_json },
+        { responses_json: s.responses_json, user_profiles: s.user_profiles ?? null },
+      )
+      m.set(s.id, r.name ?? r.phone ?? 'אנונימי')
+    }
+    return m
+  }, [form, submissions])
+
   return (
     <div className="space-y-3">
       <select value={filterQuestion ?? ''} onChange={e => setFilterQuestion(e.target.value || null)}
-        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none bg-white">
+        className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white text-sand-800">
         <option value="">כל השאלות</option>
         {inputFields.map(f => <option key={f.id} value={f.label}>{f.label.length > 50 ? f.label.slice(0, 50) + '…' : f.label}</option>)}
       </select>
-      {submissions.length === 0 && <p className="text-center text-gray-400 text-sm py-6">אין תשובות</p>}
+      {submissions.length === 0 && <p className="text-center text-sand-500 text-sm py-6">אין תשובות</p>}
       {visible.map(field => {
-        const answers = submissions.map(s => s.responses_json[field.label]).filter(v => v !== undefined && v !== '')
+        // Phase 5 / A4 fix-3: pair each answer with its submission so
+        // the text aggregate can show "who said what".
+        const answeredSubs = submissions.filter(s => {
+          const v = s.responses_json[field.label]
+          return v !== undefined && v !== '' && v !== null
+        })
+        const answers = answeredSubs.map(s => String(s.responses_json[field.label]))
+
         if (field.type === 'rating') {
-          const avg = answers.length > 0 ? (answers.reduce((s, a) => s + Number(a), 0) / answers.length).toFixed(1) : '—'
+          const avg = answers.length > 0
+            ? (answers.reduce((sum, a) => sum + Number(a), 0) / answers.length).toFixed(1)
+            : '—'
           return (
-            <div key={field.id} className="border border-gray-100 rounded-xl p-3">
-              <p className="text-xs font-semibold text-gray-600 mb-2 truncate">{field.label}</p>
-              <div className="space-y-1">
+            <div key={field.id} className="bg-white border border-sand-200 rounded-xl p-4 shadow-sm">
+              <p className="text-sm font-bold text-sand-800 mb-3 leading-snug">{field.label}</p>
+              <div className="space-y-2">
                 {[1,2,3,4,5].map(n => {
                   const count = answers.filter(a => a === String(n)).length
                   return (
                     <div key={n} className="flex items-center gap-2">
-                      <span className="text-xs w-4 text-center text-gray-500">{n}</span>
-                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <span className="text-xs w-4 text-center font-semibold text-sand-700">{n}</span>
+                      <div className="flex-1 h-2.5 bg-sand-100 rounded-full overflow-hidden">
                         <div className="h-full rounded-full" style={{ width: answers.length ? `${(count/answers.length)*100}%` : '0%', background: '#E7C78A' }} />
                       </div>
-                      <span className="text-xs text-gray-400 w-5 text-left">{count}</span>
+                      <span className="text-xs text-sand-600 w-6 text-left font-semibold">{count}</span>
                     </div>
                   )
                 })}
               </div>
-              <p className="text-[10px] text-gray-400 mt-1.5">ממוצע: {avg} · {answers.length} תשובות</p>
+              <p className="text-xs text-sand-500 mt-2.5">ממוצע: {avg} · {answers.length} תשובות</p>
             </div>
           )
         }
         if (field.type === 'select') {
           const counts = (field.options ?? []).map(opt => ({ opt, count: answers.filter(a => a === opt).length }))
           return (
-            <div key={field.id} className="border border-gray-100 rounded-xl p-3">
-              <p className="text-xs font-semibold text-gray-600 mb-2 truncate">{field.label}</p>
-              <div className="space-y-1.5">
+            <div key={field.id} className="bg-white border border-sand-200 rounded-xl p-4 shadow-sm">
+              <p className="text-sm font-bold text-sand-800 mb-3 leading-snug">{field.label}</p>
+              <div className="space-y-2">
                 {counts.map(({ opt, count }) => (
                   <div key={opt}>
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-[10px] text-gray-600 truncate max-w-[75%]">{opt}</span>
-                      <span className="text-[10px] font-semibold text-gray-500">{count}</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-sand-700 truncate max-w-[75%]">{opt}</span>
+                      <span className="text-xs font-bold text-sand-600">{count}</span>
                     </div>
-                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-sand-100 rounded-full overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: answers.length ? `${(count/answers.length)*100}%` : '0%', background: '#E7C78A' }} />
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-gray-400 mt-1.5">{answers.length} תשובות</p>
+              <p className="text-xs text-sand-500 mt-2.5">{answers.length} תשובות</p>
             </div>
           )
         }
+        // Text / textarea / date — show each answer with the resolved
+        // submitter name (Phase 5 / A4 fix-3).
         return (
-          <div key={field.id} className="border border-gray-100 rounded-xl p-3">
-            <p className="text-xs font-semibold text-gray-600 mb-2 truncate">{field.label} <span className="font-normal text-gray-400">({answers.length})</span></p>
-            <div className="space-y-1 max-h-44 overflow-y-auto">
-              {answers.map((a, i) => <p key={i} className="text-xs text-gray-700 border-b border-gray-50 pb-1 last:border-0">{a}</p>)}
-              {answers.length === 0 && <p className="text-xs text-gray-400">אין תשובות</p>}
+          <div key={field.id} className="bg-white border border-sand-200 rounded-xl p-4 shadow-sm">
+            <p className="text-sm font-bold text-sand-800 mb-3 leading-snug">
+              {field.label}
+              <span className="text-xs font-normal text-sand-500"> ({answers.length})</span>
+            </p>
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+              {answeredSubs.map((s) => {
+                const submitter = submitterNameById.get(s.id) ?? 'אנונימי'
+                const ans = String(s.responses_json[field.label])
+                return (
+                  <div key={s.id} className="border-b border-sand-100 pb-2 last:border-0 last:pb-0">
+                    <p className="text-xs font-bold text-mustard-700 mb-0.5">{submitter}</p>
+                    <p className="text-sm text-sand-800 leading-relaxed whitespace-pre-line break-words">
+                      {ans}
+                    </p>
+                  </div>
+                )
+              })}
+              {answers.length === 0 && <p className="text-sm text-sand-500">אין תשובות</p>}
             </div>
           </div>
         )

@@ -199,16 +199,22 @@ function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete }
       </div>
 
       {expanded && (
-        <div className="px-4 pb-4 pt-3 border-t border-sand-200/60 space-y-3">
+        <div className="px-4 pb-4 pt-3 border-t border-sand-200/60 space-y-4">
           {form.fields_json
             .filter(f => f.type !== 'info' && f.type !== 'link')
             .map(field => {
               const val = submission.responses_json[field.label]
               if (val === undefined || val === '' || val === null) return null
               return (
-                <div key={field.id}>
-                  <p className="text-xs text-sand-500 mb-0.5">{field.label}</p>
-                  <p className="text-sm text-sand-800 leading-relaxed whitespace-pre-line break-words">
+                // Phase 5 / A4 fix-1: each Q/A pair gets a mustard
+                // left-accent border + bold mustard question + larger
+                // sand answer. The accent + size step + bold color
+                // makes Q vs A unmistakable, even on a small screen.
+                <div key={field.id} className="border-r-[3px] border-mustard-300 pr-3">
+                  <p className="text-sm font-bold text-mustard-700 mb-1 leading-snug">
+                    {field.label}
+                  </p>
+                  <p className="text-base text-sand-800 leading-relaxed whitespace-pre-line break-words">
                     {String(val)}
                   </p>
                 </div>
