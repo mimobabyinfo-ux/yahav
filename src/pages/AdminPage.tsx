@@ -10,6 +10,7 @@ import { BUYING_SUBCATEGORIES } from '../data/buyingSubcategories'
 import type { AdminSection } from '../App'
 import CohortsModal from '../components/admin/CohortsModal'
 import FormSubmissionsView from '../components/admin/FormSubmissionsView'
+import FormSubmissionsModal from '../components/admin/FormSubmissionsModal'
 import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
@@ -1468,7 +1469,8 @@ function FormsTabDesktop() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [editingForm, setEditingForm] = useState<FormRecord | null>(null)
   const [assignForm, setAssignForm] = useState<FormRecord | null>(null)
-  const [subsView, setSubsView] = useState<'list' | 'aggregate'>('list')
+  // Polish follow-up: subsView state moved into FormSubmissionsModal —
+  // each form opens fresh on 'list', remounted via key=form.id.
   const [filterQuestion, setFilterQuestion] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -1500,7 +1502,7 @@ function FormsTabDesktop() {
   useEffect(() => { load() }, [load])
 
   async function loadSubmissions(form: FormRecord) {
-    setSelected(form); setLoadingSubs(true); setSubsView('list'); setFilterQuestion(null)
+    setSelected(form); setLoadingSubs(true); setFilterQuestion(null)
     const { data } = await supabase.from('form_submissions')
       .select('*, user_profiles(mother_name, email)').eq('form_id', form.id)
       .order('created_at', { ascending: false })
@@ -1795,46 +1797,38 @@ function FormsTabDesktop() {
         </div>
       </div>
 
-      {/* Right: submissions panel */}
-      {selected && (
-        <aside className="w-96 shrink-0 bg-[#F5F1EB] rounded-2xl shadow-sm border border-gray-100 self-start sticky top-24" dir="rtl">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-gray-800">{selected.title}</h3>
-              <p className="text-xs text-gray-400 mt-0.5">{submissions.length} תשובות</p>
-            </div>
-            <button onClick={() => setSelected(null)} className="text-gray-400"><X className="w-4 h-4" /></button>
-          </div>
-          {/* View tabs */}
-          <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100 bg-gray-50">
-            <button onClick={() => setSubsView('list')} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${subsView === 'list' ? 'bg-white shadow text-gray-700' : 'text-gray-400 hover:text-gray-600'}`}>פרטי</button>
-            <button onClick={() => setSubsView('aggregate')} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${subsView === 'aggregate' ? 'bg-white shadow text-gray-700' : 'text-gray-400 hover:text-gray-600'}`}>מצטבר</button>
-            {subsView === 'aggregate' && submissions.length > 0 && (
-              <button onClick={() => exportCSV(selected, submissions, filterQuestion)} className="mr-auto text-xs text-gray-400 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100">⬇️ CSV</button>
-            )}
-          </div>
-          <div className="max-h-[65vh] overflow-y-auto p-4 space-y-3">
-            {loadingSubs && <p className="text-center text-gray-400 text-sm py-8">טוען...</p>}
-            {!loadingSubs && subsView === 'list' && (
-              <FormSubmissionsView
-                form={selected}
-                submissions={submissions}
-                onDeleteSubmission={deleteSubmission}
-                onFormSaved={refreshSelectedForm}
-              />
-            )}
-            {!loadingSubs && subsView === 'aggregate' && (
-              <FormAggregatePanel
-                form={selected}
-                submissions={submissions}
-                filterQuestion={filterQuestion}
-                setFilterQuestion={setFilterQuestion}
-              />
-            )}
-          </div>
-        </aside>
-      )}
       {assignForm && <AssignFormModal form={assignForm} onClose={() => setAssignForm(null)} />}
+
+      {/* Polish follow-up: centered responses modal — same shell as
+          CustomerCardModal. Replaces the right-side <aside>. The forms
+          table now takes its natural width. key=form.id remounts the
+          modal on each form open so the tab state resets to "פרטי". */}
+      {selected && (
+        <FormSubmissionsModal
+          key={selected.id}
+          formTitle={selected.title}
+          count={submissions.length}
+          loading={loadingSubs}
+          listContent={
+            <FormSubmissionsView
+              form={selected}
+              submissions={submissions}
+              onDeleteSubmission={deleteSubmission}
+              onFormSaved={refreshSelectedForm}
+            />
+          }
+          aggregateContent={
+            <FormAggregatePanel
+              form={selected}
+              submissions={submissions}
+              filterQuestion={filterQuestion}
+              setFilterQuestion={setFilterQuestion}
+            />
+          }
+          onExportCsv={() => exportCSV(selected, submissions, filterQuestion)}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   )
 }
@@ -3483,8 +3477,10 @@ function FormsTab() {
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [assignForm, setAssignForm] = useState<FormRecord | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [subsView, setSubsView] = useState<'list' | 'aggregate'>('list')
+  // Polish follow-up: subsView state moved into FormSubmissionsModal —
+  // each form opens fresh on 'list', remounted via key=form.id.
   const [filterQuestion, setFilterQuestion] = useState<string | null>(null)
+  const [loadingSubs, setLoadingSubs] = useState(false)
   // Phase 5 / A4: per-form { count, lastAt } so the list shows
   // response volume without having to open each form.
   const [submissionStats, setSubmissionStats] = useState<Map<string, { count: number; lastAt: string }>>(new Map())
@@ -3660,13 +3656,14 @@ function FormsTab() {
   }
 
   async function loadSubmissions(form: FormRecord) {
-    setViewSubmissions(form); setSubsView('list'); setFilterQuestion(null)
+    setViewSubmissions(form); setFilterQuestion(null); setLoadingSubs(true)
     const { data } = await supabase
       .from('form_submissions')
       .select('*, user_profiles(mother_name, email)')
       .eq('form_id', form.id)
       .order('created_at', { ascending: false })
     setSubmissions((data ?? []) as Submission[])
+    setLoadingSubs(false)
   }
 
   async function deleteSubmission(id: string) {
@@ -3684,44 +3681,9 @@ function FormsTab() {
     { value: 'link',     label: '🔗 כפתור לינק (תשלום וכו׳)' },
   ]
 
-  if (viewSubmissions) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <button onClick={() => setViewSubmissions(null)} className="text-mustard-600 text-sm font-semibold">← חזרה</button>
-            <h3 className="font-bold text-sand-800">{viewSubmissions.title}</h3>
-          </div>
-          <p className="text-xs text-sand-400">{submissions.length} תשובות</p>
-        </div>
-        {/* View tabs */}
-        <div className="flex items-center gap-1 bg-sand-100 rounded-xl p-1">
-          <button onClick={() => setSubsView('list')} className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${subsView === 'list' ? 'bg-white shadow text-sand-700' : 'text-sand-400'}`}>פרטי</button>
-          <button onClick={() => setSubsView('aggregate')} className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${subsView === 'aggregate' ? 'bg-white shadow text-sand-700' : 'text-sand-400'}`}>מצטבר</button>
-          {subsView === 'aggregate' && submissions.length > 0 && (
-            <button onClick={() => exportCSV(viewSubmissions, submissions, filterQuestion)} className="px-2 py-1 text-xs text-sand-400 hover:text-sand-700 rounded-lg hover:bg-white">⬇️ CSV</button>
-          )}
-        </div>
-        {subsView === 'list' && (
-          <FormSubmissionsView
-            form={viewSubmissions}
-            submissions={submissions}
-            onDeleteSubmission={deleteSubmission}
-            onFormSaved={refreshViewSubmissions}
-          />
-        )}
-        {subsView === 'aggregate' && (
-          <FormAggregatePanel
-            form={viewSubmissions}
-            submissions={submissions}
-            filterQuestion={filterQuestion}
-            setFilterQuestion={setFilterQuestion}
-          />
-        )}
-      </div>
-    )
-  }
-
+  // Polish follow-up: the responses view used to FULL-PAGE swap when a
+  // form was opened, hiding the list. Now it renders as a centered
+  // modal on top of the list (same shell as CustomerCardModal).
   return (
     <div className="space-y-3">
       <button
@@ -3950,6 +3912,36 @@ function FormsTab() {
       {forms.length === 0 && <p className="text-center text-sand-400 text-sm py-8">אין טפסים עדיין</p>}
 
       {assignForm && <AssignFormModal form={assignForm} onClose={() => setAssignForm(null)} />}
+
+      {/* Polish follow-up: centered responses modal — same shell as
+          CustomerCardModal. key=form.id remounts on each form open so
+          the modal's internal tab state resets to "פרטי". */}
+      {viewSubmissions && (
+        <FormSubmissionsModal
+          key={viewSubmissions.id}
+          formTitle={viewSubmissions.title}
+          count={submissions.length}
+          loading={loadingSubs}
+          listContent={
+            <FormSubmissionsView
+              form={viewSubmissions}
+              submissions={submissions}
+              onDeleteSubmission={deleteSubmission}
+              onFormSaved={refreshViewSubmissions}
+            />
+          }
+          aggregateContent={
+            <FormAggregatePanel
+              form={viewSubmissions}
+              submissions={submissions}
+              filterQuestion={filterQuestion}
+              setFilterQuestion={setFilterQuestion}
+            />
+          }
+          onExportCsv={() => exportCSV(viewSubmissions, submissions, filterQuestion)}
+          onClose={() => setViewSubmissions(null)}
+        />
+      )}
     </div>
   )
 }
