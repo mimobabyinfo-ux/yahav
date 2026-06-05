@@ -61,7 +61,10 @@ export default function CustomerCardModal({ initialKey, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-stretch lg:items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-3 lg:p-6"
+      // Phase 5 / A2 Stage 3 fix: leave 96px at the bottom on mobile
+      // so the admin BottomNav + "צפי כמשתמשת" banner don't cover
+      // the card's footer. Same family of fix as the A3 bulk bar.
+      className="fixed inset-0 z-50 flex items-stretch lg:items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-3 pb-[96px] lg:pb-6"
       onClick={onClose}
       dir="rtl"
     >
