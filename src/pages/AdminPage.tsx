@@ -1384,6 +1384,141 @@ function SortableTr({ id, children, className }: { id: string; children: (dragHa
   )
 }
 
+// ─── Polish #9: Forms-page "what's new" tracking ─────────────────────────────
+// Independent of App.tsx's `forms_last_seen` (which drives the admin
+// top-nav red badge and auto-clears on tab open). The page-level
+// indicator must NOT auto-clear — admin needs to see what's new even
+// after landing on the page. So we use:
+//   - `forms_page_last_seen`            (global ISO timestamp)
+//   - `forms_page_last_seen_<formId>`   (per-form ISO timestamp)
+// Effective last-seen for a form = per-form ?? global ?? epoch.
+// Both are bumped only by explicit user actions (opening responses,
+// clicking a "what's new" row, pressing "סמני הכל כנקרא"), never by
+// page navigation. Bumping the global clears per-form keys so they
+// fall back to the global on next read.
+const FORMS_PAGE_LS_KEY = 'forms_page_last_seen'
+const FORMS_PAGE_LS_PER_FORM_PREFIX = 'forms_page_last_seen_'
+const EPOCH = '1970-01-01T00:00:00Z'
+
+function getEffectiveFormSeen(formId: string): string {
+  try {
+    return (
+      localStorage.getItem(FORMS_PAGE_LS_PER_FORM_PREFIX + formId)
+      ?? localStorage.getItem(FORMS_PAGE_LS_KEY)
+      ?? EPOCH
+    )
+  } catch { return EPOCH }
+}
+function bumpFormSeen(formId: string) {
+  try { localStorage.setItem(FORMS_PAGE_LS_PER_FORM_PREFIX + formId, new Date().toISOString()) } catch { /* ignore */ }
+}
+function bumpAllFormsSeen(formIds: string[]) {
+  try {
+    localStorage.setItem(FORMS_PAGE_LS_KEY, new Date().toISOString())
+    // Clear per-form overrides so they fall through to the new global
+    // (otherwise a stale per-form timestamp could still mark new items).
+    for (const id of formIds) localStorage.removeItem(FORMS_PAGE_LS_PER_FORM_PREFIX + id)
+  } catch { /* ignore */ }
+}
+
+// Compact submission shape carried by the Forms page for both the
+// per-form "N חדשים" chip and the "מה חדש" strip. created_at is the
+// only field needed for the new/seen check; the rest power the
+// strip's row labels.
+type FormsPageSubmission = {
+  id: string
+  form_id: string
+  user_id: string | null
+  responses_json: Record<string, unknown>
+  created_at: string
+  user_profiles?: { mother_name: string | null; email: string | null } | null
+}
+
+// Derive top-N newest unseen submissions, with resolved mother name +
+// form title for the strip rows. Returns sorted newest-first.
+function deriveRecentNew(
+  allSubs: FormsPageSubmission[],
+  forms: FormRecord[],
+  topN: number,
+): { sub: FormsPageSubmission; form: FormRecord; submitterLabel: string }[] {
+  const formById = new Map(forms.map(f => [f.id, f]))
+  const out: { sub: FormsPageSubmission; form: FormRecord; submitterLabel: string }[] = []
+  // Sort copy; admin scale is small enough that a full sort is cheap.
+  const sorted = [...allSubs].sort((a, b) => b.created_at.localeCompare(a.created_at))
+  for (const sub of sorted) {
+    if (out.length >= topN) break
+    const form = formById.get(sub.form_id)
+    if (!form) continue
+    if (sub.created_at <= getEffectiveFormSeen(form.id)) continue
+    const r = resolveSubmitter(
+      { fields_json: form.fields_json },
+      { responses_json: sub.responses_json, user_profiles: sub.user_profiles ?? null },
+    )
+    const submitterLabel = r.name ?? sub.user_profiles?.mother_name ?? r.phone ?? r.email ?? 'אנונימי'
+    out.push({ sub, form, submitterLabel })
+  }
+  return out
+}
+
+function timeAgoHebrew(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return 'הרגע'
+  if (min < 60) return `לפני ${min} דק'`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `לפני ${h} שעות`
+  const d = Math.floor(h / 24)
+  if (d === 1) return 'אתמול'
+  if (d < 30) return `לפני ${d} ימים`
+  return new Date(iso).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })
+}
+
+// Polish #9: shared "מה חדש" strip rendered above the forms list on
+// both mobile and desktop tabs. Renders nothing when there's nothing
+// new — caller need not gate on it.
+function FormsWhatsNewStrip({
+  recentNew,
+  onOpenForm,
+  onMarkAllSeen,
+}: {
+  recentNew: { sub: FormsPageSubmission; form: FormRecord; submitterLabel: string }[]
+  onOpenForm: (form: FormRecord) => void
+  onMarkAllSeen: () => void
+}) {
+  if (recentNew.length === 0) return null
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 space-y-2" dir="rtl">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold text-amber-800">✨ מה חדש ({recentNew.length})</p>
+        <button
+          type="button"
+          onClick={onMarkAllSeen}
+          className="text-[10px] text-amber-700 hover:text-amber-900 underline"
+          title="סימון כל ההגשות החדשות כנקראו"
+        >
+          סמני הכל כנקרא
+        </button>
+      </div>
+      <ul className="space-y-1">
+        {recentNew.map(({ sub, form, submitterLabel }) => (
+          <li key={sub.id}>
+            <button
+              type="button"
+              onClick={() => onOpenForm(form)}
+              className="w-full text-right flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white hover:bg-amber-100/40 transition-colors"
+            >
+              <span className="text-[10px] flex-shrink-0 px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 font-bold">חדש</span>
+              <span className="text-xs font-semibold text-sand-800 truncate flex-1 min-w-0">{submitterLabel}</span>
+              <span className="text-[11px] text-sand-500 truncate flex-shrink min-w-0">{form.title}</span>
+              <span className="text-[10px] text-sand-400 flex-shrink-0">{timeAgoHebrew(sub.created_at)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 // ─── Forms Helpers ────────────────────────────────────────────────────────────
 function exportCSV(form: FormRecord, submissions: Submission[], filterQuestion: string | null) {
   const inputFields = form.fields_json.filter(f => f.type !== 'info' && f.type !== 'link')
@@ -1565,15 +1700,34 @@ function FormsTabDesktop() {
   // Phase 5 / A4: per-form { count, lastAt } so the list shows
   // response volume without having to open each form.
   const [submissionStats, setSubmissionStats] = useState<Map<string, { count: number; lastAt: string }>>(new Map())
+  // Polish #9: full submission rows (slim shape) for the page-level
+  // "what's new" strip + per-form "N חדשים" badges + in-modal pill.
+  const [allSubmissions, setAllSubmissions] = useState<FormsPageSubmission[]>([])
+  // Bumping any seen key only writes to localStorage — to force the
+  // derived UI to refresh, we increment this counter from every
+  // mutation site.
+  const [seenBumpTick, setSeenBumpTick] = useState(0)
+  // Snapshot of the per-form effective seen timestamp at the moment
+  // loadSubmissions opened the modal. Used as the cutoff for the
+  // in-modal "✨ חדש" pill — otherwise the just-bumped seen key would
+  // immediately hide every pill the admin came in to see.
+  const [modalSeenCutoff, setModalSeenCutoff] = useState<string>(EPOCH)
 
   const load = useCallback(async () => {
     const [{ data: formsData }, { data: subsData }] = await Promise.all([
       supabase.from('forms').select('*').order('created_at', { ascending: false }),
-      supabase.from('form_submissions').select('form_id, created_at'),
+      // Polish #9: extended select — id + responses + user_profiles
+      // join so the strip can resolve the mother name without
+      // a second query. Admin scale, payload still small.
+      supabase
+        .from('form_submissions')
+        .select('id, form_id, user_id, responses_json, created_at, user_profiles(mother_name, email)'),
     ])
     setForms((formsData ?? []) as FormRecord[])
+    const subs = (subsData ?? []) as unknown as FormsPageSubmission[]
+    setAllSubmissions(subs)
     const stats = new Map<string, { count: number; lastAt: string }>()
-    for (const s of (subsData ?? []) as { form_id: string; created_at: string }[]) {
+    for (const s of subs) {
       const cur = stats.get(s.form_id) ?? { count: 0, lastAt: '' }
       cur.count++
       if (s.created_at > cur.lastAt) cur.lastAt = s.created_at
@@ -1583,8 +1737,34 @@ function FormsTabDesktop() {
   }, [])
   useEffect(() => { load() }, [load])
 
+  // Polish #9: derived "what's new" data. Recomputes whenever the
+  // forms list, the full submissions list, or the seen-bump tick
+  // changes (the latter triggers re-derivation after bumpFormSeen /
+  // bumpAllFormsSeen mutate localStorage).
+  const recentNew = useMemo(
+    () => deriveRecentNew(allSubmissions, forms, 5),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seenBumpTick is a re-derive trigger
+    [allSubmissions, forms, seenBumpTick],
+  )
+  const newCountByFormId = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const s of allSubmissions) {
+      if (s.created_at > getEffectiveFormSeen(s.form_id)) {
+        m.set(s.form_id, (m.get(s.form_id) ?? 0) + 1)
+      }
+    }
+    return m
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seenBumpTick is a re-derive trigger
+  }, [allSubmissions, seenBumpTick])
+
   async function loadSubmissions(form: FormRecord) {
     setSelected(form); setLoadingSubs(true); setFilterQuestion(null)
+    // Polish #9: snapshot the pre-bump cutoff for the in-modal pill,
+    // then bump per-form seen so the page-level chip + strip drop
+    // this form's new items.
+    setModalSeenCutoff(getEffectiveFormSeen(form.id))
+    bumpFormSeen(form.id)
+    setSeenBumpTick(t => t + 1)
     const { data } = await supabase.from('form_submissions')
       .select('*, user_profiles(mother_name, email)').eq('form_id', form.id)
       .order('created_at', { ascending: false })
@@ -1823,6 +2003,16 @@ function FormsTabDesktop() {
           </div>
         )}
 
+        {/* Polish #9: "מה חדש" strip — shown only when there are unseen
+            submissions. Each row opens that form's responses (which
+            bumps its per-form seen key); "סמני הכל כנקרא" bumps the
+            global key. Independent of the top-nav badge in App.tsx. */}
+        <FormsWhatsNewStrip
+          recentNew={recentNew}
+          onOpenForm={loadSubmissions}
+          onMarkAllSeen={() => { bumpAllFormsSeen(forms.map(f => f.id)); setSeenBumpTick(t => t + 1) }}
+        />
+
         {/* Forms table */}
         <div className="bg-[#F5F1EB] rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full text-sm">
@@ -1873,7 +2063,17 @@ function FormsTabDesktop() {
                     rows.push(
                 <tr key={f.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors group cursor-pointer ${selected?.id === f.id ? 'bg-yellow-50' : ''}`} onClick={() => loadSubmissions(f)}>
                   <td className="px-6 py-3">
-                    <p className="font-semibold text-gray-800">{f.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-800">{f.title}</p>
+                      {/* Polish #9: per-form unread chip. Cleared by
+                          loadSubmissions(f) which bumps the per-form
+                          seen key. */}
+                      {(newCountByFormId.get(f.id) ?? 0) > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 font-bold whitespace-nowrap">
+                          {newCountByFormId.get(f.id)} חדשים
+                        </span>
+                      )}
+                    </div>
                     {f.description && <p className="text-xs text-gray-400 truncate max-w-xs">{f.description}</p>}
                   </td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{f.folder ?? '—'}</td>
@@ -1932,6 +2132,7 @@ function FormsTabDesktop() {
               submissions={submissions}
               onDeleteSubmission={deleteSubmission}
               onFormSaved={refreshSelectedForm}
+              isNewSubmission={s => s.created_at > modalSeenCutoff}
             />
           }
           aggregateContent={
@@ -3650,6 +3851,10 @@ function FormsTab() {
   // Phase 5 / A4: per-form { count, lastAt } so the list shows
   // response volume without having to open each form.
   const [submissionStats, setSubmissionStats] = useState<Map<string, { count: number; lastAt: string }>>(new Map())
+  // Polish #9: full submission rows (slim) for "what's new" derivation.
+  const [allSubmissions, setAllSubmissions] = useState<FormsPageSubmission[]>([])
+  const [seenBumpTick, setSeenBumpTick] = useState(0)
+  const [modalSeenCutoff, setModalSeenCutoff] = useState<string>(EPOCH)
 
   function copyFormLink(formId: string) {
     const url = `${window.location.origin}/?form=${formId}`
@@ -3692,11 +3897,17 @@ function FormsTab() {
   const load = useCallback(async () => {
     const [{ data: formsData }, { data: subsData }] = await Promise.all([
       supabase.from('forms').select('*').order('created_at', { ascending: false }),
-      supabase.from('form_submissions').select('form_id, created_at'),
+      // Polish #9: extended select for the what's-new strip + per-form
+      // unread chip. Slim shape; admin scale.
+      supabase
+        .from('form_submissions')
+        .select('id, form_id, user_id, responses_json, created_at, user_profiles(mother_name, email)'),
     ])
     setForms((formsData ?? []) as FormRecord[])
+    const subs = (subsData ?? []) as unknown as FormsPageSubmission[]
+    setAllSubmissions(subs)
     const stats = new Map<string, { count: number; lastAt: string }>()
-    for (const s of (subsData ?? []) as { form_id: string; created_at: string }[]) {
+    for (const s of subs) {
       const cur = stats.get(s.form_id) ?? { count: 0, lastAt: '' }
       cur.count++
       if (s.created_at > cur.lastAt) cur.lastAt = s.created_at
@@ -3705,6 +3916,24 @@ function FormsTab() {
     setSubmissionStats(stats)
   }, [])
   useEffect(() => { load() }, [load])
+
+  // Polish #9: derived strip data + per-form unread counts. Re-runs
+  // on every seenBumpTick increment.
+  const recentNew = useMemo(
+    () => deriveRecentNew(allSubmissions, forms, 5),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seenBumpTick is a re-derive trigger
+    [allSubmissions, forms, seenBumpTick],
+  )
+  const newCountByFormId = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const s of allSubmissions) {
+      if (s.created_at > getEffectiveFormSeen(s.form_id)) {
+        m.set(s.form_id, (m.get(s.form_id) ?? 0) + 1)
+      }
+    }
+    return m
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seenBumpTick is a re-derive trigger
+  }, [allSubmissions, seenBumpTick])
 
   // Phase 5 / A4: refetch the open form so the resolver picks up
   // updated field-role overrides; also refresh the list view's counts.
@@ -3823,6 +4052,12 @@ function FormsTab() {
 
   async function loadSubmissions(form: FormRecord) {
     setViewSubmissions(form); setFilterQuestion(null); setLoadingSubs(true)
+    // Polish #9: snapshot the pre-bump cutoff for the in-modal pill,
+    // then bump per-form seen so the page-level chip + strip drop
+    // this form's new items.
+    setModalSeenCutoff(getEffectiveFormSeen(form.id))
+    bumpFormSeen(form.id)
+    setSeenBumpTick(t => t + 1)
     const { data } = await supabase
       .from('form_submissions')
       .select('*, user_profiles(mother_name, email)')
@@ -4014,6 +4249,13 @@ function FormsTab() {
         </div>
       )}
 
+      {/* Polish #9: "מה חדש" strip — see desktop tab for the rationale. */}
+      <FormsWhatsNewStrip
+        recentNew={recentNew}
+        onOpenForm={loadSubmissions}
+        onMarkAllSeen={() => { bumpAllFormsSeen(forms.map(f => f.id)); setSeenBumpTick(t => t + 1) }}
+      />
+
       {/* Group forms by folder */}
       {(() => {
         const folderMap = new Map<string, FormRecord[]>()
@@ -4047,7 +4289,15 @@ function FormsTab() {
               <div key={form.id} className={`bg-[#F5F1EB] rounded-2xl p-4 shadow-sm mr-2 ${!form.is_active ? 'opacity-50' : ''}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
-                    <p className="font-bold text-sand-800 text-sm">{form.title}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-bold text-sand-800 text-sm">{form.title}</p>
+                      {/* Polish #9: per-form unread chip. */}
+                      {(newCountByFormId.get(form.id) ?? 0) > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 font-bold">
+                          {newCountByFormId.get(form.id)} חדשים
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-sand-400 mt-0.5">{form.fields_json.length} שדות</p>
                     {stat && stat.count > 0 && (
                       <p className="text-xs text-purple-700 font-semibold mt-1">
@@ -4094,6 +4344,7 @@ function FormsTab() {
               submissions={submissions}
               onDeleteSubmission={deleteSubmission}
               onFormSaved={refreshViewSubmissions}
+              isNewSubmission={s => s.created_at > modalSeenCutoff}
             />
           }
           aggregateContent={

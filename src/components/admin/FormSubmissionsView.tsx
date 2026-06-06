@@ -45,9 +45,13 @@ type Props = {
   /** Fired after the admin saves field-role overrides — parent should
    *  reload the form (fields_json changed) so the resolver re-runs. */
   onFormSaved: () => void
+  /** Polish #9: when provided, a submission for which this returns
+   *  true is tagged with a "✨ חדש" pill inline. Caller decides what
+   *  "new" means (typically: created_at > last-seen timestamp). */
+  isNewSubmission?: (s: Submission) => boolean
 }
 
-export default function FormSubmissionsView({ form, submissions, onDeleteSubmission, onFormSaved }: Props) {
+export default function FormSubmissionsView({ form, submissions, onDeleteSubmission, onFormSaved, isNewSubmission }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [showFieldRoles, setShowFieldRoles] = useState(false)
   // Cache of every registration_leads row's identity for the
@@ -108,6 +112,7 @@ export default function FormSubmissionsView({ form, submissions, onDeleteSubmiss
           onDelete={() => {
             if (window.confirm('למחוק תשובה? לא ניתן לשחזר')) onDeleteSubmission(s.id)
           }}
+          isNew={isNewSubmission?.(s) ?? false}
         />
       ))}
     </div>
@@ -126,9 +131,11 @@ type RowProps = {
   expanded: boolean
   onToggle: () => void
   onDelete: () => void
+  /** Polish #9: tag the row with a "✨ חדש" pill when true. */
+  isNew?: boolean
 }
 
-function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete }: RowProps) {
+function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete, isNew }: RowProps) {
   const resolved = useMemo(() => resolveSubmitter(form, submission), [form, submission])
   const match = useMemo(() => findRegistrationMatch(resolved, leads), [resolved, leads])
   // Phase 5 / A2 Part 3: submitter name + 🔗 badge open the unified
@@ -186,6 +193,12 @@ function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete }
                 </button>
               ) : (
                 <span className="text-sm font-bold text-sand-800 truncate">{displayName}</span>
+              )}
+              {/* Polish #9: inline "new since you last opened this form" pill. */}
+              {isNew && (
+                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                  ✨ חדש
+                </span>
               )}
               {resolved.source === 'responses' && (
                 <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded-md whitespace-nowrap">
