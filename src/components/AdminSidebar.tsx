@@ -17,7 +17,7 @@ type Props = {
 const NAV: { id: AdminSection; label: string; icon?: React.ReactNode; emoji?: string }[] = [
   { id: 'registrations', label: 'הרשמות',        emoji: '📝' },
   { id: 'forms',     label: 'טפסים',            emoji: '📋' },
-  { id: 'workshops', label: 'סדנאות / מוצרים',   emoji: '🎓' },
+  { id: 'workshops', label: 'מוצרים',           emoji: '🎓' },
   { id: 'users',     label: 'משתמשים',         icon: <Users className="w-4 h-4" /> },
   { id: 'leads',     label: 'לידים & CRM',      emoji: '📞' },
   { id: 'insights',  label: 'BI & Analytics', icon: <BarChart2 className="w-4 h-4" /> },

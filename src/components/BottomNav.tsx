@@ -64,7 +64,7 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
     const adminItems: { id: AdminSection; label: string; icon: React.ReactNode }[] = [
       { id: 'registrations', label: 'הרשמות',   icon: <span className="text-base leading-none">📝</span> },
       { id: 'forms',     label: 'טפסים',    icon: <span className="text-base leading-none">📋</span> },
-      { id: 'workshops', label: 'סדנאות',   icon: <span className="text-base leading-none">🎓</span> },
+      { id: 'workshops', label: 'מוצרים',   icon: <span className="text-base leading-none">🎓</span> },
       { id: 'users',     label: 'משתמשים',  icon: <Users className="w-4 h-4" /> },
       { id: 'leads',     label: 'לידים',    icon: <span className="text-base leading-none">📞</span> },
     ]

@@ -42,7 +42,7 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'registrations', label: 'הרשמות',     icon: <span className="text-xs">📝</span> },
   { id: 'forms',     label: 'טפסים',         icon: <span className="text-xs">📋</span> },
-  { id: 'workshops', label: 'סדנאות',        icon: <span className="text-xs">🎓</span> },
+  { id: 'workshops', label: 'מוצרים',        icon: <span className="text-xs">🎓</span> },
   { id: 'users',     label: 'משתמשים',      icon: <Users className="w-3.5 h-3.5" /> },
   { id: 'leads',     label: 'לידים',         icon: <span className="text-xs">📞</span> },
   { id: 'insights',  label: 'תובנות',        icon: <BarChart2 className="w-3.5 h-3.5" /> },
@@ -1131,7 +1131,7 @@ function WorkshopsTabDesktop() {
               style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}
             >
               <Plus className="w-4 h-4" />
-              סדנה חדשה
+              מוצר חדש
             </button>
           </div>
           <table className="w-full text-sm">
@@ -1199,7 +1199,7 @@ function WorkshopsTabDesktop() {
       {drawer && (
         <aside className="w-80 shrink-0 bg-[#F5F1EB] rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3 self-start sticky top-24" dir="rtl">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-gray-800">{drawer === 'create' ? 'סדנה חדשה' : 'עריכת סדנה'}</h3>
+            <h3 className="font-bold text-gray-800">{drawer === 'create' ? 'מוצר חדש' : 'עריכת מוצר'}</h3>
             <button onClick={closeDrawer} className="text-gray-400"><X className="w-4 h-4" /></button>
           </div>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="שם הסדנה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
@@ -2956,7 +2956,7 @@ function WorkshopsTab() {
         className="w-full flex items-center justify-center gap-2 bg-mustard-500 text-white font-semibold py-3 rounded-2xl hover:bg-mustard-600 transition-colors"
       >
         <Plus className="w-4 h-4" />
-        סדנה חדשה
+        מוצר חדש
       </button>
 
       {(showForm || editing) && (
@@ -5184,7 +5184,7 @@ function RegistrationsTab() {
       )}
       <div className="bg-[#F5F1EB] rounded-2xl shadow-sm p-4 space-y-3 lg:p-5">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-sand-800 text-sm lg:text-base">הרשמות מעמוד ?register ({counts.all})</h2>
+          <h2 className="font-bold text-sand-800 text-sm lg:text-base">הרשמות מטופס הרשמה</h2>
           <a
             href="?register"
             target="_blank"
@@ -5417,7 +5417,7 @@ function RegistrationCard({
       context = w.title
     }
     const url = `${window.location.origin}/?form=${gapStatus.form.id}`
-    const msg = `היי ${firstName}! זה Mimo 🤍\nעדיין לא קיבלנו ממך את התשובות ל"${gapStatus.form.title}"${context ? ` לקראת ${context}` : ''}.\nאשמח אם תמלאי כאן: ${url}`
+    const msg = `היי ${firstName}! זה Mimo ❤️\nעדיין לא קיבלנו ממך את התשובות ל"${gapStatus.form.title}"${context ? ` לקראת ${context}` : ''}.\nאשמח אם תמלאי כאן: ${url}`
     const phoneDigits = (l.phone ?? '').replace(/\D/g, '')
     const waPhone = phoneDigits.startsWith('0') ? '972' + phoneDigits.slice(1) : phoneDigits
     if (!waPhone) return null
