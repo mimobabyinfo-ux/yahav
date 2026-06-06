@@ -11,6 +11,7 @@ import type { AdminSection } from '../App'
 import CohortsModal from '../components/admin/CohortsModal'
 import FormSubmissionsView from '../components/admin/FormSubmissionsView'
 import FormSubmissionsModal from '../components/admin/FormSubmissionsModal'
+import AdminLargeModal from '../components/admin/AdminLargeModal'
 import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
@@ -1195,13 +1196,24 @@ function WorkshopsTabDesktop() {
         </div>
       </div>
 
-      {/* Create / Edit drawer */}
+      {/* Polish #6: Create / Edit modal — was a w-80 sticky aside next
+          to the workshops table; now a large centered modal sharing
+          the AdminLargeModal shell with the customer card + forms
+          responses modals. */}
       {drawer && (
-        <aside className="w-80 shrink-0 bg-[#F5F1EB] rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3 self-start sticky top-24" dir="rtl">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-gray-800">{drawer === 'create' ? 'מוצר חדש' : 'עריכת מוצר'}</h3>
-            <button onClick={closeDrawer} className="text-gray-400"><X className="w-4 h-4" /></button>
-          </div>
+        <AdminLargeModal
+          title={drawer === 'create' ? 'מוצר חדש' : 'עריכת מוצר'}
+          onClose={closeDrawer}
+          footer={
+            <div className="flex gap-2">
+              <button onClick={saveEdit} disabled={saving} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}>
+                {saving ? '...' : drawer === 'create' ? 'יצירה' : 'שמור'}
+              </button>
+              <button onClick={closeDrawer} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm">ביטול</button>
+            </div>
+          }
+        >
+        <div className="space-y-3">
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="שם הסדנה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-purple-400" />
           <textarea value={form.summary} onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} placeholder="סיכום / נקודות מפתח (מוצג בכרטיס הסדנה)" rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-purple-400" />
@@ -1276,13 +1288,8 @@ function WorkshopsTabDesktop() {
             />
             <span className="text-xs text-gray-700">הצגה בעמוד ההרשמה הציבורי <span className="text-gray-400">(?register)</span></span>
           </label>
-          <div className="flex gap-2 pt-2">
-            <button onClick={saveEdit} disabled={saving} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}>
-              {saving ? '...' : drawer === 'create' ? 'יצירה' : 'שמור'}
-            </button>
-            <button onClick={closeDrawer} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm">ביטול</button>
-          </div>
-        </aside>
+        </div>
+        </AdminLargeModal>
       )}
 
       {contentWorkshop && <WorkshopContentModal workshop={contentWorkshop} onClose={() => setContentWorkshop(null)} />}
@@ -1472,6 +1479,17 @@ function FormsTabDesktop() {
   // Polish follow-up: subsView state moved into FormSubmissionsModal —
   // each form opens fresh on 'list', remounted via key=form.id.
   const [filterQuestion, setFilterQuestion] = useState<string | null>(null)
+  // Polish #5: desktop folder grouping — mirror the mobile pattern so
+  // forms with the same folder are visually grouped under a collapsible
+  // header. Default-open: every folder (and the "no folder" bucket).
+  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['']))
+  function toggleFolder(f: string) {
+    setOpenFolders(prev => {
+      const next = new Set(prev)
+      next.has(f) ? next.delete(f) : next.add(f)
+      return next
+    })
+  }
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [folder, setFolder] = useState('')
@@ -1754,9 +1772,41 @@ function FormsTabDesktop() {
               </tr>
             </thead>
             <tbody>
-              {forms.map(f => {
-                const stat = submissionStats.get(f.id)
-                return (
+              {/* Polish #5: group by folder (mirrors the mobile pattern).
+                  Each folder is a clickable header row spanning all 5
+                  columns; forms beneath only render when the folder is
+                  open. ללא תיקייה bucket goes last. */}
+              {(() => {
+                const folderMap = new Map<string, FormRecord[]>()
+                forms.forEach(f => {
+                  const key = f.folder ?? ''
+                  if (!folderMap.has(key)) folderMap.set(key, [])
+                  folderMap.get(key)!.push(f)
+                })
+                const folders = Array.from(folderMap.entries()).sort(([a], [b]) => {
+                  if (a === '') return 1
+                  if (b === '') return -1
+                  return a.localeCompare(b, 'he')
+                })
+                return folders.flatMap(([folderName, folderForms]) => {
+                  const isOpen = openFolders.has(folderName)
+                  const rows: React.ReactNode[] = [
+                    <tr
+                      key={`__folder_${folderName || '__none__'}`}
+                      onClick={() => toggleFolder(folderName)}
+                      className="bg-gray-100 border-b border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors"
+                    >
+                      <td colSpan={5} className="px-6 py-2.5 text-xs font-bold text-gray-700">
+                        {folderName ? `📁 ${folderName}` : '📋 ללא תיקייה'}
+                        <span className="text-gray-400 font-normal mr-2">({folderForms.length})</span>
+                        <span className="text-gray-400 float-left">{isOpen ? '▼' : '◀'}</span>
+                      </td>
+                    </tr>,
+                  ]
+                  if (!isOpen) return rows
+                  folderForms.forEach(f => {
+                    const stat = submissionStats.get(f.id)
+                    rows.push(
                 <tr key={f.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors group cursor-pointer ${selected?.id === f.id ? 'bg-yellow-50' : ''}`} onClick={() => loadSubmissions(f)}>
                   <td className="px-6 py-3">
                     <p className="font-semibold text-gray-800">{f.title}</p>
@@ -1789,8 +1839,11 @@ function FormsTabDesktop() {
                     </div>
                   </td>
                 </tr>
-                )
-              })}
+                    )
+                  })
+                  return rows
+                })
+              })()}
             </tbody>
           </table>
           {forms.length === 0 && <p className="text-center text-gray-400 text-sm py-12">אין טפסים</p>}
@@ -2959,8 +3012,20 @@ function WorkshopsTab() {
         מוצר חדש
       </button>
 
+      {/* Polish #6: mobile editor is also a centered modal using the
+          AdminLargeModal shell, matching the desktop pattern. */}
       {(showForm || editing) && (
-        <div className="bg-[#F5F1EB] rounded-2xl p-4 shadow-sm space-y-3">
+        <AdminLargeModal
+          title={editing ? 'עריכת מוצר' : 'מוצר חדש'}
+          onClose={() => { setShowForm(false); setEditing(null) }}
+          footer={
+            <div className="flex gap-2">
+              <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2.5 rounded-xl text-sm font-bold">שמירה</button>
+              <button onClick={() => { setShowForm(false); setEditing(null) }} className="px-4 py-2.5 bg-sand-100 text-sand-700 rounded-xl text-sm">ביטול</button>
+            </div>
+          }
+        >
+        <div className="space-y-3">
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="שם הסדנה" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור" rows={2} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none" />
           <textarea value={form.summary} onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} placeholder="סיכום / נקודות מפתח (מוצג בכרטיס הסדנה)" rows={3} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none" />
@@ -3030,11 +3095,8 @@ function WorkshopsTab() {
             />
             <span className="text-xs text-sand-700">הצגה בעמוד ההרשמה הציבורי <span className="text-sand-400">(?register)</span></span>
           </label>
-          <div className="flex gap-2">
-            <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold">שמירה</button>
-            <button onClick={() => { setShowForm(false); setEditing(null) }} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
-          </div>
         </div>
+        </AdminLargeModal>
       )}
 
       {workshops.map(w => (
@@ -5469,8 +5531,27 @@ function RegistrationCard({
             )}
             {l.source && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-600">{l.source}</span>}
           </div>
-          <p className="text-xs text-sand-400 mt-0.5">
-            {!hideWorkshopMeta && <>{l.workshops?.title ?? '—'} · </>}
+          {/* Polish #4: workshop + cohort on one prominent line so the
+              cohort isn't buried as small grey text. created_at drops
+              to a tiny subline beneath. hideWorkshopMeta is set inside
+              the grouped view where the cohort header already shows
+              this info — there we only render created_at. */}
+          {!hideWorkshopMeta && (() => {
+            const workshopTitle = l.workshops?.title ?? '—'
+            const cohort = l.cohort_id ? cohorts.find(c => c.id === l.cohort_id) : null
+            let cohortPart = ''
+            if (cohort) {
+              const [y, m, d] = cohort.start_date.split('-')
+              const t = cohort.start_time ? ` ${cohort.start_time.slice(0, 5)}` : ''
+              cohortPart = ` · ${d}/${m}/${y.slice(2)}${t}${cohort.label ? ' · ' + cohort.label : ''}`
+            }
+            return (
+              <p className="text-sm font-semibold text-sand-700 mt-0.5">
+                {workshopTitle}{cohortPart}
+              </p>
+            )
+          })()}
+          <p className="text-[11px] text-sand-400 mt-0.5">
             {new Date(l.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
@@ -5869,13 +5950,18 @@ function CohortGroup({
             {expanded
               ? <ChevronDown className="w-4 h-4 text-sand-400 flex-shrink-0" />
               : <ChevronUp className="w-4 h-4 text-sand-400 flex-shrink-0 rotate-180" />}
-            <span className="font-bold text-sand-800 text-sm truncate">{headerLabel}</span>
+            {/* Polish #4: merge workshop title + cohort date/time into
+                ONE prominent bold line so the cohort is immediately
+                readable. Previously workshop was the headline and
+                cohort date/time was a small subline below. */}
+            <span className="font-bold text-sand-800 text-sm truncate">
+              {headerLabel}{subLabel ? ` · ${subLabel}` : ''}
+            </span>
             <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${countClass}`}>{countText}</span>
             {headerKind === 'past' && (
               <span className="text-[10px] font-semibold text-sand-500 bg-sand-100 px-1.5 py-0.5 rounded-full">עבר</span>
             )}
           </div>
-          {subLabel && <p className="text-xs text-sand-500 mt-0.5">{subLabel}</p>}
           {breakdownParts.length > 0 && (
             <p className="text-[11px] text-sand-600 mt-1">{breakdownParts.join(' · ')}</p>
           )}

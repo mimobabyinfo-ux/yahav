@@ -1,17 +1,9 @@
 import { useState, type ReactNode } from 'react'
-import { X } from 'lucide-react'
+import AdminLargeModal from './AdminLargeModal'
 
 // Polish follow-up to A4: surfaces a form's responses inside a large
-// centered modal instead of a narrow side panel (desktop) or a
-// full-page swap (mobile). Sizing + structure deliberately mirror
-// CustomerCardModal so the admin gets a single, consistent
-// "deep-dive" modal pattern.
-//
-// The modal is intentionally generic — it owns the tab UI + CSV
-// export trigger, but the inner content (list view / aggregate view)
-// is passed as ReactNode so callers continue to render their existing
-// FormSubmissionsView / FormAggregatePanel components without
-// touching the modal's internals.
+// centered modal. Sizing + structure delegated to AdminLargeModal so
+// all admin deep-dive modals stay visually consistent.
 
 type Props = {
   formTitle: string
@@ -40,36 +32,12 @@ export default function FormSubmissionsModal({
   const [subsView, setSubsView] = useState<'list' | 'aggregate'>('list')
 
   return (
-    <div
-      // Same sizing contract as CustomerCardModal: edge-to-edge on
-      // mobile with 96px bottom inset to clear the admin BottomNav,
-      // centered max-w-2xl on desktop. Backdrop click closes.
-      className="fixed inset-0 z-50 flex items-stretch lg:items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-3 pb-[96px] lg:pb-6"
-      onClick={onClose}
-      dir="rtl"
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        className="bg-white w-full lg:max-w-2xl h-full lg:max-h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
-      >
-        {/* Sticky header */}
-        <div className="px-5 py-4 border-b border-sand-200 flex-shrink-0 flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg lg:text-xl font-bold text-sand-800 truncate">{formTitle}</h2>
-            <p className="text-xs text-sand-500 mt-0.5">{count} תשובות</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 flex-shrink-0"
-            aria-label="סגירה"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* View tabs row — sand-50 strip beneath the header. CSV
-            button appears only in מצטבר view when there are responses. */}
-        <div className="px-5 py-2 border-b border-sand-200 flex-shrink-0 flex items-center gap-2 bg-sand-50">
+    <AdminLargeModal
+      title={formTitle}
+      subtitle={`${count} תשובות`}
+      onClose={onClose}
+      toolbar={
+        <div className="px-5 py-2 flex items-center gap-2">
           <button
             type="button"
             onClick={() => setSubsView('list')}
@@ -103,14 +71,11 @@ export default function FormSubmissionsModal({
             </button>
           )}
         </div>
-
-        {/* Body — scrolls inside. */}
-        <div className="overflow-y-auto flex-1 px-5 py-4">
-          {loading
-            ? <p className="text-center text-sand-400 text-sm py-8">טוען...</p>
-            : subsView === 'list' ? listContent : aggregateContent}
-        </div>
-      </div>
-    </div>
+      }
+    >
+      {loading
+        ? <p className="text-center text-sand-400 text-sm py-8">טוען...</p>
+        : subsView === 'list' ? listContent : aggregateContent}
+    </AdminLargeModal>
   )
 }
