@@ -5292,6 +5292,74 @@ function RegistrationsTab() {
     return c
   }, [leads, cohortById])
 
+  // Polish #8: cohort-scoped form responses modal. Opened from a
+  // CohortGroup header button when the cohort's workshop has a linked
+  // form. The modal reuses FormSubmissionsModal + FormSubmissionsView +
+  // FormAggregatePanel (same components the Forms page uses) so the
+  // Q/A layout stays identical — only the submissions list is scoped.
+  // Filtering is done via the same phone/email identity check that
+  // powers the gap report: resolve each submission's submitter via the
+  // A4 resolver, then match against the cohort leads' normalized
+  // phones + lowercase emails. Submission-list state lives here so it
+  // can be mutated by the modal's delete + form-saved callbacks.
+  const [cohortResponses, setCohortResponses] = useState<
+    { cohort: WorkshopCohort; form: LinkedFormDef; subs: LinkedSubmission[] } | null
+  >(null)
+  const [cohortRespFilter, setCohortRespFilter] = useState<string | null>(null)
+
+  const openCohortResponses = useCallback((cohort: WorkshopCohort) => {
+    const w = workshopById.get(cohort.workshop_id)
+    if (!w?.linked_form_id) return
+    const form = linkedFormDefs.get(w.linked_form_id)
+    if (!form) return
+    const cohortLeads = leads.filter(l => l.cohort_id === cohort.id)
+    const identities = new Set<string>()
+    for (const l of cohortLeads) {
+      const p = normalizeIlPhone(l.phone)
+      const e = l.email?.toLowerCase().trim()
+      if (p) identities.add(`p|${p}`)
+      if (e) identities.add(`e|${e}`)
+    }
+    const subs = linkedSubmissions.filter(sub => {
+      if (sub.form_id !== form.id) return false
+      const r = resolveSubmitter(
+        { fields_json: form.fields_json },
+        { responses_json: sub.responses_json, user_profiles: sub.user_profiles ?? null },
+      )
+      const p = normalizeIlPhone(r.phone)
+      const e = r.email?.toLowerCase().trim()
+      return (!!p && identities.has(`p|${p}`)) || (!!e && identities.has(`e|${e}`))
+    })
+    setCohortResponses({ cohort, form, subs })
+    setCohortRespFilter(null)
+  }, [leads, linkedFormDefs, linkedSubmissions, workshopById])
+
+  async function deleteCohortSubmission(id: string) {
+    if (!confirm('למחוק את התשובה?')) return
+    await supabase.from('form_submissions').delete().eq('id', id)
+    setLinkedSubmissions(prev => prev.filter(s => s.id !== id))
+    setCohortResponses(prev =>
+      prev ? { ...prev, subs: prev.subs.filter(s => s.id !== id) } : prev,
+    )
+  }
+
+  async function refreshCohortResponsesForm() {
+    if (!cohortResponses) return
+    const { data } = await supabase
+      .from('forms')
+      .select('*')
+      .eq('id', cohortResponses.form.id)
+      .single()
+    if (!data) return
+    const fresh = data as LinkedFormDef
+    setLinkedFormDefs(prev => {
+      const next = new Map(prev)
+      next.set(fresh.id, fresh)
+      return next
+    })
+    setCohortResponses(prev => prev ? { ...prev, form: fresh } : prev)
+  }
+
   // Phase 5 / A3: visible-selected = intersection of `selected` with
   // the currently-filtered list. Bulk actions act on this set, NEVER
   // on hidden selections — guarantees no surprise edits.
@@ -5487,6 +5555,7 @@ function RegistrationsTab() {
           onToggleSelect={toggleSelect}
           onToggleSelectGroup={toggleSelectGroup}
           gapByLeadId={gapByLeadId}
+          onOpenResponses={openCohortResponses}
         />
       )}
 
@@ -5496,6 +5565,57 @@ function RegistrationsTab() {
           onClose={() => { setCohortsForRegWorkshop(null); load() }}
         />
       )}
+
+      {/* Polish #8: cohort-scoped form responses. Reuses the same
+          FormSubmissionsModal / FormSubmissionsView / FormAggregatePanel
+          components as the Forms page, so the Q/A rendering, "⚙️ זיהוי
+          שדות" panel, פרטי / מצטבר toggle, CSV export, mother-name
+          resolution, delete + override flows all behave identically —
+          only the submissions list is scoped to mothers in this cohort.
+          The Forms page general all-responses view is untouched. */}
+      {cohortResponses && (() => {
+        // Inflate the LinkedFormDef (which carries only the columns the
+        // gap-report needs) into the wide FormRecord shape that
+        // exportCSV + FormAggregatePanel were typed against. Defaults
+        // are harmless — those consumers only read id/title/fields_json.
+        const formRecord: FormRecord = {
+          id: cohortResponses.form.id,
+          title: cohortResponses.form.title,
+          fields_json: cohortResponses.form.fields_json as FormField[],
+          description: null,
+          trigger_rule: null,
+          is_active: true,
+          public_link_enabled: cohortResponses.form.public_link_enabled,
+          folder: null,
+          created_at: '',
+        }
+        const subs = cohortResponses.subs as unknown as Submission[]
+        return (
+          <FormSubmissionsModal
+            key={`${cohortResponses.cohort.id}|${cohortResponses.form.id}`}
+            formTitle={`${cohortResponses.form.title} · ${cohortDateTimeLabel(cohortResponses.cohort)}`}
+            count={subs.length}
+            listContent={
+              <FormSubmissionsView
+                form={formRecord}
+                submissions={subs}
+                onDeleteSubmission={deleteCohortSubmission}
+                onFormSaved={refreshCohortResponsesForm}
+              />
+            }
+            aggregateContent={
+              <FormAggregatePanel
+                form={formRecord}
+                submissions={subs}
+                filterQuestion={cohortRespFilter}
+                setFilterQuestion={setCohortRespFilter}
+              />
+            }
+            onExportCsv={() => exportCSV(formRecord, subs, cohortRespFilter)}
+            onClose={() => setCohortResponses(null)}
+          />
+        )
+      })()}
 
       {/* Phase 5 / A3: bulk action bar — shown when ≥1 visible
           registration is selected. Actions act on visible-selected
@@ -5750,6 +5870,11 @@ type GroupedViewProps = {
   onToggleSelectGroup: (groupLeads: RegistrationLead[]) => void
   // Phase 5 / A2 Stage 3: gap-report status per lead.
   gapByLeadId: Map<string, GapStatusType | null>
+  // Polish #8: opens the cohort-scoped responses modal. Called from
+  // each CohortGroup header button (only rendered when the cohort's
+  // workshop has a linked form). Wired to RegistrationsTab's
+  // openCohortResponses callback.
+  onOpenResponses: (cohort: WorkshopCohort) => void
 }
 
 function todayLocalIso(): string {
@@ -5772,6 +5897,7 @@ function RegistrationsGroupedView({
   onToggleSelect,
   onToggleSelectGroup,
   gapByLeadId,
+  onOpenResponses,
 }: GroupedViewProps) {
   const cohortById = useMemo(() => {
     const m = new Map<string, WorkshopCohort>()
@@ -5887,6 +6013,7 @@ function RegistrationsGroupedView({
             copied={copiedKey === cohort.id}
             workshops={workshops}
             cohorts={cohorts}
+            onOpenResponses={() => onOpenResponses(cohort)}
             {...handlers}
           />
         )
@@ -5908,6 +6035,7 @@ function RegistrationsGroupedView({
             copied={copiedKey === cohort.id}
             workshops={workshops}
             cohorts={cohorts}
+            onOpenResponses={() => onOpenResponses(cohort)}
             {...handlers}
           />
         )
@@ -5946,6 +6074,12 @@ type CohortGroupProps = {
   // Phase 5 / A2 Stage 3: per-lead gap status. The cohort's workshop's
   // linked-form fill rate drives the "X מתוך Y מילאו" counter.
   gapByLeadId: Map<string, GapStatusType | null>
+  // Polish #8: optional — opens the cohort-scoped responses modal.
+  // Only passed for cohort groups (upcoming/past); the ללא מחזור group
+  // spans multiple workshops so a single scoped modal isn't meaningful.
+  // The "📊 צפי בתשובות" button is only rendered when this AND a
+  // gap counter (== linked form exists) are both present.
+  onOpenResponses?: () => void
 }
 
 function CohortGroup({
@@ -5969,6 +6103,7 @@ function CohortGroup({
   onToggleSelect,
   onToggleSelectGroup,
   gapByLeadId,
+  onOpenResponses,
 }: CohortGroupProps) {
   // Tri-state group checkbox: none / some (indeterminate) / all.
   let selectedInGroup = 0
@@ -6075,14 +6210,31 @@ function CohortGroup({
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); onCopyPhones() }}
-          className="flex-shrink-0 text-[11px] px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-          title="העתקת כל הטלפונים של המחזור — מוכן להדבקה בקבוצת WhatsApp"
-        >
-          {copied ? '✓ הועתק' : '📋 העתק טלפונים'}
-        </button>
+        <div className="flex-shrink-0 flex items-center gap-1.5">
+          {/* Polish #8: cohort-scoped responses entry point. Only
+              rendered when the cohort's workshop has a linked form
+              (gapCounter check) AND a handler is wired in. Opens the
+              same FormSubmissionsModal the Forms page uses, but with
+              the list pre-filtered to mothers in THIS cohort. */}
+          {gapCounter && onOpenResponses && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onOpenResponses() }}
+              className="text-[11px] px-2 py-1 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+              title="צפי בתשובות לשאלון של אמהות במחזור הזה — פרטי + מצטבר"
+            >
+              📊 תשובות לשאלון
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onCopyPhones() }}
+            className="text-[11px] px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+            title="העתקת כל הטלפונים של המחזור — מוכן להדבקה בקבוצת WhatsApp"
+          >
+            {copied ? '✓ הועתק' : '📋 העתק טלפונים'}
+          </button>
+        </div>
       </div>
       {expanded && leads.length > 0 && (
         <div className="px-3 pb-3 space-y-2">
