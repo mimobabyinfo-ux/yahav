@@ -1091,6 +1091,36 @@ function WorkshopsTabDesktop() {
     setDrawer(null); setEditing(null); setForm({ ...EMPTY_WORKSHOP_FORM })
   }
 
+  // Polish #7: drag-to-reorder. PointerSensor + TouchSensor configured
+  // identically to the form-fields reorder above (distance/delay
+  // thresholds prevent accidental drag on a regular click).
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  )
+
+  async function handleWorkshopsDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIdx = workshops.findIndex(w => w.id === active.id)
+    const newIdx = workshops.findIndex(w => w.id === over.id)
+    if (oldIdx < 0 || newIdx < 0) return
+    const reordered = arrayMove(workshops, oldIdx, newIdx)
+    // Optimistic update — the UI snaps to the new order immediately;
+    // the DB writes catch up asynchronously. If any write fails we
+    // refetch via load().
+    setWorkshops(reordered.map((w, i) => ({ ...w, display_order: i })))
+    const updates = await Promise.all(
+      reordered.map((w, i) =>
+        supabase.from('workshops').update({ display_order: i }).eq('id', w.id),
+      ),
+    )
+    if (updates.some(r => r.error)) {
+      console.error('[reorder] one or more updates failed:', updates.filter(r => r.error))
+      load()
+    }
+  }
+
   async function saveEdit() {
     if (!form.title.trim()) return
     setSaving(true)
@@ -1125,7 +1155,7 @@ function WorkshopsTabDesktop() {
       <div className="flex-1 min-w-0 space-y-4">
         <div className="bg-[#F5F1EB] rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-800">סדנאות ({workshops.length})</h2>
+            <h2 className="font-bold text-gray-800">מוצרים ({workshops.length})</h2>
             <button
               onClick={openCreate}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold text-white"
@@ -1138,6 +1168,7 @@ function WorkshopsTabDesktop() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
+                <th className="px-2 py-3 w-8"></th>
                 <th className="px-6 py-3">שם</th>
                 <th className="px-4 py-3">מחיר</th>
                 <th className="px-4 py-3">סטטוס</th>
@@ -1145,54 +1176,63 @@ function WorkshopsTabDesktop() {
               </tr>
             </thead>
             <tbody>
-              {workshops.map(w => (
-                <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors group">
-                  <td className="px-6 py-3">
-                    <div className="flex items-center gap-3">
-                      {w.image_url
-                        ? <img src={w.image_url} className="w-9 h-9 rounded-xl object-cover" alt="" />
-                        : <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center text-lg">🎓</div>
-                      }
-                      <div>
-                        <p className="font-semibold text-gray-800">{w.title}</p>
-                        {w.description && <p className="text-xs text-gray-400 truncate max-w-xs">{w.description}</p>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{w.price != null ? `₪${w.price}` : '—'}</td>
-                  <td className="px-4 py-3">
-                    <button onClick={() => toggle(w)} className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${w.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {w.is_active ? 'פעיל' : 'לא פעיל'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100">📂 תוכן</button>
-                      <button
-                        onClick={() => setCohortsWorkshop(w)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100"
-                        title="ניהול מחזורים"
-                      >
-                        📅 מחזורים
-                      </button>
-                      {(w as unknown as { public_registration?: boolean }).public_registration && (
-                        <button
-                          onClick={() => copyRegisterLink(w.id)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100"
-                          title="העתקת לינק להרשמה ישירה למוצר הזה"
-                        >
-                          {copiedId === w.id ? '✓ הועתק' : '🔗 לינק'}
-                        </button>
+              <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleWorkshopsDragEnd}>
+                <SortableContext items={workshops.map(w => w.id)} strategy={verticalListSortingStrategy}>
+                  {workshops.map(w => (
+                    <SortableTr key={w.id} id={w.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors group">
+                      {(dragHandle) => (
+                        <>
+                          <td className="px-2 py-3 w-8 text-center">{dragHandle}</td>
+                          <td className="px-6 py-3">
+                            <div className="flex items-center gap-3">
+                              {w.image_url
+                                ? <img src={w.image_url} className="w-9 h-9 rounded-xl object-cover" alt="" />
+                                : <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center text-lg">🎓</div>
+                              }
+                              <div>
+                                <p className="font-semibold text-gray-800">{w.title}</p>
+                                {w.description && <p className="text-xs text-gray-400 truncate max-w-xs">{w.description}</p>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{w.price != null ? `₪${w.price}` : '—'}</td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => toggle(w)} className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${w.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {w.is_active ? 'פעיל' : 'לא פעיל'}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100">📂 תוכן</button>
+                              <button
+                                onClick={() => setCohortsWorkshop(w)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100"
+                                title="ניהול מחזורים"
+                              >
+                                📅 מחזורים
+                              </button>
+                              {(w as unknown as { public_registration?: boolean }).public_registration && (
+                                <button
+                                  onClick={() => copyRegisterLink(w.id)}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                  title="העתקת לינק להרשמה ישירה למוצר הזה"
+                                >
+                                  {copiedId === w.id ? '✓ הועתק' : '🔗 לינק'}
+                                </button>
+                              )}
+                              <button onClick={() => openEdit(w)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => del(w.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
+                          </td>
+                        </>
                       )}
-                      <button onClick={() => openEdit(w)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => del(w.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </SortableTr>
+                  ))}
+                </SortableContext>
+              </DndContext>
             </tbody>
           </table>
-          {workshops.length === 0 && <p className="text-center text-gray-400 text-sm py-12">אין סדנאות</p>}
+          {workshops.length === 0 && <p className="text-center text-gray-400 text-sm py-12">אין מוצרים</p>}
         </div>
       </div>
 
@@ -1317,6 +1357,30 @@ function SortableRow({ id, children }: { id: string; children: (dragHandle: Reac
     <div ref={setNodeRef} style={style}>
       {children(dragHandle)}
     </div>
+  )
+}
+
+// Polish #7: same render-prop pattern as SortableRow but emits a <tr>
+// instead of a <div>, so it slots into a table without breaking the
+// table layout. Used by WorkshopsTabDesktop's drag-to-reorder.
+function SortableTr({ id, children, className }: { id: string; children: (dragHandle: React.ReactNode) => React.ReactNode; className?: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
+  const dragHandle = (
+    <button
+      {...listeners}
+      {...attributes}
+      className="cursor-grab active:cursor-grabbing p-1 text-gray-300 hover:text-gray-500 touch-none"
+      title="גרור לשינוי סדר"
+      onClick={e => e.preventDefault()}
+    >
+      <GripVertical className="w-3.5 h-3.5" />
+    </button>
+  )
+  return (
+    <tr ref={setNodeRef} style={style} className={className}>
+      {children(dragHandle)}
+    </tr>
   )
 }
 
@@ -2925,6 +2989,33 @@ function WorkshopsTab() {
   // just showed the "copied" feedback so the icon flips for ~1.5s.
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
+  // Polish #7: drag-to-reorder for mobile cards. Same sensor config
+  // as the desktop table; touch sensor uses a 200ms delay so a
+  // regular tap on the card buttons doesn't get hijacked as a drag.
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  )
+
+  async function handleWorkshopsDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIdx = workshops.findIndex(w => w.id === active.id)
+    const newIdx = workshops.findIndex(w => w.id === over.id)
+    if (oldIdx < 0 || newIdx < 0) return
+    const reordered = arrayMove(workshops, oldIdx, newIdx)
+    setWorkshops(reordered.map((w, i) => ({ ...w, display_order: i })))
+    const updates = await Promise.all(
+      reordered.map((w, i) =>
+        supabase.from('workshops').update({ display_order: i }).eq('id', w.id),
+      ),
+    )
+    if (updates.some(r => r.error)) {
+      console.error('[reorder] one or more updates failed:', updates.filter(r => r.error))
+      load()
+    }
+  }
+
   function copyRegisterLink(id: string) {
     const link = `${window.location.origin}?register=${id}`
     navigator.clipboard.writeText(link).then(() => {
@@ -3099,47 +3190,60 @@ function WorkshopsTab() {
         </AdminLargeModal>
       )}
 
-      {workshops.map(w => (
-        <div key={w.id} className={`bg-[#F5F1EB] rounded-2xl p-4 shadow-sm space-y-2 ${!w.is_active ? 'opacity-50' : ''}`}>
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sand-800 text-sm truncate">{w.title}</p>
-              {w.price != null && <p className="text-xs text-mustard-600">₪{w.price}</p>}
-            </div>
-            <div className="flex items-center gap-1">
-              <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
-                {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
-              </button>
-              <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
-              <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-            </div>
+      <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleWorkshopsDragEnd}>
+        <SortableContext items={workshops.map(w => w.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+          {workshops.map(w => (
+            <SortableRow key={w.id} id={w.id}>
+              {(dragHandle) => (
+                <div className={`bg-[#F5F1EB] rounded-2xl p-4 shadow-sm space-y-2 ${!w.is_active ? 'opacity-50' : ''}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {dragHandle}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sand-800 text-sm truncate">{w.title}</p>
+                        {w.price != null && <p className="text-xs text-mustard-600">₪{w.price}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
+                        {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
+                      </button>
+                      <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setContentWorkshop(w)}
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-mustard-50 text-mustard-700 hover:bg-mustard-100 transition-colors"
+                    >
+                      📂 ניהול תוכן
+                    </button>
+                    <button
+                      onClick={() => setCohortsWorkshop(w)}
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                      title="ניהול מחזורים — תאריכי התחלה למוצר הזה"
+                    >
+                      📅 מחזורים
+                    </button>
+                    {(w as unknown as { public_registration?: boolean }).public_registration && (
+                      <button
+                        onClick={() => copyRegisterLink(w.id)}
+                        className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                        title="העתקת לינק להרשמה ישירה למוצר הזה"
+                      >
+                        {copiedId === w.id ? '✓ הועתק' : '🔗 לינק ייעודי'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </SortableRow>
+          ))}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setContentWorkshop(w)}
-              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-mustard-50 text-mustard-700 hover:bg-mustard-100 transition-colors"
-            >
-              📂 ניהול תוכן
-            </button>
-            <button
-              onClick={() => setCohortsWorkshop(w)}
-              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-              title="ניהול מחזורים — תאריכי התחלה למוצר הזה"
-            >
-              📅 מחזורים
-            </button>
-            {(w as unknown as { public_registration?: boolean }).public_registration && (
-              <button
-                onClick={() => copyRegisterLink(w.id)}
-                className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                title="העתקת לינק להרשמה ישירה למוצר הזה"
-              >
-                {copiedId === w.id ? '✓ הועתק' : '🔗 לינק ייעודי'}
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
+        </SortableContext>
+      </DndContext>
 
       {contentWorkshop && <WorkshopContentModal workshop={contentWorkshop} onClose={() => setContentWorkshop(null)} />}
       {cohortsWorkshop && <CohortsModal workshop={cohortsWorkshop} onClose={() => setCohortsWorkshop(null)} />}
