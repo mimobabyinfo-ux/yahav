@@ -1681,9 +1681,9 @@ function FormsTabDesktop() {
   // Polish #5: desktop folder grouping — mirror the mobile pattern so
   // forms with the same folder are visually grouped under a collapsible
   // header. Default-open: every folder (and the "no folder" bucket).
-  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['']))
+  const [closedFolders, setClosedFolders] = useState<Set<string>>(new Set())
   function toggleFolder(f: string) {
-    setOpenFolders(prev => {
+    setClosedFolders(prev => {
       const next = new Set(prev)
       next.has(f) ? next.delete(f) : next.add(f)
       return next
@@ -2043,7 +2043,7 @@ function FormsTabDesktop() {
                   return a.localeCompare(b, 'he')
                 })
                 return folders.flatMap(([folderName, folderForms]) => {
-                  const isOpen = openFolders.has(folderName)
+                  const isOpen = !closedFolders.has(folderName)
                   const rows: React.ReactNode[] = [
                     <tr
                       key={`__folder_${folderName || '__none__'}`}
@@ -3870,7 +3870,7 @@ function FormsTab() {
   const [triggerType, setTriggerType] = useState('after_video_views')
   const [triggerCount, setTriggerCount] = useState('3')
   const [saving, setSaving] = useState(false)
-  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['']))
+  const [closedFolders, setClosedFolders] = useState<Set<string>>(new Set())
 
   function startEdit(form: FormRecord) {
     setEditingForm(form)
@@ -3887,7 +3887,7 @@ function FormsTab() {
   }
 
   function toggleFolder(f: string) {
-    setOpenFolders(prev => {
+    setClosedFolders(prev => {
       const next = new Set(prev)
       next.has(f) ? next.delete(f) : next.add(f)
       return next
@@ -4280,10 +4280,10 @@ function FormsTab() {
                 {folderName ? `📁 ${folderName}` : '📋 ללא תיקייה'}
                 <span className="mr-2 text-sand-400 font-normal">({folderForms.length})</span>
               </span>
-              <span className="text-sand-400 text-xs">{openFolders.has(folderName) ? '▲' : '▼'}</span>
+              <span className="text-sand-400 text-xs">{!closedFolders.has(folderName) ? '▲' : '▼'}</span>
             </button>
 
-            {openFolders.has(folderName) && folderForms.map(form => {
+            {!closedFolders.has(folderName) && folderForms.map(form => {
               const stat = submissionStats.get(form.id)
               return (
               <div key={form.id} className={`bg-[#F5F1EB] rounded-2xl p-4 shadow-sm mr-2 ${!form.is_active ? 'opacity-50' : ''}`}>
