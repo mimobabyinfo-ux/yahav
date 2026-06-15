@@ -5586,7 +5586,6 @@ function RegistrationsTab() {
   }, [leads, linkedFormDefs, linkedSubmissions, workshopById])
 
   async function deleteCohortSubmission(id: string) {
-    if (!confirm('למחוק את התשובה?')) return
     await supabase.from('form_submissions').delete().eq('id', id)
     setLinkedSubmissions(prev => prev.filter(s => s.id !== id))
     setCohortResponses(prev =>
