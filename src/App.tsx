@@ -45,6 +45,11 @@ const publicBabyToken = new URLSearchParams(window.location.search).get('baby')
 const joinToken = new URLSearchParams(window.location.search).get('join')
 const isPartnerPage = new URLSearchParams(window.location.search).has('partner')
 const isRegisterPage = new URLSearchParams(window.location.search).has('register')
+// Task B: ?offer=<token> routes to PublicRegisterPage in offer mode.
+// Needs its own early-return gate at the same level as ?register so
+// the admin auto-redirect (useEffect → setCurrentPage('admin')) never
+// fires for a logged-in admin testing an offer link.
+const isOfferPage = new URLSearchParams(window.location.search).has('offer')
 const isThanksPage = new URLSearchParams(window.location.search).has('thanks')
 const isSettingsPage = new URLSearchParams(window.location.search).has('settings')
 
@@ -136,6 +141,7 @@ function AppInner() {
   if (joinToken && !user) return <GuestJoinPage token={joinToken} />
   if (isPartnerPage) return <PublicPartnerPage />
   if (isRegisterPage) return <PublicRegisterPage />
+  if (isOfferPage) return <PublicRegisterPage />
   if (isThanksPage) return <ThankYouPage />
 
   if (loading) {

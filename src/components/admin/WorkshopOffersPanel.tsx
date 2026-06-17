@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Plus, Trash2, Copy, Check, X } from 'lucide-react'
+import { Plus, Trash2, Copy, Check, X, Pencil } from 'lucide-react'
 import { supabase, type WorkshopOffer } from '../../lib/supabase'
 import ConfirmDialog from './ConfirmDialog'
+import { jerusalemWallClockToIsoUtc, formatJerusalemDateTime, utcToJerusalemWallClock } from '../../lib/jerusalemTime'
 
 // Task B: per-workshop "special offer" admin panel. Rendered inside
 // the product editor (AdminLargeModal) so admin can manage offers
@@ -67,6 +68,11 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
   const [offers, setOffers] = useState<WorkshopOffer[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  // Offer-expiry enhancement: editingId is set when the same form is
+  // pre-filled with an existing offer's values and a save will UPDATE
+  // rather than INSERT. The token stays immutable (the link the admin
+  // already sent shouldn't change shape under her feet).
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -117,34 +123,78 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
     if (maxUses !== null && (Number.isNaN(maxUses) || maxUses < 1)) {
       setFormError('כמות שימושים מקסימלית חייבת להיות מספר שלם חיובי או ריקה'); return
     }
-    const expiresAt = draft.expires_at ? new Date(draft.expires_at).toISOString() : null
+    // The datetime-local input emits "YYYY-MM-DDTHH:mm" with no
+    // timezone. Interpret it as Asia/Jerusalem wall-clock so "20:30"
+    // means 20:30 Israel time regardless of which timezone the
+    // admin's browser is in. Stored as a UTC ISO timestamptz.
+    const expiresAt = draft.expires_at ? jerusalemWallClockToIsoUtc(draft.expires_at) : null
 
     setSaving(true)
-    const { data, error } = await supabase
-      .from('workshop_offers')
-      .insert({
-        workshop_id: workshopId,
-        label,
-        discount_type: draft.discount_type,
-        discount_value: value,
-        payment_link: link || null,
-        max_uses: maxUses,
-        expires_at: expiresAt,
-        is_active: true,
-      })
-      .select('*')
-      .single()
-    setSaving(false)
-    if (error || !data) {
-      setFormError('שגיאה ביצירת ההצעה — נסי שוב')
-      return
+    const payload = {
+      workshop_id: workshopId,
+      label,
+      discount_type: draft.discount_type,
+      discount_value: value,
+      payment_link: link || null,
+      max_uses: maxUses,
+      expires_at: expiresAt,
     }
-    setOffers(prev => [data as WorkshopOffer, ...prev])
+    // Edit branch updates in-place and preserves token + uses_count
+    // (admin reopening a link she already sent shouldn't see it
+    // mutate underneath). Create branch inserts a fresh row.
+    if (editingId) {
+      const { data, error } = await supabase
+        .from('workshop_offers')
+        .update(payload)
+        .eq('id', editingId)
+        .select('*')
+        .single()
+      setSaving(false)
+      if (error || !data) {
+        setFormError('שגיאה בשמירת ההצעה — נסי שוב')
+        return
+      }
+      setOffers(prev => prev.map(o => o.id === editingId ? (data as WorkshopOffer) : o))
+    } else {
+      const { data, error } = await supabase
+        .from('workshop_offers')
+        .insert({ ...payload, is_active: true })
+        .select('*')
+        .single()
+      setSaving(false)
+      if (error || !data) {
+        setFormError('שגיאה ביצירת ההצעה — נסי שוב')
+        return
+      }
+      setOffers(prev => [data as WorkshopOffer, ...prev])
+      // Auto-copy the freshly created link — admin's next action is
+      // almost always to send it to a customer.
+      copyOfferLink((data as WorkshopOffer).token)
+    }
     setDraft(EMPTY_DRAFT)
     setShowForm(false)
-    // Auto-copy the freshly created link — admin's next action is
-    // almost always to send it to a customer.
-    copyOfferLink((data as WorkshopOffer).token)
+    setEditingId(null)
+  }
+
+  function openEdit(offer: WorkshopOffer) {
+    setEditingId(offer.id)
+    setDraft({
+      label: offer.label,
+      discount_type: offer.discount_type,
+      discount_value: String(offer.discount_value),
+      payment_link: offer.payment_link ?? '',
+      max_uses: offer.max_uses != null ? String(offer.max_uses) : '',
+      expires_at: offer.expires_at ? utcToJerusalemWallClock(offer.expires_at) : '',
+    })
+    setShowForm(true)
+    setFormError(null)
+  }
+
+  function cancelForm() {
+    setShowForm(false)
+    setEditingId(null)
+    setDraft(EMPTY_DRAFT)
+    setFormError(null)
   }
 
   async function performDelete() {
@@ -174,7 +224,7 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
         {!showForm && (
           <button
             type="button"
-            onClick={() => { setShowForm(true); setDraft(EMPTY_DRAFT); setFormError(null) }}
+            onClick={() => { setShowForm(true); setEditingId(null); setDraft(EMPTY_DRAFT); setFormError(null) }}
             className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-mustard-500 text-white text-xs font-bold hover:bg-mustard-600 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -186,10 +236,12 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
       {showForm && (
         <div className="bg-white border-2 border-mustard-200 rounded-2xl p-3 space-y-2.5">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold text-sand-700">יצירת הצעה חדשה</p>
+            <p className="text-xs font-bold text-sand-700">
+              {editingId ? 'עריכת הצעה' : 'יצירת הצעה חדשה'}
+            </p>
             <button
               type="button"
-              onClick={() => { setShowForm(false); setDraft(EMPTY_DRAFT); setFormError(null) }}
+              onClick={cancelForm}
               className="text-sand-400 hover:text-sand-700"
               aria-label="סגירה"
             >
@@ -262,14 +314,15 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
               />
             </div>
             <div className="flex-1">
-              <label className="text-[11px] font-semibold text-sand-500 mb-1 block">תאריך פקיעה (אופציונלי)</label>
+              <label className="text-[11px] font-semibold text-sand-500 mb-1 block">תאריך + שעת פקיעה (אופציונלי)</label>
               <input
-                type="date"
+                type="datetime-local"
                 value={draft.expires_at}
                 onChange={e => setDraft(d => ({ ...d, expires_at: e.target.value }))}
                 dir="ltr"
                 className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-500"
               />
+              <p className="text-[10px] text-sand-400 mt-0.5">שעון ישראל</p>
             </div>
           </div>
 
@@ -283,7 +336,9 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
             disabled={saving}
             className="w-full py-2.5 rounded-xl bg-mustard-500 text-white text-sm font-bold disabled:opacity-50 hover:bg-mustard-600 transition-colors"
           >
-            {saving ? 'יוצרת...' : 'צרי הצעה'}
+            {saving
+              ? (editingId ? 'שומרת...' : 'יוצרת...')
+              : (editingId ? 'שמירת שינויים' : 'צרי הצעה')}
           </button>
         </div>
       )}
@@ -310,7 +365,7 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
                   </span>
                   {o.expires_at && (
                     <span className="text-[10px] text-sand-400">
-                      עד {new Date(o.expires_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                      עד {formatJerusalemDateTime(o.expires_at)}
                     </span>
                   )}
                 </div>
@@ -329,6 +384,14 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
                     className="px-2 py-1.5 rounded-lg text-[11px] font-semibold text-sand-500 hover:bg-sand-100 transition-colors"
                   >
                     {o.is_active ? 'כיבוי' : 'הפעלה'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(o)}
+                    className="p-1.5 rounded-lg text-sand-400 hover:text-mustard-600 hover:bg-mustard-50 transition-colors"
+                    aria-label="עריכה"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
