@@ -181,6 +181,28 @@ export type Workshop = {
   updated_at: string
 }
 
+// Task B: scoped discount link for a workshop. Not shown on the
+// public form — reachable only via ?offer=<token>. The token is the
+// secret; RLS is admin-only at the table level, public access goes
+// through the get_workshop_offer / claim_workshop_offer RPCs.
+export type WorkshopOffer = {
+  id: string
+  workshop_id: string
+  token: string
+  label: string
+  discount_type: 'fixed' | 'percent'
+  discount_value: number
+  // Override link; required at the application layer when
+  // discount_value > 0 (no payment-provider integration means the
+  // discount only "exists" insofar as the link's checkout matches).
+  payment_link: string | null
+  max_uses: number | null
+  uses_count: number
+  expires_at: string | null
+  is_active: boolean
+  created_at: string
+}
+
 // Phase 5 / A1: workshops have recurring cohorts (Hebrew label: "מחזור").
 // Each cohort is one workshop × one start_date with optional label /
 // advisory capacity / free-text notes. registration_leads.cohort_id

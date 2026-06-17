@@ -13,6 +13,7 @@ import FormSubmissionsView from '../components/admin/FormSubmissionsView'
 import FormSubmissionsModal from '../components/admin/FormSubmissionsModal'
 import AdminLargeModal from '../components/admin/AdminLargeModal'
 import ConfirmDialog from '../components/admin/ConfirmDialog'
+import WorkshopOffersPanel from '../components/admin/WorkshopOffersPanel'
 import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
@@ -1320,6 +1321,14 @@ function WorkshopsTabDesktop() {
             />
             <span className="text-xs text-gray-700">הצגה בעמוד ההרשמה הציבורי <span className="text-gray-400">(?register)</span></span>
           </label>
+          {/* Task B: per-workshop special-offer manager. Only on edit
+              — needs the workshop_id, so a brand-new (unsaved)
+              workshop hides the panel until it's been saved once. */}
+          {drawer === 'edit' && editing && (
+            <div className="pt-3 mt-3 border-t border-sand-200">
+              <WorkshopOffersPanel workshopId={editing.id} />
+            </div>
+          )}
         </div>
         </AdminLargeModal>
       )}
@@ -3461,6 +3470,13 @@ function WorkshopsTab() {
             />
             <span className="text-xs text-sand-700">הצגה בעמוד ההרשמה הציבורי <span className="text-sand-400">(?register)</span></span>
           </label>
+          {/* Task B: per-workshop special-offer manager (mobile editor).
+              Only on edit — needs workshop_id. */}
+          {editing && (
+            <div className="pt-3 mt-3 border-t border-sand-200">
+              <WorkshopOffersPanel workshopId={editing.id} />
+            </div>
+          )}
         </div>
         </AdminLargeModal>
       )}

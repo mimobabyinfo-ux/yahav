@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useMemo } from 'react'
-import { supabase, Workshop } from '../lib/supabase'
+import { supabase, Workshop, type WorkshopOffer } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
 function isValidEmail(s: string) {
@@ -10,15 +10,35 @@ function normalizePhone(s: string) {
   return s.replace(/[^\d]/g, '')
 }
 
+// Task B: compute the displayed special price from the offer + the
+// regular workshop price. fixed = special price IS discount_value;
+// percent = price * (1 - discount_value/100), rounded to whole ₪.
+function computeOfferPrice(offer: WorkshopOffer, workshop: Workshop | null): number | null {
+  if (offer.discount_type === 'fixed') return offer.discount_value
+  if (offer.discount_type === 'percent' && workshop?.price != null) {
+    return Math.round(workshop.price * (1 - offer.discount_value / 100))
+  }
+  return null
+}
+
 export default function PublicRegisterPage() {
   const params = new URLSearchParams(window.location.search)
   const preselect = params.get('register') || ''
+  const offerToken = params.get('offer') || ''
   const source = params.get('source') || ''
 
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [loading, setLoading] = useState(true)
   const [subtitle, setSubtitle] = useState('בית עוטף ומלטף')
   const [hero, setHero] = useState('ברוכה הבאה לסדנאות מימו')
+
+  // Task B: offer mode. `offer` + `offerWorkshop` populated when the
+  // ?offer=<token> link points to a still-claimable offer; otherwise
+  // `offerUnavailable` is set and we render a friendly fallback. The
+  // two states are mutually exclusive — never both at once.
+  const [offer, setOffer] = useState<WorkshopOffer | null>(null)
+  const [offerWorkshop, setOfferWorkshop] = useState<Workshop | null>(null)
+  const [offerUnavailable, setOfferUnavailable] = useState<{ workshopId: string | null } | null>(null)
 
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -40,6 +60,7 @@ export default function PublicRegisterPage() {
     document.title = 'הרשמה לסדנאות מימו'
   }, [])
 
+  // Settings (subtitle + hero) are needed in both modes.
   useEffect(() => {
     supabase.from('global_settings')
       .select('setting_key, setting_value')
@@ -50,7 +71,51 @@ export default function PublicRegisterPage() {
         if (sub) setSubtitle(sub)
         if (h) setHero(h)
       })
+  }, [])
 
+  // Task B: offer mode loader — runs only when ?offer=<token> is set.
+  // Uses get_workshop_offer (SECURITY DEFINER, RLS-bypassing) so the
+  // anon path can read the row without table-level grant.
+  useEffect(() => {
+    if (!offerToken) return
+    let cancelled = false
+    ;(async () => {
+      const { data: offerData } = await supabase.rpc('get_workshop_offer', { p_token: offerToken })
+      if (cancelled) return
+      if (!offerData) {
+        setOfferUnavailable({ workshopId: null })
+        setLoading(false)
+        return
+      }
+      const o = offerData as WorkshopOffer
+      const now = new Date()
+      const expired = o.expires_at != null && new Date(o.expires_at) <= now
+      const maxed = o.max_uses != null && o.uses_count >= o.max_uses
+      const inactive = !o.is_active
+
+      // Workshop fetch ignores public_registration on purpose — an
+      // offer link is its own surface, the admin can use it even for
+      // workshops they don't want in the public list.
+      const { data: w } = await supabase.from('workshops').select('*').eq('id', o.workshop_id).single()
+      if (cancelled) return
+      const ws = w as Workshop | null
+      if (expired || maxed || inactive || !ws || !ws.is_active) {
+        setOfferUnavailable({ workshopId: ws?.id ?? o.workshop_id })
+        setLoading(false)
+        return
+      }
+      setOffer(o)
+      setOfferWorkshop(ws)
+      setSelected(ws.id)
+      setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [offerToken])
+
+  // Regular ?register or bare visit — skipped when an offer is in play
+  // (the offer effect owns its workshop fetch + loading state).
+  useEffect(() => {
+    if (offerToken) return
     supabase
       .from('workshops')
       .select('*')
@@ -60,7 +125,6 @@ export default function PublicRegisterPage() {
       .then(({ data }) => {
         const list = data ?? []
         setWorkshops(list)
-        // pre-select via URL if it matches
         if (preselect && list.some(w => w.id === preselect)) {
           setSelected(preselect)
         } else if (list.length === 1) {
@@ -68,7 +132,7 @@ export default function PublicRegisterPage() {
         }
         setLoading(false)
       })
-  }, [preselect])
+  }, [preselect, offerToken])
 
   const orderedWorkshops = useMemo(() => {
     if (!selected) return workshops
@@ -77,16 +141,19 @@ export default function PublicRegisterPage() {
     return [sel, ...workshops.filter(w => w.id !== selected)]
   }, [workshops, selected])
 
-  // Phase 5 / B: per-workshop dedicated links. When ?register=<id>
-  // matches an active public-registration workshop, lock the form to
-  // that single workshop — no chip strip, no other options. Invalid /
-  // inactive / wrong-id values fall through silently to the full list
-  // (existing behavior preserved for backwards compat with bare
-  // ?register links).
+  // Phase 5 / B + Task B: per-workshop dedicated links. The offer
+  // mode's offerWorkshop takes precedence — when present, the form
+  // locks to that workshop and shows the special-price banner.
   const lockedWorkshop = useMemo(() => {
+    if (offerWorkshop) return offerWorkshop
     if (!preselect) return null
     return workshops.find(w => w.id === preselect) ?? null
-  }, [workshops, preselect])
+  }, [workshops, preselect, offerWorkshop])
+
+  const offerPrice = useMemo(() => {
+    if (!offer) return null
+    return computeOfferPrice(offer, offerWorkshop)
+  }, [offer, offerWorkshop])
 
   function validate() {
     const e: Record<string, string> = {}
@@ -105,6 +172,44 @@ export default function PublicRegisterPage() {
     ev.preventDefault()
     if (!validate()) return
     setSubmitting(true)
+
+    // Task B: offer mode — atomically claim the offer BEFORE inserting
+    // the lead. If two registrations race, the second one's
+    // claim_workshop_offer RPC returns null and we bail with a
+    // friendly message. The offer's own payment_link (or a fallback
+    // to the workshop's) is what we redirect to.
+    if (offer && offerWorkshop) {
+      const { data: claimed } = await supabase.rpc('claim_workshop_offer', { p_token: offer.token })
+      if (!claimed) {
+        setSubmitting(false)
+        setErrors({ submit: 'ההצעה הסתיימה כרגע — אם זו הייתה הצעה מוגבלת בכמות, מספר השימושים מולא.' })
+        return
+      }
+      const { error } = await supabase.from('registration_leads').insert({
+        name: name.trim(),
+        phone: normalizePhone(phone),
+        email: email.trim().toLowerCase(),
+        selected_workshop_id: offerWorkshop.id,
+        offer_id: offer.id,
+        offer_token: offer.token,
+        source: source || 'offer',
+      })
+      if (error) {
+        setSubmitting(false)
+        setErrors({ submit: 'שגיאה בשמירה — נסי שוב או צרי קשר ישירות' })
+        return
+      }
+      const url = offer.payment_link ?? offerWorkshop.payment_link
+      if (url) {
+        window.location.href = url
+      } else {
+        setSubmitting(false)
+        setErrors({ submit: 'ההרשמה התקבלה. ניצור איתך קשר בהקדם.' })
+      }
+      return
+    }
+
+    // Regular mode (unchanged from Phase 5 / B).
     const workshop = workshops.find(w => w.id === selected)
     const { error } = await supabase.from('registration_leads').insert({
       name: name.trim(),
@@ -134,6 +239,39 @@ export default function PublicRegisterPage() {
     )
   }
 
+  // Task B: offer link is dead (expired / maxed / disabled / unknown).
+  // Block the offer flow with a friendly message + link to the
+  // regular product page if we know which workshop it pointed at.
+  if (offerUnavailable) {
+    const fallback = offerUnavailable.workshopId
+      ? `?register=${offerUnavailable.workshopId}`
+      : '?register'
+    return (
+      <div className="min-h-screen px-4 py-8 flex items-center justify-center" dir="rtl" style={{ background: '#FFFFFF' }}>
+        <div className="max-w-md w-full">
+          <div className="text-center mb-6">
+            <div className="flex justify-center mb-2"><MimoLogo size={120} /></div>
+            <p className="text-sand-500 text-sm">{subtitle}</p>
+          </div>
+          <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-6 text-center space-y-3">
+            <p className="text-3xl">💝</p>
+            <h2 className="text-lg font-bold text-sand-800">ההצעה הסתיימה</h2>
+            <p className="text-sm text-sand-600 leading-relaxed">
+              לינק ההצעה המיוחדת שקיבלת כבר לא תקף — ייתכן שהמספר המוגבל מולא או שההצעה פגה.
+            </p>
+            <a
+              href={fallback}
+              className="block mt-2 py-3 rounded-2xl text-sm font-bold text-white"
+              style={{ background: '#E7C78A' }}
+            >
+              להרשמה במחיר הרגיל ←
+            </a>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen px-4 py-8" dir="rtl" style={{ background: '#FFFFFF' }}>
       <div className="max-w-md mx-auto">
@@ -143,6 +281,16 @@ export default function PublicRegisterPage() {
         </div>
 
         <h1 className="text-center text-xl font-bold text-sand-800 mb-6">{hero}</h1>
+
+        {/* Task B: special-offer banner — only when the form is in
+            offer mode. Shows the offer label so the user can verify
+            she's getting what was advertised. */}
+        {offer && (
+          <div className="bg-gradient-to-l from-mustard-50 to-white border-2 border-mustard-300 rounded-2xl p-4 mb-4 text-center space-y-1">
+            <p className="text-sm font-bold text-mustard-700">💝 הצעה מיוחדת לך</p>
+            <p className="text-xs text-sand-600">{offer.label}</p>
+          </div>
+        )}
 
         <form onSubmit={submit} className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-4">
           <div>
@@ -222,7 +370,23 @@ export default function PublicRegisterPage() {
                       {w.image_url && <img src={w.image_url} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />}
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sand-800 text-sm">{w.title}</p>
-                        {w.price != null && <p className="text-xs font-bold text-mustard-600 mt-0.5">₪{w.price}</p>}
+                        {/* Task B: when an offer is in play, show
+                            the regular price struck through and the
+                            special price prominently. Otherwise the
+                            regular price as before. */}
+                        {offer && offerPrice != null ? (
+                          <p className="mt-0.5 flex items-center gap-2 flex-wrap">
+                            {w.price != null && (
+                              <span className="text-xs text-sand-400 line-through">₪{w.price}</span>
+                            )}
+                            <span className="text-sm font-bold text-mustard-700">₪{offerPrice}</span>
+                            <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-md">
+                              {offer.discount_type === 'percent' ? `-${offer.discount_value}%` : 'מחיר מיוחד'}
+                            </span>
+                          </p>
+                        ) : (
+                          w.price != null && <p className="text-xs font-bold text-mustard-600 mt-0.5">₪{w.price}</p>
+                        )}
                       </div>
                       {!locked && w.description && (
                         <button
