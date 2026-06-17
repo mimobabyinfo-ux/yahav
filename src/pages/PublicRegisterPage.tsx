@@ -179,8 +179,20 @@ export default function PublicRegisterPage() {
     // friendly message. The offer's own payment_link (or a fallback
     // to the workshop's) is what we redirect to.
     if (offer && offerWorkshop) {
-      const { data: claimed } = await supabase.rpc('claim_workshop_offer', { p_token: offer.token })
+      const { data: claimed, error: claimError } = await supabase.rpc('claim_workshop_offer', { p_token: offer.token })
+      // Distinguish RPC failure (network / permission / unexpected)
+      // from a successful RPC that returned NULL (= offer was no
+      // longer claimable when the UPDATE ran). The original code
+      // collapsed both into "ההצעה הסתיימה", which hid genuine
+      // backend errors during a real outage.
+      if (claimError) {
+        console.error('[offer-submit] claim_workshop_offer RPC error:', claimError)
+        setSubmitting(false)
+        setErrors({ submit: 'שגיאה בתקשורת עם השרת — נסי שוב' })
+        return
+      }
       if (!claimed) {
+        console.warn('[offer-submit] claim returned null — offer no longer claimable')
         setSubmitting(false)
         setErrors({ submit: 'ההצעה הסתיימה כרגע — אם זו הייתה הצעה מוגבלת בכמות, מספר השימושים מולא.' })
         return
@@ -195,6 +207,7 @@ export default function PublicRegisterPage() {
         source: source || 'offer',
       })
       if (error) {
+        console.error('[offer-submit] registration_leads insert error:', error)
         setSubmitting(false)
         setErrors({ submit: 'שגיאה בשמירה — נסי שוב או צרי קשר ישירות' })
         return
@@ -203,8 +216,15 @@ export default function PublicRegisterPage() {
       if (url) {
         window.location.href = url
       } else {
+        // Neither the offer nor the workshop has a payment_link. The
+        // lead is already saved + the offer claim already ran, so
+        // we tell the user her submission was received and the owner
+        // will follow up. This path is rare (admin would normally
+        // require payment_link when discount_value > 0) but worth a
+        // clear message instead of silently doing nothing.
+        console.warn('[offer-submit] no payment_link on offer or workshop — falling through to manual-followup message')
         setSubmitting(false)
-        setErrors({ submit: 'ההרשמה התקבלה. ניצור איתך קשר בהקדם.' })
+        setErrors({ submit: 'ההרשמה התקבלה. ניצור איתך קשר בהקדם להמשך התשלום.' })
       }
       return
     }
@@ -414,7 +434,13 @@ export default function PublicRegisterPage() {
 
           <button
             type="submit"
-            disabled={submitting || workshops.length === 0}
+            // Task B fix: in offer mode the regular workshops loader
+            // is intentionally skipped (we have offerWorkshop instead),
+            // so `workshops` stays []. The original `workshops.length === 0`
+            // gate was for the bare ?register flow where nothing's
+            // available; in offer mode there's always exactly one
+            // (locked) workshop, so the gate must NOT fire.
+            disabled={submitting || (!offer && workshops.length === 0)}
             className="w-full py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50 transition-opacity"
             style={{ background: '#E7C78A' }}
           >
