@@ -14,6 +14,7 @@ import FormSubmissionsModal from '../components/admin/FormSubmissionsModal'
 import AdminLargeModal from '../components/admin/AdminLargeModal'
 import ConfirmDialog from '../components/admin/ConfirmDialog'
 import WorkshopOffersPanel from '../components/admin/WorkshopOffersPanel'
+import RegistrationEditModal from '../components/admin/RegistrationEditModal'
 import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
@@ -5637,6 +5638,17 @@ function RegistrationsTab() {
     setLeads(prev => prev.map(l => l.id === id ? { ...l, cohort_id: cohortId } : l))
   }
 
+  // Task C: full edit. Pencil button on each row sets editingLead;
+  // the RegistrationEditModal mounts at the bottom of the return,
+  // calls saveLeadEdit on confirm, which patches the row + updates
+  // local state optimistically.
+  const [editingLead, setEditingLead] = useState<RegistrationLead | null>(null)
+  async function saveLeadEdit(id: string, patch: Partial<RegistrationLead>) {
+    const { error } = await supabase.from('registration_leads').update(patch).eq('id', id)
+    if (error) throw error
+    setLeads(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l))
+  }
+
   // Task A: lead-row trash button sets pendingDeleteLead; the dialog
   // at the bottom prompts; performDeleteLead runs the delete. `del`
   // (id-keyed) stays as the prop name passed to RegistrationCard /
@@ -5982,6 +5994,7 @@ function RegistrationsTab() {
           onUpdateStatus={updateStatus}
           onUpdateCohort={updateCohort}
           onDelete={del}
+          onEdit={setEditingLead}
           onAddCohort={ws => setCohortsForRegWorkshop(ws)}
           selected={selected.has(l.id)}
           onToggleSelect={toggleSelect}
@@ -5998,6 +6011,7 @@ function RegistrationsTab() {
           onUpdateStatus={updateStatus}
           onUpdateCohort={updateCohort}
           onDelete={del}
+          onEdit={setEditingLead}
           onAddCohort={ws => setCohortsForRegWorkshop(ws)}
           selected={selected}
           onToggleSelect={toggleSelect}
@@ -6091,6 +6105,16 @@ function RegistrationsTab() {
         onConfirm={performDeleteLead}
         onClose={() => setPendingDeleteLead(null)}
       />
+      {editingLead && (
+        <RegistrationEditModal
+          key={editingLead.id}
+          lead={editingLead}
+          workshops={workshops}
+          cohorts={cohorts}
+          onSave={saveLeadEdit}
+          onClose={() => setEditingLead(null)}
+        />
+      )}
     </div>
   )
 }
@@ -6111,6 +6135,8 @@ type RegistrationCardProps = {
   onUpdateStatus: (id: string, status: RegistrationLead['status']) => void
   onUpdateCohort: (id: string, cohortId: string | null) => void
   onDelete: (id: string) => void
+  // Task C: opens the full edit modal for this lead.
+  onEdit: (lead: RegistrationLead) => void
   onAddCohort: (w: Workshop) => void
   hideWorkshopMeta?: boolean
   hideCohortRow?: boolean
@@ -6133,6 +6159,7 @@ function RegistrationCard({
   onUpdateStatus,
   onUpdateCohort,
   onDelete,
+  onEdit,
   onAddCohort,
   hideWorkshopMeta,
   hideCohortRow,
@@ -6235,6 +6262,16 @@ function RegistrationCard({
             {new Date(l.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
+        {/* Task C: edit pencil sits next to the trash, both as small
+            icon buttons. Edit opens the full edit modal; delete
+            opens the shared ConfirmDialog (Task A). */}
+        <button
+          onClick={() => onEdit(l)}
+          className="p-1.5 text-sand-300 hover:text-mustard-600"
+          title="עריכה"
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
         <button
           onClick={() => onDelete(l.id)}
           className="p-1.5 text-sand-300 hover:text-red-500"
@@ -6319,6 +6356,8 @@ type GroupedViewProps = {
   onUpdateStatus: (id: string, status: RegistrationLead['status']) => void
   onUpdateCohort: (id: string, cohortId: string | null) => void
   onDelete: (id: string) => void
+  // Task C: pass-through to each CohortGroup → RegistrationCard.
+  onEdit: (lead: RegistrationLead) => void
   onAddCohort: (w: Workshop) => void
   // Phase 5 / A3: selection plumbing.
   selected: Set<string>
@@ -6348,6 +6387,7 @@ function RegistrationsGroupedView({
   onUpdateStatus,
   onUpdateCohort,
   onDelete,
+  onEdit,
   onAddCohort,
   selected,
   onToggleSelect,
@@ -6432,7 +6472,7 @@ function RegistrationsGroupedView({
     })
   }
 
-  const handlers = { onUpdateStatus, onUpdateCohort, onDelete, onAddCohort, selected, onToggleSelect, onToggleSelectGroup, gapByLeadId }
+  const handlers = { onUpdateStatus, onUpdateCohort, onDelete, onEdit, onAddCohort, selected, onToggleSelect, onToggleSelectGroup, gapByLeadId }
 
   return (
     <>
@@ -6522,6 +6562,8 @@ type CohortGroupProps = {
   onUpdateStatus: (id: string, status: RegistrationLead['status']) => void
   onUpdateCohort: (id: string, cohortId: string | null) => void
   onDelete: (id: string) => void
+  // Task C: forwarded to nested RegistrationCard.
+  onEdit: (lead: RegistrationLead) => void
   onAddCohort: (w: Workshop) => void
   // Phase 5 / A3
   selected: Set<string>
@@ -6554,6 +6596,7 @@ function CohortGroup({
   onUpdateStatus,
   onUpdateCohort,
   onDelete,
+  onEdit,
   onAddCohort,
   selected,
   onToggleSelect,
@@ -6703,6 +6746,7 @@ function CohortGroup({
               onUpdateStatus={onUpdateStatus}
               onUpdateCohort={onUpdateCohort}
               onDelete={onDelete}
+              onEdit={onEdit}
               onAddCohort={onAddCohort}
               hideWorkshopMeta={headerKind !== 'no-cohort'}
               hideCohortRow={headerKind !== 'no-cohort'}
