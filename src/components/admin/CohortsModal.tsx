@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { X, Pencil, Trash2, Plus, Check } from 'lucide-react'
 import { supabase, type WorkshopCohort, type Workshop } from '../../lib/supabase'
+import ConfirmDialog from './ConfirmDialog'
 
 // Phase 5 / A1: per-workshop cohort manager. Opened from the admin
 // Workshops list via the "📅 מחזורים" button. Lists existing cohorts
@@ -54,6 +55,11 @@ export default function CohortsModal({ workshop, onClose }: Props) {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Task A: delete confirmation. Only triggered when the cohort has
+  // attached registrations — empty cohorts delete silently to keep
+  // admin's quick-cleanup flow.
+  const [pendingDelete, setPendingDelete] = useState<WorkshopCohort | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -141,16 +147,31 @@ export default function CohortsModal({ workshop, onClose }: Props) {
   async function remove(cohort: WorkshopCohort) {
     // Smart confirm: prompt with the count only when registrations
     // would be orphaned. Cohort with zero registrations deletes
-    // silently — admin asked to be able to clean up freely.
+    // silently — admin asked to be able to clean up freely. The
+    // ConfirmDialog handles the prompt; the silent path runs the
+    // delete directly.
     const count = counts[cohort.id] ?? 0
     if (count > 0) {
-      const msg = `למחזור הזה משויכות ${count} הרשמות. הן יישארו ללא שיוך. למחוק?`
-      if (!window.confirm(msg)) return
+      setPendingDelete(cohort)
+      return
     }
     const { error: dbError } = await supabase
       .from('workshop_cohorts')
       .delete()
       .eq('id', cohort.id)
+    if (dbError) { setError('שגיאה במחיקה'); return }
+    await load()
+  }
+
+  async function performDelete() {
+    if (!pendingDelete) return
+    setDeletingBusy(true)
+    const { error: dbError } = await supabase
+      .from('workshop_cohorts')
+      .delete()
+      .eq('id', pendingDelete.id)
+    setDeletingBusy(false)
+    setPendingDelete(null)
     if (dbError) { setError('שגיאה במחיקה'); return }
     await load()
   }
@@ -342,6 +363,16 @@ export default function CohortsModal({ workshop, onClose }: Props) {
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={!!pendingDelete}
+        itemName={pendingDelete
+          ? `המחזור (${counts[pendingDelete.id] ?? 0} הרשמות יישארו ללא שיוך)`
+          : 'המחזור'}
+        title="מחיקת מחזור"
+        busy={deletingBusy}
+        onConfirm={performDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

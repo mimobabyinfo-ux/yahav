@@ -9,6 +9,7 @@ import {
   type LeadMatch,
 } from './formSubmissionResolver'
 import { useOpenCustomer } from './CustomerCardContext'
+import ConfirmDialog from './ConfirmDialog'
 
 // Phase 5 / A4: replaces the cramped side-panel-per-respondent with
 // expand-inline rows that are comfortably readable on mobile.
@@ -57,6 +58,9 @@ export default function FormSubmissionsView({ form, submissions, onDeleteSubmiss
   // Cache of every registration_leads row's identity for the
   // "🔗 רשומה גם בהרשמות" badge. Light projection — admin scale.
   const [leads, setLeads] = useState<LeadMatch[]>([])
+  // Task A: one ConfirmDialog covers every submission-row delete
+  // surface (Forms page general view, cohort-scoped responses modal).
+  const [pendingDelete, setPendingDelete] = useState<Submission | null>(null)
 
   useEffect(() => {
     supabase
@@ -109,12 +113,27 @@ export default function FormSubmissionsView({ form, submissions, onDeleteSubmiss
           leads={leads}
           expanded={expanded.has(s.id)}
           onToggle={() => toggle(s.id)}
-          onDelete={() => {
-            if (window.confirm('למחוק תשובה? לא ניתן לשחזר')) onDeleteSubmission(s.id)
-          }}
+          onDelete={() => setPendingDelete(s)}
           isNew={isNewSubmission?.(s) ?? false}
         />
       ))}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        itemName={pendingDelete
+          ? (resolveSubmitter(form, pendingDelete).name
+              ?? pendingDelete.user_profiles?.mother_name
+              ?? 'התשובה')
+          : 'התשובה'}
+        title="מחיקת תשובה"
+        onConfirm={() => {
+          if (pendingDelete) {
+            const id = pendingDelete.id
+            setPendingDelete(null)
+            onDeleteSubmission(id)
+          }
+        }}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

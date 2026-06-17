@@ -12,6 +12,7 @@ import CohortsModal from '../components/admin/CohortsModal'
 import FormSubmissionsView from '../components/admin/FormSubmissionsView'
 import FormSubmissionsModal from '../components/admin/FormSubmissionsModal'
 import AdminLargeModal from '../components/admin/AdminLargeModal'
+import ConfirmDialog from '../components/admin/ConfirmDialog'
 import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
@@ -551,26 +552,15 @@ function UsersTab() {
         <AssignAccessModal user={assignAccessUser} onClose={() => setAssignAccessUser(null)} />
       )}
 
-      {/* Delete Confirm Modal */}
-      {deleteUser && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setDeleteUser(null)}>
-          <div className="bg-[#F5F1EB] rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="text-center">
-              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Trash2 className="w-6 h-6 text-red-500" />
-              </div>
-              <h3 className="font-bold text-sand-800">מחיקת משתמשת</h3>
-              <p className="text-sm text-sand-500 mt-1">
-                האם למחוק את <strong>{deleteUser.mother_name ?? deleteUser.email}</strong>? פעולה זו לא ניתנת לביטול.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={confirmDelete} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold text-sm hover:bg-red-600">מחק</button>
-              <button onClick={() => setDeleteUser(null)} className="flex-1 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Task A: ConfirmDialog — replaces the ad-hoc modal that
+          previously lived here. Same visual outcome, shared component. */}
+      <ConfirmDialog
+        open={!!deleteUser}
+        itemName={deleteUser?.mother_name ?? deleteUser?.email ?? 'משתמשת זו'}
+        title="מחיקת משתמשת"
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteUser(null)}
+      />
     </div>
   )
 }
@@ -778,21 +768,13 @@ function UsersTabDesktop() {
       )}
 
       {assignAccessUser && <AssignAccessModal user={assignAccessUser} onClose={() => setAssignAccessUser(null)} />}
-      {deleteUser && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setDeleteUser(null)}>
-          <div className="bg-[#F5F1EB] rounded-3xl p-6 w-full max-w-xs shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="text-center">
-              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><Trash2 className="w-6 h-6 text-red-500" /></div>
-              <h3 className="font-bold text-sand-800">מחיקת משתמשת</h3>
-              <p className="text-sm text-sand-500 mt-1">האם למחוק את <strong>{deleteUser.mother_name ?? deleteUser.email}</strong>?</p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={confirmDelete} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold text-sm">מחק</button>
-              <button onClick={() => setDeleteUser(null)} className="flex-1 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!deleteUser}
+        itemName={deleteUser?.mother_name ?? deleteUser?.email ?? 'משתמשת זו'}
+        title="מחיקת משתמשת"
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteUser(null)}
+      />
     </div>
   )
 }
@@ -1026,6 +1008,11 @@ function WorkshopsTabDesktop() {
   const [uploadingImage, setUploadingImage] = useState(false)
   // Phase 5 / B: per-workshop registration link copy.
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  // Task A: delete-confirmation state. Trash button sets pending; the
+  // shared ConfirmDialog at the bottom of the return prompts; on
+  // confirm, performDelete runs the supabase delete then clears.
+  const [pendingDelete, setPendingDelete] = useState<Workshop | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
   // Phase 5 / A2 Part 2: forms list for the "שאלון משויך" dropdown.
   const [formsList, setFormsList] = useState<{ id: string; title: string }[]>([])
 
@@ -1071,8 +1058,13 @@ function WorkshopsTabDesktop() {
     await supabase.from('workshops').update({ is_active: !w.is_active }).eq('id', w.id); load()
   }
 
-  async function del(id: string) {
-    await supabase.from('workshops').delete().eq('id', id); load()
+  async function performDelete() {
+    if (!pendingDelete) return
+    setDeletingBusy(true)
+    await supabase.from('workshops').delete().eq('id', pendingDelete.id)
+    setDeletingBusy(false)
+    setPendingDelete(null)
+    load()
   }
 
   function openCreate() {
@@ -1221,7 +1213,7 @@ function WorkshopsTabDesktop() {
                                 </button>
                               )}
                               <button onClick={() => openEdit(w)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => del(w.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => setPendingDelete(w)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           </td>
                         </>
@@ -1334,6 +1326,14 @@ function WorkshopsTabDesktop() {
 
       {contentWorkshop && <WorkshopContentModal workshop={contentWorkshop} onClose={() => setContentWorkshop(null)} />}
       {cohortsWorkshop && <CohortsModal workshop={cohortsWorkshop} onClose={() => setCohortsWorkshop(null)} />}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        itemName={pendingDelete?.title ?? 'המוצר'}
+        title="מחיקת מוצר"
+        busy={deletingBusy}
+        onConfirm={performDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   )
 }
@@ -1675,6 +1675,9 @@ function FormsTabDesktop() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [editingForm, setEditingForm] = useState<FormRecord | null>(null)
   const [assignForm, setAssignForm] = useState<FormRecord | null>(null)
+  // Task A: form-row trash → pendingDeleteForm; dialog at end of return.
+  const [pendingDeleteForm, setPendingDeleteForm] = useState<FormRecord | null>(null)
+  const [deletingFormBusy, setDeletingFormBusy] = useState(false)
   // Polish follow-up: subsView state moved into FormSubmissionsModal —
   // each form opens fresh on 'list', remounted via key=form.id.
   const [filterQuestion, setFilterQuestion] = useState<string | null>(null)
@@ -1791,12 +1794,22 @@ function FormsTabDesktop() {
     await supabase.from('forms').update({ is_active: !form.is_active }).eq('id', form.id); load()
   }
 
-  async function deleteForm(id: string) {
-    await supabase.from('forms').delete().eq('id', id)
-    if (selected?.id === id) setSelected(null)
+  // Task A: form-row trash button stages the form; dialog confirms.
+  function requestDeleteForm(form: FormRecord) {
+    setPendingDeleteForm(form)
+  }
+  async function performDeleteForm() {
+    if (!pendingDeleteForm) return
+    setDeletingFormBusy(true)
+    await supabase.from('forms').delete().eq('id', pendingDeleteForm.id)
+    if (selected?.id === pendingDeleteForm.id) setSelected(null)
+    setDeletingFormBusy(false)
+    setPendingDeleteForm(null)
     load()
   }
 
+  // Submission delete: confirmation lives inside FormSubmissionsView
+  // (one row → one dialog). Caller just runs the supabase delete.
   async function deleteSubmission(id: string) {
     await supabase.from('form_submissions').delete().eq('id', id)
     setSubmissions(s => s.filter(x => x.id !== id))
@@ -2098,7 +2111,7 @@ function FormsTabDesktop() {
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                         <button onClick={() => copyFormLink(f.id)} className="px-2 py-1 rounded-lg text-xs bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600">{copiedId === f.id ? '✓' : '🔗'}</button>
                         <button onClick={() => startEdit(f)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => deleteForm(f.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => requestDeleteForm(f)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   </td>
@@ -2147,6 +2160,14 @@ function FormsTabDesktop() {
           onClose={() => setSelected(null)}
         />
       )}
+      <ConfirmDialog
+        open={!!pendingDeleteForm}
+        itemName={pendingDeleteForm?.title ?? 'הטופס'}
+        title="מחיקת טופס"
+        busy={deletingFormBusy}
+        onConfirm={performDeleteForm}
+        onClose={() => setPendingDeleteForm(null)}
+      />
     </div>
   )
 }
@@ -2473,6 +2494,9 @@ function TipsTab() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<TipDraft>(EMPTY_DRAFT)
   const [filter, setFilter] = useState<'all' | 'mom' | 'pregnancy'>('all')
+  // Task A: shared delete confirmation (replaces the inline window.confirm).
+  const [pendingDelete, setPendingDelete] = useState<DailyTip | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
 
   const load = useCallback(() => {
     supabase.from('daily_tips').select('*').order('created_at', { ascending: false })
@@ -2517,9 +2541,12 @@ function TipsTab() {
     load()
   }
 
-  async function del(id: string) {
-    if (!window.confirm('למחוק את הטיפ?')) return
-    await supabase.from('daily_tips').delete().eq('id', id)
+  async function performDelete() {
+    if (!pendingDelete) return
+    setDeletingBusy(true)
+    await supabase.from('daily_tips').delete().eq('id', pendingDelete.id)
+    setDeletingBusy(false)
+    setPendingDelete(null)
     load()
   }
 
@@ -2701,11 +2728,19 @@ function TipsTab() {
             </button>
             <div className="flex gap-2">
               <button onClick={() => startEdit(tip)} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
-              <button onClick={() => del(tip.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+              <button onClick={() => setPendingDelete(tip)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
         </div>
       ))}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        itemName={pendingDelete?.title ?? pendingDelete?.tip_text?.slice(0, 60) ?? 'הטיפ'}
+        title="מחיקת טיפ יומי"
+        busy={deletingBusy}
+        onConfirm={performDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   )
 }
@@ -2717,6 +2752,9 @@ function VideosTab() {
   const [categories, setCategories] = useState<ContentCategory[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<VideoType | null>(null)
+  // Task A: shared delete confirmation.
+  const [pendingDelete, setPendingDelete] = useState<VideoType | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
   const [tasks, setTasks] = useState<HomeworkTask[]>([])
   const [newTask, setNewTask] = useState('')
   const [form, setForm] = useState({ title: '', description: '', video_url: '', thumbnail_url: '', duration_minutes: '', category_id: '' })
@@ -2785,8 +2823,13 @@ function VideosTab() {
     setEditing(null); setShowForm(false); setTasks([]); load()
   }
 
-  async function del(id: string) {
-    await supabase.from('videos').delete().eq('id', id); load()
+  async function performDelete() {
+    if (!pendingDelete) return
+    setDeletingBusy(true)
+    await supabase.from('videos').delete().eq('id', pendingDelete.id)
+    setDeletingBusy(false)
+    setPendingDelete(null)
+    load()
   }
 
   async function toggle(v: VideoType) {
@@ -2912,11 +2955,19 @@ function VideosTab() {
                 {v.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
               </button>
               <button onClick={() => { setEditing(v); setForm({ title: v.title, description: v.description ?? '', video_url: v.video_url ?? '', thumbnail_url: v.thumbnail_url ?? '', duration_minutes: v.duration_minutes?.toString() ?? '', category_id: v.category_id ?? '' }); setShowForm(false); loadTasks(v.id) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
-              <button onClick={() => del(v.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+              <button onClick={() => setPendingDelete(v)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
         </div>
       ))}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        itemName={pendingDelete?.title ?? 'הסרטון'}
+        title="מחיקת סרטון"
+        busy={deletingBusy}
+        onConfirm={performDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   )
 }
@@ -2930,6 +2981,9 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
   const [description, setDescription] = useState('')
   const [url, setUrl] = useState('')
   const [tasks, setTasks] = useState<string[]>([])
+  // Task A: shared delete confirmation.
+  const [pendingDelete, setPendingDelete] = useState<WorkshopContent | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
   const [newTask, setNewTask] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadPct, setUploadPct] = useState(0)
@@ -2983,14 +3037,18 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
     load()
   }
 
-  async function del(item: WorkshopContent) {
-    // Delete storage file if it's from our bucket
+  async function performDelete() {
+    if (!pendingDelete) return
+    const item = pendingDelete
+    setDeletingBusy(true)
     if (item.url?.includes('workshop-content')) {
       const path = item.url.split('/workshop-content/')[1]
       if (path) await supabase.storage.from('workshop-content').remove([path])
     }
     await supabase.from('workshop_content').delete().eq('id', item.id)
     setItems(prev => prev.filter(i => i.id !== item.id))
+    setDeletingBusy(false)
+    setPendingDelete(null)
   }
 
   const typeLabel = { video: '🎬 סרטון', homework: '📝 שיעור בית', pdf: '📄 קובץ' }
@@ -3165,13 +3223,21 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
                 )}
               </div>
               <span className="text-[10px] text-sand-300 flex-shrink-0 mt-0.5">#{idx + 1}</span>
-              <button onClick={() => del(item)} className="p-1.5 text-red-300 hover:text-red-500 flex-shrink-0">
+              <button onClick={() => setPendingDelete(item)} className="p-1.5 text-red-300 hover:text-red-500 flex-shrink-0">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
           ))}
         </div>
       </div>
+      <ConfirmDialog
+        open={!!pendingDelete}
+        itemName={pendingDelete?.title ?? 'הפריט'}
+        title="מחיקת תוכן"
+        busy={deletingBusy}
+        onConfirm={performDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   )
 }
@@ -3184,6 +3250,9 @@ function WorkshopsTab() {
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   // Phase 5 / A1: cohort manager modal. User-facing label "מחזורים".
   const [cohortsWorkshop, setCohortsWorkshop] = useState<Workshop | null>(null)
+  // Task A: shared delete confirmation.
+  const [pendingDelete, setPendingDelete] = useState<Workshop | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '' })
   const [uploadingImage, setUploadingImage] = useState(false)
   // Phase 5 / B: per-workshop registration link copy. Tracks which row
@@ -3286,8 +3355,13 @@ function WorkshopsTab() {
     setEditing(null); setShowForm(false); load()
   }
 
-  async function del(id: string) {
-    await supabase.from('workshops').delete().eq('id', id); load()
+  async function performDelete() {
+    if (!pendingDelete) return
+    setDeletingBusy(true)
+    await supabase.from('workshops').delete().eq('id', pendingDelete.id)
+    setDeletingBusy(false)
+    setPendingDelete(null)
+    load()
   }
 
   async function toggle(w: Workshop) {
@@ -3411,7 +3485,7 @@ function WorkshopsTab() {
                         {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
                       </button>
                       <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
-                      <button onClick={() => del(w.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => setPendingDelete(w)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -3448,6 +3522,14 @@ function WorkshopsTab() {
 
       {contentWorkshop && <WorkshopContentModal workshop={contentWorkshop} onClose={() => setContentWorkshop(null)} />}
       {cohortsWorkshop && <CohortsModal workshop={cohortsWorkshop} onClose={() => setCohortsWorkshop(null)} />}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        itemName={pendingDelete?.title ?? 'המוצר'}
+        title="מחיקת מוצר"
+        busy={deletingBusy}
+        onConfirm={performDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   )
 }
@@ -3460,6 +3542,9 @@ function PerksTab() {
   const [editing, setEditing] = useState<PartnerPerk | null>(null)
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [form, setForm] = useState({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false })
+  // Task A: shared delete confirmation.
+  const [pendingDelete, setPendingDelete] = useState<PartnerPerk | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
 
   const load = useCallback(async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
@@ -3492,8 +3577,13 @@ function PerksTab() {
     setEditing(null); setShowForm(false); load()
   }
 
-  async function del(id: string) {
-    await supabase.from('partner_perks').delete().eq('id', id); load()
+  async function performDelete() {
+    if (!pendingDelete) return
+    setDeletingBusy(true)
+    await supabase.from('partner_perks').delete().eq('id', pendingDelete.id)
+    setDeletingBusy(false)
+    setPendingDelete(null)
+    load()
   }
 
   async function toggle(p: PartnerPerk, field: 'is_active' | 'is_featured') {
@@ -3581,12 +3671,20 @@ function PerksTab() {
                   {p.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
                 </button>
                 <button onClick={() => { setEditing(p); setForm({ partner_name: p.partner_name, short_description: p.short_description ?? '', full_description: p.full_description ?? '', discount_code: p.discount_code ?? '', action_link: p.action_link ?? '', logo_url: p.logo_url ?? '', is_featured: p.is_featured }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
-                <button onClick={() => del(p.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => setPendingDelete(p)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
           </div>
         )
       })}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        itemName={pendingDelete?.partner_name ?? 'הטבה זו'}
+        title="מחיקת הטבה"
+        busy={deletingBusy}
+        onConfirm={performDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   )
 }
@@ -3851,6 +3949,9 @@ function FormsTab() {
   // Phase 5 / A4: per-form { count, lastAt } so the list shows
   // response volume without having to open each form.
   const [submissionStats, setSubmissionStats] = useState<Map<string, { count: number; lastAt: string }>>(new Map())
+  // Task A: form-row trash → pendingDeleteForm; dialog at end of return.
+  const [pendingDeleteForm, setPendingDeleteForm] = useState<FormRecord | null>(null)
+  const [deletingFormBusy, setDeletingFormBusy] = useState(false)
   // Polish #9: full submission rows (slim) for "what's new" derivation.
   const [allSubmissions, setAllSubmissions] = useState<FormsPageSubmission[]>([])
   const [seenBumpTick, setSeenBumpTick] = useState(0)
@@ -4046,8 +4147,17 @@ function FormsTab() {
     load()
   }
 
-  async function deleteForm(id: string) {
-    await supabase.from('forms').delete().eq('id', id); load()
+  // Task A: form-row trash → pendingDeleteForm; dialog confirms.
+  function requestDeleteForm(form: FormRecord) {
+    setPendingDeleteForm(form)
+  }
+  async function performDeleteForm() {
+    if (!pendingDeleteForm) return
+    setDeletingFormBusy(true)
+    await supabase.from('forms').delete().eq('id', pendingDeleteForm.id)
+    setDeletingFormBusy(false)
+    setPendingDeleteForm(null)
+    load()
   }
 
   async function loadSubmissions(form: FormRecord) {
@@ -4316,7 +4426,7 @@ function FormsTab() {
                     <button onClick={() => toggleForm(form)} className="text-sand-400 hover:text-mustard-500">
                       {form.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
                     </button>
-                    <button onClick={() => deleteForm(form.id)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => requestDeleteForm(form)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               </div>
@@ -4359,6 +4469,14 @@ function FormsTab() {
           onClose={() => setViewSubmissions(null)}
         />
       )}
+      <ConfirmDialog
+        open={!!pendingDeleteForm}
+        itemName={pendingDeleteForm?.title ?? 'הטופס'}
+        title="מחיקת טופס"
+        busy={deletingFormBusy}
+        onConfirm={performDeleteForm}
+        onClose={() => setPendingDeleteForm(null)}
+      />
     </div>
   )
 }
@@ -4504,6 +4622,9 @@ function SettingsTab() {
   const [form, setForm] = useState({ setting_key: '', setting_value: '', setting_type: 'text' as GlobalSetting['setting_type'], category: '', description: '' })
   const [saving, setSaving] = useState<string | null>(null)
   const [editValues, setEditValues] = useState<Record<string, string>>({})
+  // Task A: shared delete confirmation.
+  const [pendingDelete, setPendingDelete] = useState<GlobalSetting | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
 
   const load = useCallback(() => {
     supabase.from('global_settings').select('*').order('category').order('setting_key')
@@ -4530,8 +4651,13 @@ function SettingsTab() {
     load()
   }
 
-  async function del(id: string) {
-    await supabase.from('global_settings').delete().eq('id', id); load()
+  async function performDelete() {
+    if (!pendingDelete) return
+    setDeletingBusy(true)
+    await supabase.from('global_settings').delete().eq('id', pendingDelete.id)
+    setDeletingBusy(false)
+    setPendingDelete(null)
+    load()
   }
 
   const grouped = settings.reduce((acc, s) => {
@@ -4601,12 +4727,20 @@ function SettingsTab() {
                     </button>
                   </div>
                 </div>
-                <button onClick={() => del(s.id)} className="p-1.5 text-sand-300 hover:text-red-400 flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => setPendingDelete(s)} className="p-1.5 text-sand-300 hover:text-red-400 flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
           ))}
         </div>
       ))}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        itemName={pendingDelete?.setting_key ?? 'הגדרה זו'}
+        title="מחיקת הגדרה"
+        busy={deletingBusy}
+        onConfirm={performDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   )
 }
@@ -4619,6 +4753,9 @@ function PregnancyAdminTab() {
   const [items, setItems] = useState<PregnancyChecklistItem[]>([])
   const [editItem, setEditItem] = useState<PregnancyChecklistItem | null>(null)
   const [showAdd, setShowAdd] = useState(false)
+  // Task A: shared delete confirmation.
+  const [pendingDelete, setPendingDelete] = useState<PregnancyChecklistItem | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
 
   // Form state
   const [formText, setFormText] = useState('')
@@ -4684,9 +4821,13 @@ function PregnancyAdminTab() {
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_active: !i.is_active } : i))
   }
 
-  async function del(id: string) {
-    await supabase.from('pregnancy_checklist_items').delete().eq('id', id)
-    setItems(prev => prev.filter(i => i.id !== id))
+  async function performDelete() {
+    if (!pendingDelete) return
+    setDeletingBusy(true)
+    await supabase.from('pregnancy_checklist_items').delete().eq('id', pendingDelete.id)
+    setItems(prev => prev.filter(i => i.id !== pendingDelete.id))
+    setDeletingBusy(false)
+    setPendingDelete(null)
   }
 
   const displayed = items.filter(i => i.category === (cat as 'medical' | 'buying'))
@@ -4823,7 +4964,7 @@ function PregnancyAdminTab() {
               <button onClick={() => toggleActive(item)} className="p-1.5 text-sand-400 hover:text-sand-700 transition-colors">
                 {item.is_active ? <ToggleRight className="w-4 h-4 text-green-500" /> : <ToggleLeft className="w-4 h-4" />}
               </button>
-              <button onClick={() => del(item.id)} className="p-1.5 text-sand-300 hover:text-red-400 transition-colors">
+              <button onClick={() => setPendingDelete(item)} className="p-1.5 text-sand-300 hover:text-red-400 transition-colors">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
@@ -4834,6 +4975,14 @@ function PregnancyAdminTab() {
         )}
       </div>
       </>)}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        itemName={pendingDelete?.text ?? 'הפריט'}
+        title="מחיקת פריט"
+        busy={deletingBusy}
+        onConfirm={performDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   )
 }
@@ -5018,6 +5167,9 @@ function PartnersTab() {
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', category: 'pregnancy' as 'pregnancy' | 'motherhood', subcategory: 'doula', whatsapp_number: '', logo_url: '', display_order: 0 })
   const [saving, setSaving] = useState(false)
+  // Task A: shared delete confirmation.
+  const [pendingDelete, setPendingDelete] = useState<ServicePartner | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('service_partners').select('*').order('category').order('display_order')
@@ -5056,9 +5208,13 @@ function PartnersTab() {
     setPartners(prev => prev.map(x => x.id === p.id ? { ...x, is_active: !x.is_active } : x))
   }
 
-  async function del(id: string) {
-    await supabase.from('service_partners').delete().eq('id', id)
-    setPartners(prev => prev.filter(x => x.id !== id))
+  async function performDelete() {
+    if (!pendingDelete) return
+    setDeletingBusy(true)
+    await supabase.from('service_partners').delete().eq('id', pendingDelete.id)
+    setPartners(prev => prev.filter(x => x.id !== pendingDelete.id))
+    setDeletingBusy(false)
+    setPendingDelete(null)
   }
 
   return (
@@ -5131,13 +5287,21 @@ function PartnersTab() {
             <button onClick={() => openEdit(p)} className="p-1.5 text-sand-300 hover:text-mustard-600 transition-colors">
               <Pencil className="w-4 h-4" />
             </button>
-            <button onClick={() => del(p.id)} className="p-1.5 text-sand-200 hover:text-red-400 transition-colors">
+            <button onClick={() => setPendingDelete(p)} className="p-1.5 text-sand-200 hover:text-red-400 transition-colors">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
         </div>
       ))}
       {partners.length === 0 && !adding && <p className="text-center text-sand-400 text-sm py-8">אין שירותים עדיין</p>}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        itemName={pendingDelete?.title ?? 'השירות'}
+        title="מחיקת שירות"
+        busy={deletingBusy}
+        onConfirm={performDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   )
 }
@@ -5328,6 +5492,10 @@ function effectiveStatus(
 function RegistrationsTab() {
   const [leads, setLeads] = useState<RegistrationLead[]>([])
   const [workshops, setWorkshops] = useState<Workshop[]>([])
+  // Task A: shared delete confirmation for the lead-row trash button.
+  // Submission-level deletes prompt inside FormSubmissionsView itself.
+  const [pendingDeleteLead, setPendingDeleteLead] = useState<RegistrationLead | null>(null)
+  const [deletingLeadBusy, setDeletingLeadBusy] = useState(false)
   // Phase 5 / A1: all cohorts loaded once and filtered client-side per
   // registration's workshop in the picker. Includes inactive cohorts so
   // existing assignments to deactivated cohorts still render their
@@ -5453,10 +5621,21 @@ function RegistrationsTab() {
     setLeads(prev => prev.map(l => l.id === id ? { ...l, cohort_id: cohortId } : l))
   }
 
-  async function del(id: string) {
-    if (!confirm('למחוק את הליד?')) return
-    await supabase.from('registration_leads').delete().eq('id', id)
-    setLeads(prev => prev.filter(l => l.id !== id))
+  // Task A: lead-row trash button sets pendingDeleteLead; the dialog
+  // at the bottom prompts; performDeleteLead runs the delete. `del`
+  // (id-keyed) stays as the prop name passed to RegistrationCard /
+  // CohortGroup so I don't have to thread a new shape through.
+  function del(id: string) {
+    const lead = leads.find(l => l.id === id)
+    if (lead) setPendingDeleteLead(lead)
+  }
+  async function performDeleteLead() {
+    if (!pendingDeleteLead) return
+    setDeletingLeadBusy(true)
+    await supabase.from('registration_leads').delete().eq('id', pendingDeleteLead.id)
+    setLeads(prev => prev.filter(l => l.id !== pendingDeleteLead.id))
+    setDeletingLeadBusy(false)
+    setPendingDeleteLead(null)
   }
 
   // Phase 5 / A3 fix-2: cohorts keyed by id for fast effective-status
@@ -5585,6 +5764,9 @@ function RegistrationsTab() {
     setCohortRespFilter(null)
   }, [leads, linkedFormDefs, linkedSubmissions, workshopById])
 
+  // Task A: confirmation lives inside FormSubmissionsView (one dialog
+  // covers every "delete this submission" surface). Caller just runs
+  // the actual delete here.
   async function deleteCohortSubmission(id: string) {
     await supabase.from('form_submissions').delete().eq('id', id)
     setLinkedSubmissions(prev => prev.filter(s => s.id !== id))
@@ -5885,6 +6067,14 @@ function RegistrationsTab() {
 
       {/* Spacer so the last card isn't hidden under the sticky bar */}
       {visibleSelectedIds.length > 0 && <div className="h-24" aria-hidden="true" />}
+      <ConfirmDialog
+        open={!!pendingDeleteLead}
+        itemName={pendingDeleteLead?.name ?? 'הליד'}
+        title="מחיקת הרשמה"
+        busy={deletingLeadBusy}
+        onConfirm={performDeleteLead}
+        onClose={() => setPendingDeleteLead(null)}
+      />
     </div>
   )
 }
