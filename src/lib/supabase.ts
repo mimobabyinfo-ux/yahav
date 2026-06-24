@@ -174,7 +174,12 @@ export type Workshop = {
   // Phase 5 / A2 Part 2: optional questionnaire linked to this workshop
   // (FK to forms). Powers the customer card's "did this mother fill
   // the questionnaire" indicator and the cohort-side gap report.
+  // This is the OPENING / developmental form.
   linked_form_id: string | null
+  // End-of-workshop feedback survey (FK to forms), DISTINCT from
+  // linked_form_id. Emailed to a cohort's registrants after the cohort
+  // ends. Optional.
+  feedback_form_id: string | null
   display_order: number
   is_active: boolean
   created_at: string
@@ -219,6 +224,12 @@ export type WorkshopCohort = {
   capacity: number | null
   notes: string | null
   is_active: boolean
+  // End-of-workshop feedback. end_date drives WHEN the survey email
+  // goes out (end_date + survey_email_delay_days, Asia/Jerusalem). The
+  // admin UI auto-suggests start_date + 4 weeks but it stays editable.
+  // survey_sent_at is the once-only guard (NULL = not sent yet).
+  end_date: string | null  // YYYY-MM-DD
+  survey_sent_at: string | null
   created_at: string
 }
 

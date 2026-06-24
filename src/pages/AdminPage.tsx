@@ -996,7 +996,7 @@ function LeadsTabDesktop() {
 }
 
 // ─── Workshops Desktop Table ──────────────────────────────────────────────────
-const EMPTY_WORKSHOP_FORM = { title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '' }
+const EMPTY_WORKSHOP_FORM = { title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '' }
 
 function WorkshopsTabDesktop() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
@@ -1077,7 +1077,7 @@ function WorkshopsTabDesktop() {
 
   function openEdit(w: Workshop) {
     setEditing(w)
-    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '' })
+    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '', feedback_form_id: w.feedback_form_id ?? '' })
     setDrawer('edit')
   }
 
@@ -1132,6 +1132,7 @@ function WorkshopsTabDesktop() {
       workshop_type: form.workshop_type || null,
       public_registration: form.public_registration,
       linked_form_id: form.linked_form_id || null,
+      feedback_form_id: form.feedback_form_id || null,
     }
     if (editing) {
       await supabase.from('workshops').update(payload).eq('id', editing.id)
@@ -1298,7 +1299,7 @@ function WorkshopsTabDesktop() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">שאלון משויך</label>
+            <label className="text-xs text-gray-500 mb-1 block">שאלון פתיחה (מופיע בכרטיס הלקוחה בתחילת המחזור)</label>
             <select
               value={form.linked_form_id}
               onChange={e => setForm(f => ({ ...f, linked_form_id: e.target.value }))}
@@ -1311,6 +1312,22 @@ function WorkshopsTabDesktop() {
             </select>
             <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
               משויך לטופס שמופיע בכרטיס הלקוחה כשאלון התפתחותי ובדו"ח המחזורים.
+            </p>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">שאלון משוב סיום (נשלח אוטומטית במייל אחרי סיום הסדנה)</label>
+            <select
+              value={form.feedback_form_id}
+              onChange={e => setForm(f => ({ ...f, feedback_form_id: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white"
+            >
+              <option value="">ללא שאלון</option>
+              {formsList.map(f => (
+                <option key={f.id} value={f.id}>{f.title}</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+              נשלח במייל לכל הנרשמות של המחזור, יומיים אחרי תאריך סיום המחזור.
             </p>
           </div>
           <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -3263,7 +3280,7 @@ function WorkshopsTab() {
   // Task A: shared delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<Workshop | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '' })
   const [uploadingImage, setUploadingImage] = useState(false)
   // Phase 5 / B: per-workshop registration link copy. Tracks which row
   // just showed the "copied" feedback so the icon flips for ~1.5s.
@@ -3354,6 +3371,7 @@ function WorkshopsTab() {
       workshop_type: form.workshop_type || null,
       public_registration: form.public_registration,
       linked_form_id: form.linked_form_id || null,
+      feedback_form_id: form.feedback_form_id || null,
     }
     if (editing) {
       await supabase.from('workshops').update(payload).eq('id', editing.id)
@@ -3361,7 +3379,7 @@ function WorkshopsTab() {
       const maxOrder = workshops.length > 0 ? Math.max(...workshops.map(w => w.display_order)) : 0
       await supabase.from('workshops').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '' })
+    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '' })
     setEditing(null); setShowForm(false); load()
   }
 
@@ -3447,7 +3465,7 @@ function WorkshopsTab() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-sand-500 mb-1 block">שאלון משויך</label>
+            <label className="text-xs text-sand-500 mb-1 block">שאלון פתיחה (מופיע בכרטיס הלקוחה בתחילת המחזור)</label>
             <select
               value={form.linked_form_id}
               onChange={e => setForm(f => ({ ...f, linked_form_id: e.target.value }))}
@@ -3460,6 +3478,22 @@ function WorkshopsTab() {
             </select>
             <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
               משויך לטופס שמופיע בכרטיס הלקוחה כשאלון התפתחותי ובדו"ח המחזורים.
+            </p>
+          </div>
+          <div>
+            <label className="text-xs text-sand-500 mb-1 block">שאלון משוב סיום (נשלח אוטומטית במייל אחרי סיום הסדנה)</label>
+            <select
+              value={form.feedback_form_id}
+              onChange={e => setForm(f => ({ ...f, feedback_form_id: e.target.value }))}
+              className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white"
+            >
+              <option value="">ללא שאלון</option>
+              {formsList.map(f => (
+                <option key={f.id} value={f.id}>{f.title}</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
+              נשלח במייל לכל הנרשמות של המחזור, יומיים אחרי תאריך סיום המחזור.
             </p>
           </div>
           <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -3501,7 +3535,7 @@ function WorkshopsTab() {
                       <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
                         {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
                       </button>
-                      <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '', feedback_form_id: w.feedback_form_id ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
                       <button onClick={() => setPendingDelete(w)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </div>

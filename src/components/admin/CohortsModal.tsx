@@ -19,6 +19,7 @@ type Props = {
 type Draft = {
   start_date: string
   start_time: string  // HH:MM or '' for none
+  end_date: string    // YYYY-MM-DD or '' — auto-suggested start + 4 weeks, editable
   label: string
   capacity: string
   notes: string
@@ -28,10 +29,24 @@ type Draft = {
 const EMPTY_DRAFT: Draft = {
   start_date: '',
   start_time: '',
+  end_date: '',
   label: '',
   capacity: '',
   notes: '',
   is_active: true,
+}
+
+// Auto-suggest end_date = start_date + 4 weeks. Pure date math on the
+// YYYY-MM-DD parts (UTC-based so no timezone drift); the result stays a
+// plain date string the admin can freely override.
+function addWeeks(dateStr: string, weeks: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const t = Date.UTC(y, m - 1, d) + weeks * 7 * 86400000
+  const dt = new Date(t)
+  const yy = dt.getUTCFullYear()
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(dt.getUTCDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
 }
 
 // Display-only Hebrew date+time. Input <date>/<time> values stay
@@ -101,6 +116,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
     setDraft({
       start_date: cohort.start_date,
       start_time: cohort.start_time?.slice(0, 5) ?? '',
+      end_date: cohort.end_date ?? '',
       label: cohort.label ?? '',
       capacity: cohort.capacity?.toString() ?? '',
       notes: cohort.notes ?? '',
@@ -130,6 +146,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
       workshop_id: workshop.id,
       start_date: draft.start_date,
       start_time: draft.start_time || null,
+      end_date: draft.end_date || null,
       label: draft.label.trim() || null,
       capacity: cap,
       notes: draft.notes.trim() || null,
@@ -232,6 +249,14 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                             <span className="text-[10px] text-sand-400">קיבולת לא הוגדרה</span>
                           )}
                         </div>
+                        {c.end_date && (
+                          <p className="text-[10px] text-sand-400 mt-1">סיום: {ddmmyyyyhhmm(c.end_date, null)}</p>
+                        )}
+                        {c.survey_sent_at && (
+                          <span className="inline-block mt-1 text-[10px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                            ✓ שאלון משוב נשלח {ddmmyyyyhhmm(c.survey_sent_at.slice(0, 10), null)}
+                          </span>
+                        )}
                         {c.notes && (
                           <p className="text-[11px] text-sand-500 mt-1.5 whitespace-pre-line">{c.notes}</p>
                         )}
@@ -272,7 +297,12 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                         <input
                           type="date"
                           value={draft.start_date}
-                          onChange={e => setDraft(d => ({ ...d, start_date: e.target.value }))}
+                          onChange={e => {
+                            // Auto-suggest end_date = start + 4 weeks whenever
+                            // start_date is set/changed. Stays editable below.
+                            const v = e.target.value
+                            setDraft(d => ({ ...d, start_date: v, end_date: v ? addWeeks(v, 4) : '' }))
+                          }}
                           className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
                         />
                       </div>
@@ -289,6 +319,28 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                       </div>
                     </div>
                   </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-sand-500 mb-1">תאריך סיום (מחושב, ניתן לעריכה)</label>
+                    <div dir="ltr">
+                      <input
+                        type="date"
+                        value={draft.end_date}
+                        onChange={e => setDraft(d => ({ ...d, end_date: e.target.value }))}
+                        className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                      />
+                    </div>
+                    <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
+                      שאלון המשוב נשלח אוטומטית יומיים אחרי תאריך זה.
+                    </p>
+                  </div>
+                  {editingId && (() => {
+                    const c = cohorts.find(x => x.id === editingId)
+                    return c?.survey_sent_at ? (
+                      <p className="text-[11px] font-semibold text-green-700 bg-green-50 rounded-lg px-2.5 py-1.5">
+                        ✓ שאלון משוב נשלח בתאריך {ddmmyyyyhhmm(c.survey_sent_at.slice(0, 10), null)}
+                      </p>
+                    ) : null
+                  })()}
                   <div>
                     <label className="block text-[11px] font-semibold text-sand-500 mb-1">תווית (אופציונלי)</label>
                     <input
