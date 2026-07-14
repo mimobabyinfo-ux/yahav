@@ -184,6 +184,23 @@ export type Workshop = {
   is_active: boolean
   created_at: string
   updated_at: string
+  // Product max / stock. For cohort-based workshops this doubles as the
+  // DEFAULT cohort capacity — cohorts with capacity=NULL inherit it.
+  stock_quantity: number | null
+}
+
+// Row shape returned by the get_public_cohorts RPC (SECURITY DEFINER)
+// used on the public registration page: upcoming, active cohorts only,
+// with effective capacity (cohort override ?? workshop stock) and the
+// current registration count for "spots left" display.
+export type PublicCohort = {
+  id: string
+  workshop_id: string
+  start_date: string        // YYYY-MM-DD
+  start_time: string | null // HH:MM:SS
+  label: string | null
+  capacity: number | null
+  registered_count: number
 }
 
 // Task B: scoped discount link for a workshop. Not shown on the
@@ -439,3 +456,4 @@ export type VideoWithProgress = Video & {
   homework_tasks?: HomeworkTask[]
   content_categories?: { name: string } | null
 }
+

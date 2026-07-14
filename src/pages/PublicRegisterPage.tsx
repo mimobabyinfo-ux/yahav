@@ -1,6 +1,14 @@
 ﻿import { useEffect, useState, useMemo } from 'react'
-import { supabase, Workshop, type WorkshopOffer } from '../lib/supabase'
+import { supabase, Workshop, type WorkshopOffer, type PublicCohort } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
+
+// Cohort chip label: DD/MM + optional HH:MM. Compact — the year is
+// implied (only upcoming cohorts are ever returned by the RPC).
+function cohortDateLabel(c: PublicCohort): string {
+  const [, m, d] = c.start_date.split('-')
+  const t = c.start_time ? ` · ${c.start_time.slice(0, 5)}` : ''
+  return `${d}/${m}${t}`
+}
 
 function isValidEmail(s: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
@@ -44,6 +52,13 @@ export default function PublicRegisterPage() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [selected, setSelected] = useState<string>('')
+  // Upcoming cohorts for ALL displayed workshops (one RPC call). The
+  // RPC only returns active cohorts whose start_date hasn't passed, so
+  // past cohorts never surface here. selectedCohort is the chosen
+  // cohort for the currently-selected workshop; picking a different
+  // workshop resets it.
+  const [cohorts, setCohorts] = useState<PublicCohort[]>([])
+  const [selectedCohort, setSelectedCohort] = useState<string>('')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -134,6 +149,34 @@ export default function PublicRegisterPage() {
       })
   }, [preselect, offerToken])
 
+  // Load upcoming cohorts for every displayed workshop in one call.
+  // Runs in both modes (regular list / locked offer workshop).
+  useEffect(() => {
+    const ids = offerWorkshop ? [offerWorkshop.id] : workshops.map(w => w.id)
+    if (ids.length === 0) return
+    let cancelled = false
+    supabase.rpc('get_public_cohorts', { p_workshop_ids: ids }).then(({ data }) => {
+      if (!cancelled) setCohorts((data ?? []) as PublicCohort[])
+    })
+    return () => { cancelled = true }
+  }, [workshops, offerWorkshop])
+
+  const cohortsByWorkshop = useMemo(() => {
+    const m = new Map<string, PublicCohort[]>()
+    for (const c of cohorts) {
+      const list = m.get(c.workshop_id)
+      if (list) list.push(c); else m.set(c.workshop_id, [c])
+    }
+    return m
+  }, [cohorts])
+
+  function selectWorkshop(id: string) {
+    setSelected(prev => {
+      if (prev !== id) setSelectedCohort('')
+      return id
+    })
+  }
+
   const orderedWorkshops = useMemo(() => {
     if (!selected) return workshops
     const sel = workshops.find(w => w.id === selected)
@@ -164,6 +207,13 @@ export default function PublicRegisterPage() {
     if (!email.trim()) e.email = 'אימייל נדרש'
     else if (!isValidEmail(email.trim())) e.email = 'כתובת אימייל לא תקינה'
     if (!selected) e.workshop = 'יש לבחור סדנה'
+    // Cohort is required only when the chosen workshop actually has
+    // upcoming cohorts with room; otherwise the field doesn't render.
+    if (selected) {
+      const list = cohortsByWorkshop.get(selected) ?? []
+      const hasAvailable = list.some(c => c.capacity == null || c.registered_count < c.capacity)
+      if (hasAvailable && !selectedCohort) e.cohort = 'יש לבחור מחזור'
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -202,6 +252,7 @@ export default function PublicRegisterPage() {
         phone: normalizePhone(phone),
         email: email.trim().toLowerCase(),
         selected_workshop_id: offerWorkshop.id,
+        cohort_id: selectedCohort || null,
         offer_id: offer.id,
         offer_token: offer.token,
         source: source || 'offer',
@@ -236,6 +287,7 @@ export default function PublicRegisterPage() {
       phone: normalizePhone(phone),
       email: email.trim().toLowerCase(),
       selected_workshop_id: selected,
+      cohort_id: selectedCohort || null,
       ...(source ? { source } : {}),
     })
     if (error) {
@@ -369,10 +421,10 @@ export default function PublicRegisterPage() {
                 return (
                   <div
                     key={w.id}
-                    onClick={locked ? undefined : () => setSelected(w.id)}
+                    onClick={locked ? undefined : () => selectWorkshop(w.id)}
                     role={locked ? undefined : 'button'}
                     tabIndex={locked ? undefined : 0}
-                    onKeyDown={locked ? undefined : e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(w.id) } }}
+                    onKeyDown={locked ? undefined : e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectWorkshop(w.id) } }}
                     className={`w-full text-right p-3 rounded-2xl border-2 transition-all ${
                       locked
                         ? 'border-mustard-400 bg-mustard-50'
@@ -421,6 +473,63 @@ export default function PublicRegisterPage() {
                     {isExpanded && w.description && (
                       <p className="mt-2 pt-2 border-t border-sand-100 text-xs text-sand-500 leading-relaxed whitespace-pre-line">{w.description}</p>
                     )}
+                    {/* Cohort picker — renders inside the SELECTED (or
+                        locked) workshop card only, when upcoming cohorts
+                        exist. Full cohorts show disabled with a "מלא"
+                        badge; the rest show spots left when capacity is
+                        known. Choosing one attaches cohort_id to the
+                        lead, so it lands pre-classified in the admin. */}
+                    {(active || locked) && (() => {
+                      const list = cohortsByWorkshop.get(w.id) ?? []
+                      if (list.length === 0) return null
+                      return (
+                        <div className="mt-3 pt-3 border-t border-mustard-200/60" onClick={e => e.stopPropagation()}>
+                          <p className="text-xs font-semibold text-sand-700 mb-2">📅 באיזה מחזור תרצי להשתתף?</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {list.map(c => {
+                              const spotsLeft = c.capacity != null ? c.capacity - c.registered_count : null
+                              const full = spotsLeft != null && spotsLeft <= 0
+                              const chosen = selectedCohort === c.id
+                              return (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  disabled={full}
+                                  onClick={() => setSelectedCohort(c.id)}
+                                  className={`text-right p-2.5 rounded-xl border-2 transition-all ${
+                                    full
+                                      ? 'border-sand-200 bg-sand-50 opacity-50 cursor-not-allowed'
+                                      : chosen
+                                        ? 'border-mustard-500 bg-white shadow-sm'
+                                        : 'border-sand-200 bg-white hover:border-mustard-300'
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-1.5">
+                                    <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${chosen ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
+                                      {chosen && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                    </span>
+                                    <span className="text-sm font-bold text-sand-800">{cohortDateLabel(c)}</span>
+                                  </span>
+                                  <span className="block mt-1 text-[10px] leading-tight">
+                                    {c.label && <span className="text-sand-500">{c.label} · </span>}
+                                    {full ? (
+                                      <span className="font-bold text-red-500">המחזור מלא</span>
+                                    ) : spotsLeft === 1 ? (
+                                      <span className="font-bold text-amber-600">נותר מקום אחרון!</span>
+                                    ) : spotsLeft != null && spotsLeft <= 3 ? (
+                                      <span className="font-bold text-amber-600">נותרו {spotsLeft} מקומות</span>
+                                    ) : (
+                                      <span className="text-green-700 font-semibold">יש מקום 🤍</span>
+                                    )}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                          {errors.cohort && <p className="text-xs text-red-500 mt-1.5">{errors.cohort}</p>}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )
               })}

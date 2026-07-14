@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -1254,7 +1254,7 @@ function WorkshopsTabDesktop() {
           <textarea value={form.summary} onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} placeholder="סיכום / נקודות מפתח (מוצג בכרטיס הסדנה)" rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-purple-400" />
           <div className="grid grid-cols-2 gap-2">
             <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="מחיר (₪)" type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
-            <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מלאי" type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
+            <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מקסימום נרשמות למחזור / מלאי" title="לסדנאות עם מחזורים: מקסימום נרשמות בכל מחזור. למוצרי חנות: מלאי." type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
           </div>
           <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור תשלום" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
           {/* Image upload + URL fallback */}
@@ -3443,7 +3443,7 @@ function WorkshopsTab() {
           </div>
           <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} placeholder="קישור סרטון" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
           <div className="flex gap-2">
-            <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מלאי (יחידות)" type="number" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
+            <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מקסימום נרשמות למחזור / מלאי" title="לסדנאות עם מחזורים: מקסימום נרשמות בכל מחזור. למוצרי חנות: מלאי." type="number" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
             <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="מספר WhatsApp" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
           </div>
           <div>
@@ -6232,6 +6232,8 @@ function RegistrationCard({
   const cardClass = selected
     ? 'bg-mustard-50 ring-2 ring-mustard-400 rounded-2xl shadow-sm p-4 space-y-2'
     : 'bg-[#F5F1EB] rounded-2xl shadow-sm p-4 space-y-2'
+  // Copy-phone feedback: swaps the copy icon for a ✓ for 1.5s.
+  const [phoneCopied, setPhoneCopied] = useState(false)
   // Phase 5 / A2 Part 3: tapping the mother's name opens the unified
   // customer card with this registration's phone+email as the key.
   const openCustomer = useOpenCustomer()
@@ -6316,15 +6318,34 @@ function RegistrationCard({
       </div>
 
       <div className="flex flex-wrap gap-2 text-xs">
-        <a
-          href={regWaLink(l.phone, l.name)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100"
-        >
-          <MessageCircle className="w-3.5 h-3.5" />
-          {l.phone}
-        </a>
+        <span className="inline-flex items-center rounded-lg bg-green-50 text-green-700 overflow-hidden">
+          <a
+            href={regWaLink(l.phone, l.name)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 hover:bg-green-100"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            {l.phone}
+          </a>
+          {/* Copy-one-phone button: sits right next to the number so
+              the admin can grab numbers one by one (the bulk copy in
+              the cohort header stays for whole groups). */}
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(l.phone).then(() => {
+                setPhoneCopied(true)
+                setTimeout(() => setPhoneCopied(false), 1500)
+              })
+            }}
+            className="px-2 py-1.5 border-r border-green-100 hover:bg-green-100 transition-colors"
+            title="העתקת המספר"
+            aria-label="העתקת המספר"
+          >
+            {phoneCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
+        </span>
         <a
           href={`mailto:${l.email}`}
           className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
@@ -6534,7 +6555,7 @@ function RegistrationsGroupedView({
             headerKind="upcoming"
             headerLabel={workshopById.get(cohort.workshop_id)?.title ?? '—'}
             subLabel={sub}
-            capacity={cohort.capacity}
+            capacity={cohort.capacity ?? workshopById.get(cohort.workshop_id)?.stock_quantity ?? null}
             leads={gl}
             cohort={cohort}
             expanded={isExpanded(cohort.id, true)}
@@ -6556,7 +6577,7 @@ function RegistrationsGroupedView({
             headerKind="past"
             headerLabel={workshopById.get(cohort.workshop_id)?.title ?? '—'}
             subLabel={sub}
-            capacity={cohort.capacity}
+            capacity={cohort.capacity ?? workshopById.get(cohort.workshop_id)?.stock_quantity ?? null}
             leads={gl}
             cohort={cohort}
             expanded={isExpanded(cohort.id, false)}

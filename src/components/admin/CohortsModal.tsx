@@ -59,6 +59,19 @@ function ddmmyyyyhhmm(date: string, time: string | null): string {
   return `${base} ${time.slice(0, 5)}`
 }
 
+function todayLocalIso(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// A cohort is "finished" once its end_date (or start_date when no end
+// was set) has passed. Finished cohorts are hidden by default — they're
+// no longer actionable — behind a collapsed toggle instead of deletion,
+// so history and attached registrations stay intact.
+function isFinished(c: WorkshopCohort, today: string): boolean {
+  return (c.end_date ?? c.start_date) < today
+}
+
 export default function CohortsModal({ workshop, onClose }: Props) {
   const [cohorts, setCohorts] = useState<WorkshopCohort[]>([])
   // Per-cohort registration counts — populated by a single grouped
@@ -75,6 +88,8 @@ export default function CohortsModal({ workshop, onClose }: Props) {
   // admin's quick-cleanup flow.
   const [pendingDelete, setPendingDelete] = useState<WorkshopCohort | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
+  // Finished cohorts are hidden by default; this toggle reveals them.
+  const [showFinished, setShowFinished] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -222,30 +237,54 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                 </p>
               )}
 
-              {cohorts.map(c => {
+              {(() => {
+                const today = todayLocalIso()
+                const current = cohorts.filter(c => !isFinished(c, today))
+                const finished = cohorts.filter(c => isFinished(c, today))
+                const visible = showFinished ? [...current, ...finished] : current
+                return (
+                  <>
+                    {current.length === 0 && finished.length > 0 && !showForm && !showFinished && (
+                      <p className="text-center text-sand-500 text-sm py-2">
+                        אין מחזורים קרובים — כל המחזורים הקיימים הסתיימו.
+                      </p>
+                    )}
+                    {visible.map(c => {
                 const count = counts[c.id] ?? 0
-                const capLabel = c.capacity != null ? `${count}/${c.capacity}` : `${count}`
-                const overCap = c.capacity != null && count > c.capacity
-                const nearCap = c.capacity != null && !overCap && count >= Math.ceil(c.capacity * 0.9)
+                // Effective capacity: per-cohort override, else the
+                // product's max (workshops.stock_quantity). Keeping the
+                // product field as the single source of truth means
+                // updating it there updates every inheriting cohort.
+                const effCap = c.capacity ?? workshop.stock_quantity
+                const isPast = isFinished(c, today)
+                const capLabel = effCap != null ? `${count}/${effCap}` : `${count}`
+                const overCap = effCap != null && count > effCap
+                const nearCap = effCap != null && !overCap && count >= Math.ceil(effCap * 0.9)
                 const capColor = overCap
                   ? 'text-red-600 bg-red-50'
                   : nearCap
                     ? 'text-amber-700 bg-amber-50'
                     : 'text-mustard-700 bg-mustard-50'
                 return (
-                  <div key={c.id} className={`rounded-2xl bg-white border p-3 ${c.is_active ? 'border-sand-200' : 'border-sand-200 opacity-60'}`}>
+                  <div key={c.id} className={`rounded-2xl bg-white border p-3 ${c.is_active && !isPast ? 'border-sand-200' : 'border-sand-200 opacity-60'}`}>
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-bold text-sand-800">{ddmmyyyyhhmm(c.start_date, c.start_time)}</span>
                           {c.label && <span className="text-xs text-sand-500">· {c.label}</span>}
+                          {isPast && (
+                            <span className="text-[10px] font-semibold text-sand-500 bg-sand-100 px-2 py-0.5 rounded-full">הסתיים</span>
+                          )}
                           {!c.is_active && (
                             <span className="text-[10px] font-semibold text-sand-500 bg-sand-100 px-2 py-0.5 rounded-full">לא פעיל</span>
                           )}
                         </div>
                         <div className="mt-1 flex items-center gap-2">
                           <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${capColor}`}>{capLabel}</span>
-                          {c.capacity == null && (
+                          {c.capacity == null && effCap != null && (
+                            <span className="text-[10px] text-sand-400">מקסימום לפי המוצר</span>
+                          )}
+                          {effCap == null && (
                             <span className="text-[10px] text-sand-400">קיבולת לא הוגדרה</span>
                           )}
                         </div>
@@ -282,7 +321,21 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                     </div>
                   </div>
                 )
-              })}
+                    })}
+                    {finished.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowFinished(v => !v)}
+                        className="w-full py-2 rounded-xl text-xs font-semibold text-sand-500 hover:text-sand-700 hover:bg-sand-100 transition-colors"
+                      >
+                        {showFinished
+                          ? '▲ הסתרת מחזורים שהסתיימו'
+                          : `▼ הצגת מחזורים שהסתיימו (${finished.length})`}
+                      </button>
+                    )}
+                  </>
+                )
+              })()}
 
               {/* Create / edit form */}
               {showForm && (
@@ -352,15 +405,18 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-sand-500 mb-1">קיבולת (אופציונלי)</label>
+                    <label className="block text-[11px] font-semibold text-sand-500 mb-1">קיבולת מיוחדת למחזור הזה (אופציונלי)</label>
                     <input
                       type="number"
                       min="1"
                       value={draft.capacity}
                       onChange={e => setDraft(d => ({ ...d, capacity: e.target.value }))}
-                      placeholder="ללא מגבלה"
+                      placeholder={workshop.stock_quantity != null ? `לפי המוצר: ${workshop.stock_quantity}` : 'ללא מגבלה'}
                       className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
                     />
+                    <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
+                      אם משאירים ריק — המקסימום נלקח אוטומטית משדה המלאי של המוצר, וכל עדכון שם מתעדכן בכל המחזורים.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-sand-500 mb-1">הערות פנימיות (אופציונלי)</label>
