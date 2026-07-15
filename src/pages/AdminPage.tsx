@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy, Clock } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -5565,9 +5565,10 @@ function RegistrationsTab() {
   const [cohortsForRegWorkshop, setCohortsForRegWorkshop] = useState<Workshop | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | RegistrationLead['status']>('all')
   const [workshopFilter, setWorkshopFilter] = useState<string>('all')
+  // Cohort filter: 'all' | 'none' (ללא מחזור) | cohort id. Options are
+  // scoped to the selected workshop when one is chosen.
+  const [cohortFilter, setCohortFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
   // Phase 5 / A3: bulk-action selection. Persists across filter and
   // view-mode changes for convenience, but bulk actions act ONLY on
   // rows that are both selected AND currently visible — the bar
@@ -5763,10 +5764,10 @@ function RegistrationsTab() {
       // surfaces both stored-'handled' and stored-'paid'+past-cohort.
       if (statusFilter !== 'all' && effectiveStatus(l, cohortById) !== statusFilter) return false
       if (workshopFilter !== 'all' && l.selected_workshop_id !== workshopFilter) return false
-      if (fromDate && new Date(l.created_at) < new Date(fromDate)) return false
-      if (toDate) {
-        const end = new Date(toDate); end.setHours(23, 59, 59, 999)
-        if (new Date(l.created_at) > end) return false
+      if (cohortFilter === 'none') {
+        if (l.cohort_id) return false
+      } else if (cohortFilter !== 'all' && l.cohort_id !== cohortFilter) {
+        return false
       }
       if (search.trim()) {
         const q = search.trim().toLowerCase()
@@ -5774,7 +5775,7 @@ function RegistrationsTab() {
       }
       return true
     })
-  }, [leads, statusFilter, workshopFilter, search, fromDate, toDate, cohortById])
+  }, [leads, statusFilter, workshopFilter, cohortFilter, search, cohortById])
 
   // Chip counts also reflect effective status so the numbers match
   // what the filter would actually surface.
@@ -5883,9 +5884,18 @@ function RegistrationsTab() {
     return phones
   }
 
-  // Phase 5 / A1 Stage 2: view mode — flat list vs grouped by cohort.
-  // Filters apply to BOTH modes; grouped is just a render strategy.
-  const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list')
+  // Phase 5 / A1 Stage 2 + B1: view mode. 'list' / 'grouped' render the
+  // filtered leads; 'upcoming' / 'calendar' are cohort-centric views
+  // (registration counts per cohort) that ignore the lead filters.
+  const [viewMode, setViewMode] = useState<'list' | 'grouped' | 'upcoming' | 'calendar'>('list')
+  // B1: tapping a cohort in the upcoming/calendar views drills into its
+  // registrant list — sets the cohort filter and jumps to flat list.
+  const openCohortLeads = useCallback((c: WorkshopCohort) => {
+    setWorkshopFilter('all')
+    setCohortFilter(c.id)
+    setStatusFilter('all')
+    setViewMode('list')
+  }, [])
   // Phase 5 / A2 Stage 3 (Part 3): manual "+ הרשמה חדשה" entry point.
   const [addRegOpen, setAddRegOpen] = useState(false)
 
@@ -5935,7 +5945,7 @@ function RegistrationsTab() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -5944,7 +5954,12 @@ function RegistrationsTab() {
           />
           <select
             value={workshopFilter}
-            onChange={e => setWorkshopFilter(e.target.value)}
+            onChange={e => {
+              setWorkshopFilter(e.target.value)
+              // Workshop change invalidates a cohort pick from another
+              // workshop — reset so the two filters never contradict.
+              setCohortFilter('all')
+            }}
             className="px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white"
           >
             <option value="all">כל הסדנאות</option>
@@ -5952,48 +5967,51 @@ function RegistrationsTab() {
               <option key={w.id} value={w.id}>{w.title}</option>
             ))}
           </select>
-          <input
-            type="date"
-            value={fromDate}
-            onChange={e => setFromDate(e.target.value)}
-            dir="ltr"
-            className="px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
-          />
-          <input
-            type="date"
-            value={toDate}
-            onChange={e => setToDate(e.target.value)}
-            dir="ltr"
-            className="px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
-          />
+          <select
+            value={cohortFilter}
+            onChange={e => setCohortFilter(e.target.value)}
+            className="px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white"
+          >
+            <option value="all">כל המחזורים</option>
+            <option value="none">ללא מחזור</option>
+            {cohorts
+              .filter(c => workshopFilter === 'all' || c.workshop_id === workshopFilter)
+              .map(c => (
+                <option key={c.id} value={c.id}>
+                  {cohortDateTimeLabel(c, { shortYear: true })}
+                  {workshopFilter === 'all' ? ` · ${workshopById.get(c.workshop_id)?.title ?? ''}` : ''}
+                  {c.label ? ` · ${c.label}` : ''}
+                </option>
+              ))}
+          </select>
         </div>
       </div>
 
-      {filtered.length === 0 && (
+      {filtered.length === 0 && (viewMode === 'list' || viewMode === 'grouped') && (
         <div className="bg-[#F5F1EB] rounded-2xl shadow-sm py-12 text-center">
           <p className="text-sand-400 text-sm">{leads.length === 0 ? 'אין הרשמות עדיין' : 'אין תוצאות לפילטר הנוכחי'}</p>
         </div>
       )}
 
-      {/* Phase 5 / A1 Stage 2: view-mode segmented control. Both modes
-          share the same filtered list — grouped is just a render. */}
-      {filtered.length > 0 && (
-        <div className="bg-[#F5F1EB] rounded-2xl p-1 shadow-sm flex gap-1">
-          {([
-            ['list',    `רשימה (${filtered.length})`],
-            ['grouped', 'מקובץ לפי מחזור'],
-          ] as ['list' | 'grouped', string][]).map(([v, label]) => (
-            <button
-              key={v}
-              onClick={() => setViewMode(v)}
-              className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all ${viewMode === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
-              style={viewMode === v ? { background: '#E7C78A' } : {}}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Phase 5 / A1 Stage 2 + B1: view-mode segmented control. 2x2 on
+          mobile, one row on desktop. */}
+      <div className="bg-[#F5F1EB] rounded-2xl p-1 shadow-sm grid grid-cols-2 lg:grid-cols-4 gap-1">
+        {([
+          ['list',     `רשימה (${filtered.length})`],
+          ['grouped',  'מקובץ לפי מחזור'],
+          ['upcoming', 'מחזורים קרובים'],
+          ['calendar', 'יומן'],
+        ] as ['list' | 'grouped' | 'upcoming' | 'calendar', string][]).map(([v, label]) => (
+          <button
+            key={v}
+            onClick={() => setViewMode(v)}
+            className={`py-1.5 rounded-xl text-xs font-semibold transition-all ${viewMode === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
+            style={viewMode === v ? { background: '#E7C78A' } : {}}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {/* Phase 5 / A3 fix-1: tri-state "select all visible" row. Flat
           list only — grouped view has per-cohort select-all in each
@@ -6052,6 +6070,26 @@ function RegistrationsTab() {
           onToggleSelectGroup={toggleSelectGroup}
           gapByLeadId={gapByLeadId}
           onOpenResponses={openCohortResponses}
+        />
+      )}
+
+      {/* B1: cohort-centric views. Counts come from ALL leads (not the
+          filtered list) so numbers reflect real cohort fullness. */}
+      {viewMode === 'upcoming' && (
+        <UpcomingCohortsView
+          cohorts={cohorts}
+          leads={leads}
+          workshopById={workshopById}
+          onPick={openCohortLeads}
+        />
+      )}
+
+      {viewMode === 'calendar' && (
+        <CohortCalendarView
+          cohorts={cohorts}
+          leads={leads}
+          workshopById={workshopById}
+          onPick={openCohortLeads}
         />
       )}
 
@@ -6148,6 +6186,305 @@ function RegistrationsTab() {
           onSave={saveLeadEdit}
           onClose={() => setEditingLead(null)}
         />
+      )}
+    </div>
+  )
+}
+
+// ─── B1: cohort-centric views ────────────────────────────────────────
+// Shared bits for the "מחזורים קרובים" list and the "יומן" month grid.
+
+const HEB_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
+const HEB_MONTHS_SHORT = ['ינו׳', 'פבר׳', 'מרץ', 'אפר׳', 'מאי', 'יוני', 'יולי', 'אוג׳', 'ספט׳', 'אוק׳', 'נוב׳', 'דצמ׳']
+const HEB_WEEKDAYS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']
+
+type CohortViewProps = {
+  cohorts: WorkshopCohort[]
+  leads: RegistrationLead[]
+  workshopById: Map<string, Workshop>
+  onPick: (c: WorkshopCohort) => void
+}
+
+// Registration count per cohort — ALL leads regardless of status, same
+// definition the public RPC uses for capacity.
+function useRegCountByCohort(leads: RegistrationLead[]) {
+  return useMemo(() => {
+    const m = new Map<string, number>()
+    for (const l of leads) {
+      if (!l.cohort_id) continue
+      m.set(l.cohort_id, (m.get(l.cohort_id) ?? 0) + 1)
+    }
+    return m
+  }, [leads])
+}
+
+// Effective capacity: cohort override, else the workshop's per-cohort max.
+function effectiveCapacity(c: WorkshopCohort, workshopById: Map<string, Workshop>): number | null {
+  return c.capacity ?? workshopById.get(c.workshop_id)?.stock_quantity ?? null
+}
+
+// One tappable cohort row — shared by both views.
+function CohortRow({ cohort: c, workshopById, regCount, onPick, showDateBadge }: {
+  cohort: WorkshopCohort
+  workshopById: Map<string, Workshop>
+  regCount: number
+  onPick: (c: WorkshopCohort) => void
+  showDateBadge?: boolean
+}) {
+  const cap = effectiveCapacity(c, workshopById)
+  const isFull = cap != null && regCount >= cap
+  const left = cap != null ? Math.max(0, cap - regCount) : null
+  const [, mStr, dStr] = c.start_date.split('-')
+  const chip = isFull
+    ? { text: 'מלא', color: '#A32D2D', bg: '#FCEBEB' }
+    : cap != null
+      ? { text: `${regCount}/${cap}`, color: left != null && left <= 2 ? '#15803d' : '#854F0B', bg: left != null && left <= 2 ? '#dcfce7' : '#FAEEDA' }
+      : { text: `${regCount}`, color: '#5F5E5A', bg: '#F1EFE8' }
+  return (
+    <button
+      type="button"
+      onClick={() => onPick(c)}
+      className="w-full bg-white border border-sand-200 rounded-2xl px-3 py-2.5 flex items-center gap-3 text-right transition-all hover:border-mustard-400 hover:shadow-sm"
+    >
+      {showDateBadge && (
+        <div className="w-11 shrink-0 text-center rounded-xl py-1.5" style={{ background: '#F5EBDA' }}>
+          <div className="text-[17px] font-bold leading-none" style={{ color: '#854F0B' }}>{parseInt(dStr, 10)}</div>
+          <div className="text-[10px]" style={{ color: '#BA7517' }}>{HEB_MONTHS_SHORT[parseInt(mStr, 10) - 1]}</div>
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-semibold text-sand-800 truncate">
+          {workshopById.get(c.workshop_id)?.title ?? 'סדנה'}
+          {c.label ? ` · ${c.label}` : ''}
+        </div>
+        <div className="text-[11.5px] text-sand-400 flex items-center gap-1">
+          {c.start_time && (
+            <>
+              <Clock className="w-3 h-3 shrink-0" />
+              {c.start_time.slice(0, 5)}
+              <span> · </span>
+            </>
+          )}
+          <span>
+            {regCount === 1 ? 'נרשמה אחת' : `${regCount} נרשמו`}
+            {cap != null && !isFull && ` · נותרו ${left} מקומות`}
+          </span>
+        </div>
+      </div>
+      <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: chip.color, background: chip.bg }}>
+        {chip.text}
+      </span>
+    </button>
+  )
+}
+
+// "מחזורים קרובים": upcoming active cohorts grouped by month, nearest
+// first. Past cohorts hidden behind a toggle at the bottom.
+function UpcomingCohortsView({ cohorts, leads, workshopById, onPick }: CohortViewProps) {
+  const regCountByCohort = useRegCountByCohort(leads)
+  const [showPast, setShowPast] = useState(false)
+
+  const { upcoming, past } = useMemo(() => {
+    const active = cohorts.filter(c => c.is_active)
+    const key = (c: WorkshopCohort) => `${c.start_date}T${c.start_time ?? '00:00:00'}`
+    const up = active.filter(c => !isCohortPast(c)).sort((a, b) => key(a).localeCompare(key(b)))
+    const pa = active.filter(c => isCohortPast(c)).sort((a, b) => key(b).localeCompare(key(a)))
+    return { upcoming: up, past: pa }
+  }, [cohorts])
+
+  // Group by YYYY-MM preserving order.
+  function groupByMonth(list: WorkshopCohort[]) {
+    const groups: { ym: string; items: WorkshopCohort[] }[] = []
+    for (const c of list) {
+      const ym = c.start_date.slice(0, 7)
+      const last = groups[groups.length - 1]
+      if (last && last.ym === ym) last.items.push(c)
+      else groups.push({ ym, items: [c] })
+    }
+    return groups
+  }
+
+  function monthTitle(ym: string) {
+    const [y, m] = ym.split('-')
+    return `${HEB_MONTHS[parseInt(m, 10) - 1]} ${y}`
+  }
+
+  return (
+    <div className="space-y-2">
+      {upcoming.length === 0 && (
+        <div className="bg-[#F5F1EB] rounded-2xl shadow-sm py-10 text-center">
+          <p className="text-sand-400 text-sm">אין מחזורים קרובים</p>
+        </div>
+      )}
+      {groupByMonth(upcoming).map(g => (
+        <div key={g.ym} className="space-y-2">
+          <div className="text-[11px] font-semibold text-sand-400 px-1 pt-1">{monthTitle(g.ym)}</div>
+          {g.items.map(c => (
+            <CohortRow
+              key={c.id}
+              cohort={c}
+              workshopById={workshopById}
+              regCount={regCountByCohort.get(c.id) ?? 0}
+              onPick={onPick}
+              showDateBadge
+            />
+          ))}
+        </div>
+      ))}
+      {past.length > 0 && (
+        <div className="text-center pt-1">
+          <button
+            type="button"
+            onClick={() => setShowPast(v => !v)}
+            className="text-xs font-semibold text-purple-600 hover:underline"
+          >
+            {showPast ? 'הסתרת מחזורים שעברו' : `הצגת מחזורים שעברו (${past.length})`}
+          </button>
+        </div>
+      )}
+      {showPast && groupByMonth(past).map(g => (
+        <div key={g.ym} className="space-y-2 opacity-60">
+          <div className="text-[11px] font-semibold text-sand-400 px-1 pt-1">{monthTitle(g.ym)}</div>
+          {g.items.map(c => (
+            <CohortRow
+              key={c.id}
+              cohort={c}
+              workshopById={workshopById}
+              regCount={regCountByCohort.get(c.id) ?? 0}
+              onPick={onPick}
+              showDateBadge
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// "יומן": month grid with dots on cohort days; tapping a day lists its
+// cohorts below. Dot color mirrors the fullness chip.
+function CohortCalendarView({ cohorts, leads, workshopById, onPick }: CohortViewProps) {
+  const regCountByCohort = useRegCountByCohort(leads)
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
+
+  const activeCohorts = useMemo(() => cohorts.filter(c => c.is_active), [cohorts])
+
+  const byDate = useMemo(() => {
+    const m = new Map<string, WorkshopCohort[]>()
+    for (const c of activeCohorts) {
+      const list = m.get(c.start_date)
+      if (list) list.push(c)
+      else m.set(c.start_date, [c])
+    }
+    for (const list of m.values()) {
+      list.sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''))
+    }
+    return m
+  }, [activeCohorts])
+
+  const monthPrefix = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`
+
+  // Default selection: first cohort day in the displayed month (from
+  // today onwards when viewing the current month).
+  const firstCohortDay = useMemo(() => {
+    const days = Array.from(byDate.keys()).filter(d => d.startsWith(monthPrefix)).sort()
+    return days.find(d => d >= todayStr) ?? days[0] ?? null
+  }, [byDate, monthPrefix, todayStr])
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const shownDate = selectedDate?.startsWith(monthPrefix) ? selectedDate : firstCohortDay
+
+  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+  const firstWeekday = new Date(month.getFullYear(), month.getMonth(), 1).getDay()
+
+  function dotColor(c: WorkshopCohort): string {
+    const cap = effectiveCapacity(c, workshopById)
+    const count = regCountByCohort.get(c.id) ?? 0
+    if (cap != null && count >= cap) return '#A32D2D'
+    if (cap != null && cap - count <= 2) return '#15803d'
+    return '#BA7517'
+  }
+
+  function shiftMonth(delta: number) {
+    setMonth(m => new Date(m.getFullYear(), m.getMonth() + delta, 1))
+    setSelectedDate(null)
+  }
+
+  const shownCohorts = shownDate ? byDate.get(shownDate) ?? [] : []
+
+  function shownDateTitle() {
+    if (!shownDate) return ''
+    const d = new Date(`${shownDate}T00:00:00`)
+    const weekdayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+    return `יום ${weekdayNames[d.getDay()]}, ${d.getDate()} ב${HEB_MONTHS[d.getMonth()]}`
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="bg-[#F5F1EB] rounded-2xl shadow-sm p-3">
+        <div className="flex items-center justify-between mb-2 px-1">
+          <button type="button" onClick={() => shiftMonth(-1)} aria-label="חודש קודם" className="p-1.5 rounded-xl text-sand-500 hover:bg-sand-100 transition-colors">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+          <span className="text-sm font-bold text-sand-800">
+            {HEB_MONTHS[month.getMonth()]} {month.getFullYear()}
+          </span>
+          <button type="button" onClick={() => shiftMonth(1)} aria-label="חודש הבא" className="p-1.5 rounded-xl text-sand-500 hover:bg-sand-100 transition-colors">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-sand-400 mb-1">
+          {HEB_WEEKDAYS.map(d => <div key={d}>{d}</div>)}
+        </div>
+        <div className="grid grid-cols-7 gap-0.5 text-center">
+          {Array.from({ length: firstWeekday }).map((_, i) => <div key={`b${i}`} />)}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1
+            const dateStr = `${monthPrefix}-${String(day).padStart(2, '0')}`
+            const dayCohorts = byDate.get(dateStr) ?? []
+            const isToday = dateStr === todayStr
+            const isSelected = dateStr === shownDate && dayCohorts.length > 0
+            const isPastDay = dateStr < todayStr
+            return (
+              <button
+                key={day}
+                type="button"
+                disabled={dayCohorts.length === 0}
+                onClick={() => setSelectedDate(dateStr)}
+                className={`py-1 rounded-lg text-xs transition-colors ${dayCohorts.length > 0 ? 'cursor-pointer hover:bg-sand-100' : 'cursor-default'} ${isPastDay && !isSelected ? 'text-sand-300' : 'text-sand-700'}`}
+                style={isSelected ? { background: '#E7C78A', color: '#5c4a1e', fontWeight: 700 } : isToday ? { background: '#EDE9E0' } : {}}
+              >
+                <span className="leading-none">{day}</span>
+                <span className="flex justify-center gap-0.5 mt-0.5" style={{ minHeight: 5 }}>
+                  {dayCohorts.slice(0, 3).map(c => (
+                    <span key={c.id} className="rounded-full" style={{ width: 5, height: 5, background: dotColor(c) }} />
+                  ))}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {shownDate && shownCohorts.length > 0 && (
+        <>
+          <div className="text-[11px] font-semibold text-sand-400 px-1">{shownDateTitle()}</div>
+          {shownCohorts.map(c => (
+            <CohortRow
+              key={c.id}
+              cohort={c}
+              workshopById={workshopById}
+              regCount={regCountByCohort.get(c.id) ?? 0}
+              onPick={onPick}
+            />
+          ))}
+        </>
+      )}
+      {!shownDate && (
+        <div className="bg-[#F5F1EB] rounded-2xl shadow-sm py-8 text-center">
+          <p className="text-sand-400 text-sm">אין מחזורים בחודש הזה</p>
+        </div>
       )}
     </div>
   )
@@ -6604,9 +6941,6 @@ type CohortGroupProps = {
   subLabel: string
   capacity?: number | null
   leads: RegistrationLead[]
-  // Phase 5 / A3 fix-2: full cohort (null for "ללא מחזור") so the
-  // group can compute effective status once and apply it to the
-  // status breakdown + each nested card badge.
   cohort: WorkshopCohort | null
   expanded: boolean
   onToggle: () => void
@@ -6617,21 +6951,12 @@ type CohortGroupProps = {
   onUpdateStatus: (id: string, status: RegistrationLead['status']) => void
   onUpdateCohort: (id: string, cohortId: string | null) => void
   onDelete: (id: string) => void
-  // Task C: forwarded to nested RegistrationCard.
   onEdit: (lead: RegistrationLead) => void
   onAddCohort: (w: Workshop) => void
-  // Phase 5 / A3
   selected: Set<string>
   onToggleSelect: (id: string) => void
   onToggleSelectGroup: (groupLeads: RegistrationLead[]) => void
-  // Phase 5 / A2 Stage 3: per-lead gap status. The cohort's workshop's
-  // linked-form fill rate drives the "X מתוך Y מילאו" counter.
   gapByLeadId: Map<string, GapStatusType | null>
-  // Polish #8: optional — opens the cohort-scoped responses modal.
-  // Only passed for cohort groups (upcoming/past); the ללא מחזור group
-  // spans multiple workshops so a single scoped modal isn't meaningful.
-  // The "📊 צפי בתשובות" button is only rendered when this AND a
-  // gap counter (== linked form exists) are both present.
   onOpenResponses?: () => void
 }
 
@@ -6659,25 +6984,18 @@ function CohortGroup({
   gapByLeadId,
   onOpenResponses,
 }: CohortGroupProps) {
-  // Tri-state group checkbox: none / some (indeterminate) / all.
   let selectedInGroup = 0
   for (const l of leads) if (selected.has(l.id)) selectedInGroup++
   const allSelected = leads.length > 0 && selectedInGroup === leads.length
   const someSelected = selectedInGroup > 0 && !allSelected
-  // useRef-style imperative on the input for indeterminate visual.
   const checkboxRef = (el: HTMLInputElement | null) => {
     if (el) el.indeterminate = someSelected
   }
-  // Effective status per lead (paid + past cohort → handled). All
-  // leads in this group share the same cohort, so isPast is one
-  // boolean we can reuse for breakdown counts AND the nested card
-  // badges below.
   const past = cohort ? isCohortPast(cohort) : false
   function effOf(l: RegistrationLead): RegistrationLead['status'] {
     if (l.status === 'paid' && past) return 'handled'
     return l.status
   }
-  // Status breakdown — effective status, only non-zero buckets render.
   let pending = 0, paid = 0, handled = 0
   for (const l of leads) {
     const s = effOf(l)
@@ -6701,11 +7019,6 @@ function CohortGroup({
   if (paid > 0) breakdownParts.push(`✅ ${paid} שילמו`)
   if (handled > 0) breakdownParts.push(`🎓 ${handled} מומשו`)
 
-  // Phase 5 / A2 Stage 3: gap counter — only meaningful when the
-  // group's leads share a workshop with a linked form. All leads in a
-  // cohort group share the same workshop by definition, so we look at
-  // the first lead's gap status. ללא מחזור group skipped (mixed
-  // workshops).
   let gapCounter: { filled: number; total: number } | null = null
   if (headerKind !== 'no-cohort' && leads.length > 0) {
     let hasLinkedForm = false
@@ -6743,10 +7056,6 @@ function CohortGroup({
             {expanded
               ? <ChevronDown className="w-4 h-4 text-sand-400 flex-shrink-0" />
               : <ChevronUp className="w-4 h-4 text-sand-400 flex-shrink-0 rotate-180" />}
-            {/* Polish #4: merge workshop title + cohort date/time into
-                ONE prominent bold line so the cohort is immediately
-                readable. Previously workshop was the headline and
-                cohort date/time was a small subline below. */}
             <span className="font-bold text-sand-800 text-sm truncate">
               {headerLabel}{subLabel ? ` · ${subLabel}` : ''}
             </span>
@@ -6765,11 +7074,6 @@ function CohortGroup({
           )}
         </div>
         <div className="flex-shrink-0 flex items-center gap-1.5">
-          {/* Polish #8: cohort-scoped responses entry point. Only
-              rendered when the cohort's workshop has a linked form
-              (gapCounter check) AND a handler is wired in. Opens the
-              same FormSubmissionsModal the Forms page uses, but with
-              the list pre-filtered to mothers in THIS cohort. */}
           {gapCounter && onOpenResponses && (
             <button
               type="button"
@@ -6817,18 +7121,6 @@ function CohortGroup({
   )
 }
 
-// ─── BulkActionBar (Phase 5 / A3) ───────────────────────────────────
-// Sticky-bottom bar that slides up when there's at least one
-// visible-selected registration. Actions act ONLY on the visible
-// selection — the count makes the split explicit so there are no
-// surprise edits when filters are active.
-//
-// ממתינה is visually deprioritized (smaller, neutral) as the
-// "undo a mis-tag" affordance; שילמה + טופלה are the primary
-// daily actions.
-//
-// Layout uses flex-wrap so the bar stays usable down to 320px:
-// labels wrap to a second line rather than overflow.
 function BulkActionBar({
   visibleCount,
   totalSelected,
@@ -6849,9 +7141,6 @@ function BulkActionBar({
   const [copiedFlash, setCopiedFlash] = useState(false)
   if (visibleCount === 0) return null
   const hiddenSelected = totalSelected - visibleCount
-  // Count display: when all selected are visible → "N נבחרו".
-  // When some are hidden behind active filters → "M מתוך N נבחרו"
-  // so the user sees exactly what an action will hit.
   const countLabel = hiddenSelected > 0
     ? `${visibleCount} מתוך ${totalSelected} נבחרו`
     : `${visibleCount} נבחרו`
@@ -6862,9 +7151,6 @@ function BulkActionBar({
   }
   return (
     <div
-      // Lifted to 88px on mobile to clear the admin BottomNav + its
-      // "צפי כמשתמשת" banner. Desktop has no BottomNav, so the bar
-      // sits flush at the bottom (lg:bottom-0).
       className="fixed bottom-[88px] lg:bottom-0 left-0 right-0 z-40 bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.08)] border-t border-sand-200"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       dir="rtl"
@@ -6914,12 +7200,6 @@ function BulkActionBar({
   )
 }
 
-// Phase 5 / A1: shared cohort picker row used by Registrations (mobile
-// + desktop). Extracted so the desktop table cell can reuse the same
-// matching logic. Renders:
-//   - native <select> when the registration's workshop has cohorts
-//   - "+ הוסיפי מחזור" link when the workshop exists but has no cohorts
-//   - "← בחרי סדנה קודם" hint when no workshop is assigned
 function CohortPickerRow({
   lead,
   workshops,
@@ -6966,9 +7246,6 @@ function CohortPickerRow({
           <option value="">ללא מחזור</option>
           {matching.map(c => {
             const [y, m, d] = c.start_date.split('-')
-            // Compact picker label: drop year-prefix; include time when
-            // set (Phase 5 / Stage 2). Date-only Stage-1 cohorts keep
-            // the slim form.
             const timePart = c.start_time ? ` ${c.start_time.slice(0, 5)}` : ''
             const label = `${d}/${m}/${y.slice(2)}${timePart}${c.label ? ' · ' + c.label : ''}${!c.is_active ? ' (לא פעיל)' : ''}`
             return <option key={c.id} value={c.id}>{label}</option>
