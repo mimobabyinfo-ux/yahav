@@ -218,6 +218,15 @@ export default function PublicRegisterPage() {
     return Object.keys(e).length === 0
   }
 
+  // Auto-paid flow: the lead id is generated client-side and stashed in
+  // localStorage right before redirecting to the payment page. The
+  // thank-you page (?thanks — where the payment provider redirects
+  // after a successful charge) picks it up and calls mark_lead_paid,
+  // flipping the lead from 'pending' to 'paid' automatically.
+  function rememberPendingLead(leadId: string) {
+    try { localStorage.setItem('mimo_pending_lead_id', leadId) } catch { /* private mode — skip */ }
+  }
+
   async function submit(ev: React.FormEvent) {
     ev.preventDefault()
     if (!validate()) return
@@ -247,7 +256,9 @@ export default function PublicRegisterPage() {
         setErrors({ submit: 'ההצעה הסתיימה כרגע — אם זו הייתה הצעה מוגבלת בכמות, מספר השימושים מולא.' })
         return
       }
+      const leadId = crypto.randomUUID()
       const { error } = await supabase.from('registration_leads').insert({
+        id: leadId,
         name: name.trim(),
         phone: normalizePhone(phone),
         email: email.trim().toLowerCase(),
@@ -265,6 +276,7 @@ export default function PublicRegisterPage() {
       }
       const url = offer.payment_link ?? offerWorkshop.payment_link
       if (url) {
+        rememberPendingLead(leadId)
         window.location.href = url
       } else {
         // Neither the offer nor the workshop has a payment_link. The
@@ -282,7 +294,9 @@ export default function PublicRegisterPage() {
 
     // Regular mode (unchanged from Phase 5 / B).
     const workshop = workshops.find(w => w.id === selected)
+    const leadId = crypto.randomUUID()
     const { error } = await supabase.from('registration_leads').insert({
+      id: leadId,
       name: name.trim(),
       phone: normalizePhone(phone),
       email: email.trim().toLowerCase(),
@@ -296,6 +310,7 @@ export default function PublicRegisterPage() {
       return
     }
     if (workshop?.payment_link) {
+      rememberPendingLead(leadId)
       window.location.href = workshop.payment_link
     } else {
       setSubmitting(false)

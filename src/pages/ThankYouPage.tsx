@@ -21,6 +21,25 @@ export default function ThankYouPage() {
     document.title = 'תודה — Mimo'
   }, [])
 
+  // The thank-you page is only reachable after a successful payment
+  // (the payment provider redirects here), so the pending lead saved
+  // by the registration form gets auto-marked as paid. The RPC only
+  // flips 'pending' → 'paid' (never touches handled/paid rows), and
+  // the key is cleared first so a refresh can't re-fire it.
+  useEffect(() => {
+    try {
+      const leadId = localStorage.getItem('mimo_pending_lead_id')
+      if (leadId && /^[0-9a-f-]{36}$/.test(leadId)) {
+        localStorage.removeItem('mimo_pending_lead_id')
+        supabase.rpc('mark_lead_paid', { p_lead_id: leadId }).then(({ error }) => {
+          if (error) console.error('[thank-you] mark_lead_paid failed:', error)
+        })
+      }
+    } catch {
+      // localStorage unavailable (private mode etc.) — nothing to do.
+    }
+  }, [])
+
   useEffect(() => {
     supabase.from('global_settings')
       .select('setting_key, setting_value')
