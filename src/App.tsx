@@ -37,7 +37,7 @@ import ActiveTimerBanner from './components/ActiveTimerBanner'
 import InstallPrompt from './components/InstallPrompt'
 
 export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'community' | 'marketplace' | 'log-sleep' | 'log-tummy' | 'log-feeding-breast' | 'log-feeding-bottle' | 'log-feeding-solid' | 'log-diaper' | 'log-medical' | 'log-milestone' | 'log-note'
-export type AdminSection = 'insights' | 'users' | 'workshops' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'registrations' | 'settings'
+export type AdminSection = 'insights' | 'users' | 'workshops' | 'events' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'registrations' | 'settings'
 
 // Detect public URLs
 const publicFormId = new URLSearchParams(window.location.search).get('form')

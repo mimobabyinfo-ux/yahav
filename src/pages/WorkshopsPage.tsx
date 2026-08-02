@@ -3,6 +3,7 @@ import { ExternalLink, MessageCircle, ShoppingBag, Star, X, Sparkles, CreditCard
 import { supabase, Workshop } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
+import { useWorkshopCategories, categoryLabel } from '../hooks/useWorkshopCategories'
 
 type WorkshopExt = Workshop & { whatsapp_number?: string }
 
@@ -87,11 +88,8 @@ function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose
   )
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  'הריון':   '🤰 הריון',
-  'תינוקות': 'תינוקות',
-  'אימהות':  'אימהות',
-}
+// Store categories are admin-managed (content_categories via
+// useWorkshopCategories) — edit them in the admin מוצרים tab.
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 type PurchasedRow = {
@@ -104,6 +102,7 @@ type PurchasedRow = {
 export default function WorkshopsPage() {
   const { profile, user } = useAuth()
   const { ownerWhatsapp } = useOwnerSettings()
+  const { categories } = useWorkshopCategories()
   const isPregnant = profile?.user_mode === 'pregnant'
   const [workshops, setWorkshops] = useState<WorkshopExt[]>([])
   const [purchases, setPurchases] = useState<PurchasedRow[]>([])
@@ -136,8 +135,8 @@ export default function WorkshopsPage() {
   }, [user])
 
   // Only show category chips that have at least one workshop
-  const activeCategories = Object.keys(CATEGORY_LABELS).filter(cat =>
-    workshops.some(w => w.workshop_type === cat)
+  const activeCategories = categories.filter(c =>
+    workshops.some(w => w.workshop_type === c.name)
   )
 
   const filtered = category === 'all'
@@ -177,7 +176,7 @@ export default function WorkshopsPage() {
         {/* Category filters — store only */}
         {tab === 'store' && (
           <div className="max-w-sm mx-auto flex gap-2 mt-4 overflow-x-auto scroll-hide pb-1">
-            {[{ key: 'all', label: 'הכל' }, ...activeCategories.map(k => ({ key: k, label: CATEGORY_LABELS[k] }))].map(c => (
+            {[{ key: 'all', label: 'הכל' }, ...activeCategories.map(cat => ({ key: cat.name, label: categoryLabel(cat) }))].map(c => (
               <button
                 key={c.key}
                 onClick={() => setCategory(c.key)}

@@ -1,16 +1,17 @@
 ﻿import { useEffect, useState, useCallback } from 'react'
-import { ChevronLeft, Settings as SettingsIcon } from 'lucide-react'
+import { ChevronLeft, ChevronDown, Settings as SettingsIcon } from 'lucide-react'
 import { supabase, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { getBabyAge } from '../utils/dateUtils'
-import PerkDetailsModal from '../components/PerkDetailsModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import MyTasksPanel from '../components/MyTasksPanel'
 import ActivityTimers from '../components/ActivityTimers'
 import LogEntryModal from '../components/LogEntryModal'
 import TodaysJournalPanel from '../components/dashboard/TodaysJournalPanel'
 import DailyTipCard from '../components/dashboard/DailyTipCard'
+import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard'
+import PerkDetailsModal from '../components/PerkDetailsModal'
 import type { Page } from '../App'
 
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
@@ -23,28 +24,45 @@ type Props = {
 export default function DashboardPage({ onNavigate }: Props) {
   const { profile, selectedChild, children, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
   const { ownerName, ownerWhatsapp } = useOwnerSettings()
-  const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
-  const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
   const [modalType, setModalType] = useState<EntryType | null>(null)
   const [presetFeedingType, setPresetFeedingType] = useState<'breast' | 'bottle' | 'solid' | undefined>(undefined)
   const [refetchKey, setRefetchKey] = useState(0)
+  // Community-first home (2.8.26): tracking is collapsed by default and
+  // remembers the mom's choice — a daily tracker opens it once and it
+  // stays open for her.
+  const [showTracking, setShowTracking] = useState<boolean>(() => localStorage.getItem('mimo_home_tracking_open') === '1')
+  const toggleTracking = () => setShowTracking(v => {
+    localStorage.setItem('mimo_home_tracking_open', v ? '0' : '1')
+    return !v
+  })
   const handleEntrySaved = useCallback(() => {
     setRefetchKey(k => k + 1)
   }, [])
 
-  useEffect(() => {
-    fetchPerks()
-  }, [])
+  // Home perks are admin-controlled (global_settings.show_home_perks —
+  // toggle lives in the admin הטבות tab). Hidden by default: some of
+  // Mimo's own products are sold in the store, and third-party perks
+  // next to them can read oddly.
+  const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
+  const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
+  const [showPerks, setShowPerks] = useState(false)
 
-  async function fetchPerks() {
-    const { data } = await supabase
-      .from('partner_perks')
-      .select('*')
-      .eq('is_active', true)
-      .eq('is_featured', true)
-      .order('display_order')
-    setFeaturedPerks(data ?? [])
-  }
+  useEffect(() => {
+    supabase.from('global_settings')
+      .select('setting_value')
+      .eq('setting_key', 'show_home_perks')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.setting_value !== 'true') return
+        setShowPerks(true)
+        supabase.from('partner_perks')
+          .select('*')
+          .eq('is_active', true)
+          .eq('is_featured', true)
+          .order('display_order')
+          .then(({ data: perks }) => setFeaturedPerks(perks ?? []))
+      })
+  }, [])
 
   return (
     <div className="min-h-screen p-5 pb-24 relative" dir="rtl">
@@ -73,12 +91,22 @@ export default function DashboardPage({ onNavigate }: Props) {
           </a>
         </div>
 
-        {/* Child Switcher — moved above the action bar */}
-        {children.length > 0 && <ChildSwitcher />}
+        {/* ── Community hero — the app's primary draw ── */}
+        <UpcomingEventsCard onNavigate={onNavigate} />
 
-        {/* Quick-add bar (above the fold for tired moms) */}
+        {/* ── Daily tracking — condensed, opt-in ── */}
         {selectedChild && (
-          <div className="bg-[#F5F1EB] rounded-3xl p-3 shadow-sm">
+          <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
+            <button onClick={toggleTracking} className="w-full flex items-center justify-between p-4">
+              <span className="flex items-center gap-2 text-sm font-bold text-sand-800">
+                🍼 המעקב היומי{selectedChild?.name ? ` של ${selectedChild.name}` : ''}
+              </span>
+              <ChevronDown className={`w-4 h-4 text-sand-400 transition-transform ${showTracking ? 'rotate-180' : ''}`} />
+            </button>
+            {showTracking && (
+              <div className="px-3 pb-3 space-y-3">
+                {children.length > 0 && <ChildSwitcher />}
+                <div className="bg-white/60 rounded-2xl p-2">
             <ActivityTimers
               onEntrySaved={handleEntrySaved}
               refetchKey={refetchKey}
@@ -98,20 +126,18 @@ export default function DashboardPage({ onNavigate }: Props) {
                 else if (logType === 'note') onNavigate('log-note')
               }}
             />
+                </div>
+                {/* Today's journal — one-glance summary, same refetch counter
+                    as the quick-add bar so a saved entry refreshes both. */}
+                <TodaysJournalPanel
+                  refetchKey={refetchKey}
+                  onNavigate={target => {
+                    if (target === 'journal') onNavigate('journal')
+                  }}
+                />
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Today's Journal panel (Phase 3 / C1) — one-glance summary of
-            every action category for today. refetchKey shares the same
-            counter that drives the quick-add bar's "time since" badges,
-            so saving an entry refreshes both. */}
-        {selectedChild && (
-          <TodaysJournalPanel
-            refetchKey={refetchKey}
-            onNavigate={target => {
-              if (target === 'journal') onNavigate('journal')
-            }}
-          />
         )}
 
         {/* Active workshop access badge */}
@@ -128,8 +154,8 @@ export default function DashboardPage({ onNavigate }: Props) {
         {/* Daily tip (Phase 3 / C2) — age-matched + deterministic per day. */}
         <DailyTipCard />
 
-        {/* Featured Perks — compact 2-per-row grid */}
-        {featuredPerks.length > 0 && (
+        {/* Featured Perks — only when enabled from the admin הטבות tab */}
+        {showPerks && featuredPerks.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-bold text-sand-800">הטבות מומלצות</h2>

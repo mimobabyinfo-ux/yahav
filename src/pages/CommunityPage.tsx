@@ -9,6 +9,7 @@ import { COMMUNITY_TAGS, tagDef, type CommunityTagId } from '../constants/commun
 import TagSelector from '../components/community/TagSelector'
 import CommunityTagFilter from '../components/community/CommunityTagFilter'
 import CommunityMemberSheet from '../components/community/CommunityMemberSheet'
+import EventsTab from '../components/community/EventsTab'
 
 type CommunityProfile = {
   id: string
@@ -34,6 +35,11 @@ type PregnantProfile = {
   due_date: string | null
 }
 
+// Top-level page tabs: community events ("הקהילה של מימו") vs the
+// member directory. Events is the default tab; the dashboard teaser
+// deep-links here via sessionStorage('mimo_community_tab').
+type PageTab = 'events' | 'members'
+
 type FilterMode = 'age' | 'area' | 'all'
 type PregnancyFilter = 'all' | 'week' | 'area'
 
@@ -50,6 +56,12 @@ export default function CommunityPage() {
   const { selectedChild, profile, user, refreshProfile } = useAuth()
   const { ownerWhatsapp } = useOwnerSettings()
   const isPregnant = profile?.user_mode === 'pregnant'
+
+  const [pageTab, setPageTab] = useState<PageTab>(() => {
+    const stored = sessionStorage.getItem('mimo_community_tab')
+    sessionStorage.removeItem('mimo_community_tab')
+    return stored === 'members' ? 'members' : 'events'
+  })
 
   // Mom-mode state
   const [profiles, setProfiles] = useState<CommunityProfile[]>([])
@@ -191,7 +203,7 @@ export default function CommunityPage() {
         {/* Header */}
         <div className="pt-2 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-sand-800">קהילת מימו</h1>
-          {profileComplete && !editMode && (
+          {pageTab === 'members' && profileComplete && !editMode && (
             <button
               onClick={() => setEditMode(true)}
               className="flex items-center gap-1.5 px-3 py-2 bg-[#F5F1EB] rounded-2xl text-xs font-semibold text-sand-500 shadow-sm hover:text-sand-700 transition-colors"
@@ -202,6 +214,27 @@ export default function CommunityPage() {
           )}
         </div>
 
+        {/* Page tabs — אירועים | חברות */}
+        <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
+          {([
+            ['events',  '🎉 אירועים'],
+            ['members', '🌸 חברות'],
+          ] as [PageTab, string][]).map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => setPageTab(v)}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${pageTab === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
+              style={pageTab === v ? { background: '#E7C78A' } : {}}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Events tab ── */}
+        {pageTab === 'events' && <EventsTab />}
+
+        {pageTab === 'members' && (<>
         {/* Community profile form */}
         {showEditSection && (
           <div className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm space-y-4">
@@ -535,6 +568,7 @@ export default function CommunityPage() {
             </div>
           )
         )}
+        </>)}
 
       </div>
 

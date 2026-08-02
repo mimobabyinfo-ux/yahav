@@ -1,4 +1,4 @@
-import { Home, BookOpen, ShoppingBag, Users, LogOut, ShieldAlert, Eye } from 'lucide-react'
+import { Home, BookOpen, ShoppingBag, LogOut, ShieldAlert, Eye } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import type { Page, AdminSection } from '../App'
 
@@ -64,9 +64,9 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
     const adminItems: { id: AdminSection; label: string; icon: React.ReactNode }[] = [
       { id: 'registrations', label: 'הרשמות',   icon: <span className="text-base leading-none">📝</span> },
       { id: 'forms',     label: 'טפסים',    icon: <span className="text-base leading-none">📋</span> },
+      { id: 'events',    label: 'אירועים',  icon: <span className="text-base leading-none">🎉</span> },
+      { id: 'partners',  label: 'ספקים',    icon: <span className="text-base leading-none">🤝</span> },
       { id: 'workshops', label: 'מוצרים',   icon: <span className="text-base leading-none">🎓</span> },
-      { id: 'users',     label: 'משתמשים',  icon: <Users className="w-4 h-4" /> },
-      { id: 'leads',     label: 'לידים',    icon: <span className="text-base leading-none">📞</span> },
     ]
 
     return (
@@ -119,10 +119,12 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
   // ── User nav ──────────────────────────────────────────────────────────────
   // Note: 'pro' (סדנאות / ProAreaPage) is intentionally hidden from nav in
   // Phase 1 but the route stays functional for direct admin access.
+  // Community-first (2.8.26): the app's primary draw is now the
+  // community — קהילה sits right after בית, tracking (יומן) after it.
   const userItems: { id: Page; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard',  label: 'בית',     icon: <Home className="w-5 h-5" /> },
-    { id: 'journal',    label: 'יומן',    icon: <BookOpen className="w-5 h-5" /> },
     { id: 'community',  label: 'קהילה',   icon: <span className="text-lg leading-none">🌸</span> },
+    { id: 'journal',    label: 'יומן',    icon: <BookOpen className="w-5 h-5" /> },
     { id: 'workshops',  label: 'מוצרים',  icon: <ShoppingBag className="w-5 h-5" /> },
   ]
 

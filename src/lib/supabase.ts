@@ -457,3 +457,77 @@ export type VideoWithProgress = Video & {
   content_categories?: { name: string } | null
 }
 
+
+// ─── Community events ("הקהילה של מימו") ─────────────────────────────────────
+// Free/paid monthly community events with capacity + one-tap in-app
+// registration. price=0 means a free event; price>0 requires
+// payment_link at the app layer ("דמי רצינות" against no-shows).
+
+export type CommunityEvent = {
+  id: string
+  title: string
+  emoji: string | null
+  event_type: string | null
+  description: string | null
+  event_date: string        // YYYY-MM-DD
+  start_time: string | null // HH:MM:SS
+  end_time: string | null
+  location: string | null
+  location_link: string | null
+  capacity: number | null   // null = unlimited
+  price: number
+  payment_link: string | null
+  vendor_id: string | null
+  vendor_name: string | null
+  image_url: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// Row shape returned by the get_community_events RPC — event fields plus
+// the live registration count and the calling user's own status.
+export type CommunityEventRow = {
+  id: string
+  title: string
+  emoji: string | null
+  event_type: string | null
+  description: string | null
+  event_date: string
+  start_time: string | null
+  end_time: string | null
+  location: string | null
+  location_link: string | null
+  capacity: number | null
+  price: number
+  payment_link: string | null
+  vendor_name: string | null
+  image_url: string | null
+  registered_count: number
+  my_status: 'registered' | 'cancelled' | 'attended' | 'no_show' | null
+}
+
+export type EventRegistration = {
+  id: string
+  event_id: string
+  user_id: string
+  status: 'registered' | 'cancelled' | 'attended' | 'no_show'
+  paid: boolean
+  created_at: string
+  updated_at: string
+}
+
+// Row shape of the get_event_attendees RPC — mirrors what the
+// community_profiles view exposes so moms can open each other's
+// profile from an event (direct WhatsApp gated on community_consent).
+export type EventAttendee = {
+  user_id: string
+  mother_name: string | null
+  area: string | null
+  phone_number: string | null
+  community_consent: boolean | null
+  community_bio: string | null
+  community_tags: string[] | null
+  child_dob: string | null
+  child_gender: 'boy' | 'girl' | 'other' | null
+}

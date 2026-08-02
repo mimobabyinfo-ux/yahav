@@ -20,8 +20,11 @@ import { CustomerCardProvider, useOpenCustomer } from '../components/admin/Custo
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
 import { normalizeIlPhone } from '../components/admin/customerLookup'
 import AddRegistrationModal from '../components/admin/AddRegistrationModal'
+import EventsAdminPanel from '../components/admin/EventsAdminPanel'
+import CategoryManagerModal from '../components/admin/CategoryManagerModal'
+import { useWorkshopCategories } from '../hooks/useWorkshopCategories'
 
-type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
+type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'events' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
 
 // Map admin nav sections → internal tabs
@@ -29,6 +32,7 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
   insights:  'insights',
   users:     'users',
   workshops: 'workshops',
+  events:    'events',
   forms:     'forms',
   leads:     'leads',
   tips:      'tips',
@@ -46,6 +50,8 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'registrations', label: 'הרשמות',     icon: <span className="text-xs">📝</span> },
   { id: 'forms',     label: 'טפסים',         icon: <span className="text-xs">📋</span> },
+  { id: 'events',    label: 'אירועי קהילה',  icon: <span className="text-xs">🎉</span> },
+  { id: 'partners',  label: 'ספקים',          icon: <span className="text-xs">🤝</span> },
   { id: 'workshops', label: 'מוצרים',        icon: <span className="text-xs">🎓</span> },
   { id: 'users',     label: 'משתמשים',      icon: <Users className="w-3.5 h-3.5" /> },
   { id: 'leads',     label: 'לידים',         icon: <span className="text-xs">📞</span> },
@@ -54,7 +60,6 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'tips',      label: 'טיפים',         icon: <Lightbulb className="w-3.5 h-3.5" /> },
   { id: 'perks',     label: 'הטבות',         icon: <Gift className="w-3.5 h-3.5" /> },
   { id: 'pregnancy', label: 'הריון',          icon: <span className="text-xs">🤰</span> },
-  { id: 'partners',  label: 'שירותים',       icon: <span className="text-xs">🌿</span> },
   { id: 'settings',  label: 'הגדרות',        icon: <Settings className="w-3.5 h-3.5" /> },
 ]
 
@@ -145,6 +150,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'tips'       && <TipsTab />}
         {tab === 'videos'     && <VideosTab />}
         {tab === 'workshops'  && <WorkshopsTab />}
+        {tab === 'events'     && <EventsAdminPanel />}
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'partners'   && <PartnersTab />}
@@ -159,6 +165,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'users'      && <UsersTabDesktop />}
         {tab === 'leads'      && <LeadsTabDesktop />}
         {tab === 'workshops'  && <WorkshopsTabDesktop />}
+        {tab === 'events'     && <EventsAdminPanel />}
         {tab === 'forms'      && <FormsTabDesktop />}
         {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <TipsTab />}
@@ -1017,6 +1024,12 @@ function WorkshopsTabDesktop() {
   const [deletingBusy, setDeletingBusy] = useState(false)
   // Phase 5 / A2 Part 2: forms list for the "שאלון משויך" dropdown.
   const [formsList, setFormsList] = useState<{ id: string; title: string }[]>([])
+  // Store categories are admin-managed (content_categories) + local
+  // search / category filter for the products list.
+  const { categories, reload: reloadCategories } = useWorkshopCategories()
+  const [showCatManager, setShowCatManager] = useState(false)
+  const [searchQ, setSearchQ] = useState('')
+  const [catFilter, setCatFilter] = useState('all')
 
   function copyRegisterLink(id: string) {
     const link = `${window.location.origin}?register=${id}`
@@ -1145,6 +1158,16 @@ function WorkshopsTabDesktop() {
     load()
   }
 
+  const workshopsQ = searchQ.trim()
+  const visibleWorkshops = workshops.filter(w =>
+    (!workshopsQ || w.title.includes(workshopsQ) || (w.description ?? '').includes(workshopsQ)) &&
+    (catFilter === 'all' || (catFilter === '__none__' ? !w.workshop_type : w.workshop_type === catFilter))
+  )
+  // Physical store products (category slug 'store-products') have no
+  // cohorts and no digital content — hide those actions for them.
+  const physicalNames = categories.filter(c => c.slug === 'store-products').map(c => c.name)
+  const isPhysicalProduct = (w: Workshop) => physicalNames.includes(w.workshop_type ?? '')
+
   return (
     <div className="flex gap-6" dir="rtl">
       <div className="flex-1 min-w-0 space-y-4">
@@ -1160,6 +1183,17 @@ function WorkshopsTabDesktop() {
               מוצר חדש
             </button>
           </div>
+          {/* Search + category filter + category manager */}
+          <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+            <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="🔍 חיפוש מוצר..." className="flex-1 min-w-[160px] px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
+            <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none">
+              <option value="all">כל הקטגוריות</option>
+              <option value="__none__">סדנה דיגיטלית (ללא קטגוריה)</option>
+              {categories.map(c => <option key={c.id} value={c.name}>{c.icon ? `${c.icon} ${c.name}` : c.name}</option>)}
+            </select>
+            <button onClick={() => setShowCatManager(true)} className="px-3 py-2 rounded-xl text-sm font-semibold bg-gray-50 text-gray-600 hover:bg-gray-100" title="ניהול קטגוריות">⚙️ קטגוריות</button>
+          </div>
+          {showCatManager && <CategoryManagerModal onClose={() => setShowCatManager(false)} onChanged={() => { reloadCategories(); load() }} />}
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
@@ -1172,8 +1206,8 @@ function WorkshopsTabDesktop() {
             </thead>
             <tbody>
               <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleWorkshopsDragEnd}>
-                <SortableContext items={workshops.map(w => w.id)} strategy={verticalListSortingStrategy}>
-                  {workshops.map(w => (
+                <SortableContext items={visibleWorkshops.map(w => w.id)} strategy={verticalListSortingStrategy}>
+                  {visibleWorkshops.map(w => (
                     <SortableTr key={w.id} id={w.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors group">
                       {(dragHandle) => (
                         <>
@@ -1198,14 +1232,18 @@ function WorkshopsTabDesktop() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100">📂 תוכן</button>
-                              <button
-                                onClick={() => setCohortsWorkshop(w)}
-                                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100"
-                                title="ניהול מחזורים"
-                              >
-                                📅 מחזורים
-                              </button>
+                              {!isPhysicalProduct(w) && (
+                                <>
+                                  <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100">📂 תוכן</button>
+                                  <button
+                                    onClick={() => setCohortsWorkshop(w)}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100"
+                                    title="ניהול מחזורים"
+                                  >
+                                    📅 מחזורים
+                                  </button>
+                                </>
+                              )}
                               {(w as unknown as { public_registration?: boolean }).public_registration && (
                                 <button
                                   onClick={() => copyRegisterLink(w.id)}
@@ -1227,7 +1265,7 @@ function WorkshopsTabDesktop() {
               </DndContext>
             </tbody>
           </table>
-          {workshops.length === 0 && <p className="text-center text-gray-400 text-sm py-12">אין מוצרים</p>}
+          {visibleWorkshops.length === 0 && <p className="text-center text-gray-400 text-sm py-12">{workshops.length === 0 ? 'אין מוצרים' : 'לא נמצאו מוצרים בסינון הזה'}</p>}
         </div>
       </div>
 
@@ -1284,52 +1322,60 @@ function WorkshopsTabDesktop() {
             <label className="text-xs text-gray-500 mb-1 block">קטגוריה — מוצרים בחנות <span className="text-purple-400">(ללא קטגוריה = סדנה דיגיטלית בלבד)</span></label>
             <select value={form.workshop_type} onChange={e => setForm(f => ({ ...f, workshop_type: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white">
               <option value="">סדנה דיגיטלית (לא מוצגת בחנות)</option>
-              <option value="הריון">🤰 הריון</option>
-              <option value="תינוקות">תינוקות</option>
-              <option value="אימהות">אימהות</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">הסדנה הבאה בסדרה</label>
-            <select value={form.next_workshop_id} onChange={e => setForm(f => ({ ...f, next_workshop_id: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white">
-              <option value="">ללא המשך</option>
-              {workshops.filter(w => w.id !== editing?.id).map(w => (
-                <option key={w.id} value={w.id}>{w.title}</option>
+              {form.workshop_type && !categories.some(c => c.name === form.workshop_type) && (
+                <option value={form.workshop_type}>{form.workshop_type}</option>
+              )}
+              {categories.map(c => (
+                <option key={c.id} value={c.name}>{c.icon ? `${c.icon} ${c.name}` : c.name}</option>
               ))}
             </select>
           </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">שאלון פתיחה (מופיע בכרטיס הלקוחה בתחילת המחזור)</label>
-            <select
-              value={form.linked_form_id}
-              onChange={e => setForm(f => ({ ...f, linked_form_id: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white"
-            >
-              <option value="">ללא שאלון</option>
-              {formsList.map(f => (
-                <option key={f.id} value={f.id}>{f.title}</option>
-              ))}
-            </select>
-            <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-              משויך לטופס שמופיע בכרטיס הלקוחה כשאלון התפתחותי ובדו"ח המחזורים.
-            </p>
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">שאלון משוב סיום (נשלח אוטומטית במייל אחרי סיום הסדנה)</label>
-            <select
-              value={form.feedback_form_id}
-              onChange={e => setForm(f => ({ ...f, feedback_form_id: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white"
-            >
-              <option value="">ללא שאלון</option>
-              {formsList.map(f => (
-                <option key={f.id} value={f.id}>{f.title}</option>
-              ))}
-            </select>
-            <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-              נשלח במייל לכל הנרשמות של המחזור, יומיים אחרי תאריך סיום המחזור.
-            </p>
-          </div>
+          {/* Workshop-only fields — hidden for physical store products */}
+          {!physicalNames.includes(form.workshop_type) && (
+            <>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">הסדנה הבאה בסדרה</label>
+                <select value={form.next_workshop_id} onChange={e => setForm(f => ({ ...f, next_workshop_id: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white">
+                  <option value="">ללא המשך</option>
+                  {workshops.filter(w => w.id !== editing?.id).map(w => (
+                    <option key={w.id} value={w.id}>{w.title}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">שאלון פתיחה (מופיע בכרטיס הלקוחה בתחילת המחזור)</label>
+                <select
+                  value={form.linked_form_id}
+                  onChange={e => setForm(f => ({ ...f, linked_form_id: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white"
+                >
+                  <option value="">ללא שאלון</option>
+                  {formsList.map(f => (
+                    <option key={f.id} value={f.id}>{f.title}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                  משויך לטופס שמופיע בכרטיס הלקוחה כשאלון התפתחותי ובדו"ח המחזורים.
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">שאלון משוב סיום (נשלח אוטומטית במייל אחרי סיום הסדנה)</label>
+                <select
+                  value={form.feedback_form_id}
+                  onChange={e => setForm(f => ({ ...f, feedback_form_id: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white"
+                >
+                  <option value="">ללא שאלון</option>
+                  {formsList.map(f => (
+                    <option key={f.id} value={f.id}>{f.title}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                  נשלח במייל לכל הנרשמות של המחזור, יומיים אחרי תאריך סיום המחזור.
+                </p>
+              </div>
+            </>
+          )}
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -3343,6 +3389,12 @@ function WorkshopsTab() {
 
   // Phase 5 / A2 Part 2: forms list for the "שאלון משויך" dropdown.
   const [formsList, setFormsList] = useState<{ id: string; title: string }[]>([])
+  // Store categories are admin-managed (content_categories) + local
+  // search / category filter for the products list.
+  const { categories, reload: reloadCategories } = useWorkshopCategories()
+  const [showCatManager, setShowCatManager] = useState(false)
+  const [searchQ, setSearchQ] = useState('')
+  const [catFilter, setCatFilter] = useState('all')
 
   const load = useCallback(async () => {
     const [{ data: ws }, { data: fs }] = await Promise.all([
@@ -3396,6 +3448,16 @@ function WorkshopsTab() {
     await supabase.from('workshops').update({ is_active: !w.is_active }).eq('id', w.id); load()
   }
 
+  const workshopsQ = searchQ.trim()
+  const visibleWorkshops = workshops.filter(w =>
+    (!workshopsQ || w.title.includes(workshopsQ) || (w.description ?? '').includes(workshopsQ)) &&
+    (catFilter === 'all' || (catFilter === '__none__' ? !w.workshop_type : w.workshop_type === catFilter))
+  )
+  // Physical store products (category slug 'store-products') have no
+  // cohorts and no digital content — hide those actions for them.
+  const physicalNames = categories.filter(c => c.slug === 'store-products').map(c => c.name)
+  const isPhysicalProduct = (w: Workshop) => physicalNames.includes(w.workshop_type ?? '')
+
   return (
     <div className="space-y-3">
       <button
@@ -3405,6 +3467,18 @@ function WorkshopsTab() {
         <Plus className="w-4 h-4" />
         מוצר חדש
       </button>
+
+      {/* Search + category filter + category manager */}
+      <div className="flex gap-2">
+        <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="🔍 חיפוש מוצר..." className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white" />
+        <button onClick={() => setShowCatManager(true)} className="px-3 py-2 rounded-xl text-sm font-semibold bg-white text-sand-600 shadow-sm" title="ניהול קטגוריות">⚙️</button>
+      </div>
+      <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm bg-white focus:outline-none focus:border-mustard-400">
+        <option value="all">כל הקטגוריות</option>
+        <option value="__none__">סדנה דיגיטלית (ללא קטגוריה)</option>
+        {categories.map(c => <option key={c.id} value={c.name}>{c.icon ? `${c.icon} ${c.name}` : c.name}</option>)}
+      </select>
+      {showCatManager && <CategoryManagerModal onClose={() => setShowCatManager(false)} onChanged={() => { reloadCategories(); load() }} />}
 
       {/* Polish #6: mobile editor is also a centered modal using the
           AdminLargeModal shell, matching the desktop pattern. */}
@@ -3450,52 +3524,60 @@ function WorkshopsTab() {
             <label className="text-xs text-sand-500 mb-1 block">קטגוריה — מוצרים בחנות <span className="text-mustard-600">(ללא = סדנה דיגיטלית בלבד)</span></label>
             <select value={form.workshop_type} onChange={e => setForm(f => ({ ...f, workshop_type: e.target.value }))} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white">
               <option value="">סדנה דיגיטלית (לא מוצגת בחנות)</option>
-              <option value="הריון">🤰 הריון</option>
-              <option value="תינוקות">תינוקות</option>
-              <option value="אימהות">אימהות</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-sand-500 mb-1 block">הסדנה הבאה בסדרה</label>
-            <select value={form.next_workshop_id} onChange={e => setForm(f => ({ ...f, next_workshop_id: e.target.value }))} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white">
-              <option value="">ללא המשך</option>
-              {workshops.filter(w => w.id !== editing?.id).map(w => (
-                <option key={w.id} value={w.id}>{w.title}</option>
+              {form.workshop_type && !categories.some(c => c.name === form.workshop_type) && (
+                <option value={form.workshop_type}>{form.workshop_type}</option>
+              )}
+              {categories.map(c => (
+                <option key={c.id} value={c.name}>{c.icon ? `${c.icon} ${c.name}` : c.name}</option>
               ))}
             </select>
           </div>
-          <div>
-            <label className="text-xs text-sand-500 mb-1 block">שאלון פתיחה (מופיע בכרטיס הלקוחה בתחילת המחזור)</label>
-            <select
-              value={form.linked_form_id}
-              onChange={e => setForm(f => ({ ...f, linked_form_id: e.target.value }))}
-              className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white"
-            >
-              <option value="">ללא שאלון</option>
-              {formsList.map(f => (
-                <option key={f.id} value={f.id}>{f.title}</option>
-              ))}
-            </select>
-            <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
-              משויך לטופס שמופיע בכרטיס הלקוחה כשאלון התפתחותי ובדו"ח המחזורים.
-            </p>
-          </div>
-          <div>
-            <label className="text-xs text-sand-500 mb-1 block">שאלון משוב סיום (נשלח אוטומטית במייל אחרי סיום הסדנה)</label>
-            <select
-              value={form.feedback_form_id}
-              onChange={e => setForm(f => ({ ...f, feedback_form_id: e.target.value }))}
-              className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white"
-            >
-              <option value="">ללא שאלון</option>
-              {formsList.map(f => (
-                <option key={f.id} value={f.id}>{f.title}</option>
-              ))}
-            </select>
-            <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
-              נשלח במייל לכל הנרשמות של המחזור, יומיים אחרי תאריך סיום המחזור.
-            </p>
-          </div>
+          {/* Workshop-only fields — hidden for physical store products */}
+          {!physicalNames.includes(form.workshop_type) && (
+            <>
+              <div>
+                <label className="text-xs text-sand-500 mb-1 block">הסדנה הבאה בסדרה</label>
+                <select value={form.next_workshop_id} onChange={e => setForm(f => ({ ...f, next_workshop_id: e.target.value }))} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white">
+                  <option value="">ללא המשך</option>
+                  {workshops.filter(w => w.id !== editing?.id).map(w => (
+                    <option key={w.id} value={w.id}>{w.title}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-sand-500 mb-1 block">שאלון פתיחה (מופיע בכרטיס הלקוחה בתחילת המחזור)</label>
+                <select
+                  value={form.linked_form_id}
+                  onChange={e => setForm(f => ({ ...f, linked_form_id: e.target.value }))}
+                  className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white"
+                >
+                  <option value="">ללא שאלון</option>
+                  {formsList.map(f => (
+                    <option key={f.id} value={f.id}>{f.title}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
+                  משויך לטופס שמופיע בכרטיס הלקוחה כשאלון התפתחותי ובדו"ח המחזורים.
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-sand-500 mb-1 block">שאלון משוב סיום (נשלח אוטומטית במייל אחרי סיום הסדנה)</label>
+                <select
+                  value={form.feedback_form_id}
+                  onChange={e => setForm(f => ({ ...f, feedback_form_id: e.target.value }))}
+                  className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white"
+                >
+                  <option value="">ללא שאלון</option>
+                  {formsList.map(f => (
+                    <option key={f.id} value={f.id}>{f.title}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
+                  נשלח במייל לכל הנרשמות של המחזור, יומיים אחרי תאריך סיום המחזור.
+                </p>
+              </div>
+            </>
+          )}
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -3517,7 +3599,7 @@ function WorkshopsTab() {
       )}
 
       <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleWorkshopsDragEnd}>
-        <SortableContext items={workshops.map(w => w.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={visibleWorkshops.map(w => w.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
           {workshops.map(w => (
             <SortableRow key={w.id} id={w.id}>
@@ -3540,6 +3622,8 @@ function WorkshopsTab() {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
+                    {!isPhysicalProduct(w) && (
+                      <>
                     <button
                       onClick={() => setContentWorkshop(w)}
                       className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-mustard-50 text-mustard-700 hover:bg-mustard-100 transition-colors"
@@ -3553,6 +3637,8 @@ function WorkshopsTab() {
                     >
                       📅 מחזורים
                     </button>
+                      </>
+                    )}
                     {(w as unknown as { public_registration?: boolean }).public_registration && (
                       <button
                         onClick={() => copyRegisterLink(w.id)}
@@ -3597,14 +3683,30 @@ function PerksTab() {
   const [pendingDelete, setPendingDelete] = useState<PartnerPerk | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
 
+  // Home-visibility switch (global_settings.show_home_perks): some of
+  // Mimo's own products are sold in the store, so third-party perks on
+  // the home page can look odd — admin decides when to show them.
+  const [showOnHome, setShowOnHome] = useState(false)
+
   const load = useCallback(async () => {
-    const [{ data: p }, { data: a }] = await Promise.all([
+    const [{ data: p }, { data: a }, { data: hp }] = await Promise.all([
       supabase.from('partner_perks').select('*').order('display_order'),
       supabase.from('perk_analytics').select('*'),
+      supabase.from('global_settings').select('setting_value').eq('setting_key', 'show_home_perks').maybeSingle(),
     ])
     setPerks(p ?? [])
     setAnalytics(a ?? [])
+    setShowOnHome(hp?.setting_value === 'true')
   }, [])
+
+  async function toggleHomeVisibility() {
+    const next = !showOnHome
+    setShowOnHome(next)
+    await supabase.from('global_settings').upsert(
+      { setting_key: 'show_home_perks', setting_value: next ? 'true' : 'false', setting_type: 'boolean', category: 'home', description: 'הצגת הטבות מומלצות במסך הבית' },
+      { onConflict: 'setting_key' },
+    )
+  }
   useEffect(() => { load() }, [load])
 
   async function save() {
@@ -3664,6 +3766,15 @@ function PerksTab() {
 
   return (
     <div className="space-y-3">
+      {/* Show/hide the perks section on the moms' home screen */}
+      <button
+        onClick={toggleHomeVisibility}
+        className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 text-sm font-bold transition-all ${showOnHome ? 'border-green-300 bg-green-50 text-green-700' : 'border-sand-200 bg-white text-sand-500'}`}
+      >
+        <span>🏠 הטבות במסך הבית של האמהות</span>
+        <span>{showOnHome ? 'מוצג ✓' : 'מוסתר'}</span>
+      </button>
+
       <div className="flex gap-2">
         <button onClick={() => { setShowForm(true); setEditing(null) }} className="flex-1 flex items-center justify-center gap-2 bg-mustard-500 text-white font-semibold py-3 rounded-2xl hover:bg-mustard-600 transition-colors">
           <Plus className="w-4 h-4" />

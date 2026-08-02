@@ -14,9 +14,14 @@ type Props = {
 // Phase 5 / A2 Part 1: ordered for daily-use frequency — registrations
 // + forms + workshops at the top, analytics + content management
 // below, settings always last.
+// Reordered 2.8.26 by Yahav's actual daily use: registrations + forms
+// first, then the community block (events + vendors), then products;
+// content-management + analytics below.
 const NAV: { id: AdminSection; label: string; icon?: React.ReactNode; emoji?: string }[] = [
   { id: 'registrations', label: 'הרשמות',        emoji: '📝' },
   { id: 'forms',     label: 'טפסים',            emoji: '📋' },
+  { id: 'events',    label: 'אירועי קהילה',     emoji: '🎉' },
+  { id: 'partners',  label: 'ספקים',             emoji: '🤝' },
   { id: 'workshops', label: 'מוצרים',           emoji: '🎓' },
   { id: 'users',     label: 'משתמשים',         icon: <Users className="w-4 h-4" /> },
   { id: 'leads',     label: 'לידים & CRM',      emoji: '📞' },
@@ -25,7 +30,6 @@ const NAV: { id: AdminSection; label: string; icon?: React.ReactNode; emoji?: st
   { id: 'tips',      label: 'טיפים יומיים',     icon: <Lightbulb className="w-4 h-4" /> },
   { id: 'perks',     label: 'הטבות',            icon: <Gift className="w-4 h-4" /> },
   { id: 'pregnancy', label: 'הריון',             emoji: '🤰' },
-  { id: 'partners',  label: 'שירותים',           emoji: '🌿' },
   { id: 'settings',  label: 'הגדרות',            icon: <Settings className="w-4 h-4" /> },
 ]
 
