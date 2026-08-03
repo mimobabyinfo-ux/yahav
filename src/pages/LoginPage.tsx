@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Mail } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
@@ -83,24 +83,20 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
-      style={{ background: '#FFFFFF' }}
+      style={{ background: '#F8F4EC' }}
       dir="rtl"
     >
-      {/* Background watermark duck */}
-      <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none" style={{ opacity: 0.07 }}>
-        <MimoLogo size={520} />
-      </div>
 
       <div className="w-full max-w-sm relative z-10 flex flex-col items-center gap-6">
         {/* Logo */}
         <div className="flex justify-center">
-          <MimoLogo size={260} />
+          <MimoLogo size={210} />
         </div>
 
         {/* Signup email-sent confirmation */}
         {signupSent && (
-          <div className="w-full bg-white rounded-3xl shadow-lg p-7 text-center space-y-4">
-            <div className="text-5xl">📧</div>
+          <div className="w-full bg-white rounded-3xl p-7 shadow-sm border border-[#F0EAE0] text-center space-y-4">
+            <div className="w-14 h-14 mx-auto rounded-full flex items-center justify-center" style={{ background: '#F6ECD8' }}><Mail className="w-7 h-7" style={{ color: '#8A6A2F' }} /></div>
             <h2 className="font-bold text-sand-800 text-xl">בדקי את האימייל שלך!</h2>
             <p className="text-sand-500 text-sm leading-relaxed">
               שלחנו לך לינק לאימות ל-<strong>{email}</strong>.<br />
@@ -123,10 +119,10 @@ export default function LoginPage() {
         </p>
 
         {/* Card */}
-        {!signupSent && <div className="w-full bg-white rounded-3xl shadow-lg p-7 mt-2">
+        {!signupSent && <div className="w-full bg-white rounded-3xl p-7 shadow-sm border border-[#F0EAE0] mt-2">
           <h2
-            className="font-bold text-center mb-6"
-            style={{ fontSize: '1.5rem', color: '#3D2E20', fontFamily: 'Nunito, sans-serif' }}
+            className="font-display text-center mb-6"
+            style={{ fontSize: '1.5rem', fontWeight: 400, color: '#5E4938' }}
           >
             {mode === 'login' ? 'התחברות' : 'הרשמה'}
           </h2>
@@ -183,7 +179,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(v => !v)}
-                  className="absolute top-1/2 -translate-y-1/2 left-3 p-1 text-sand-400 hover:text-sand-600"
+                  className="absolute top-1/2 -translate-y-1/2 left-3 p-1 text-sand-600 hover:text-sand-600"
                   aria-label={showPassword ? 'הסתר סיסמה' : 'הצג סיסמה'}
                   tabIndex={-1}
                 >

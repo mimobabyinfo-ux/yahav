@@ -38,8 +38,8 @@ export default function DailySummary({ entries }: Props) {
   if (entries.length === 0) {
     return (
       <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] p-5 text-center">
-        <p className="text-sand-400 text-sm">עדיין אין פעילויות היום</p>
-        <p className="text-sand-300 text-xs mt-1">הוסיפי רשומה ראשונה למטה</p>
+        <p className="text-sand-600 text-sm">עדיין אין פעילויות היום</p>
+        <p className="text-sand-500 text-xs mt-1">הוסיפי רשומה ראשונה למטה</p>
       </div>
     )
   }
@@ -212,7 +212,7 @@ export default function DailySummary({ entries }: Props) {
           <h3 className="text-xs font-semibold text-sand-500">יום בצבעים</h3>
           <div className="flex items-center gap-2">
             {legend.map(l => (
-              <span key={l.label} className="flex items-center gap-0.5 text-[10px] text-sand-400">
+              <span key={l.label} className="flex items-center gap-0.5 text-[13px] text-sand-600">
                 <span className="w-2 h-2 rounded-full inline-block" style={{ background: l.color }} />
                 {l.label}
               </span>
@@ -241,7 +241,7 @@ export default function DailySummary({ entries }: Props) {
             />
           ))}
         </div>
-        <div className="flex justify-between text-[9px] text-sand-300 mt-0.5 px-0.5" dir="ltr">
+        <div className="flex justify-between text-[9px] text-sand-500 mt-0.5 px-0.5" dir="ltr">
           <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
         </div>
       </div>

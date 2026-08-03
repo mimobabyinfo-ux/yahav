@@ -150,7 +150,7 @@ export default function UserSettingsPage() {
           <div className="space-y-2.5">
             {/* Name */}
             <div>
-              <p className="text-[11px] text-sand-400 mb-1">שם</p>
+              <p className="text-[13px] text-sand-600 mb-1">שם</p>
               {editingName ? (
                 <div className="space-y-2">
                   <input
@@ -176,7 +176,7 @@ export default function UserSettingsPage() {
               ) : (
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm text-sand-800 font-medium">
-                    {profile?.mother_name || <span className="text-sand-400 italic">לא הוגדר</span>}
+                    {profile?.mother_name || <span className="text-sand-600 italic">לא הוגדר</span>}
                   </p>
                   <button type="button"
                     onClick={() => { setNewMotherName(profile?.mother_name ?? ''); setEditingName(true) }}
@@ -190,7 +190,7 @@ export default function UserSettingsPage() {
 
             {/* Phone */}
             <div>
-              <p className="text-[11px] text-sand-400 mb-1">טלפון</p>
+              <p className="text-[13px] text-sand-600 mb-1">טלפון</p>
               {editingPhone ? (
                 <div className="space-y-2">
                   <input
@@ -218,7 +218,7 @@ export default function UserSettingsPage() {
               ) : (
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm text-sand-800 font-medium" dir="ltr">
-                    {profile?.phone_number || <span className="text-sand-400 italic">לא הוגדר</span>}
+                    {profile?.phone_number || <span className="text-sand-600 italic">לא הוגדר</span>}
                   </p>
                   <button type="button"
                     onClick={() => { setNewPhone(profile?.phone_number ?? ''); setEditingPhone(true) }}
@@ -232,9 +232,9 @@ export default function UserSettingsPage() {
 
             {/* Email — read-only */}
             <div>
-              <p className="text-[11px] text-sand-400">אימייל</p>
+              <p className="text-[13px] text-sand-600">אימייל</p>
               <p className="text-sm text-sand-800 font-medium" dir="ltr">
-                {user?.email || <span className="text-sand-400 italic">—</span>}
+                {user?.email || <span className="text-sand-600 italic">—</span>}
               </p>
             </div>
           </div>
@@ -246,7 +246,7 @@ export default function UserSettingsPage() {
             <h2 className="text-sm font-bold text-sand-700">פרטי הריון</h2>
             <div className="space-y-2.5">
               <div>
-                <p className="text-[11px] text-sand-400 mb-1">תאריך לידה משוער</p>
+                <p className="text-[13px] text-sand-600 mb-1">תאריך לידה משוער</p>
                 {editingDueDate ? (
                   <div className="space-y-2">
                     <div dir="ltr">
@@ -284,7 +284,7 @@ export default function UserSettingsPage() {
                     <p className="text-sm text-sand-800 font-medium">
                       {profile.due_date
                         ? new Date(profile.due_date + 'T12:00:00').toLocaleDateString('he-IL')
-                        : <span className="text-sand-400 italic">לא הוגדר</span>}
+                        : <span className="text-sand-600 italic">לא הוגדר</span>}
                     </p>
                     <button
                       type="button"
@@ -299,7 +299,7 @@ export default function UserSettingsPage() {
               </div>
               {profile.due_date && (
                 <div>
-                  <p className="text-[11px] text-sand-400">שבוע הריון נוכחי</p>
+                  <p className="text-[13px] text-sand-600">שבוע הריון נוכחי</p>
                   <p className="text-sm text-sand-800 font-medium">שבוע {pregnancyWeek(profile.due_date)}</p>
                 </div>
               )}
@@ -313,7 +313,7 @@ export default function UserSettingsPage() {
           <h2 className="text-sm font-bold text-sand-700">הילדים שלי</h2>
 
           {children.length === 0 && (
-            <p className="text-xs text-sand-400 italic">עדיין לא הוספת ילדים.</p>
+            <p className="text-xs text-sand-600 italic">עדיין לא הוספת ילדים.</p>
           )}
 
           <div className="space-y-2">
@@ -322,7 +322,7 @@ export default function UserSettingsPage() {
                 <span className="text-2xl">{genderEmoji(child.gender)}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-sand-800">{child.name}</p>
-                  <p className="text-[11px] text-sand-500">
+                  <p className="text-[13px] text-sand-500">
                     {genderLabel(child.gender)}
                     {child.dob && ` · נולד/ה ${new Date(child.dob + 'T12:00:00').toLocaleDateString('he-IL')}`}
                     {child.dob && ` · ${getBabyAge(child.dob)}`}
@@ -347,7 +347,7 @@ export default function UserSettingsPage() {
                 {editingChildId ? 'עריכת פרטי הילד/ה' : 'הוספת ילד/ה חדש/ה'}
               </p>
               <div>
-                <label className="block text-[11px] font-semibold text-sand-500 mb-1">שם <span className="text-red-400">*</span></label>
+                <label className="block text-[13px] font-semibold text-sand-500 mb-1">שם <span className="text-red-400">*</span></label>
                 <input
                   autoFocus
                   value={newName}
@@ -357,7 +357,7 @@ export default function UserSettingsPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-sand-500 mb-1">תאריך לידה <span className="text-red-400">*</span></label>
+                <label className="block text-[13px] font-semibold text-sand-500 mb-1">תאריך לידה <span className="text-red-400">*</span></label>
                 <div dir="ltr">
                   <input
                     type="date"
@@ -369,7 +369,7 @@ export default function UserSettingsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-sand-500 mb-1">מגדר</label>
+                <label className="block text-[13px] font-semibold text-sand-500 mb-1">מגדר</label>
                 <div className="flex gap-2">
                   {(['girl', 'boy', 'other'] as const).map(g => (
                     <button
@@ -425,6 +425,13 @@ export default function UserSettingsPage() {
           </section>
         )}
 
+        {/* מצב לילה */}
+        <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
+          <h2 className="text-sm font-bold text-sand-700">מצב לילה</h2>
+          <p className="text-[13px] text-sand-600 leading-relaxed">מסך בית כהה ושקט לרישום באמצע הלילה. במצב אוטומטי הוא נדלק בין 21:00 ל־06:00.</p>
+          <NightModeSelector />
+        </section>
+
         {/* יציאה */}
         <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5">
           <button
@@ -436,6 +443,38 @@ export default function UserSettingsPage() {
           </button>
         </section>
       </div>
+    </div>
+  )
+}
+
+// ── Night-mode preference (localStorage mimo_night_mode) ─────────────
+function NightModeSelector() {
+  const read = (): 'auto' | 'on' | 'off' => {
+    const v = localStorage.getItem('mimo_night_mode')
+    return v === 'on' || v === 'off' ? v : 'auto'
+  }
+  const [pref, setPref] = useState<'auto' | 'on' | 'off'>(read)
+  const set = (v: 'auto' | 'on' | 'off') => {
+    localStorage.setItem('mimo_night_mode', v)
+    setPref(v)
+  }
+  const OPTIONS: { id: 'auto' | 'on' | 'off'; label: string }[] = [
+    { id: 'auto', label: 'אוטומטי' },
+    { id: 'on', label: 'תמיד' },
+    { id: 'off', label: 'כבוי' },
+  ]
+  return (
+    <div className="flex bg-white rounded-2xl p-1 gap-1 border border-[#F0EAE0]">
+      {OPTIONS.map(o => (
+        <button
+          key={o.id}
+          onClick={() => set(o.id)}
+          className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${pref === o.id ? 'shadow-sm' : 'text-sand-500'}`}
+          style={pref === o.id ? { background: '#E7C78A', color: '#4A3A28' } : {}}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   )
 }

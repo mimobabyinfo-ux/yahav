@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search as SearchIcon, X } from 'lucide-react'
+import { Search as SearchIcon, UserCheck, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOpenCustomer } from './CustomerCardContext'
 import { normalizeIlPhone } from './customerLookup'
@@ -67,14 +67,14 @@ export default function GlobalSearchBar() {
     <div className="sticky top-0 z-30 bg-white border-b border-sand-200" dir="rtl">
       <div className="max-w-3xl mx-auto px-3 lg:px-6 py-2 relative">
         <div className="flex items-center gap-2 rounded-2xl bg-sand-50 border border-sand-200 px-3 focus-within:border-mustard-400 transition-colors">
-          <SearchIcon className="w-4 h-4 text-sand-400 flex-shrink-0" />
+          <SearchIcon className="w-4 h-4 text-[#7B604C] flex-shrink-0" />
           <input
             value={query}
             onChange={e => { setQuery(e.target.value); setOpen(true) }}
             onFocus={() => setOpen(true)}
             onKeyDown={e => { if (e.key === 'Escape') close() }}
             placeholder={placeholder}
-            className="flex-1 bg-transparent py-2.5 text-sm focus:outline-none text-sand-800 placeholder:text-sand-400"
+            className="flex-1 bg-transparent py-2.5 text-[15px] focus:outline-none text-sand-800 placeholder:text-[#7B604C]"
           />
           {query && (
             <button
@@ -107,14 +107,14 @@ export default function GlobalSearchBar() {
                 className="w-full text-right px-4 py-3 hover:bg-mustard-50 border-b border-sand-100 last:border-0 transition-colors"
               >
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-bold text-sand-800 truncate">{r.name}</span>
+                  <span className="text-[16px] font-bold text-sand-800 truncate">{r.name}</span>
                   {r.hasUserProfile && (
-                    <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                      👩‍💻 משתמשת רשומה
+                    <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#3E5966] bg-[#E4EBEF] px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                      <UserCheck className="w-3.5 h-3.5" /> משתמשת רשומה
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-sand-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                <p className="text-[14px] text-[#7B604C] mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
                   {r.phone && <span dir="ltr">{r.phone}</span>}
                   {r.email && <span dir="ltr">{r.email}</span>}
                 </p>

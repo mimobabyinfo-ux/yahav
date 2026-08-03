@@ -49,28 +49,31 @@ type Tile = {
 }
 
 const PRIMARY_TILES: Tile[] = [
-  { key: 'feeding-breast', icon: Baby,     label: 'הנקה',    modalEntry: 'feeding', modalPreset: 'breast', sinceKey: 'feeding',    sinceFallback: 'עוד אין רישום' },
-  { key: 'feeding-bottle', icon: Milk,     label: 'בקבוק',   modalEntry: 'feeding', modalPreset: 'bottle', sinceKey: 'feeding',    sinceFallback: 'עוד אין רישום' },
-  { key: 'feeding-solid',  icon: Utensils, label: 'אוכל',    modalEntry: 'feeding', modalPreset: 'solid',  sinceKey: 'feeding',    sinceFallback: 'עוד אין רישום' },
-  { key: 'sleep',          icon: Moon,     label: 'שינה',     modalEntry: 'sleep',                          sinceKey: 'sleep',      sinceFallback: 'עוד אין רישום' },
-  { key: 'diaper',         icon: Droplets, label: 'חיתול',    modalEntry: 'diaper',                         sinceKey: 'diaper',     sinceFallback: 'עוד אין רישום' },
-  { key: 'tummy_time',     icon: Shapes,   label: 'זמן בטן',  modalEntry: 'tummy_time',                     sinceKey: 'tummy_time', sinceFallback: 'עוד אין רישום' },
+  { key: 'feeding-breast', icon: Baby,     label: 'הנקה',    modalEntry: 'feeding', modalPreset: 'breast', sinceKey: 'feeding' },
+  { key: 'feeding-bottle', icon: Milk,     label: 'בקבוק',   modalEntry: 'feeding', modalPreset: 'bottle', sinceKey: 'feeding' },
+  { key: 'feeding-solid',  icon: Utensils, label: 'אוכל',    modalEntry: 'feeding', modalPreset: 'solid',  sinceKey: 'feeding' },
+  { key: 'sleep',          icon: Moon,     label: 'שינה',     modalEntry: 'sleep',                          sinceKey: 'sleep' },
+  { key: 'diaper',         icon: Droplets, label: 'חיתול',    modalEntry: 'diaper',                         sinceKey: 'diaper' },
+  { key: 'tummy_time',     icon: Shapes,   label: 'זמן בטן',  modalEntry: 'tummy_time',                     sinceKey: 'tummy_time' },
 ]
+
+// Home hero mode: the three highest-frequency actions, always visible.
+const HERO_KEYS: ReadonlySet<LogPageRoute> = new Set<LogPageRoute>(['feeding-breast', 'sleep', 'diaper'])
 
 // Brand color per tile — bubble = pastel tint behind the emoji,
 // border = the tile's outline. Follows the journal-wide mapping
 // (amarillo=feeding, celeste=sleep, arena=diaper, musgo=tummy,
 // rojo=medical, rosa=milestone, beige=note).
 const TILE_COLORS: Record<string, { bg: string; icon: string }> = {
-  'feeding-breast': { bg: '#F6ECD8', icon: '#8A6A2F' },
-  'feeding-bottle': { bg: '#F0E6D4', icon: '#6E5836' },
-  'feeding-solid':  { bg: '#F6ECD8', icon: '#8A6A2F' },
-  sleep:            { bg: '#E4EBEF', icon: '#47606D' },
-  diaper:           { bg: '#EEEADC', icon: '#5F5741' },
-  tummy_time:       { bg: '#E6E7D8', icon: '#4C4D3B' },
-  doctor_visit:     { bg: '#F3E3DA', icon: '#8A4D33' },
-  milestone:        { bg: '#F4E9EA', icon: '#85555E' },
-  note:             { bg: '#F1EDE6', icon: '#5F574B' },
+  'feeding-breast': { bg: '#F6ECD8', icon: '#8A6A2F' },  // amarillo
+  'feeding-bottle': { bg: '#EFE2C8', icon: '#6E5836' },  // amarillo, deeper
+  'feeding-solid':  { bg: '#F5E4CB', icon: '#7A5E28' },  // amarillo, warmer
+  sleep:            { bg: '#DFE8EE', icon: '#3E5966' },  // celeste
+  diaper:           { bg: '#EAE4D2', icon: '#5A5238' },  // arena
+  tummy_time:       { bg: '#E1E3D0', icon: '#464734' },  // musgo
+  doctor_visit:     { bg: '#F2DFD4', icon: '#8A4D33' },  // rojo tierra
+  milestone:        { bg: '#F3E5E7', icon: '#7E4E57' },  // rosa polvo
+  note:             { bg: '#EFEAE1', icon: '#5A5247' },  // beige
 }
 
 const MORE_TILES: Tile[] = [
@@ -88,6 +91,9 @@ const PAGE_BUILT: ReadonlySet<LogPageRoute> = new Set<LogPageRoute>([
 ])
 
 type Props = {
+  /** Home quick-log mode: 3 primary tiles + "עוד שש פעולות" expander,
+   *  white tiles on the mustard container. */
+  hero?: boolean
   onEntrySaved: () => void
   refetchKey?: number
   // Fallback path — opens LogEntryModal with the given entry type + optional
@@ -107,6 +113,7 @@ type AdditionalData = {
 }
 
 export default function ActivityTimers({
+  hero = false,
   onEntrySaved,
   refetchKey = 0,
   onModalRequest,
@@ -126,9 +133,11 @@ export default function ActivityTimers({
   const lastTummy = useLastEntry('tummy_time', refetchKey)
   const lastDiaper = useLastEntry('diaper', refetchKey)
 
+  const nothingLoggedYet = !lastFeeding && !lastSleep && !lastTummy && !lastDiaper
+
   function sinceTextFor(tile: Tile): string {
     if (!tile.sinceKey) return ''
-    const fallback = tile.sinceFallback ?? ''
+    const fallback = ''
     if (tile.sinceKey === 'feeding') return formatTimeSince(lastFeeding, fallback)
     if (tile.sinceKey === 'sleep') return formatTimeSince(lastSleep, fallback)
     if (tile.sinceKey === 'tummy_time') return formatTimeSince(lastTummy, fallback)
@@ -253,15 +262,15 @@ export default function ActivityTimers({
       <button
         key={tile.key}
         onClick={() => handleTileTap(tile)}
-        className="flex flex-col items-center justify-center gap-1.5 py-3 px-1 rounded-2xl transition-all hover:brightness-[0.98]"
-        style={{ background: c.bg }}
+        className="flex flex-col items-center justify-center bg-white transition-all hover:shadow-sm"
+        style={{ borderRadius: 20, padding: '14px 8px', gap: 7 }}
       >
-        <span className="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center">
-          <Icon className="w-[18px] h-[18px]" style={{ color: c.icon }} strokeWidth={2.2} />
+        <span className="rounded-full flex items-center justify-center" style={{ width: 44, height: 44, background: c.bg }}>
+          <Icon style={{ width: 22, height: 22, color: c.icon }} strokeWidth={2} />
         </span>
-        <span className="text-xs font-bold whitespace-nowrap" style={{ color: '#4A3A28' }}>{tile.label}</span>
+        <span className="font-bold whitespace-nowrap" style={{ fontSize: 15, color: '#4A3A28' }}>{tile.label}</span>
         {since && (
-          <span className="text-[10px] leading-tight whitespace-nowrap text-sand-500">{since}</span>
+          <span className="font-semibold leading-tight whitespace-nowrap" style={{ fontSize: 13, color: '#957860' }}>{since}</span>
         )}
       </button>
     )
@@ -270,35 +279,42 @@ export default function ActivityTimers({
   return (
     <>
       <div className="space-y-2">
-        {/* Top 2 rows × 3 cols — always visible */}
-        <div className="grid grid-cols-3 gap-2">
-          {PRIMARY_TILES.map(renderTile)}
+        {/* Single shared empty line replaces four repeated fallbacks. */}
+        {nothingLoggedYet && (
+          <p className="font-semibold" style={{ fontSize: 13, color: '#957860' }}>עוד לא נרשם כלום היום</p>
+        )}
+
+        {/* Always-visible tiles: hero = the top-3 frequency actions,
+            otherwise the full six. */}
+        <div className="grid grid-cols-3 gap-2.5">
+          {(hero ? PRIMARY_TILES.filter(t => HERO_KEYS.has(t.key)) : PRIMARY_TILES).map(renderTile)}
         </div>
 
-        {/* Expandable "More…" row */}
+        {/* Expandable rows */}
         <div
           className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
-          style={{ maxHeight: moreOpen ? 200 : 0 }}
+          style={{ maxHeight: moreOpen ? 400 : 0 }}
         >
-          <div className="grid grid-cols-3 gap-2 pt-2">
-            {MORE_TILES.map(renderTile)}
+          <div className="grid grid-cols-3 gap-2.5 pt-2.5">
+            {(hero ? [...PRIMARY_TILES.filter(t => !HERO_KEYS.has(t.key)), ...MORE_TILES] : MORE_TILES).map(renderTile)}
           </div>
         </div>
 
         {/* Toggle */}
         <button
           onClick={() => setMoreOpen(o => !o)}
-          className="w-full flex items-center justify-center gap-1 py-1.5 text-xs font-medium text-sand-500 hover:text-sand-700 transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 py-2 font-semibold transition-colors"
+          style={{ fontSize: 14, color: '#8A6A2F' }}
         >
           {moreOpen ? (
             <>
-              <ChevronUp className="w-3.5 h-3.5" />
-              <span>פחות…</span>
+              <ChevronUp className="w-4 h-4" />
+              <span>פחות</span>
             </>
           ) : (
             <>
-              <ChevronDown className="w-3.5 h-3.5" />
-              <span>עוד…</span>
+              <ChevronDown className="w-4 h-4" />
+              <span>{hero ? 'עוד שש פעולות' : 'עוד פעולות'}</span>
             </>
           )}
         </button>

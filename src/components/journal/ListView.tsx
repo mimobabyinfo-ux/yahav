@@ -157,7 +157,7 @@ export default function ListView({
           <p className="text-sm text-sand-500">
             {filter === 'all' ? 'אין רשומות בשבוע זה' : 'אין רשומות מסוג זה השבוע'}
           </p>
-          <p className="text-xs text-sand-400">השתמשי בחיצים למעלה כדי לעבור לשבועות אחרים</p>
+          <p className="text-xs text-sand-600">השתמשי בחיצים למעלה כדי לעבור לשבועות אחרים</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -166,8 +166,8 @@ export default function ListView({
               {/* Date header */}
               <div className="flex items-center gap-2 pt-1">
                 <span className="text-xs font-bold text-sand-700">{hebrewDateHeader(g.date)}</span>
-                <span className="text-[10px] text-sand-400">·</span>
-                <span className="text-[10px] text-sand-400">
+                <span className="text-[13px] text-sand-600">·</span>
+                <span className="text-[13px] text-sand-600">
                   {g.items.length === 1 ? 'רשומה אחת' : `${g.items.length} רשומות`}
                 </span>
               </div>

@@ -166,7 +166,7 @@ export default function DailyTimeline({ entries, onRefresh, onEditEntry, hideHea
 
             {/* Time */}
             <div className="pt-1 w-10 flex-shrink-0 text-right">
-              <span className="text-[10px] font-bold text-sand-400">
+              <span className="text-[13px] font-bold text-sand-600">
                 {entry.entry_time?.slice(0, 5)}
               </span>
             </div>
@@ -202,7 +202,7 @@ export default function DailyTimeline({ entries, onRefresh, onEditEntry, hideHea
                     </p>
                   )}
                   {entry.notes && entry.entry_type !== 'note' && (
-                    <p className="text-xs text-sand-400 mt-0.5 italic">{entry.notes}</p>
+                    <p className="text-xs text-sand-600 mt-0.5 italic">{entry.notes}</p>
                   )}
                   {entry.entry_type === 'note' && entry.notes && (
                     <p className="text-xs text-sand-600 mt-0.5">{entry.notes}</p>
@@ -226,7 +226,7 @@ export default function DailyTimeline({ entries, onRefresh, onEditEntry, hideHea
                 )}
                 <button
                   onClick={e => { e.stopPropagation(); deleteEntry(entry.id) }}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-sand-300 hover:text-red-400 transition-all flex-shrink-0"
+                  className="opacity-0 group-hover:opacity-100 p-1 text-sand-500 hover:text-red-400 transition-all flex-shrink-0"
                   aria-label="מחיקה"
                 >
                   <Trash2 className="w-3.5 h-3.5" />

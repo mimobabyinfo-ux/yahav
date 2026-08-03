@@ -423,10 +423,10 @@ export default function PublicRegisterPage() {
               {lockedWorkshop ? 'המוצר שנבחר עבורך' : 'בחירת מוצר'}
             </label>
             {!lockedWorkshop && (
-              <p className="text-xs text-sand-400 mb-2">את כל המוצרים ניתן לקנות גם כמתנת לידה</p>
+              <p className="text-xs text-sand-600 mb-2">את כל המוצרים ניתן לקנות גם כמתנת לידה</p>
             )}
             {!lockedWorkshop && orderedWorkshops.length === 0 && (
-              <div className="text-center text-sand-400 text-sm py-6">אין סדנאות זמינות כרגע</div>
+              <div className="text-center text-sand-600 text-sm py-6">אין סדנאות זמינות כרגע</div>
             )}
             <div className="space-y-2">
               {(lockedWorkshop ? [lockedWorkshop] : orderedWorkshops).map(w => {
@@ -464,10 +464,10 @@ export default function PublicRegisterPage() {
                         {offer && offerPrice != null ? (
                           <p className="mt-0.5 flex items-center gap-2 flex-wrap">
                             {w.price != null && (
-                              <span className="text-xs text-sand-400 line-through">₪{w.price}</span>
+                              <span className="text-xs text-sand-600 line-through">₪{w.price}</span>
                             )}
                             <span className="text-sm font-bold text-mustard-700">₪{offerPrice}</span>
-                            <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-md">
+                            <span className="text-[13px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-md">
                               {offer.discount_type === 'percent' ? `-${offer.discount_value}%` : 'מחיר מיוחד'}
                             </span>
                           </p>
@@ -479,7 +479,7 @@ export default function PublicRegisterPage() {
                         <button
                           type="button"
                           onClick={e => { e.stopPropagation(); toggleExpand(w.id) }}
-                          className="flex-shrink-0 text-[11px] text-mustard-600 hover:text-mustard-700 px-2 py-1 rounded-lg hover:bg-mustard-50 transition-colors"
+                          className="flex-shrink-0 text-[13px] text-mustard-600 hover:text-mustard-700 px-2 py-1 rounded-lg hover:bg-mustard-50 transition-colors"
                         >
                           {isExpanded ? 'פחות ↑' : 'פרטים ↓'}
                         </button>
@@ -525,7 +525,7 @@ export default function PublicRegisterPage() {
                                     </span>
                                     <span className="text-sm font-bold text-sand-800">{cohortDateLabel(c)}</span>
                                   </span>
-                                  <span className="block mt-1 text-[10px] leading-tight">
+                                  <span className="block mt-1 text-[13px] leading-tight">
                                     {c.label && <span className="text-sand-500">{c.label} · </span>}
                                     {full ? (
                                       <span className="font-bold text-red-500">המחזור מלא</span>
@@ -572,7 +572,7 @@ export default function PublicRegisterPage() {
           </button>
         </form>
 
-        <p className="text-center text-[11px] text-sand-400 mt-4">
+        <p className="text-center text-[13px] text-sand-600 mt-4">
           לאחר שליחת הטופס תועברי לעמוד התשלום
         </p>
       </div>

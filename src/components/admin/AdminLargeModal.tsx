@@ -47,14 +47,14 @@ export default function AdminLargeModal({
         className={`bg-white w-full ${maxWidthClass} h-full lg:max-h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden`}
       >
         {/* Sticky header */}
-        <div className="px-5 py-4 border-b border-sand-200 flex-shrink-0 flex items-start justify-between gap-3">
+        <div className="px-5 py-4 border-b border-[#E4DAD0] flex-shrink-0 flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg lg:text-xl font-bold text-sand-800 truncate">{title}</h2>
-            {subtitle && <p className="text-xs text-sand-500 mt-0.5">{subtitle}</p>}
+            <h2 className="text-lg lg:text-xl font-bold text-[#5E4938] truncate">{title}</h2>
+            {subtitle && <p className="text-xs text-[#7B604C] mt-0.5">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 flex-shrink-0"
+            className="p-2 rounded-xl hover:bg-sand-100 text-[#7B604C] flex-shrink-0"
             aria-label="סגירה"
           >
             <X className="w-5 h-5" />
@@ -62,7 +62,7 @@ export default function AdminLargeModal({
         </div>
 
         {toolbar && (
-          <div className="flex-shrink-0 border-b border-sand-200 bg-sand-50">
+          <div className="flex-shrink-0 border-b border-[#E4DAD0] bg-sand-50">
             {toolbar}
           </div>
         )}
@@ -73,7 +73,7 @@ export default function AdminLargeModal({
         </div>
 
         {footer && (
-          <div className="flex-shrink-0 border-t border-sand-200 bg-white px-5 py-3">
+          <div className="flex-shrink-0 border-t border-[#E4DAD0] bg-white px-5 py-3">
             {footer}
           </div>
         )}

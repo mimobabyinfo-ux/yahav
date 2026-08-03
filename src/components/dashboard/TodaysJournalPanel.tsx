@@ -101,7 +101,7 @@ export default function TodaysJournalPanel({ refetchKey = 0, onNavigate }: Props
   if (s.loading) {
     return (
       <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm" dir="rtl">
-        <div className="text-xs text-sand-400 text-center py-4">טוענת…</div>
+        <div className="text-xs text-sand-600 text-center py-4">טוענת…</div>
       </div>
     )
   }
@@ -204,15 +204,15 @@ function Row({
       <span className="text-xl leading-tight pt-0.5">{emoji}</span>
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline justify-between gap-2">
-          <span className={`text-sm font-semibold ${isEmpty ? 'text-sand-400' : 'text-sand-800'}`}>
+          <span className={`text-sm font-semibold ${isEmpty ? 'text-sand-600' : 'text-sand-800'}`}>
             {label}
           </span>
-          <span className={`text-xs ${isEmpty ? 'text-sand-400 italic' : 'text-mustard-600 font-medium'} whitespace-nowrap`}>
+          <span className={`text-xs ${isEmpty ? 'text-sand-600 italic' : 'text-mustard-600 font-medium'} whitespace-nowrap`}>
             {sinceText}
           </span>
         </div>
         {detail && (
-          <p className="text-[11px] text-sand-500 leading-tight mt-0.5">{detail}</p>
+          <p className="text-[13px] text-sand-500 leading-tight mt-0.5">{detail}</p>
         )}
       </div>
     </button>

@@ -100,10 +100,10 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Nunito', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Assistant', 'Nunito', 'system-ui', '-apple-system', 'sans-serif'],
         // Display — rounded & playful (web stand-in for Gveret Levin /
         // Audrey Kids from the brand book; supports Hebrew).
-        display: ['"Varela Round"', 'Nunito', 'system-ui', 'sans-serif'],
+        display: ['"Gveret Levin AlefAlefAlef"', '"Varela Round"', 'Nunito', 'system-ui', 'sans-serif'],
         // Editorial serif (brand: Coustard).
         serif: ['Coustard', 'Georgia', 'serif'],
       },

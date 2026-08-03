@@ -60,7 +60,7 @@ export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoj
         {/* Header */}
         <div className="px-5 pb-3 flex items-center justify-between flex-shrink-0">
           <h2 className="text-lg font-bold text-sand-800">פרופיל</h2>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-sand-100 text-sand-400" aria-label="סגירה">
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-sand-100 text-sand-600" aria-label="סגירה">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -72,7 +72,7 @@ export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoj
             <p className="text-xl font-bold text-sand-800">{firstName}</p>
             <p className="text-xs text-sand-500">{secondaryLine}</p>
             {member.area && (
-              <p className="text-[11px] text-sand-400 flex items-center justify-center gap-1">
+              <p className="text-[13px] text-sand-600 flex items-center justify-center gap-1">
                 <MapPin className="w-3 h-3" />
                 {member.area}
               </p>

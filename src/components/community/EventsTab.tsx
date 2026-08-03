@@ -150,28 +150,28 @@ export default function EventsTab() {
                 )}
               </p>
               {ev.location && (
-                <p className="text-xs text-sand-400 mt-0.5 flex items-center gap-1">
+                <p className="text-xs text-sand-600 mt-0.5 flex items-center gap-1">
                   <MapPin className="w-3 h-3 flex-shrink-0" />
                   {ev.location}
                 </p>
               )}
               {ev.vendor_name && (
-                <p className="text-xs text-sand-400 mt-0.5">בהנחיית {ev.vendor_name}</p>
+                <p className="text-xs text-sand-600 mt-0.5">בהנחיית {ev.vendor_name}</p>
               )}
 
               {/* Spots + social proof */}
               <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-sand-500">
+                <span className="flex items-center gap-1 text-[13px] font-semibold text-sand-500">
                   <Users className="w-3 h-3" />
                   {ev.registered_count > 0 ? `${ev.registered_count} נרשמו` : 'היי הראשונה!'}
                 </span>
                 {spotsLeft != null && !isFull && spotsLeft <= 3 && (
-                  <span className="text-[11px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: '#A35C3D' }}>
+                  <span className="text-[13px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: '#A35C3D' }}>
                     {spotsLeft === 1 ? 'מקום אחרון!' : `נותרו ${spotsLeft} מקומות`}
                   </span>
                 )}
                 {isFull && !isMine && (
-                  <span className="text-[11px] font-bold text-sand-500 px-2 py-0.5 rounded-full bg-[#F4EDE1]">האירוע מלא</span>
+                  <span className="text-[13px] font-bold text-sand-500 px-2 py-0.5 rounded-full bg-[#F4EDE1]">האירוע מלא</span>
                 )}
               </div>
             </div>
@@ -192,13 +192,13 @@ export default function EventsTab() {
               )}
               {names && names.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-bold text-sand-500 mb-1">מי מגיעה? 💛 <span className="font-normal text-sand-400">(לחצי להכיר)</span></p>
+                  <p className="text-[13px] font-bold text-sand-500 mb-1">מי מגיעה? 💛 <span className="font-normal text-sand-600">(לחצי להכיר)</span></p>
                   <div className="flex flex-wrap gap-1.5">
                     {names.map(a => (
                       <button
                         key={a.user_id}
                         onClick={e => { e.stopPropagation(); setOpenAttendee({ attendee: a, eventTitle: ev.title }) }}
-                        className="flex items-center gap-1 text-[11px] bg-[#F4EDE1] text-sand-700 px-2.5 py-1 rounded-full font-semibold shadow-sm hover:shadow transition-all"
+                        className="flex items-center gap-1 text-[13px] bg-[#F4EDE1] text-sand-700 px-2.5 py-1 rounded-full font-semibold shadow-sm hover:shadow transition-all"
                       >
                         <span>{genderEmoji(a.child_gender)}</span>
                         {(a.mother_name ?? 'אמא').split(' ')[0]}
@@ -221,7 +221,7 @@ export default function EventsTab() {
               <button
                 onClick={() => cancel(ev)}
                 disabled={busyId === ev.id}
-                className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-400 text-xs font-semibold disabled:opacity-40"
+                className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-semibold disabled:opacity-40"
                 title="ביטול הרשמה"
               >
                 <X className="w-4 h-4" />
@@ -261,7 +261,7 @@ export default function EventsTab() {
       <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-3 animate-rise">
         <div className="flex justify-center"><MimoDuck size={110} className="duck-bob" /></div>
         <p className="font-semibold text-sand-700 text-sm">אירועי הקהילה הבאים בדרך 🎉</p>
-        <p className="text-xs text-sand-400">ברגע שנפרסם את לוח האירועים החודשי — הוא יופיע כאן</p>
+        <p className="text-xs text-sand-600">ברגע שנפרסם את לוח האירועים החודשי — הוא יופיע כאן</p>
       </div>
     )
   }
@@ -338,11 +338,11 @@ export default function EventsTab() {
         /* ── יומן — month calendar grid ── */
         <div className="space-y-3">
           <div className="flex items-center justify-between bg-white rounded-2xl px-3 py-2 shadow-sm">
-            <button onClick={() => calMove(-1)} className="p-1.5 rounded-xl text-sand-400 hover:bg-[#EFE6D6] transition-colors" title="חודש קודם">
+            <button onClick={() => calMove(-1)} className="p-1.5 rounded-xl text-sand-600 hover:bg-[#EFE6D6] transition-colors" title="חודש קודם">
               <ChevronRight className="w-4 h-4" />
             </button>
             <p className="text-sm font-bold text-sand-800">{MONTHS_HE[calYm.m - 1]} {calYm.y}</p>
-            <button onClick={() => calMove(1)} className="p-1.5 rounded-xl text-sand-400 hover:bg-[#EFE6D6] transition-colors" title="חודש הבא">
+            <button onClick={() => calMove(1)} className="p-1.5 rounded-xl text-sand-600 hover:bg-[#EFE6D6] transition-colors" title="חודש הבא">
               <ChevronLeft className="w-4 h-4" />
             </button>
           </div>
@@ -350,7 +350,7 @@ export default function EventsTab() {
           <div className="bg-white rounded-3xl p-3 shadow-sm">
             <div className="grid grid-cols-7 gap-1 mb-1">
               {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(d => (
-                <div key={d} className="text-center text-[10px] font-bold text-sand-400 py-1">{d}</div>
+                <div key={d} className="text-center text-[13px] font-bold text-sand-600 py-1">{d}</div>
               ))}
             </div>
             <div className="grid grid-cols-7 gap-1">
@@ -361,7 +361,7 @@ export default function EventsTab() {
                 const isToday = ds === todayLocalIso()
                 return (
                   <div key={day} className={`min-h-[50px] rounded-xl p-1 text-center ${isToday ? 'bg-mustard-50 ring-1 ring-mustard-300' : 'bg-[#F4EDE1]/70'}`}>
-                    <p className={`text-[10px] font-bold ${isToday ? 'text-mustard-700' : 'text-sand-400'}`}>{day}</p>
+                    <p className={`text-[13px] font-bold ${isToday ? 'text-mustard-700' : 'text-sand-600'}`}>{day}</p>
                     <div className="flex flex-col items-center gap-0.5 mt-0.5">
                       {dayEvents.map(ev => {
                         const mine = ev.my_status === 'registered' || ev.my_status === 'attended'
@@ -383,7 +383,7 @@ export default function EventsTab() {
 
           {calSelected
             ? eventCard(calSelected)
-            : <p className="text-center text-xs text-sand-400">לחצי על אירוע ביומן כדי לראות פרטים ולהירשם 👆</p>}
+            : <p className="text-center text-xs text-sand-600">לחצי על אירוע ביומן כדי לראות פרטים ולהירשם 👆</p>}
         </div>
       )}
 

@@ -224,7 +224,7 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
             >
               {/* DAY_LABELS keyed by getDay() so the letter is correct
                   regardless of render order. */}
-              <span className="text-[10px] text-sand-400">{DAY_LABELS[d.getDay()]}</span>
+              <span className="text-[11px] text-sand-600">{DAY_LABELS[d.getDay()]}</span>
               <span
                 className={`text-sm font-bold mt-0.5 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'text-[#4A3A28]' : 'text-sand-700'}`}
                 style={isToday ? { background: '#E7C78A' } : {}}
@@ -315,7 +315,7 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
           {GRID_HOURS.map(h => (
             <span
               key={h}
-              className="absolute text-[9px] text-sand-300 left-1"
+              className="absolute text-[10px] text-sand-500 left-1"
               style={{ top: `calc(${(h / 24) * 100}% - 5px)` }}
             >
               {String(h).padStart(2, '0')}:00

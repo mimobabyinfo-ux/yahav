@@ -164,7 +164,7 @@ export default function WeekView({ entries, weekStart, onWeekShift, onDayClick }
           color per category). Other types render in the chart as instants
           but aren't worth a legend chip. */}
       <div className="bg-white rounded-2xl p-3 shadow-sm border border-[#F0EAE0]">
-        <p className="text-[10px] font-semibold text-sand-500 mb-1.5">מקרא</p>
+        <p className="text-[13px] font-semibold text-sand-500 mb-1.5">מקרא</p>
         <div className="flex flex-wrap gap-3">
           {(['sleep', 'feeding', 'tummy_time', 'diaper'] as const).map(type => {
             const col = ENTRY_COLORS[type]
@@ -196,9 +196,9 @@ function HighlightCard({ icon: Icon, headline, sub, label }: {
         <Icon className="w-4 h-4 text-sand-600" strokeWidth={2.2} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-semibold text-sand-500 truncate">{label}</p>
+        <p className="text-[13px] font-semibold text-sand-500 truncate">{label}</p>
         <p className="text-sm font-bold text-sand-800 mt-0.5">{headline}</p>
-        <p className="text-[10px] text-sand-400 truncate">{sub}</p>
+        <p className="text-[13px] text-sand-600 truncate">{sub}</p>
       </div>
     </div>
   )

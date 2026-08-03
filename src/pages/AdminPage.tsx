@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, ToggleLeft, ToggleRight, X, Check, ShieldAlert, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy, Clock } from 'lucide-react'
+import { Plus, Pencil, Trash2, GraduationCap, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy, Clock, ClipboardList, FileText, Sparkles, Link2, MapPin } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -48,18 +48,18 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
 // sections (הרשמות / טפסים / סדנאות) leftmost in RTL so they're under
 // the thumb on mobile.
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'registrations', label: 'הרשמות',     icon: <span className="text-xs">📝</span> },
-  { id: 'forms',     label: 'טפסים',         icon: <span className="text-xs">📋</span> },
-  { id: 'events',    label: 'אירועי קהילה',  icon: <span className="text-xs">🎉</span> },
-  { id: 'partners',  label: 'ספקים',          icon: <span className="text-xs">🤝</span> },
-  { id: 'workshops', label: 'מוצרים',        icon: <span className="text-xs">🎓</span> },
-  { id: 'users',     label: 'משתמשים',      icon: <Users className="w-3.5 h-3.5" /> },
-  { id: 'leads',     label: 'לידים',         icon: <span className="text-xs">📞</span> },
+  { id: 'registrations', label: 'הרשמות',     icon: <ClipboardList className="w-3.5 h-3.5" /> },
+  { id: 'forms',     label: 'שאלונים וטפסים', icon: <FileText className="w-3.5 h-3.5" /> },
+  { id: 'events',    label: 'אירועי קהילה',  icon: <Sparkles className="w-3.5 h-3.5" /> },
+  { id: 'partners',  label: 'ספקי קהילה',     icon: <Link2 className="w-3.5 h-3.5" /> },
+  { id: 'workshops', label: 'מוצרים ותשלום', icon: <GraduationCap className="w-3.5 h-3.5" /> },
+  { id: 'users',     label: 'משתמשות',      icon: <Users className="w-3.5 h-3.5" /> },
+  { id: 'leads',     label: 'לידים',         icon: <Phone className="w-3.5 h-3.5" /> },
   { id: 'insights',  label: 'תובנות',        icon: <BarChart2 className="w-3.5 h-3.5" /> },
   { id: 'videos',    label: 'סרטונים',       icon: <Video className="w-3.5 h-3.5" /> },
   { id: 'tips',      label: 'טיפים',         icon: <Lightbulb className="w-3.5 h-3.5" /> },
   { id: 'perks',     label: 'הטבות',         icon: <Gift className="w-3.5 h-3.5" /> },
-  { id: 'pregnancy', label: 'הריון',          icon: <span className="text-xs">🤰</span> },
+  { id: 'pregnancy', label: 'מדריכי הריון',   icon: <MapPin className="w-3.5 h-3.5" /> },
   { id: 'settings',  label: 'הגדרות',        icon: <Settings className="w-3.5 h-3.5" /> },
 ]
 
@@ -96,20 +96,15 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
       {/* ── Mobile header (hidden on desktop, sidebar handles nav) ── */}
       <div className="lg:hidden bg-white border-b border-sand-100 shadow-sm px-4 pt-5 pb-3">
         <div className="max-w-sm mx-auto">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
-              <ShieldAlert className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-sand-800">פאנל ניהול</h1>
-              <p className="text-xs text-sand-400">Mimo CMS</p>
-            </div>
+          <div className="mb-3">
+            <h1 className="text-lg font-bold" style={{ color: '#5E4938' }}>פאנל ניהול</h1>
+            <p className="text-xs" style={{ color: '#7B604C' }}>Mimo CMS</p>
           </div>
           <div className="flex gap-1.5 overflow-x-auto scroll-hide pb-1">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${tab === t.id ? 'text-white shadow-md' : 'bg-sand-50 text-sand-500 hover:bg-sand-100'}`}
-                style={tab === t.id ? { background: '#E7C78A' } : {}}>
+                className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-all flex-shrink-0 ${tab === t.id ? 'shadow-md' : 'bg-sand-50 hover:bg-sand-100'}`}
+                style={tab === t.id ? { background: '#E7C78A', color: '#3A2E18' } : { color: '#7B604C' }}>
                 {t.icon}{t.label}
                 {t.id === 'forms' && unreadForms > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-[3px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
@@ -128,14 +123,10 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
       </div>
 
       {/* ── Desktop header (slim top bar) ── */}
-      <div className="hidden lg:flex items-center justify-between px-8 py-4 bg-white border-b border-gray-200 sticky top-0 z-10">
+      <div className="hidden lg:flex items-center justify-between px-8 py-4 bg-white border-b border-[#E4DAD0] sticky top-0 z-10">
         <div>
-          <h2 className="text-lg font-bold text-gray-800">{tabLabel}</h2>
-          <p className="text-xs text-gray-400">Mimo CMS · Admin Panel</p>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-red-400 font-bold">
-          <ShieldAlert className="w-3.5 h-3.5" />
-          ADMIN MODE
+          <h2 className="font-display" style={{ fontSize: 30, color: '#5E4938', fontWeight: 400 }}>{tabLabel}</h2>
+          <p className="text-[13px] font-semibold" style={{ color: '#7B604C' }}>ניהול מימו</p>
         </div>
       </div>
 
@@ -183,16 +174,16 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
 
 // ─── CRM helpers ─────────────────────────────────────────────────────────────
 const LEAD_STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  new_lead:        { label: 'ליד חדש',           color: '#3b82f6', bg: '#eff6ff' },
-  active_workshop: { label: 'בסדנה פעילה',       color: '#16a34a', bg: '#f0fdf4' },
-  post_service:    { label: 'לאחר שירות',         color: '#9ca3af', bg: '#f9fafb' },
+  new_lead:        { label: 'ליד חדש',           color: '#3E5966', bg: '#E4EBEF' },
+  active_workshop: { label: 'בסדנה פעילה',       color: '#434434', bg: '#E6E6E0' },
+  post_service:    { label: 'לאחר שירות',         color: '#6E6852', bg: '#F0EBE3' },
 }
 
 function LeadBadge({ status }: { status: string | null }) {
   const s = status ? (LEAD_STATUS_LABELS[status] ?? null) : null
-  if (!s) return <span className="text-[10px] bg-sand-100 text-sand-400 px-1.5 py-0.5 rounded-md">ללא סטטוס</span>
+  if (!s) return <span className="bg-sand-100 whitespace-nowrap font-bold" style={{ fontSize: 13, color: '#7B604C', padding: '5px 12px', borderRadius: 9999 }}>ללא סטטוס</span>
   return (
-    <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold" style={{ color: s.color, background: s.bg }}>
+    <span className="whitespace-nowrap font-bold" style={{ fontSize: 13, padding: '5px 12px', borderRadius: 9999, color: s.color, background: s.bg }}>
       {s.label}
     </span>
   )
@@ -269,8 +260,8 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl w-full max-w-sm shadow-xl space-y-4 p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="text-center">
-          <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-2">
-            <span className="text-2xl">🎓</span>
+          <div className="w-12 h-12 bg-[#E4EBEF] rounded-2xl flex items-center justify-center mx-auto mb-2">
+            <GraduationCap className="w-6 h-6" style={{ color: '#3E5966' }} />
           </div>
           <h3 className="font-bold text-sand-800">ניהול גישה לסדנאות</h3>
           <p className="text-xs text-sand-400 mt-1">{user.mother_name ?? user.email}</p>
@@ -287,14 +278,14 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold text-sand-800">{(e.workshops as { title: string } | null)?.title ?? '—'}</p>
-                      <p className="text-[10px] text-sand-400">
+                      <p className="text-[13px] text-sand-400">
                         {e.access_start_date} → {e.access_end_date}
                         {active ? <span className="text-green-600 mr-1"> ✓ פעיל</span> : <span className="text-red-400 mr-1"> פג תוקף</span>}
                       </p>
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => { setEditingId(e.id); setEditEndDate(e.access_end_date ?? '') }} className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg">✏️</button>
-                      <button onClick={() => revokeAccess(e.id)} className="text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg">✕</button>
+                      <button onClick={() => { setEditingId(e.id); setEditEndDate(e.access_end_date ?? '') }} className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => revokeAccess(e.id)} className="text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg"><X className="w-4 h-4" /></button>
                     </div>
                   </div>
                   {editingId === e.id && (
@@ -329,12 +320,12 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
           </div>
         </div>
 
-        {saved && <p className="text-center text-green-600 font-semibold text-sm">✓ נשמר בהצלחה!</p>}
+        {saved && <p className="flex items-center justify-center gap-1.5 font-semibold text-sm" style={{ color: '#434434' }}><Check className="w-4 h-4" style={{ color: '#818267' }} /> נשמר בהצלחה!</p>}
         {waLink && (
           <a href={waLink} target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-white font-bold text-sm"
-            style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)' }}>
-            💬 שלחי הודעת WhatsApp לאישור
+            className="flex items-center justify-center gap-2 w-full py-3"
+            style={{ color: '#A35C3D', fontWeight: 700, fontSize: 14 }}>
+            <MessageCircle className="w-4 h-4" /> שלחי הודעת WhatsApp לאישור
           </a>
         )}
 
@@ -435,8 +426,8 @@ function UsersTab() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-bold text-sand-800 text-sm truncate">{u.mother_name ?? '—'}</p>
-                {u.is_admin && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-bold">ADMIN</span>}
-                {u.user_mode === 'pregnant' && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-bold">🤰 הריון</span>}
+                {u.is_admin && <span className="text-[13px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-bold">ADMIN</span>}
+                {u.user_mode === 'pregnant' && <span className="text-[13px] bg-[#E4EBEF] text-[#3E5966] px-1.5 py-0.5 rounded-md font-bold">🤰 הריון</span>}
                 <LeadBadge status={u.lead_status} />
               </div>
               <p className="text-xs text-sand-400 truncate">{u.email}</p>
@@ -487,9 +478,9 @@ function UsersTab() {
           {/* Workshop access button */}
           <button
             onClick={() => setAssignAccessUser(u)}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold bg-[#F6ECD8] text-[#6E5836] hover:bg-[#EFDFC2] transition-colors"
           >
-            🎓 הקצה גישה לסדנה
+            <GraduationCap className="w-4 h-4" /> הקצה גישה לסדנה
           </button>
         </div>
       ))}
@@ -679,10 +670,10 @@ function UsersTabDesktop() {
                   <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px] truncate">{u.email}</td>
                   <td className="px-4 py-3">
                     {u.user_mode === 'pregnant'
-                      ? <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-lg font-bold">🤰 הריון</span>
+                      ? <span className="text-[13px] bg-[#E4EBEF] text-[#3E5966] px-2 py-0.5 rounded-lg font-bold">🤰 הריון</span>
                       : u.user_mode === 'mom'
-                      ? <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-lg font-bold">👶 אמא</span>
-                      : <span className="text-[10px] text-gray-400">—</span>
+                      ? <span className="text-[13px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-lg font-bold">👶 אמא</span>
+                      : <span className="text-[13px] text-gray-400">—</span>
                     }
                   </td>
                   <td className="px-4 py-3"><LeadBadge status={u.lead_status} /></td>
@@ -697,8 +688,8 @@ function UsersTabDesktop() {
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button onClick={() => setAssignAccessUser(u)} title="גישה לסדנה"
-                        className="p-1.5 rounded-lg hover:bg-purple-50 text-gray-400 hover:text-purple-600 text-xs">
-                        🎓
+                        className="p-1.5 rounded-lg hover:bg-[#F6ECD8] text-[#7B604C] hover:text-[#6E5836] text-xs">
+                        <GraduationCap className="w-4 h-4" />
                       </button>
                       <a href={`mailto:${u.email}`}
                         className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600">
@@ -770,8 +761,8 @@ function UsersTabDesktop() {
             {saving ? 'שומר...' : 'שמור שינויים'}
           </button>
           <button onClick={() => setAssignAccessUser(drawer)}
-            className="w-full py-2.5 rounded-xl text-sm font-semibold bg-purple-50 text-purple-700">
-            🎓 ניהול גישה לסדנאות
+            className="w-full py-2.5 rounded-xl text-sm font-semibold bg-[#F6ECD8] text-[#6E5836] flex items-center justify-center gap-2">
+            <GraduationCap className="w-4 h-4" /> ניהול גישה לסדנאות
           </button>
         </aside>
       )}
@@ -881,7 +872,7 @@ function LeadsTabDesktop() {
                     <td className="px-4 py-3 text-green-600 font-semibold text-xs">{l.user_phone ?? '—'}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">🌿 {l.partner_title ?? '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-[10px] px-2 py-1 rounded-lg font-bold ${l.action_type === 'whatsapp' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <span className={`text-[13px] px-2 py-1 rounded-lg font-bold ${l.action_type === 'whatsapp' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                         {l.action_type === 'whatsapp' ? '💬 WhatsApp' : '📞 התקשרות'}
                       </span>
                     </td>
@@ -1168,16 +1159,31 @@ function WorkshopsTabDesktop() {
   const physicalNames = categories.filter(c => c.slug === 'store-products').map(c => c.name)
   const isPhysicalProduct = (w: Workshop) => physicalNames.includes(w.workshop_type ?? '')
 
+  // UX handoff: active priced products missing a payment link — these
+  // silently block purchases, so they get a warning banner + per-row flag.
+  const missingPaymentLink = workshops.filter(w => w.is_active && (w.price ?? 0) > 0 && !w.payment_link)
+
   return (
     <div className="flex gap-6" dir="rtl">
       <div className="flex-1 min-w-0 space-y-4">
+        {missingPaymentLink.length > 0 && (
+          <div className="flex items-center gap-3" style={{ background: '#F5E2D8', border: '1px solid #E8C3B2', borderRadius: 18, padding: '15px 18px' }}>
+            <div className="flex items-center justify-center flex-shrink-0" style={{ width: 36, height: 36, borderRadius: 9999, background: '#fff' }}>
+              <AlertCircle style={{ width: 19, height: 19, color: '#8B4A30' }} />
+            </div>
+            <p style={{ fontWeight: 600, fontSize: 15, color: '#713924' }}>
+              למוצר "{missingPaymentLink[0].title}" (₪{missingPaymentLink[0].price}) אין קישור תשלום — לא ניתן לשלם עליו.
+              {missingPaymentLink.length > 1 ? ` ועוד ${missingPaymentLink.length - 1} מוצרים נוספים ללא קישור.` : ''}
+            </p>
+          </div>
+        )}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-bold text-gray-800">מוצרים ({workshops.length})</h2>
             <button
               onClick={openCreate}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold text-white"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold"
+              style={{ background: '#C8A460', color: '#33281B' }}
             >
               <Plus className="w-4 h-4" />
               מוצר חדש
@@ -1185,7 +1191,7 @@ function WorkshopsTabDesktop() {
           </div>
           {/* Search + category filter + category manager */}
           <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
-            <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="🔍 חיפוש מוצר..." className="flex-1 min-w-[160px] px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
+            <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="🔍 חיפוש מוצר..." className="flex-1 min-w-[160px] px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
             <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none">
               <option value="all">כל הקטגוריות</option>
               <option value="__none__">סדנה דיגיטלית (ללא קטגוריה)</option>
@@ -1200,6 +1206,7 @@ function WorkshopsTabDesktop() {
                 <th className="px-2 py-3 w-8"></th>
                 <th className="px-6 py-3">שם</th>
                 <th className="px-4 py-3">מחיר</th>
+                <th className="px-4 py-3">קישור תשלום</th>
                 <th className="px-4 py-3">סטטוס</th>
                 <th className="px-4 py-3">פעולות</th>
               </tr>
@@ -1216,7 +1223,7 @@ function WorkshopsTabDesktop() {
                             <div className="flex items-center gap-3">
                               {w.image_url
                                 ? <img src={w.image_url} className="w-9 h-9 rounded-xl object-cover" alt="" />
-                                : <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center text-lg">🎓</div>
+                                : <div className="w-9 h-9 rounded-xl bg-[#E4EBEF] flex items-center justify-center"><GraduationCap className="w-5 h-5" style={{ color: '#3E5966' }} /></div>
                               }
                               <div>
                                 <p className="font-semibold text-gray-800">{w.title}</p>
@@ -1226,6 +1233,23 @@ function WorkshopsTabDesktop() {
                           </td>
                           <td className="px-4 py-3 text-gray-600">{w.price != null ? `₪${w.price}` : '—'}</td>
                           <td className="px-4 py-3">
+                            {w.payment_link ? (
+                              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                <span style={{ width: 9, height: 9, borderRadius: 9999, background: '#818267', display: 'inline-block' }} />
+                                <span style={{ color: '#434434', fontSize: 13 }}>קיים</span>
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => openEdit(w)}
+                                className="inline-flex items-center gap-1.5 whitespace-nowrap hover:underline"
+                                title="פתיחת עריכת המוצר להוספת קישור תשלום"
+                              >
+                                <span style={{ width: 9, height: 9, borderRadius: 9999, background: '#A35C3D', display: 'inline-block' }} />
+                                <span style={{ color: '#8B4A30', fontWeight: 700, fontSize: 14 }}>חסר — הוספה</span>
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
                             <button onClick={() => toggle(w)} className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${w.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                               {w.is_active ? 'פעיל' : 'לא פעיל'}
                             </button>
@@ -1234,7 +1258,7 @@ function WorkshopsTabDesktop() {
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               {!isPhysicalProduct(w) && (
                                 <>
-                                  <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100">📂 תוכן</button>
+                                  <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#F6ECD8] text-[#6E5836] hover:bg-[#EFDFC2]">📂 תוכן</button>
                                   <button
                                     onClick={() => setCohortsWorkshop(w)}
                                     className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100"
@@ -1279,7 +1303,7 @@ function WorkshopsTabDesktop() {
           onClose={closeDrawer}
           footer={
             <div className="flex gap-2">
-              <button onClick={saveEdit} disabled={saving} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}>
+              <button onClick={saveEdit} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50" style={{ background: '#C8A460', color: '#33281B' }}>
                 {saving ? '...' : drawer === 'create' ? 'יצירה' : 'שמור'}
               </button>
               <button onClick={closeDrawer} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm">ביטול</button>
@@ -1287,18 +1311,18 @@ function WorkshopsTabDesktop() {
           }
         >
         <div className="space-y-3">
-          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="שם הסדנה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
-          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-purple-400" />
-          <textarea value={form.summary} onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} placeholder="סיכום / נקודות מפתח (מוצג בכרטיס הסדנה)" rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-purple-400" />
+          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="שם הסדנה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="תיאור" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-mustard-400" />
+          <textarea value={form.summary} onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} placeholder="סיכום / נקודות מפתח (מוצג בכרטיס הסדנה)" rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-mustard-400" />
           <div className="grid grid-cols-2 gap-2">
-            <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="מחיר (₪)" type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
-            <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מקסימום נרשמות למחזור / מלאי" title="לסדנאות עם מחזורים: מקסימום נרשמות בכל מחזור. למוצרי חנות: מלאי." type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" />
+            <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="מחיר (₪)" type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+            <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מקסימום נרשמות למחזור / מלאי" title="לסדנאות עם מחזורים: מקסימום נרשמות בכל מחזור. למוצרי חנות: מלאי." type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
           </div>
-          <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור תשלום" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
+          <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור תשלום" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" dir="ltr" />
           {/* Image upload + URL fallback */}
           <div className="space-y-1.5">
-            <label className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${uploadingImage ? 'bg-gray-100 text-gray-400' : 'bg-purple-50 text-purple-700 hover:bg-purple-100'}`}>
-              {uploadingImage ? 'מעלה תמונה...' : (form.image_url ? '🖼️ החלפת תמונה' : '🖼️ העלאת תמונה (PNG/JPG/WEBP, עד 5MB)')}
+            <label className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${uploadingImage ? 'bg-gray-100 text-gray-400' : 'bg-[#F6ECD8] text-[#6E5836] hover:bg-[#EFDFC2]'}`}>
+              {uploadingImage ? 'מעלה תמונה...' : <><ImageIcon className="w-4 h-4" /> {form.image_url ? 'החלפת תמונה' : 'העלאת תמונה (PNG/JPG/WEBP, עד 5MB)'}</>}
               <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleImageFile} disabled={uploadingImage} />
             </label>
             {form.image_url && (
@@ -1310,17 +1334,17 @@ function WorkshopsTabDesktop() {
                   className="absolute top-1 left-1 w-6 h-6 bg-black/50 text-white rounded-full text-xs flex items-center justify-center hover:bg-black/70"
                   title="הסרת תמונה"
                 >
-                  ✕
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
-            <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="או הדבק קישור URL..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-500 focus:outline-none focus:border-purple-400" dir="ltr" />
+            <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="או הדבק קישור URL..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-500 focus:outline-none focus:border-mustard-400" dir="ltr" />
           </div>
-          <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} placeholder="קישור סרטון (URL)" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
-          <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="WhatsApp" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400" dir="ltr" />
+          <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} placeholder="קישור סרטון (URL)" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" dir="ltr" />
+          <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="WhatsApp" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" dir="ltr" />
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">קטגוריה — מוצרים בחנות <span className="text-purple-400">(ללא קטגוריה = סדנה דיגיטלית בלבד)</span></label>
-            <select value={form.workshop_type} onChange={e => setForm(f => ({ ...f, workshop_type: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white">
+            <label className="text-xs text-gray-500 mb-1 block">קטגוריה — מוצרים בחנות <span className="text-[#7B604C]">(ללא קטגוריה = סדנה דיגיטלית בלבד)</span></label>
+            <select value={form.workshop_type} onChange={e => setForm(f => ({ ...f, workshop_type: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white">
               <option value="">סדנה דיגיטלית (לא מוצגת בחנות)</option>
               {form.workshop_type && !categories.some(c => c.name === form.workshop_type) && (
                 <option value={form.workshop_type}>{form.workshop_type}</option>
@@ -1335,7 +1359,7 @@ function WorkshopsTabDesktop() {
             <>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">הסדנה הבאה בסדרה</label>
-                <select value={form.next_workshop_id} onChange={e => setForm(f => ({ ...f, next_workshop_id: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white">
+                <select value={form.next_workshop_id} onChange={e => setForm(f => ({ ...f, next_workshop_id: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white">
                   <option value="">ללא המשך</option>
                   {workshops.filter(w => w.id !== editing?.id).map(w => (
                     <option key={w.id} value={w.id}>{w.title}</option>
@@ -1347,14 +1371,14 @@ function WorkshopsTabDesktop() {
                 <select
                   value={form.linked_form_id}
                   onChange={e => setForm(f => ({ ...f, linked_form_id: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white"
                 >
                   <option value="">ללא שאלון</option>
                   {formsList.map(f => (
                     <option key={f.id} value={f.id}>{f.title}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                <p className="text-[13px] text-gray-400 mt-1 leading-relaxed">
                   משויך לטופס שמופיע בכרטיס הלקוחה כשאלון התפתחותי ובדו"ח המחזורים.
                 </p>
               </div>
@@ -1363,14 +1387,14 @@ function WorkshopsTabDesktop() {
                 <select
                   value={form.feedback_form_id}
                   onChange={e => setForm(f => ({ ...f, feedback_form_id: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white"
                 >
                   <option value="">ללא שאלון</option>
                   {formsList.map(f => (
                     <option key={f.id} value={f.id}>{f.title}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                <p className="text-[13px] text-gray-400 mt-1 leading-relaxed">
                   נשלח במייל לכל הנרשמות של המחזור, יומיים אחרי תאריך סיום המחזור.
                 </p>
               </div>
@@ -1381,7 +1405,7 @@ function WorkshopsTabDesktop() {
               type="checkbox"
               checked={form.public_registration}
               onChange={e => setForm(f => ({ ...f, public_registration: e.target.checked }))}
-              className="w-4 h-4 accent-purple-600"
+              className="w-4 h-4 accent-[#C8A460]"
             />
             <span className="text-xs text-gray-700">הצגה בעמוד ההרשמה הציבורי <span className="text-gray-400">(?register)</span></span>
           </label>
@@ -1566,7 +1590,7 @@ function FormsWhatsNewStrip({
         <button
           type="button"
           onClick={onMarkAllSeen}
-          className="text-[10px] text-amber-700 hover:text-amber-900 underline"
+          className="text-[13px] text-amber-700 hover:text-amber-900 underline"
           title="סימון כל ההגשות החדשות כנקראו"
         >
           סמני הכל כנקרא
@@ -1580,10 +1604,10 @@ function FormsWhatsNewStrip({
               onClick={() => onOpenForm(form)}
               className="w-full text-right flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white hover:bg-amber-100/40 transition-colors"
             >
-              <span className="text-[10px] flex-shrink-0 px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 font-bold">חדש</span>
+              <span className="text-[13px] flex-shrink-0 px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 font-bold">חדש</span>
               <span className="text-xs font-semibold text-sand-800 truncate flex-1 min-w-0">{submitterLabel}</span>
-              <span className="text-[11px] text-sand-500 truncate flex-shrink min-w-0">{form.title}</span>
-              <span className="text-[10px] text-sand-400 flex-shrink-0">{timeAgoHebrew(sub.created_at)}</span>
+              <span className="text-[13px] text-sand-500 truncate flex-shrink min-w-0">{form.title}</span>
+              <span className="text-[13px] text-sand-400 flex-shrink-0">{timeAgoHebrew(sub.created_at)}</span>
             </button>
           </li>
         ))}
@@ -1991,7 +2015,7 @@ function FormsTabDesktop() {
             {/* Sticky save header */}
             <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-5 py-3 flex items-center justify-between rounded-t-2xl shadow-sm">
               <p className="text-xs font-bold text-gray-500 truncate max-w-[200px]">
-                {editingForm ? `✏️ ${editingForm.title}` : '➕ טופס חדש'}
+                {editingForm ? <><Pencil className="w-4 h-4 inline-block ml-1" />{editingForm.title}</> : '➕ טופס חדש'}
               </p>
               <div className="flex gap-2 items-center flex-shrink-0">
                 {isDirty && <span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" title="שינויים לא שמורים" />}
@@ -2034,7 +2058,7 @@ function FormsTabDesktop() {
                             {/* Insert-above divider (hover to reveal) */}
                             <button onClick={() => insertFieldAt(idx)} className="group w-full flex items-center gap-2 py-1 mb-1 opacity-30 hover:opacity-100 transition-opacity">
                               <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
-                              <span className="text-[10px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
+                              <span className="text-[13px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
                               <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
                             </button>
 
@@ -2068,7 +2092,7 @@ function FormsTabDesktop() {
                     {fields.length > 0 && (
                       <button onClick={() => insertFieldAt(fields.length)} className="group w-full flex items-center gap-2 py-1 my-1 opacity-30 hover:opacity-100 transition-opacity">
                         <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
-                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
+                        <span className="text-[13px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
                         <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
                       </button>
                     )}
@@ -2155,7 +2179,7 @@ function FormsTabDesktop() {
                           loadSubmissions(f) which bumps the per-form
                           seen key. */}
                       {(newCountByFormId.get(f.id) ?? 0) > 0 && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 font-bold whitespace-nowrap">
+                        <span className="text-[13px] px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 font-bold whitespace-nowrap">
                           {newCountByFormId.get(f.id)} חדשים
                         </span>
                       )}
@@ -2165,9 +2189,9 @@ function FormsTabDesktop() {
                   <td className="px-4 py-3 text-gray-500 text-xs">{f.folder ?? '—'}</td>
                   <td className="px-4 py-3 text-xs">
                     {stat && stat.count > 0 ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-50 text-purple-700 font-semibold">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F6ECD8] text-[#6E5836] font-semibold">
                         {stat.count} תשובות
-                        <span className="text-purple-400 font-normal">· {new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                        <span className="text-[#7B604C] font-normal">· {new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
                       </span>
                     ) : (
                       <span className="text-gray-300">—</span>
@@ -2180,7 +2204,7 @@ function FormsTabDesktop() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <button onClick={e => { e.stopPropagation(); setAssignForm(f) }} className="px-2 py-1 rounded-lg text-xs bg-purple-50 text-purple-600 hover:bg-purple-100 flex-shrink-0">👥 שייך</button>
+                      <button onClick={e => { e.stopPropagation(); setAssignForm(f) }} className="px-2 py-1 rounded-lg text-xs bg-[#F6ECD8] text-[#6E5836] hover:bg-[#EFDFC2] flex-shrink-0">👥 שייך</button>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                         <button onClick={() => copyFormLink(f.id)} className="px-2 py-1 rounded-lg text-xs bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600">{copiedId === f.id ? '✓' : '🔗'}</button>
                         <button onClick={() => startEdit(f)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
@@ -2390,7 +2414,7 @@ function InsightsTab() {
               <p className="text-xs text-sand-400">{user360.email}</p>
             </div>
             <div className="flex gap-1.5">
-              {user360.is_admin && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">ADMIN</span>}
+              {user360.is_admin && <span className="text-[13px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">ADMIN</span>}
             </div>
           </div>
 
@@ -2406,7 +2430,7 @@ function InsightsTab() {
             ].map(s => (
               <div key={s.label} className="text-center bg-sand-50 rounded-xl py-2">
                 <div className="font-black text-lg text-sand-800">{s.value}</div>
-                <div className="text-[10px] text-sand-400">{s.label}</div>
+                <div className="text-[13px] text-sand-400">{s.label}</div>
               </div>
             ))}
           </div>
@@ -2749,7 +2773,7 @@ function TipsTab() {
                   className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
                 />
               </div>
-              <p className="text-[11px] text-sand-400 mt-1">
+              <p className="text-[13px] text-sand-400 mt-1">
                 ≈ {formatAgeDays(parseInt(draft.age_range_start_days, 10) || 0)} – {formatAgeDays(parseInt(draft.age_range_end_days, 10) || 0)}
               </p>
             </div>
@@ -2789,11 +2813,11 @@ function TipsTab() {
 
       {visible.map(tip => (
         <div key={tip.id} className={`bg-white rounded-2xl p-4 shadow-sm ${!tip.is_active ? 'opacity-50' : ''}`}>
-          <p className="text-[10px] font-bold text-mustard-600 mb-1.5 uppercase tracking-wide">{describeRange(tip)}</p>
+          <p className="text-[13px] font-bold text-mustard-600 mb-1.5 uppercase tracking-wide">{describeRange(tip)}</p>
           {tip.title && <p className="text-sm font-bold text-sand-800 leading-snug mb-1">{tip.title}</p>}
           <p className="text-sm text-sand-700 leading-relaxed mb-2">{tip.tip_text}</p>
           {tip.article_link && (
-            <a href={tip.article_link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-mustard-700 underline mb-2 inline-block">קישור למאמר ←</a>
+            <a href={tip.article_link} target="_blank" rel="noopener noreferrer" className="text-[13px] text-mustard-700 underline mb-2 inline-block">קישור למאמר ←</a>
           )}
           <div className="flex items-center justify-between mt-2">
             <button onClick={() => toggle(tip)} className="text-sand-400 hover:text-mustard-500">
@@ -2974,7 +2998,7 @@ function VideosTab() {
               </div>
             ) : (
               <label className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${uploadingThumb ? 'bg-sand-100 text-sand-400' : 'bg-mustard-50 text-mustard-700 hover:bg-mustard-100'}`}>
-                {uploadingThumb ? 'מעלה...' : '🖼️ בחר תמונה'}
+                {uploadingThumb ? 'מעלה...' : <><ImageIcon className="w-4 h-4" /> בחר תמונה</>}
                 <input type="file" accept="image/*" className="hidden" onChange={handleThumbFile} disabled={uploadingThumb} />
               </label>
             )}
@@ -3125,7 +3149,7 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
   }
 
   const typeLabel = { video: '🎬 סרטון', homework: '📝 שיעור בית', pdf: '📄 קובץ' }
-  const typeBg   = { video: 'bg-mustard-50 text-mustard-700', homework: 'bg-purple-50 text-purple-700', pdf: 'bg-blue-50 text-blue-700' }
+  const typeBg   = { video: 'bg-mustard-50 text-mustard-700', homework: 'bg-[#F6ECD8] text-[#6E5836]', pdf: 'bg-blue-50 text-blue-700' }
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -3164,7 +3188,7 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
                       <button key={t} onClick={() => setSelType(t)}
                         className="flex flex-col items-center gap-1 py-3 rounded-2xl border-2 border-sand-200 hover:border-mustard-400 hover:bg-mustard-50 transition-all">
                         <span className="text-xl">{t === 'video' ? '🎬' : t === 'homework' ? '📝' : '📄'}</span>
-                        <span className="text-[10px] font-semibold text-sand-600">
+                        <span className="text-[13px] font-semibold text-sand-600">
                           {t === 'video' ? 'סרטון' : t === 'homework' ? 'שיעור בית' : 'PDF / קובץ'}
                         </span>
                       </button>
@@ -3207,18 +3231,18 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
                         ) : url ? (
                           <div className="space-y-1">
                             <p className="text-xs text-green-600 font-semibold">✓ הועלה בהצלחה</p>
-                            <p className="text-[10px] text-sand-400 truncate">{url}</p>
+                            <p className="text-[13px] text-sand-400 truncate">{url}</p>
                           </div>
                         ) : (
                           <div className="space-y-1">
                             <p className="text-2xl">🎬</p>
                             <p className="text-xs font-semibold text-sand-600">גרור MP4 לכאן</p>
-                            <p className="text-[10px] text-sand-400">או לחץ לבחירה</p>
+                            <p className="text-[13px] text-sand-400">או לחץ לבחירה</p>
                           </div>
                         )}
                       </div>
                       <input ref={fileRef} type="file" accept="video/mp4,video/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
-                      <p className="text-[10px] text-sand-400 mt-1.5 text-center">או הדבק קישור URL:</p>
+                      <p className="text-[13px] text-sand-400 mt-1.5 text-center">או הדבק קישור URL:</p>
                       <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." dir="ltr"
                         className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 mt-1" />
                     </div>
@@ -3235,7 +3259,7 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
                         )}
                         <input type="file" accept=".pdf,application/pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
                       </label>
-                      <p className="text-[10px] text-sand-400 mt-1.5 text-center">או הדבק קישור URL:</p>
+                      <p className="text-[13px] text-sand-400 mt-1.5 text-center">או הדבק קישור URL:</p>
                       <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." dir="ltr"
                         className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 mt-1" />
                     </div>
@@ -3283,19 +3307,19 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
 
           {items.map((item, idx) => (
             <div key={item.id} className="bg-white border border-sand-100 rounded-2xl p-3 flex items-start gap-3">
-              <span className={`text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0 mt-0.5 ${typeBg[item.type]}`}>
+              <span className={`text-[13px] font-bold px-2 py-1 rounded-lg flex-shrink-0 mt-0.5 ${typeBg[item.type]}`}>
                 {typeLabel[item.type]}
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-sand-800 truncate">{item.title}</p>
                 {item.type === 'homework' && item.tasks_json && (
-                  <p className="text-[10px] text-sand-400">{item.tasks_json.length} משימות</p>
+                  <p className="text-[13px] text-sand-400">{item.tasks_json.length} משימות</p>
                 )}
                 {item.url && item.type !== 'homework' && (
-                  <p className="text-[10px] text-sand-400 truncate">{item.url}</p>
+                  <p className="text-[13px] text-sand-400 truncate">{item.url}</p>
                 )}
               </div>
-              <span className="text-[10px] text-sand-300 flex-shrink-0 mt-0.5">#{idx + 1}</span>
+              <span className="text-[13px] text-sand-300 flex-shrink-0 mt-0.5">#{idx + 1}</span>
               <button onClick={() => setPendingDelete(item)} className="p-1.5 text-red-300 hover:text-red-500 flex-shrink-0">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -3504,13 +3528,13 @@ function WorkshopsTab() {
           {/* Image upload or URL */}
           <div className="space-y-1.5">
             <label className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${uploadingImage ? 'bg-sand-100 text-sand-400' : 'bg-mustard-50 text-mustard-700 hover:bg-mustard-100'}`}>
-              {uploadingImage ? 'מעלה תמונה...' : '🖼️ העלה תמונה (PNG/JPG)'}
+              {uploadingImage ? 'מעלה תמונה...' : <><ImageIcon className="w-4 h-4" /> העלה תמונה (PNG/JPG)</>}
               <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleImageFile} disabled={uploadingImage} />
             </label>
             {form.image_url && (
               <div className="relative">
                 <img src={form.image_url} alt="preview" className="w-full h-28 object-cover rounded-xl" />
-                <button onClick={() => setForm(f => ({ ...f, image_url: '' }))} className="absolute top-1 left-1 w-6 h-6 bg-black/50 text-white rounded-full text-xs flex items-center justify-center hover:bg-black/70">✕</button>
+                <button onClick={() => setForm(f => ({ ...f, image_url: '' }))} className="absolute top-1 left-1 w-6 h-6 bg-black/50 text-white rounded-full text-xs flex items-center justify-center hover:bg-black/70"><X className="w-3.5 h-3.5" /></button>
               </div>
             )}
             <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="או הדבק קישור URL..." className="w-full px-3 py-2 border border-sand-200 rounded-xl focus:outline-none focus:border-mustard-400 text-xs text-sand-500" dir="ltr" />
@@ -3556,7 +3580,7 @@ function WorkshopsTab() {
                     <option key={f.id} value={f.id}>{f.title}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
+                <p className="text-[13px] text-sand-400 mt-1 leading-relaxed">
                   משויך לטופס שמופיע בכרטיס הלקוחה כשאלון התפתחותי ובדו"ח המחזורים.
                 </p>
               </div>
@@ -3572,7 +3596,7 @@ function WorkshopsTab() {
                     <option key={f.id} value={f.id}>{f.title}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
+                <p className="text-[13px] text-sand-400 mt-1 leading-relaxed">
                   נשלח במייל לכל הנרשמות של המחזור, יומיים אחרי תאריך סיום המחזור.
                 </p>
               </div>
@@ -3819,7 +3843,7 @@ function PerksTab() {
                 {p.discount_code && <p className="text-xs text-sand-400">{p.discount_code}</p>}
                 {showAnalytics && (
                   <div className="flex gap-3 mt-1">
-                    <span className="text-xs text-sand-400">👁 {stats.views}</span>
+                    <span className="text-xs text-sand-400 inline-flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {stats.views}</span>
                     <span className="text-xs text-sand-400">📋 {stats.copies}</span>
                     <span className="text-xs text-sand-400">🔗 {stats.visits}</span>
                   </div>
@@ -4373,7 +4397,7 @@ function FormsTab() {
           {/* Sticky save header */}
           <div className="sticky top-0 z-10 bg-white border-b border-sand-100 px-4 py-3 flex items-center justify-between shadow-sm">
             <p className="text-xs font-bold text-mustard-600 truncate max-w-[160px]">
-              {editingForm ? `✏️ ${editingForm.title}` : '➕ טופס חדש'}
+              {editingForm ? <><Pencil className="w-4 h-4 inline-block ml-1" />{editingForm.title}</> : '➕ טופס חדש'}
             </p>
             <div className="flex gap-2 items-center flex-shrink-0">
               {isDirty && <span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" title="שינויים לא שמורים" />}
@@ -4419,7 +4443,7 @@ function FormsTab() {
                           {/* Insert-above divider */}
                           <button onClick={() => insertFieldAt(idx)} className="group w-full flex items-center gap-2 py-1 mb-1 opacity-40 hover:opacity-100 transition-opacity">
                             <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
-                            <span className="text-[10px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
+                            <span className="text-[13px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
                             <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
                           </button>
 
@@ -4499,7 +4523,7 @@ function FormsTab() {
                   {fields.length > 0 && (
                     <button onClick={() => insertFieldAt(fields.length)} className="group w-full flex items-center gap-2 py-1 my-1 opacity-40 hover:opacity-100 transition-opacity">
                       <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
-                      <span className="text-[10px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
+                      <span className="text-[13px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
                       <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
                     </button>
                   )}
@@ -4565,23 +4589,23 @@ function FormsTab() {
                       <p className="font-bold text-sand-800 text-sm">{form.title}</p>
                       {/* Polish #9: per-form unread chip. */}
                       {(newCountByFormId.get(form.id) ?? 0) > 0 && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 font-bold">
+                        <span className="text-[13px] px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 font-bold">
                           {newCountByFormId.get(form.id)} חדשים
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-sand-400 mt-0.5">{form.fields_json.length} שדות</p>
                     {stat && stat.count > 0 && (
-                      <p className="text-xs text-purple-700 font-semibold mt-1">
+                      <p className="text-xs text-[#3E5966] font-semibold mt-1">
                         {stat.count} תשובות
-                        <span className="text-purple-400 font-normal"> · אחרון {new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                        <span className="text-[#7B604C] font-normal"> · אחרון {new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
                       </p>
                     )}
                   </div>
                   <div className="flex items-center gap-1 flex-wrap justify-end">
-                    <button onClick={() => startEdit(form)} className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100">✏️ ערכי</button>
+                    <button onClick={() => startEdit(form)} className="text-[13px] px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100 inline-flex items-center gap-1"><Pencil className="w-4 h-4" /> ערכי</button>
                     <button onClick={() => loadSubmissions(form)} className="text-xs px-2 py-1 bg-sand-50 text-sand-600 rounded-lg hover:bg-sand-100">תשובות</button>
-                    <button onClick={() => setAssignForm(form)} className="text-xs px-2 py-1 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100">👥 שייך</button>
+                    <button onClick={() => setAssignForm(form)} className="text-xs px-2 py-1 bg-[#F6ECD8] text-[#6E5836] rounded-lg hover:bg-[#EFDFC2]">👥 שייך</button>
                     <button onClick={() => copyFormLink(form.id)} className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100">
                       {copiedId === form.id ? '✓ הועתק' : '🔗 לינק'}
                     </button>
@@ -5386,11 +5410,11 @@ function PartnersTab() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-sand-400">{partners.length} ספקים</p>
+        <p className="text-[13px] font-semibold text-sand-600">{partners.length} ספקות</p>
         <button onClick={openNew}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-white text-xs font-bold"
-          style={{ background: '#E7C78A' }}>
-          <Plus className="w-3.5 h-3.5" /> הוסף ספק
+          className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-bold"
+          style={{ background: '#C8A460', color: '#33281B' }}>
+          <Plus className="w-4 h-4" /> ספקה חדשה
         </button>
       </div>
 
@@ -5463,36 +5487,75 @@ function PartnersTab() {
               onClick={() => setClosedGroups(c => ({ ...c, [g.name]: !c[g.name] }))}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-white rounded-2xl shadow-sm border border-sand-100"
             >
-              <span className="text-sm font-bold text-sand-700">📁 {g.name} <span className="text-sand-400 font-semibold">({g.items.length})</span></span>
+              <span className="font-bold text-sand-700" style={{ fontSize: 15 }}>{g.name} <span className="text-sand-500 font-semibold">({g.items.length})</span></span>
               <ChevronDown className={`w-4 h-4 text-sand-400 transition-transform ${closedGroups[g.name] ? '' : 'rotate-180'}`} />
             </button>
-            {!closedGroups[g.name] && g.items.map(p => (
-        <div key={p.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-bold text-sand-800 text-sm truncate">{p.title}</p>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${p.category === 'pregnancy' ? 'bg-purple-100 text-purple-700' : 'bg-pink-100 text-pink-700'}`}>
-                {p.category === 'pregnancy' ? '🤰 הריון' : '🌸 אמהות'}
-              </span>
-              {!p.is_active && <span className="text-[10px] bg-sand-100 text-sand-400 px-1.5 py-0.5 rounded-md">מוסתר</span>}
-            </div>
-            {p.description && <p className="text-xs text-sand-400 truncate mt-0.5">{p.description}</p>}
-            {p.whatsapp_number && <p className="text-xs text-sand-300 mt-0.5 font-mono" dir="ltr">{p.whatsapp_number}</p>}
-          </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button onClick={() => toggleActive(p)} title={p.is_active ? 'הסתר' : 'הפעל'}
-              className="p-1.5 text-sand-300 hover:text-mustard-500 transition-colors">
-              {p.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
-            </button>
-            <button onClick={() => openEdit(p)} className="p-1.5 text-sand-300 hover:text-mustard-600 transition-colors">
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button onClick={() => setPendingDelete(p)} className="p-1.5 text-sand-200 hover:text-red-400 transition-colors">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-            ))}
+            {!closedGroups[g.name] && (
+              <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+                {g.items.map(p => (
+                  <div
+                    key={p.id}
+                    className="relative flex flex-col"
+                    style={p.is_active
+                      ? { background: '#fff', border: '1px solid #E4DAD0', borderRadius: 20, padding: 18, gap: 12 }
+                      : { background: '#F8F4EC', border: '1px dashed #C6BDA0', borderRadius: 20, padding: 18, gap: 12, opacity: 0.85 }}
+                  >
+                    {/* is_active pill toggle — same handler as the old row icon */}
+                    <button
+                      onClick={() => toggleActive(p)}
+                      title={p.is_active ? 'הסתר' : 'הפעל'}
+                      dir="ltr"
+                      className="absolute"
+                      style={{ top: 14, left: 14, width: 42, height: 24, borderRadius: 9999, background: p.is_active ? '#818267' : '#DCD4C8', padding: 3, display: 'flex', alignItems: 'center', justifyContent: p.is_active ? 'flex-end' : 'flex-start', transition: 'background .15s' }}
+                    >
+                      <span style={{ width: 18, height: 18, borderRadius: 9999, background: '#fff', display: 'block' }} />
+                    </button>
+                    <div className="flex items-center gap-3">
+                      {p.logo_url
+                        ? <img src={p.logo_url} alt="" className="flex-shrink-0 object-cover" style={{ width: 50, height: 50, borderRadius: 16 }} />
+                        : (
+                          <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 50, height: 50, borderRadius: 16, background: '#E4EBEF', color: '#3E5966', fontWeight: 700, fontSize: 22 }}>
+                            {(p.title ?? '').trim().charAt(0) || '?'}
+                          </div>
+                        )}
+                      <div className="min-w-0">
+                        <p className="truncate" style={{ fontWeight: 700, fontSize: 16, color: '#443327' }}>{p.title}</p>
+                        <p className="truncate" style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
+                          {subcatLabel(p.subcategory)} · {p.category === 'pregnancy' ? 'הריון' : 'אמהות'}
+                        </p>
+                      </div>
+                    </div>
+                    {p.description && (
+                      <p className="line-clamp-3" style={{ fontWeight: 400, fontSize: 14, lineHeight: 1.55, color: '#7B604C' }}>{p.description}</p>
+                    )}
+                    <div className="flex items-center gap-4" style={{ borderTop: '1px solid #F0EBE3', paddingTop: 12, marginTop: 'auto' }}>
+                      {p.whatsapp_number && (
+                        <a
+                          href={`https://wa.me/${p.whatsapp_number.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1"
+                          style={{ color: '#A35C3D', fontWeight: 700, fontSize: 14 }}
+                        >
+                          <MessageCircle className="w-4 h-4" /> WhatsApp
+                        </a>
+                      )}
+                      <button onClick={() => openEdit(p)} style={{ color: '#7B604C', fontWeight: 700, fontSize: 14 }}>
+                        עריכה
+                      </button>
+                      <button
+                        onClick={() => setPendingDelete(p)}
+                        className="p-1.5 text-sand-300 hover:text-red-400 transition-colors"
+                        style={{ marginInlineStart: 'auto' }}
+                        title="מחיקה"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))
       })()}
@@ -5588,7 +5651,7 @@ function LeadsTab() {
                 </a>
               )}
             </div>
-            <span className={`text-[10px] px-2 py-1 rounded-xl font-bold flex-shrink-0 ${l.action_type === 'whatsapp' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+            <span className={`text-[13px] px-2 py-1 rounded-xl font-bold flex-shrink-0 ${l.action_type === 'whatsapp' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
               {l.action_type === 'whatsapp' ? '💬 WhatsApp' : '📞 התקשרות'}
             </span>
           </div>
@@ -5690,6 +5753,59 @@ function effectiveStatus(
   const c = cohortById.get(lead.cohort_id)
   if (!c) return lead.status
   return isCohortPast(c) ? 'handled' : 'paid'
+}
+
+// ─── UX handoff: inline questionnaire panel under a registration row ─
+// Formats a raw responses_json value into display text. Arrays and
+// objects flatten to comma-joined strings; booleans become כן/לא.
+function formatAnswerValue(v: unknown): string {
+  if (v == null) return ''
+  if (Array.isArray(v)) return v.map(formatAnswerValue).filter(Boolean).join(', ')
+  if (typeof v === 'boolean') return v ? 'כן' : 'לא'
+  if (typeof v === 'object') return Object.values(v as Record<string, unknown>).map(formatAnswerValue).filter(Boolean).join(', ')
+  return String(v).trim()
+}
+
+function RegistrationQuestionnairePanel({ match }: {
+  match: {
+    form: { fields_json: { id: string; type: string; label: string }[] }
+    sub: { responses_json: Record<string, unknown> }
+  } | null
+}) {
+  const answers = match
+    ? match.form.fields_json
+        .filter(f => f.type !== 'info' && f.type !== 'link')
+        .map(f => ({ key: f.id, label: f.label, text: formatAnswerValue(match.sub.responses_json[f.label]) }))
+        .filter(a => a.text)
+    : []
+  // Structured vs open answer split by length — form field types aren't
+  // reliably distinguishable here, so >80 chars renders as an open card.
+  const short = answers.filter(a => a.text.length <= 80)
+  const long = answers.filter(a => a.text.length > 80)
+  return (
+    <div style={{ background: '#fff', padding: 20 }} onClick={e => e.stopPropagation()}>
+      <p style={{ fontWeight: 700, fontSize: 13, color: '#6E5836', marginBottom: answers.length > 0 ? 12 : 6 }}>מהשאלון</p>
+      {answers.length === 0 && (
+        <p style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>אין שאלון מקושר</p>
+      )}
+      {short.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14 }}>
+          {short.map(a => (
+            <div key={a.key}>
+              <p style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>{a.label}</p>
+              <p style={{ fontWeight: 700, fontSize: 16, color: '#443327' }}>{a.text}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {long.map(a => (
+        <div key={a.key} style={{ background: '#F5EEEF', border: '1px solid #EADBDD', borderRadius: 16, padding: '14px 16px', marginTop: 14 }}>
+          <p style={{ fontWeight: 600, fontSize: 13, color: '#85555E', marginBottom: 4 }}>{a.label}</p>
+          <p style={{ fontWeight: 400, fontSize: 16, lineHeight: 1.6, color: '#443327', whiteSpace: 'pre-wrap' }}>{a.text}</p>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function RegistrationsTab() {
@@ -5937,6 +6053,20 @@ function RegistrationsTab() {
     return c
   }, [leads, cohortById])
 
+  // UX handoff: 3-card stat row (desktop). Computed entirely from data
+  // already loaded — no extra queries. "ממתינות" counts the currently
+  // visible (filtered) rows; the other two run over all registrations.
+  const regStats = useMemo(() => {
+    const pendingVisible = filtered.filter(l => effectiveStatus(l, cohortById) === 'pending').length
+    const now = new Date()
+    const paidThisMonth = leads.filter(l => {
+      if (l.status === 'pending') return false
+      const d = new Date(l.created_at)
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+    }).length
+    return { pendingVisible, paidThisMonth, total: leads.length }
+  }, [filtered, leads, cohortById])
+
   // Polish #8: cohort-scoped form responses modal. Opened from a
   // CohortGroup header button when the cohort's workshop has a linked
   // form. The modal reuses FormSubmissionsModal + FormSubmissionsView +
@@ -6051,6 +6181,30 @@ function RegistrationsTab() {
   // Phase 5 / A2 Stage 3 (Part 3): manual "+ הרשמה חדשה" entry point.
   const [addRegOpen, setAddRegOpen] = useState(false)
 
+  // UX handoff: per-row questionnaire expansion (list view). Clicking a
+  // row toggles an inline panel showing that registration's matched
+  // linked-form answers. Matching reuses the same resolver identity
+  // check as the gap report — no extra queries.
+  const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null)
+  const submissionForLead = useCallback((lead: RegistrationLead): { form: LinkedFormDef; sub: LinkedSubmission } | null => {
+    const w = lead.selected_workshop_id ? workshopById.get(lead.selected_workshop_id) : null
+    const form = w?.linked_form_id ? linkedFormDefs.get(w.linked_form_id) : null
+    if (!form) return null
+    const phone = normalizeIlPhone(lead.phone)
+    const emailL = lead.email?.toLowerCase().trim() || null
+    for (const sub of linkedSubmissions) {
+      if (sub.form_id !== form.id) continue
+      const r = resolveSubmitter(
+        { fields_json: form.fields_json },
+        { responses_json: sub.responses_json, user_profiles: sub.user_profiles ?? null },
+      )
+      const p = normalizeIlPhone(r.phone)
+      const e = r.email?.toLowerCase().trim()
+      if ((!!phone && p === phone) || (!!emailL && !!e && e === emailL)) return { form, sub }
+    }
+    return null
+  }, [workshopById, linkedFormDefs, linkedSubmissions])
+
   return (
     <div className="space-y-3" dir="rtl">
       {/* Phase 5 / A2 Stage 3: large mustard "+ הרשמה חדשה" button
@@ -6072,6 +6226,20 @@ function RegistrationsTab() {
           onSaved={load}
         />
       )}
+
+      {/* UX handoff: desktop stat row above the registrations list. */}
+      <div className="hidden lg:grid grid-cols-3 gap-3">
+        {([
+          ['ממתינות לתשלום', regStats.pendingVisible, '#A35C3D'],
+          ['שילמו החודש', regStats.paidThisMonth, '#434434'],
+          ['סה"כ הרשמות', regStats.total, '#5E4938'],
+        ] as [string, number, string][]).map(([label, num, color]) => (
+          <div key={label} className="bg-white" style={{ border: '1px solid #E4DAD0', borderRadius: 20, padding: '18px 20px' }}>
+            <p style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>{label}</p>
+            <p style={{ fontWeight: 700, fontSize: 32, color }}>{num}</p>
+          </div>
+        ))}
+      </div>
       <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3 lg:p-5">
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-sand-800 text-sm lg:text-base">הרשמות מטופס הרשמה</h2>
@@ -6079,7 +6247,7 @@ function RegistrationsTab() {
             href="?register"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-purple-600 hover:underline"
+            className="text-xs text-[#A35C3D] hover:underline"
           >
             פתחי עמוד ההרשמה ↗
           </a>
@@ -6189,23 +6357,39 @@ function RegistrationsTab() {
         )
       })()}
 
-      {filtered.length > 0 && viewMode === 'list' && filtered.map(l => (
-        <RegistrationCard
-          key={l.id}
-          lead={l}
-          workshops={workshops}
-          cohorts={cohorts}
-          onUpdateStatus={updateStatus}
-          onUpdateCohort={updateCohort}
-          onDelete={del}
-          onEdit={setEditingLead}
-          onAddCohort={ws => setCohortsForRegWorkshop(ws)}
-          selected={selected.has(l.id)}
-          onToggleSelect={toggleSelect}
-          effectiveStatus={effectiveStatus(l, cohortById)}
-          gapStatus={gapByLeadId.get(l.id) ?? null}
-        />
-      ))}
+      {filtered.length > 0 && viewMode === 'list' && filtered.map(l => {
+        const expanded = expandedLeadId === l.id
+        return (
+          <div
+            key={l.id}
+            onClick={e => {
+              // Row click toggles the questionnaire panel; clicks on any
+              // interactive element inside the card are ignored.
+              const t = e.target as HTMLElement
+              if (t.closest('button, a, select, input, label')) return
+              setExpandedLeadId(prev => (prev === l.id ? null : l.id))
+            }}
+            className="cursor-pointer"
+            style={expanded ? { border: '1.5px solid #E7C78A', borderRadius: 18, overflow: 'hidden', background: '#fff' } : undefined}
+          >
+            <RegistrationCard
+              lead={l}
+              workshops={workshops}
+              cohorts={cohorts}
+              onUpdateStatus={updateStatus}
+              onUpdateCohort={updateCohort}
+              onDelete={del}
+              onEdit={setEditingLead}
+              onAddCohort={ws => setCohortsForRegWorkshop(ws)}
+              selected={selected.has(l.id)}
+              onToggleSelect={toggleSelect}
+              effectiveStatus={effectiveStatus(l, cohortById)}
+              gapStatus={gapByLeadId.get(l.id) ?? null}
+            />
+            {expanded && <RegistrationQuestionnairePanel match={submissionForLead(l)} />}
+          </div>
+        )
+      })}
 
       {filtered.length > 0 && viewMode === 'grouped' && (
         <RegistrationsGroupedView
@@ -6401,7 +6585,7 @@ function CohortRow({ cohort: c, workshopById, regCount, onPick, showDateBadge }:
       {showDateBadge && (
         <div className="w-11 shrink-0 text-center rounded-xl py-1.5" style={{ background: '#F5EBDA' }}>
           <div className="text-[17px] font-bold leading-none" style={{ color: '#854F0B' }}>{parseInt(dStr, 10)}</div>
-          <div className="text-[10px]" style={{ color: '#BA7517' }}>{HEB_MONTHS_SHORT[parseInt(mStr, 10) - 1]}</div>
+          <div className="text-[13px]" style={{ color: '#BA7517' }}>{HEB_MONTHS_SHORT[parseInt(mStr, 10) - 1]}</div>
         </div>
       )}
       <div className="flex-1 min-w-0">
@@ -6423,7 +6607,7 @@ function CohortRow({ cohort: c, workshopById, regCount, onPick, showDateBadge }:
           </span>
         </div>
       </div>
-      <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: chip.color, background: chip.bg }}>
+      <span className="shrink-0 text-[13px] font-semibold px-2 py-0.5 rounded-full" style={{ color: chip.color, background: chip.bg }}>
         {chip.text}
       </span>
     </button>
@@ -6470,7 +6654,7 @@ function UpcomingCohortsView({ cohorts, leads, workshopById, onPick }: CohortVie
       )}
       {groupByMonth(upcoming).map(g => (
         <div key={g.ym} className="space-y-2">
-          <div className="text-[11px] font-semibold text-sand-400 px-1 pt-1">{monthTitle(g.ym)}</div>
+          <div className="text-[13px] font-semibold text-sand-400 px-1 pt-1">{monthTitle(g.ym)}</div>
           {g.items.map(c => (
             <CohortRow
               key={c.id}
@@ -6488,7 +6672,7 @@ function UpcomingCohortsView({ cohorts, leads, workshopById, onPick }: CohortVie
           <button
             type="button"
             onClick={() => setShowPast(v => !v)}
-            className="text-xs font-semibold text-purple-600 hover:underline"
+            className="text-xs font-semibold text-[#A35C3D] hover:underline"
           >
             {showPast ? 'הסתרת מחזורים שעברו' : `הצגת מחזורים שעברו (${past.length})`}
           </button>
@@ -6496,7 +6680,7 @@ function UpcomingCohortsView({ cohorts, leads, workshopById, onPick }: CohortVie
       )}
       {showPast && groupByMonth(past).map(g => (
         <div key={g.ym} className="space-y-2 opacity-60">
-          <div className="text-[11px] font-semibold text-sand-400 px-1 pt-1">{monthTitle(g.ym)}</div>
+          <div className="text-[13px] font-semibold text-sand-400 px-1 pt-1">{monthTitle(g.ym)}</div>
           {g.items.map(c => (
             <CohortRow
               key={c.id}
@@ -6586,7 +6770,7 @@ function CohortCalendarView({ cohorts, leads, workshopById, onPick }: CohortView
             <ChevronLeft className="w-4 h-4" />
           </button>
         </div>
-        <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-sand-400 mb-1">
+        <div className="grid grid-cols-7 gap-0.5 text-center text-[13px] text-sand-400 mb-1">
           {HEB_WEEKDAYS.map(d => <div key={d}>{d}</div>)}
         </div>
         <div className="grid grid-cols-7 gap-0.5 text-center">
@@ -6621,7 +6805,7 @@ function CohortCalendarView({ cohorts, leads, workshopById, onPick }: CohortView
 
       {shownDate && shownCohorts.length > 0 && (
         <>
-          <div className="text-[11px] font-semibold text-sand-400 px-1">{shownDateTitle()}</div>
+          <div className="text-[13px] font-semibold text-sand-400 px-1">{shownDateTitle()}</div>
           {shownCohorts.map(c => (
             <CohortRow
               key={c.id}
@@ -6748,20 +6932,20 @@ function RegistrationCard({
             >
               {l.name}
             </button>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold" style={{ color: REG_STATUS_LABELS[badgeStatus].color, background: REG_STATUS_LABELS[badgeStatus].bg }}>
+            <span className="text-[13px] px-1.5 py-0.5 rounded-md font-semibold" style={{ color: REG_STATUS_LABELS[badgeStatus].color, background: REG_STATUS_LABELS[badgeStatus].bg }}>
               {REG_STATUS_LABELS[badgeStatus].label}
             </span>
             {gapStatus && gapStatus.isFilled && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold bg-green-50 text-green-700">
+              <span className="text-[13px] px-1.5 py-0.5 rounded-md font-semibold bg-green-50 text-green-700">
                 ✅ שאלון מולא
               </span>
             )}
             {gapStatus && !gapStatus.isFilled && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold bg-amber-50 text-amber-700">
+              <span className="text-[13px] px-1.5 py-0.5 rounded-md font-semibold bg-amber-50 text-amber-700">
                 ⚠️ שאלון לא מולא
               </span>
             )}
-            {l.source && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-600">{l.source}</span>}
+            {l.source && <span className="text-[13px] px-1.5 py-0.5 rounded-md bg-[#F6ECD8] text-[#6E5836]">{l.source}</span>}
           </div>
           {/* Polish #4: workshop + cohort on one prominent line so the
               cohort isn't buried as small grey text. created_at drops
@@ -6783,7 +6967,7 @@ function RegistrationCard({
               </p>
             )
           })()}
-          <p className="text-[11px] text-sand-400 mt-0.5">
+          <p className="text-[13px] text-sand-400 mt-0.5">
             {new Date(l.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
@@ -7211,16 +7395,16 @@ function CohortGroup({
             <span className="font-bold text-sand-800 text-sm truncate">
               {headerLabel}{subLabel ? ` · ${subLabel}` : ''}
             </span>
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${countClass}`}>{countText}</span>
+            <span className={`text-[13px] font-bold px-2 py-0.5 rounded-full ${countClass}`}>{countText}</span>
             {headerKind === 'past' && (
-              <span className="text-[10px] font-semibold text-sand-500 bg-sand-100 px-1.5 py-0.5 rounded-full">עבר</span>
+              <span className="text-[13px] font-semibold text-sand-500 bg-sand-100 px-1.5 py-0.5 rounded-full">עבר</span>
             )}
           </div>
           {breakdownParts.length > 0 && (
-            <p className="text-[11px] text-sand-600 mt-1">{breakdownParts.join(' · ')}</p>
+            <p className="text-[13px] text-sand-600 mt-1">{breakdownParts.join(' · ')}</p>
           )}
           {gapCounter && (
-            <p className={`text-[11px] mt-1 font-semibold ${gapCounter.filled === gapCounter.total ? 'text-green-700' : 'text-amber-700'}`}>
+            <p className={`text-[13px] mt-1 font-semibold ${gapCounter.filled === gapCounter.total ? 'text-green-700' : 'text-amber-700'}`}>
               📋 {gapCounter.filled} מתוך {gapCounter.total} מילאו את השאלון
             </p>
           )}
@@ -7230,7 +7414,7 @@ function CohortGroup({
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onOpenResponses() }}
-              className="text-[11px] px-2 py-1 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+              className="text-[13px] px-2 py-1 rounded-lg bg-[#F6ECD8] text-[#6E5836] hover:bg-[#EFDFC2] transition-colors"
               title="צפי בתשובות לשאלון של אמהות במחזור הזה — פרטי + מצטבר"
             >
               📊 תשובות לשאלון
@@ -7239,7 +7423,7 @@ function CohortGroup({
           <button
             type="button"
             onClick={e => { e.stopPropagation(); onCopyPhones() }}
-            className="text-[11px] px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+            className="text-[13px] px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
             title="העתקת כל הטלפונים של המחזור — מוכן להדבקה בקבוצת WhatsApp"
           >
             {copied ? '✓ הועתק' : '📋 העתק טלפונים'}
@@ -7322,7 +7506,7 @@ function BulkActionBar({
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={onMarkPending}
-            className="px-2 py-1.5 rounded-lg text-[11px] font-semibold bg-sand-100 text-sand-600 hover:bg-sand-200 transition-colors"
+            className="px-2 py-1.5 rounded-lg text-[13px] font-semibold bg-sand-100 text-sand-600 hover:bg-sand-200 transition-colors"
             title="החזרה לסטטוס ממתינה — לשחזור מתיוג שגוי"
           >
             ⏳ ממתינה

@@ -1,4 +1,4 @@
-import { Home, BookOpen, ShoppingBag, LogOut, ShieldAlert, Eye, Users } from 'lucide-react'
+import { Home, BookOpen, ShoppingBag, LogOut, Eye, Users, ClipboardList, FileText, Sparkles, Link2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import type { Page, AdminSection } from '../App'
 
@@ -25,8 +25,8 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
     return (
       <nav className="fixed bottom-0 right-0 left-0 max-w-[480px] mx-auto bg-white border-t border-sand-100 shadow-xl z-50">
         <div className="px-4 py-1.5 border-b border-mustard-100 bg-mustard-50 flex items-center justify-center gap-1.5">
-          <span className="text-[11px] font-semibold text-mustard-700">
-            👁️ צופה ביומן של {selectedChild?.name ?? 'התינוק'}
+          <span className="text-[13px] font-semibold text-mustard-700 inline-flex items-center gap-1">
+            <Eye className="w-3.5 h-3.5" /> צופה ביומן של {selectedChild?.name ?? 'התינוק'}
           </span>
         </div>
         <div className="flex items-center justify-around px-4 py-2">
@@ -37,11 +37,11 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
                 className={`flex flex-col items-center gap-0.5 px-6 py-1.5 rounded-2xl transition-all ${
-                  active ? 'text-mustard-600 bg-mustard-50' : 'text-sand-400 hover:text-sand-600'
+                  active ? 'text-mustard-600 bg-mustard-50' : 'text-sand-600 hover:text-sand-600'
                 }`}
               >
                 {item.icon}
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[13px] font-medium">{item.label}</span>
               </button>
             )
           })}
@@ -50,7 +50,7 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
             className="flex flex-col items-center gap-0.5 px-6 py-1.5 rounded-2xl transition-all text-red-300 hover:text-red-500"
           >
             <LogOut className="w-5 h-5" />
-            <span className="text-[10px] font-medium">יציאה</span>
+            <span className="text-[13px] font-medium">יציאה</span>
           </button>
         </div>
       </nav>
@@ -58,56 +58,38 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
   }
 
   // ── Admin nav ─────────────────────────────────────────────────────────────
+  // Mobile admin answers one question — "did a new registration come
+  // in?" — so it carries only the יומיומי four. Dark = admin, same rule
+  // as the desktop sidebar. Content/analytics stay reachable by URL.
   if (isAdminMode) {
-    // Phase 5 / A2 Part 1: top-5 admin items — matches the new
-    // sidebar order so the muscle memory stays consistent.
     const adminItems: { id: AdminSection; label: string; icon: React.ReactNode }[] = [
-      { id: 'registrations', label: 'הרשמות',   icon: <span className="text-base leading-none">📝</span> },
-      { id: 'forms',     label: 'טפסים',    icon: <span className="text-base leading-none">📋</span> },
-      { id: 'events',    label: 'אירועים',  icon: <span className="text-base leading-none">🎉</span> },
-      { id: 'partners',  label: 'ספקים',    icon: <span className="text-base leading-none">🤝</span> },
-      { id: 'workshops', label: 'מוצרים',   icon: <span className="text-base leading-none">🎓</span> },
+      { id: 'registrations', label: 'הרשמות',   icon: <ClipboardList className="w-[21px] h-[21px]" /> },
+      { id: 'forms',     label: 'שאלונים',  icon: <FileText className="w-[21px] h-[21px]" /> },
+      { id: 'events',    label: 'אירועים',  icon: <Sparkles className="w-[21px] h-[21px]" /> },
+      { id: 'partners',  label: 'ספקות',    icon: <Link2 className="w-[21px] h-[21px]" /> },
     ]
+    void signOut
 
     return (
-      <nav className="fixed bottom-0 right-0 left-0 max-w-[480px] mx-auto z-50" style={{ background: '#12122a', borderTop: '1px solid #2a2a4a' }}>
-        {/* "View as User" banner */}
-        <div className="flex items-center justify-between px-4 py-1.5 border-b" style={{ borderColor: '#2a2a4a' }}>
-          <div className="flex items-center gap-1.5">
-            <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
-            <span className="text-[10px] font-bold text-red-400 tracking-wide">ADMIN MODE</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onToggleUserView}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold transition-all"
-              style={{ background: '#2a2a4a', color: '#a0a0c0' }}
-            >
-              <Eye className="w-3 h-3" />
-              צפי כמשתמשת
-            </button>
-            <button onClick={signOut} style={{ color: '#ff6060' }}>
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Admin tabs */}
-        <div className="flex items-center justify-around px-1 py-2">
+      <nav className="fixed bottom-0 right-0 left-0 max-w-[480px] mx-auto z-50" style={{ background: '#2E2C24' }}>
+        <div className="flex items-center justify-around" style={{ padding: '9px 4px 12px' }}>
           {adminItems.map(item => {
             const active = adminSection === item.id && currentPage === 'admin'
             return (
               <button
                 key={item.id}
                 onClick={() => onAdminSection(item.id)}
-                className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-2xl transition-all"
-                style={active
-                  ? { background: 'linear-gradient(135deg, #3a1a6e, #5a1a8e)', color: '#e0b0ff' }
-                  : { color: '#6060a0' }
-                }
+                className="flex flex-col items-center transition-all"
+                style={{
+                  gap: 4,
+                  padding: '7px 16px',
+                  borderRadius: 16,
+                  background: active ? '#E7C78A' : 'transparent',
+                  color: active ? '#3A2E18' : '#C6C0AE',
+                }}
               >
                 {item.icon}
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className={active ? 'font-bold' : 'font-semibold'} style={{ fontSize: 13 }}>{item.label}</span>
               </button>
             )
           })}
@@ -142,30 +124,32 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
   // navs above, so the import stays.
 
   return (
-    <nav className="fixed bottom-0 right-0 left-0 max-w-[480px] mx-auto bg-white border-t border-sand-100 shadow-xl z-50">
+    <nav className="fixed bottom-0 right-0 left-0 max-w-[480px] mx-auto bg-white z-50" style={{ borderTop: '1px solid #E4DAD0' }}>
       {/* "Back to Admin" banner when viewing as user */}
       {viewAsUser && (
         <div className="flex items-center justify-between px-4 py-1.5 border-b border-sand-100" style={{ background: '#FDF8EE' }}>
-          <span className="text-[10px] font-bold text-amber-700 flex items-center gap-1"><Eye className="w-3 h-3" /> מצב תצוגה כמשתמשת</span>
-          <button onClick={onToggleUserView} className="text-[10px] font-bold text-amber-700 underline">חזרה לניהול</button>
+          <span className="text-[13px] font-bold text-amber-700 flex items-center gap-1"><Eye className="w-3 h-3" /> מצב תצוגה כמשתמשת</span>
+          <button onClick={onToggleUserView} className="text-[13px] font-bold text-amber-700 underline">חזרה לניהול</button>
         </div>
       )}
-      <div className="flex items-center justify-around px-1 py-1.5">
+      <div className="flex items-center justify-around" style={{ padding: '8px 4px 10px' }}>
         {navItems.map(item => {
           const active = currentPage === item.id
           return (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className={`flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-2xl transition-all ${
-                active ? 'text-mustard-600 bg-mustard-50' : 'text-sand-400 hover:text-sand-600'
-              }`}
+              className="flex flex-col items-center transition-all"
+              style={{
+                gap: 4,
+                padding: '6px 14px',
+                borderRadius: 18,
+                background: active ? '#F6ECD8' : 'transparent',
+                color: active ? '#8A6A2F' : '#818267',
+              }}
             >
               {item.icon}
-              <span className="text-[10px] font-medium whitespace-nowrap">{item.label}</span>
-              {active && (
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#A35C3D' }} />
-              )}
+              <span className={`whitespace-nowrap ${active ? 'font-bold' : 'font-semibold'}`} style={{ fontSize: 12 }}>{item.label}</span>
             </button>
           )
         })}

@@ -29,7 +29,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose
           </div>
         ) : (
           <div className="relative w-full h-24 flex items-center justify-center rounded-t-3xl" style={{ background: '#F4EDE1' }}>
-            <ShoppingBag className="w-10 h-10 text-sand-300" />
+            <ShoppingBag className="w-10 h-10 text-sand-500" />
             <button
               onClick={onClose}
               className="absolute top-4 left-4 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow"
@@ -63,7 +63,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose
               href={`https://wa.me/${ws.whatsapp_number ?? ownerWhatsapp}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-2xl text-sm transition-all"
+              className="flex-1 flex items-center justify-center gap-2 bg-musgo-500 hover:bg-musgo-600 text-white font-bold py-3.5 rounded-2xl text-sm transition-all"
             >
               <MessageCircle className="w-4 h-4" />
               WhatsApp
@@ -149,7 +149,7 @@ export default function WorkshopsPage() {
       <div className="px-5 pt-10 pb-6" style={{ background: 'linear-gradient(160deg, #3D2E20 0%, #2A1F15 100%)' }}>
         <div className="max-w-sm mx-auto flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">מוצרים מיוחדים</h1>
+            <h1 className="font-display text-white" style={{ fontSize: 26, fontWeight: 400 }}>מוצרים מיוחדים</h1>
             <p className="text-sm mt-1" style={{ color: '#D9B978' }}>נבחרו במיוחד עבורך</p>
           </div>
           <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: '#E7C78A' }}>
@@ -200,7 +200,7 @@ export default function WorkshopsPage() {
                 <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-12 text-sand-400">
+              <div className="text-center py-12 text-sand-600">
                 <p className="text-4xl mb-3">🛍️</p>
                 <p className="text-sm">אין מוצרים בקטגוריה זו</p>
               </div>
@@ -212,7 +212,7 @@ export default function WorkshopsPage() {
                     <div className="flex gap-3 p-4">
                       <div className="flex-1 min-w-0 space-y-2">
                         {ws.workshop_type && (
-                          <span className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#F4EDE1', color: '#B98F4E' }}>
+                          <span className="inline-block text-[13px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#F4EDE1', color: '#B98F4E' }}>
                             {ws.workshop_type}
                           </span>
                         )}
@@ -229,11 +229,11 @@ export default function WorkshopsPage() {
                           <img src={ws.image_url} alt={ws.title} className="w-24 h-24 object-cover rounded-2xl" />
                         ) : (
                           <div className="w-24 h-24 rounded-2xl flex items-center justify-center" style={{ background: '#F4EDE1' }}>
-                            <ShoppingBag className="w-8 h-8 text-sand-300" />
+                            <ShoppingBag className="w-8 h-8 text-sand-500" />
                           </div>
                         )}
                         {isFeatured && (
-                          <div className="absolute -top-2 -right-2 flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: '#A35C3D' }}>
+                          <div className="absolute -top-2 -right-2 flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[13px] font-bold text-white" style={{ background: '#A35C3D' }}>
                             <Star className="w-2.5 h-2.5" /> מומלץ
                           </div>
                         )}
@@ -264,8 +264,8 @@ export default function WorkshopsPage() {
           purchases.length === 0 ? (
             <div className="text-center py-16 space-y-3">
               <ShoppingBag className="w-12 h-12 text-sand-200 mx-auto" />
-              <p className="text-sand-400 text-sm">עדיין אין רכישות</p>
-              <p className="text-xs text-sand-300">רכישות שתבצעי יופיעו כאן</p>
+              <p className="text-sand-600 text-sm">עדיין אין רכישות</p>
+              <p className="text-xs text-sand-500">רכישות שתבצעי יופיעו כאן</p>
             </div>
           ) : (
             purchases.map(p => (
@@ -277,7 +277,7 @@ export default function WorkshopsPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-bold text-sand-800">{p.workshops.title}</p>
-                      <p className="text-xs text-sand-400 mt-0.5">
+                      <p className="text-xs text-sand-600 mt-0.5">
                         {p.amount_paid != null ? `שולם: ₪${p.amount_paid}` : ''}
                         {' · '}{new Date(p.purchase_date).toLocaleDateString('he-IL')}
                       </p>
@@ -288,7 +288,7 @@ export default function WorkshopsPage() {
                   </div>
                   <a href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי! יש לי שאלה לגבי: ${p.workshops.title}`)}`}
                     target="_blank" rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-2.5 rounded-2xl text-sm transition-all">
+                    className="w-full flex items-center justify-center gap-2 bg-musgo-500 hover:bg-musgo-600 text-white font-semibold py-2.5 rounded-2xl text-sm transition-all">
                     <MessageCircle className="w-4 h-4" /> צרי קשר על הסדנה
                   </a>
                 </div>

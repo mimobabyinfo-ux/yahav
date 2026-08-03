@@ -1,21 +1,13 @@
-import { useEffect, useState } from 'react'
-import { ChevronLeft, Clock, MapPin, Users } from 'lucide-react'
+﻿import { useEffect, useState } from 'react'
 import { supabase, type CommunityEventRow } from '../../lib/supabase'
 import type { Page } from '../../App'
 import MimoDuck from '../MimoDuck'
 
-// Community hero for the home dashboard (community-first, 2.8.26): the
-// app's primary draw. Shows the next 3 upcoming events with the user's
-// registration state + a standing CTA into the community page. Unlike
-// the old teaser, this renders even with no events — the community is
-// the front door now, so the door is always visible.
+// Community card for the home dashboard. Tier-2 content card: white
+// surface, soft single-elevation shadow, date blocks instead of emoji
+// squares, and two explicit footer CTAs (events / members).
 
-function shortDay(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  const weekday = d.toLocaleDateString('he-IL', { weekday: 'short' })
-  const [, m, dd] = dateStr.split('-')
-  return `${weekday} ${dd}/${m}`
-}
+const MONTHS_HE = ['ינו׳', 'פבר׳', 'מרץ', 'אפר׳', 'מאי', 'יוני', 'יולי', 'אוג׳', 'ספט׳', 'אוק׳', 'נוב׳', 'דצמ׳']
 
 export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const [events, setEvents] = useState<CommunityEventRow[]>([])
@@ -38,86 +30,93 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
     onNavigate('community')
   }
 
-  if (!loaded) return null
+  const subtitle =
+    events.length >= 2 ? `${events.length} מפגשים קרובים` :
+    events.length === 1 ? 'מפגש אחד קרוב' :
+    'מפגשים, הרצאות ואימונים — ביחד'
 
   return (
-    <div className="rounded-3xl shadow-sm overflow-hidden" style={{ background: 'linear-gradient(160deg, #F5F1EB 0%, #F0E9DD 100%)' }}>
-      {/* Hero header */}
-      <div className="px-5 pt-5 pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <MimoDuck variant="mama" size={46} className="duck-bob flex-shrink-0" />
-            <div>
-              <h2 className="text-lg font-bold text-sand-800">הקהילה של מימו</h2>
-              <p className="text-xs text-sand-500 mt-0.5">מפגשים, הרצאות ואימונים — ביחד</p>
-            </div>
-          </div>
-          <button
-            onClick={openMembers}
-            className="text-[11px] font-bold text-mustard-700 bg-white px-3 py-1.5 rounded-full shadow-sm"
-          >
-            <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" />להכיר אמהות</span>
-          </button>
+    <div className="bg-white" style={{ borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
+      {/* Header */}
+      <div className="flex items-center" style={{ gap: 12 }}>
+        <MimoDuck variant="mama" size={54} className="duck-bob flex-shrink-0" />
+        <div className="min-w-0">
+          <h2 className="font-display" style={{ fontSize: 24, lineHeight: 1.05, fontWeight: 400, color: '#5E4938' }}>הקהילה של מימו</h2>
+          <p className="font-semibold mt-1" style={{ fontSize: 13, color: '#957860' }}>{subtitle}</p>
         </div>
       </div>
 
-      <div className="px-4 pb-4 space-y-2">
-        {events.length === 0 ? (
-          <div className="bg-white/70 rounded-2xl p-4 text-center">
-            <p className="text-sm font-semibold text-sand-700">לוח האירועים הבא בדרך ✨</p>
-            <p className="text-xs text-sand-400 mt-0.5">יוגה, הרצאות, קפה ביחד ועוד — ממש בקרוב</p>
+      {/* Events */}
+      <div className="flex flex-col mt-4" style={{ gap: 8 }}>
+        {!loaded ? (
+          <>
+            <div className="skeleton" style={{ height: 64, borderRadius: 18 }} />
+            <div className="skeleton" style={{ height: 64, borderRadius: 18 }} />
+          </>
+        ) : events.length === 0 ? (
+          <div className="flex items-center gap-3 rounded-2xl p-4" style={{ background: '#FAF7F1' }}>
+            <MimoDuck variant="chick" size={40} className="flex-shrink-0" />
+            <div>
+              <p className="font-semibold" style={{ fontSize: 15, color: '#443327' }}>לוח האירועים הבא בדרך</p>
+              <p style={{ fontSize: 13, color: '#957860' }}>יוגה, הרצאות, קפה ביחד ועוד — ממש בקרוב</p>
+            </div>
           </div>
         ) : (
           events.map(ev => {
             const isMine = ev.my_status === 'registered' || ev.my_status === 'attended'
             const spotsLeft = ev.capacity != null ? ev.capacity - ev.registered_count : null
+            const d = new Date(ev.event_date + 'T12:00:00')
+            const meta = [ev.start_time?.slice(0, 5), ev.location].filter(Boolean).join(' · ')
             return (
               <button
                 key={ev.id}
                 onClick={openEvents}
-                className="w-full bg-white/80 rounded-2xl p-3 shadow-sm hover:shadow-md transition-all text-right flex items-center gap-3"
+                className="w-full flex items-center text-right transition-shadow hover:shadow-sm"
+                style={{ padding: 12, border: '1px solid #F0EBE3', borderRadius: 18, gap: 12 }}
               >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 bg-white">
-                  {ev.emoji ?? '🎉'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-sand-800 truncate">{ev.title}</p>
-                  <p className="text-[11px] text-sand-400 flex items-center gap-2 mt-0.5">
-                    <span className="font-semibold">{shortDay(ev.event_date)}</span>
-                    {ev.start_time && (
-                      <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" />{ev.start_time.slice(0, 5)}</span>
-                    )}
-                    {ev.location && (
-                      <span className="flex items-center gap-0.5 truncate"><MapPin className="w-3 h-3 flex-shrink-0" />{ev.location}</span>
-                    )}
-                  </p>
-                </div>
-                <div className="flex-shrink-0">
+                {/* Date block */}
+                <span className="flex flex-col items-center justify-center flex-shrink-0" style={{ width: 46 }}>
+                  <span className="font-bold" style={{ fontSize: 18, lineHeight: 1, color: '#5E4938' }}>{d.getDate()}</span>
+                  <span className="font-semibold mt-0.5" style={{ fontSize: 12, color: '#957860' }}>{MONTHS_HE[d.getMonth()]}</span>
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block font-bold truncate" style={{ fontSize: 15, lineHeight: 1.3, color: '#443327' }}>{ev.title}</span>
+                  {meta && <span className="block font-semibold truncate mt-0.5" style={{ fontSize: 13, color: '#957860' }}>{meta}</span>}
+                </span>
+                <span className="flex-shrink-0">
                   {isMine ? (
-                    <span className="text-[10px] font-bold text-white px-2 py-1 rounded-full" style={{ background: '#818267' }}>רשומה ✓</span>
+                    <span className="font-bold rounded-full" style={{ fontSize: 12, padding: '5px 10px', background: '#E6E6E0', color: '#434434' }}>רשומה</span>
                   ) : spotsLeft != null && spotsLeft <= 3 && spotsLeft > 0 ? (
-                    <span className="text-[10px] font-bold text-white px-2 py-1 rounded-full" style={{ background: '#A35C3D' }}>
+                    <span className="font-bold rounded-full" style={{ fontSize: 12, padding: '5px 10px', background: '#A35C3D', color: '#fff' }}>
                       {spotsLeft === 1 ? 'מקום אחרון!' : `${spotsLeft} מקומות`}
                     </span>
                   ) : (
-                    <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white" style={{ color: '#D9B978' }}>
+                    <span className="font-bold rounded-full" style={{ fontSize: 12, padding: '5px 10px', background: '#F0EBE3', color: '#8A6A2F' }}>
                       {ev.price > 0 ? `₪${ev.price}` : 'חינם'}
                     </span>
                   )}
-                </div>
+                </span>
               </button>
             )
           })
         )}
+      </div>
 
-        {/* Standing CTA */}
+      {/* Footer CTAs */}
+      <div className="flex mt-3" style={{ gap: 10 }}>
         <button
           onClick={openEvents}
-          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] transition-all"
-          style={{ background: '#E7C78A' }}
+          className="flex-1 text-center font-bold transition-all hover:brightness-95"
+          style={{ background: '#C8A460', color: '#33281B', borderRadius: 16, padding: 12, fontSize: 15 }}
         >
           לכל האירועים
-          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <button
+          onClick={openMembers}
+          className="flex-1 text-center font-bold transition-all hover:bg-sand-50"
+          style={{ border: '1.5px solid #DCD4C8', color: '#7B604C', borderRadius: 16, padding: 12, fontSize: 15 }}
+        >
+          להכיר אמהות
         </button>
       </div>
     </div>

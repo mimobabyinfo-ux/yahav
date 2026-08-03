@@ -292,7 +292,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                           <p className="text-[10px] text-sand-400 mt-1">סיום: {ddmmyyyyhhmm(c.end_date, null)}</p>
                         )}
                         {c.survey_sent_at && (
-                          <span className="inline-block mt-1 text-[10px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                          <span className="inline-block mt-1 text-[13px] font-semibold text-[#434434] bg-[#E6E6E0] px-2 py-0.5 rounded-full">
                             ✓ שאלון משוב נשלח {ddmmyyyyhhmm(c.survey_sent_at.slice(0, 10), null)}
                           </span>
                         )}
@@ -389,7 +389,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                   {editingId && (() => {
                     const c = cohorts.find(x => x.id === editingId)
                     return c?.survey_sent_at ? (
-                      <p className="text-[11px] font-semibold text-green-700 bg-green-50 rounded-lg px-2.5 py-1.5">
+                      <p className="text-[13px] font-semibold text-[#434434] bg-[#E6E6E0] rounded-lg px-2.5 py-1.5">
                         ✓ שאלון משוב נשלח בתאריך {ddmmyyyyhhmm(c.survey_sent_at.slice(0, 10), null)}
                       </p>
                     ) : null
@@ -443,8 +443,8 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                     <button
                       onClick={save}
                       disabled={saving}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-50"
-                      style={{ background: '#E7C78A' }}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold disabled:opacity-50"
+                      style={{ background: '#C8A460', color: '#33281B' }}
                     >
                       {saving ? '...' : <><Check className="w-4 h-4" /> שמירה</>}
                     </button>

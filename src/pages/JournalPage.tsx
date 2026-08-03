@@ -41,7 +41,7 @@ function UpsellCard({ type, onDismiss, ownerWhatsapp }: { type: EntryType; onDis
           {u.cta} →
         </a>
       </div>
-      <button onClick={onDismiss} className="text-sand-300 hover:text-sand-500 flex-shrink-0">✕</button>
+      <button onClick={onDismiss} className="text-sand-500 hover:text-sand-500 flex-shrink-0">✕</button>
     </div>
   )
 }
@@ -221,11 +221,11 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
         {/* Header */}
         <div className="pt-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-sand-800">יומן</h1>
+            <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>יומן</h1>
             {selectedChild && !isGuest && (
               <button
                 onClick={() => setShareOpen(true)}
-                className="p-2 rounded-xl text-sand-400 hover:text-mustard-600 hover:bg-mustard-50 transition-colors"
+                className="p-2 rounded-xl text-sand-600 hover:text-mustard-600 hover:bg-mustard-50 transition-colors"
                 title="שיתוף יומן"
                 aria-label="שיתוף יומן"
               >
@@ -233,7 +233,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
               </button>
             )}
           </div>
-          <p className="text-sand-400 text-sm">{headerSubLabel}</p>
+          <p className="text-sand-600 text-sm">{headerSubLabel}</p>
         </div>
 
         <ChildSwitcher />
@@ -243,7 +243,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
             tap away. forceModal kicks in only when the Day tab is on a
             past date; on other tabs taps go to the dedicated action
             pages regardless of selectedDate. */}
-        <div className="bg-white rounded-3xl p-3 shadow-sm border border-[#F0EAE0]">
+        <div className="rounded-3xl p-3" style={{ background: '#F6ECD8' }}>
           <ActivityTimers
             onEntrySaved={handleEntrySaved}
             refetchKey={refetchKey}

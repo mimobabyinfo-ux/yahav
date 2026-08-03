@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Plus, Pencil, Trash2, X, Users, MessageCircle, EyeOff, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown } from 'lucide-react'
+﻿import { useCallback, useEffect, useState } from 'react'
+import { Plus, Pencil, Trash2, X, MessageCircle, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown } from 'lucide-react'
 import { supabase, type CommunityEvent, type ServicePartner } from '../../lib/supabase'
 import ConfirmDialog from './ConfirmDialog'
 import { getBabyAge } from '../../utils/dateUtils'
@@ -201,6 +201,11 @@ export default function EventsAdminPanel() {
     load()
   }
 
+  async function publish(ev: CommunityEvent) {
+    await supabase.from('community_events').update({ is_active: true }).eq('id', ev.id)
+    load()
+  }
+
   function requestDelete(ev: CommunityEvent) {
     if ((counts[ev.id] ?? 0) > 0) setPendingDelete(ev)
     else { setPendingDelete(null); supabase.from('community_events').delete().eq('id', ev.id).then(() => load()) }
@@ -267,44 +272,98 @@ export default function EventsAdminPanel() {
   const inputCls = 'w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white'
   const labelCls = 'block text-xs font-semibold text-sand-600 mb-1'
 
+  // Capacity bar — the question this screen answers: which event is
+  // next, how many signed up, how many places are left.
+  function capacityBlock(ev: CommunityEvent, count: number) {
+    if (!ev.is_active) {
+      return <p className="font-semibold" style={{ fontSize: 13, color: '#7B604C' }}>לא פורסם</p>
+    }
+    if (ev.capacity == null) {
+      return (
+        <div>
+          <p style={{ fontSize: 13, color: '#7B604C' }}><span className="font-bold" style={{ color: '#443327', fontSize: 15 }}>{count}</span> נרשמו · ללא הגבלה</p>
+          <div className="mt-1 rounded-full" style={{ height: 8, background: '#F0EBE3' }}>
+            <div className="rounded-full h-full" style={{ width: '30%', background: '#C6BDA0', opacity: 0.5 }} />
+          </div>
+        </div>
+      )
+    }
+    const left = ev.capacity - count
+    const ratio = Math.min(count / ev.capacity, 1)
+    const fill = left <= 0 ? '#A35C3D' : ratio >= 0.5 ? '#C8A460' : '#C6BDA0'
+    return (
+      <div>
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-bold" style={{ fontSize: 15, color: '#443327' }}>{count} מתוך {ev.capacity}</p>
+          <p className="font-bold whitespace-nowrap" style={{ fontSize: 13, color: left <= 3 ? '#8B4A30' : '#7B604C' }}>
+            {left <= 0 ? 'מלא' : `${left} נותרו`}
+          </p>
+        </div>
+        <div className="mt-1 rounded-full overflow-hidden" style={{ height: 8, background: '#F0EBE3' }}>
+          <div className="h-full rounded-full transition-all" style={{ width: `${ratio * 100}%`, background: fill }} />
+        </div>
+      </div>
+    )
+  }
+
   function eventRow(ev: CommunityEvent, faded: boolean) {
     const count = counts[ev.id] ?? 0
-    const spotsLeft = ev.capacity != null ? ev.capacity - count : null
+    const d = new Date(ev.event_date + 'T12:00:00')
+    const isDraft = !ev.is_active
+    const missingLink = ev.is_active && ev.price > 0 && !ev.payment_link
     return (
-      <div key={ev.id} className={`bg-white rounded-2xl border border-sand-100 p-4 ${faded ? 'opacity-60' : ''}`}>
-        <div className="flex items-start gap-3">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 bg-sand-50">
-            {ev.emoji ?? '🎉'}
+      <div
+        key={ev.id}
+        className={faded ? 'opacity-60' : ''}
+        style={isDraft
+          ? { background: '#F8F4EC', border: '1px dashed #C6BDA0', borderRadius: 20, padding: '16px 18px', opacity: 0.82 }
+          : { background: '#fff', border: '1px solid #E4DAD0', borderRadius: 20, padding: '16px 18px' }}
+      >
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Date block */}
+          <div className="flex flex-col items-center justify-center flex-shrink-0" style={{ width: 62, background: '#F6ECD8', borderRadius: 14, padding: '9px 0' }}>
+            <span className="font-bold" style={{ fontSize: 24, lineHeight: 1, color: '#4A3A28' }}>{d.getDate()}</span>
+            <span className="font-semibold mt-0.5" style={{ fontSize: 13, color: '#6E5836' }}>{weekdayHe(ev.event_date)}</span>
           </div>
-          <div className="flex-1 min-w-0">
+
+          {/* Title + meta */}
+          <div className="flex-1 min-w-[160px]">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-bold text-sand-800 text-sm">{ev.title}</p>
-              {!ev.is_active && (
-                <span className="text-[10px] font-bold text-sand-400 bg-sand-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <EyeOff className="w-3 h-3" /> מוסתר
-                </span>
-              )}
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={ev.price > 0 ? { background: '#FDF0E5', color: '#A35C3D' } : { background: '#F0F2E9', color: '#818267' }}>
+              <p className="font-bold" style={{ fontSize: 17, color: '#443327' }}>{ev.emoji ? `${ev.emoji} ` : ''}{ev.title}</p>
+              <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', ...(ev.price > 0 ? { background: '#F3E5E7', color: '#7E4E57' } : { background: '#F0EBE3', color: '#6E5836' }) }}>
                 {ev.price > 0 ? `₪${ev.price}` : 'חינם'}
               </span>
+              {missingLink && (
+                <span className="font-semibold whitespace-nowrap" style={{ fontSize: 13, color: '#8B4A30' }}>חסר לינק תשלום</span>
+              )}
             </div>
-            <p className="text-xs text-sand-500 mt-0.5">
-              {weekdayHe(ev.event_date)} {ddmm(ev.event_date)}
-              {ev.start_time && ` · ${ev.start_time.slice(0, 5)}`}
+            <p className="font-semibold mt-0.5" style={{ fontSize: 14, color: '#7B604C' }}>
+              {ev.start_time && `${ev.start_time.slice(0, 5)}${ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}`}
               {ev.location && ` · ${ev.location}`}
+              {ev.vendor_name && ` · ${ev.vendor_name}`}
             </p>
-            <button onClick={() => openRegs(ev)} className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-mustard-700 bg-mustard-50 px-2.5 py-1 rounded-full hover:bg-mustard-100 transition-colors">
-              <Users className="w-3.5 h-3.5" />
-              {count} נרשמות
-              {ev.capacity != null && ` / ${ev.capacity}`}
-              {spotsLeft != null && spotsLeft <= 0 && ' · מלא!'}
-            </button>
           </div>
-          <div className="flex flex-col gap-1.5 flex-shrink-0">
-            <button onClick={() => openEdit(ev)} className="p-2 rounded-xl text-sand-400 hover:text-mustard-600 hover:bg-mustard-50 transition-colors" title="עריכה">
-              <Pencil className="w-4 h-4" />
+
+          {/* Capacity */}
+          <div className="flex-shrink-0" style={{ width: 168 }}>
+            {capacityBlock(ev, count)}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isDraft ? (
+              <button onClick={() => publish(ev)} className="font-bold rounded-xl transition-all hover:brightness-95" style={{ background: '#C8A460', color: '#33281B', padding: '9px 14px', fontSize: 14 }}>
+                פרסום
+              </button>
+            ) : (
+              <button onClick={() => openRegs(ev)} className="font-bold rounded-xl transition-all hover:bg-sand-50" style={{ border: '1.5px solid #DCD4C8', color: '#7B604C', padding: '9px 14px', fontSize: 14 }}>
+                נרשמות
+              </button>
+            )}
+            <button onClick={() => openEdit(ev)} className="flex items-center justify-center rounded-xl transition-colors hover:brightness-95" style={{ width: 38, height: 38, background: '#F8F4EC' }} title="עריכה">
+              <Pencil className="w-[17px] h-[17px]" style={{ color: '#7B604C' }} />
             </button>
-            <button onClick={() => requestDelete(ev)} className="p-2 rounded-xl text-sand-300 hover:text-red-500 hover:bg-red-50 transition-colors" title="מחיקה">
+            <button onClick={() => requestDelete(ev)} className="flex items-center justify-center rounded-xl text-sand-500 hover:text-red-500 hover:bg-red-50 transition-colors" style={{ width: 38, height: 38 }} title="מחיקה">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
@@ -316,19 +375,19 @@ export default function EventsAdminPanel() {
   return (
     <div className="space-y-4" dir="rtl">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-base font-bold text-sand-800">🎉 אירועי קהילה</h2>
+        <h2 className="font-bold text-sand-800" style={{ fontSize: 17 }}>אירועי קהילה</h2>
         <div className="flex items-center gap-2">
           {/* רשימה / יומן toggle */}
           <div className="flex bg-white border border-sand-200 rounded-2xl p-1 gap-1">
             {([['list', 'רשימה', List], ['calendar', 'יומן', CalendarDays]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${view === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
-                style={view === v ? { background: '#E7C78A' } : {}}>
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${view === v ? 'shadow-sm' : 'text-sand-500'}`}
+                style={view === v ? { background: '#E7C78A', color: '#4A3A28' } : {}}>
                 <Icon className="w-3.5 h-3.5" /> {label}
               </button>
             ))}
           </div>
-          <button onClick={openCreate} className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-bold text-white shadow-sm" style={{ background: '#E7C78A' }}>
+          <button onClick={openCreate} className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-bold shadow-sm" style={{ background: '#C8A460', color: '#33281B' }}>
             <Plus className="w-4 h-4" /> אירוע חדש
           </button>
         </div>
@@ -342,7 +401,7 @@ export default function EventsAdminPanel() {
         <>
           {upcoming.length === 0 && (
             <div className="bg-white rounded-2xl border border-sand-100 p-8 text-center text-sand-400 text-sm">
-              אין אירועים קרובים — צרי את אירוע הקהילה הראשון 🎉
+              אין אירועים קרובים — צרי את אירוע הקהילה הראשון
             </div>
           )}
 
@@ -378,7 +437,7 @@ export default function EventsAdminPanel() {
           <div className="bg-white rounded-2xl border border-sand-100 p-3">
             <div className="grid grid-cols-7 gap-1 mb-1">
               {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(d => (
-                <div key={d} className="text-center text-[10px] font-bold text-sand-400 py-1">{d}</div>
+                <div key={d} className="text-center text-[13px] font-bold text-sand-400 py-1">{d}</div>
               ))}
             </div>
             <div className="grid grid-cols-7 gap-1">
@@ -389,7 +448,7 @@ export default function EventsAdminPanel() {
                 const isToday = ds === todayLocalIso()
                 return (
                   <div key={day} className={`min-h-[52px] rounded-xl p-1 text-center border ${isToday ? 'border-mustard-400 bg-mustard-50' : 'border-sand-50'}`}>
-                    <p className={`text-[10px] font-bold ${isToday ? 'text-mustard-700' : 'text-sand-400'}`}>{day}</p>
+                    <p className={`text-[13px] font-bold ${isToday ? 'text-mustard-700' : 'text-sand-400'}`}>{day}</p>
                     <div className="flex flex-col items-center gap-0.5 mt-0.5">
                       {dayEvents.map(ev => (
                         <button key={ev.id} onClick={() => setCalSelected(cur => cur?.id === ev.id ? null : ev)} title={ev.title}
@@ -547,15 +606,18 @@ export default function EventsAdminPanel() {
                         <ChevronDown className={`w-4 h-4 text-sand-300 flex-shrink-0 transition-transform ${expandedRegId === r.id ? 'rotate-180' : ''}`} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-sand-800 truncate">{name}</p>
-                          <p className="text-[11px] text-sand-400">
-                            {phone ?? 'אין טלפון בפרופיל'}
-                            {r.user_profiles?.area && ` · ${r.user_profiles.area}`}
+                          <p className="text-[13px] text-sand-600">
+                            {r.user_profiles?.baby_name && `${r.user_profiles.baby_name}`}
+                            {r.user_profiles?.baby_dob && ` · ${getBabyAge(r.user_profiles.baby_dob)}`}
+                            {(r.user_profiles?.baby_name || r.user_profiles?.baby_dob) && r.user_profiles?.area && ' · '}
+                            {r.user_profiles?.area}
+                            {!r.user_profiles?.baby_name && !r.user_profiles?.baby_dob && !r.user_profiles?.area && (phone ?? 'אין טלפון בפרופיל')}
                             {cancelled && ' · ביטלה'}
                           </p>
                         </div>
                         {regsEvent.price > 0 && !cancelled && (
                           <button onClick={e => { e.stopPropagation(); togglePaid(r) }}
-                            className={`text-[10px] font-bold px-2 py-1 rounded-full border-2 transition-all ${r.paid ? 'border-green-300 bg-green-50 text-green-700' : 'border-sand-200 text-sand-400'}`}>
+                            className={`text-[13px] font-bold px-2 py-1 rounded-full border-2 transition-all ${r.paid ? 'border-green-300 bg-green-50 text-green-700' : 'border-sand-200 text-sand-400'}`}>
                             {r.paid ? '₪ שולם' : '₪ לא שולם'}
                           </button>
                         )}
@@ -574,7 +636,7 @@ export default function EventsAdminPanel() {
                             ['no_show', '✗ לא הגיעה'],
                           ] as [RegistrantRow['status'], string][]).map(([s, label]) => (
                             <button key={s} onClick={() => setRegStatus(r, s)}
-                              className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border-2 transition-all ${r.status === s
+                              className={`flex-1 py-1.5 rounded-xl text-[13px] font-bold border-2 transition-all ${r.status === s
                                 ? s === 'no_show' ? 'border-red-300 bg-red-50 text-red-600' : s === 'attended' ? 'border-green-300 bg-green-50 text-green-700' : 'border-mustard-300 bg-mustard-50 text-mustard-700'
                                 : 'border-sand-100 text-sand-400'}`}>
                               {label}

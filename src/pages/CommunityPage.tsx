@@ -202,7 +202,7 @@ export default function CommunityPage() {
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
         {/* Header */}
         <div className="pt-2 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-sand-800">קהילת מימו</h1>
+          <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>קהילת מימו</h1>
           {pageTab === 'members' && profileComplete && !editMode && (
             <button
               onClick={() => setEditMode(true)}
@@ -266,7 +266,7 @@ export default function CommunityPage() {
                     </button>
                   ))}
                   {CITIES.filter(c => !citySearch || c.includes(citySearch)).length === 0 && (
-                    <p className="text-center text-sand-400 text-sm py-3">לא נמצאו תוצאות</p>
+                    <p className="text-center text-sand-600 text-sm py-3">לא נמצאו תוצאות</p>
                   )}
                 </div>
               )}
@@ -311,7 +311,7 @@ export default function CommunityPage() {
                 מה את מחפשת בקהילה?
               </label>
               <TagSelector value={tagsInput} onChange={setTagsInput} />
-              <p className="text-[11px] text-sand-400 mt-1.5 leading-relaxed">
+              <p className="text-[13px] text-sand-600 mt-1.5 leading-relaxed">
                 בחירת תגיות תופיע בפרופיל שלך וגם תעזור לאמהות אחרות למצוא אותך.
               </p>
             </div>
@@ -407,7 +407,7 @@ export default function CommunityPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-xs text-sand-400 flex items-center gap-1">
+              <p className="text-xs text-sand-600 flex items-center gap-1">
                 <Filter className="w-3.5 h-3.5" />
                 {filteredPregnant.length} בנות בהריון נמצאו
               </p>
@@ -432,7 +432,7 @@ export default function CommunityPage() {
                         <p className="font-semibold text-sand-800 text-sm">
                           {p.mother_name ? p.mother_name.split(' ')[0] : 'בהריון'}
                         </p>
-                        <p className="text-xs text-sand-400">
+                        <p className="text-xs text-sand-600">
                           {week != null ? `שבוע ${week}` : 'בהריון'}
                           {p.area && ` · ${p.area}`}
                         </p>
@@ -442,7 +442,7 @@ export default function CommunityPage() {
                         {memberTags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
                             {memberTags.slice(0, 3).map(t => (
-                              <span key={t.id} className="text-[10px] text-mustard-700">
+                              <span key={t.id} className="text-[13px] text-mustard-700">
                                 {t.emoji} {t.label}
                               </span>
                             ))}
@@ -497,7 +497,7 @@ export default function CommunityPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-xs text-sand-400 flex items-center gap-1">
+              <p className="text-xs text-sand-600 flex items-center gap-1">
                 <Filter className="w-3.5 h-3.5" />
                 {filteredMoms.length} אמהות נמצאו
               </p>
@@ -521,7 +521,7 @@ export default function CommunityPage() {
                         <p className="font-semibold text-sand-800 text-sm">
                           {p.mother_name ? p.mother_name.split(' ')[0] : 'אמא'}
                         </p>
-                        <p className="text-xs text-sand-400">
+                        <p className="text-xs text-sand-600">
                           {p.child_dob ? getBabyAge(p.child_dob) : ''}
                           {p.area && ` · ${p.area}`}
                         </p>
@@ -531,7 +531,7 @@ export default function CommunityPage() {
                         {memberTags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
                             {memberTags.slice(0, 3).map(t => (
-                              <span key={t.id} className="text-[10px] text-mustard-700">
+                              <span key={t.id} className="text-[13px] text-mustard-700">
                                 {t.emoji} {t.label}
                               </span>
                             ))}

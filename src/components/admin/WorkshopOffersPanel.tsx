@@ -58,7 +58,7 @@ function offerStatus(o: WorkshopOffer): { label: string; tone: 'green' | 'gray' 
 }
 
 const TONE_CLASSES: Record<'green' | 'gray' | 'amber' | 'red', string> = {
-  green: 'bg-green-50 text-green-700',
+  green: 'bg-[#E6E6E0] text-[#434434]',
   gray:  'bg-sand-100 text-sand-500',
   amber: 'bg-amber-50 text-amber-700',
   red:   'bg-red-50 text-red-600',
@@ -225,7 +225,7 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
           <button
             type="button"
             onClick={() => { setShowForm(true); setEditingId(null); setDraft(EMPTY_DRAFT); setFormError(null) }}
-            className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-mustard-500 text-white text-xs font-bold hover:bg-mustard-600 transition-colors"
+            className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors hover:brightness-95" style={{ background: '#C8A460', color: '#33281B' }}
           >
             <Plus className="w-3.5 h-3.5" />
             הצעה חדשה
@@ -334,7 +334,7 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
             type="button"
             onClick={save}
             disabled={saving}
-            className="w-full py-2.5 rounded-xl bg-mustard-500 text-white text-sm font-bold disabled:opacity-50 hover:bg-mustard-600 transition-colors"
+            className="w-full py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 transition-colors hover:brightness-95" style={{ background: '#C8A460', color: '#33281B' }}
           >
             {saving
               ? (editingId ? 'שומרת...' : 'יוצרת...')
@@ -354,10 +354,14 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
           {offers.map(o => {
             const status = offerStatus(o)
             const usesLabel = o.max_uses != null ? `${o.uses_count}/${o.max_uses}` : `${o.uses_count} שימושים`
+            // UX handoff: an offer past its expiry that is still switched on
+            // gets a warm warning treatment — it may still be redeemable in
+            // links the admin already sent.
+            const expiredButActive = o.is_active && !!o.expires_at && new Date(o.expires_at) <= new Date()
             return (
-              <li key={o.id} className="bg-white border border-sand-200 rounded-xl p-2.5 space-y-1.5">
+              <li key={o.id} className="rounded-xl p-2.5 space-y-1.5" style={expiredButActive ? { background: '#FDF6F2', border: '1px solid #F5E2D8' } : { background: '#fff', border: '1px solid #E4DAD0' }}>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-bold text-sand-800 flex-1 min-w-0 truncate">{o.label}</span>
+                  <span className="text-xs font-bold text-sand-800 flex-1 min-w-0 truncate" style={expiredButActive ? { color: '#713924' } : undefined}>{o.label}</span>
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${TONE_CLASSES[status.tone]}`}>{status.label}</span>
                   <span className="text-[10px] font-semibold text-sand-500 bg-sand-50 px-1.5 py-0.5 rounded-md">{usesLabel}</span>
                   <span className="text-[10px] text-sand-500">
@@ -369,6 +373,9 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
                     </span>
                   )}
                 </div>
+                {expiredButActive && (
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#8B4A30' }}>פג תוקף — עדיין פעילה</p>
+                )}
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"

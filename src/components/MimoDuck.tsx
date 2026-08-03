@@ -13,6 +13,7 @@ type Props = {
   /** Explicit choice - overrides withDuckling when set. */
   variant?: Variant
   className?: string
+  style?: React.CSSProperties
 }
 
 const SRC: Record<Variant, string> = {
@@ -21,8 +22,10 @@ const SRC: Record<Variant, string> = {
   chick: '/brand/duck-chick.png',
 }
 
-export default function MimoDuck({ size = 120, withDuckling = true, variant, className }: Props) {
+export default function MimoDuck({ size = 120, withDuckling = true, variant, className, style }: Props) {
   const v: Variant = variant ?? (withDuckling ? 'family' : 'mama')
+  // The brand cutouts face left; in this RTL layout they should face the
+  // content, so every consumer gets a horizontal mirror.
   return (
     <img
       src={SRC[v]}
@@ -31,7 +34,7 @@ export default function MimoDuck({ size = 120, withDuckling = true, variant, cla
       aria-hidden="true"
       draggable={false}
       className={className}
-      style={{ height: 'auto' }}
+      style={{ height: 'auto', transform: 'scaleX(-1)', ...style }}
     />
   )
 }

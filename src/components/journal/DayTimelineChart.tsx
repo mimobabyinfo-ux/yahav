@@ -197,7 +197,7 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
             return (
               <span
                 key={h}
-                className="absolute text-[10px] text-sand-400 right-1"
+                className="absolute text-[11px] text-sand-600 right-1"
                 style={{ top: `calc(${(h / 24) * 100}% - 6px)` }}
               >
                 {pad2(h)}:00
@@ -238,7 +238,7 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
                   left: 4,
                 }}
               >
-                <span className="inline-block text-[10px] font-bold text-sand-600 bg-white/85 px-1.5 py-0.5 rounded">
+                <span className="inline-block text-[11px] font-bold text-sand-600 bg-white/85 px-1.5 py-0.5 rounded">
                   {nowLabel}
                 </span>
               </div>

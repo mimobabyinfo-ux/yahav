@@ -115,7 +115,7 @@ export default function ServicesMarketplacePage() {
         {/* Header */}
         <div className="pt-2">
           <h1 className="text-2xl font-bold text-sand-800">שירותים מומלצים</h1>
-          <p className="text-sand-400 text-sm">מקצוענים שאנחנו סומכים עליהם</p>
+          <p className="text-sand-600 text-sm">מקצוענים שאנחנו סומכים עליהם</p>
         </div>
 
         {/* Category tabs */}
@@ -179,7 +179,7 @@ export default function ServicesMarketplacePage() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-bold text-sand-700">בקשת התקשרות</p>
-                          <button onClick={() => setCallbackFor(null)} className="text-sand-300 hover:text-sand-500">
+                          <button onClick={() => setCallbackFor(null)} className="text-sand-500 hover:text-sand-500">
                             <X className="w-4 h-4" />
                           </button>
                         </div>

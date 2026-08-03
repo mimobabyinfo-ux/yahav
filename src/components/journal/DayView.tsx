@@ -120,7 +120,7 @@ export default function DayView({
           onClick={openPicker}
           className="flex items-center gap-1.5 text-sm font-semibold text-sand-700 hover:text-mustard-600 transition-colors"
         >
-          <CalendarIcon className="w-4 h-4 text-sand-400" />
+          <CalendarIcon className="w-4 h-4 text-sand-600" />
           <span>{isToday ? `היום · ${hebrewDateHeader(selectedDate).split(' · ')[1]}` : hebrewDateHeader(selectedDate)}</span>
         </button>
         <button

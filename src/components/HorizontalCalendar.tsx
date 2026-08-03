@@ -23,7 +23,7 @@ export default function HorizontalCalendar({ selectedDate, onSelect }: Props) {
     <div className="flex items-center gap-2">
       <button
         onClick={() => shift(-7)}
-        className="p-1.5 rounded-xl hover:bg-sand-100 text-sand-400 hover:text-sand-700 transition-colors"
+        className="p-1.5 rounded-xl hover:bg-sand-100 text-sand-600 hover:text-sand-700 transition-colors"
       >
         <ChevronRight className="w-4 h-4" />
       </button>
@@ -61,7 +61,7 @@ export default function HorizontalCalendar({ selectedDate, onSelect }: Props) {
 
       <button
         onClick={() => shift(7)}
-        className="p-1.5 rounded-xl hover:bg-sand-100 text-sand-400 hover:text-sand-700 transition-colors"
+        className="p-1.5 rounded-xl hover:bg-sand-100 text-sand-600 hover:text-sand-700 transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
