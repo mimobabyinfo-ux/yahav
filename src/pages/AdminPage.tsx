@@ -5311,27 +5311,30 @@ function WeeklyGuideAdminSection() {
 }
 
 // ─── Partners Tab ─────────────────────────────────────────────────────────────
-const SUBCATS = [
-  { value: 'doula',        label: 'דולה' },
-  { value: 'pelvic_floor', label: 'רצפת האגן' },
-  { value: 'studio',       label: 'סטודיו' },
-  { value: 'lactation',    label: 'יועצת הנקה' },
-  { value: 'osteopath',    label: 'אוסטאופתיה' },
-  { value: 'physio',       label: 'פיזיותרפיה' },
-  { value: 'psychologist', label: 'פסיכולוגיה' },
-  { value: 'nutrition',    label: 'תזונה' },
-  { value: 'other',        label: 'אחר' },
-]
+// Vendor topics ("תיקיות") are free Hebrew text the admin types — the
+// list below only maps LEGACY English values (early rows) to Hebrew.
+// The moms' marketplace groups by the same subcategory value.
+const SUBCAT_LEGACY: Record<string, string> = {
+  doula: 'דולה', pelvic_floor: 'רצפת האגן', studio: 'סטודיו',
+  lactation: 'יועצת הנקה', osteopath: 'אוסטאופתיה', physio: 'פיזיותרפיה',
+  psychologist: 'פסיכולוגיה', nutrition: 'תזונה', other: 'אחר',
+}
+const subcatLabel = (v: string | null | undefined) => v ? (SUBCAT_LEGACY[v] ?? v) : 'ללא נושא'
+const SUBCAT_PRESETS = ['מאמנות כושר', 'תזונה', 'אוסטאופתיה', 'דולה', 'יועצת הנקה', 'פיזיותרפיה', 'פסיכולוגיה', 'רצפת האגן', 'סטודיו', 'מרצות']
 
 function PartnersTab() {
   const [partners, setPartners] = useState<ServicePartner[]>([])
   const [editing, setEditing] = useState<ServicePartner | null>(null)
   const [adding, setAdding] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', category: 'pregnancy' as 'pregnancy' | 'motherhood', subcategory: 'doula', whatsapp_number: '', logo_url: '', display_order: 0 })
+  const [form, setForm] = useState({ title: '', description: '', category: 'pregnancy' as 'pregnancy' | 'motherhood', subcategory: '', whatsapp_number: '', logo_url: '', display_order: 0 })
   const [saving, setSaving] = useState(false)
   // Task A: shared delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<ServicePartner | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
+  // Folder view: vendors grouped by topic, collapsible per group.
+  const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({})
+  // Topic filter — null = show all folders.
+  const [topicFilter, setTopicFilter] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('service_partners').select('*').order('category').order('display_order')
@@ -5340,13 +5343,13 @@ function PartnersTab() {
   useEffect(() => { load() }, [load])
 
   function openNew() {
-    setForm({ title: '', description: '', category: 'pregnancy', subcategory: 'doula', whatsapp_number: '', logo_url: '', display_order: partners.length })
+    setForm({ title: '', description: '', category: 'pregnancy', subcategory: '', whatsapp_number: '', logo_url: '', display_order: partners.length })
     setEditing(null)
     setAdding(true)
   }
 
   function openEdit(p: ServicePartner) {
-    setForm({ title: p.title, description: p.description ?? '', category: p.category, subcategory: p.subcategory ?? 'other', whatsapp_number: p.whatsapp_number ?? '', logo_url: p.logo_url ?? '', display_order: p.display_order })
+    setForm({ title: p.title, description: p.description ?? '', category: p.category, subcategory: subcatLabel(p.subcategory) === 'ללא נושא' ? '' : subcatLabel(p.subcategory), whatsapp_number: p.whatsapp_number ?? '', logo_url: p.logo_url ?? '', display_order: p.display_order })
     setEditing(p)
     setAdding(true)
   }
@@ -5354,10 +5357,11 @@ function PartnersTab() {
   async function save() {
     if (!form.title.trim()) return
     setSaving(true)
+    const payload = { ...form, subcategory: form.subcategory.trim() || null }
     if (editing) {
-      await supabase.from('service_partners').update(form).eq('id', editing.id)
+      await supabase.from('service_partners').update(payload).eq('id', editing.id)
     } else {
-      await supabase.from('service_partners').insert({ ...form, is_active: true })
+      await supabase.from('service_partners').insert({ ...payload, is_active: true })
     }
     await load()
     setAdding(false)
@@ -5382,19 +5386,32 @@ function PartnersTab() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-sand-400">{partners.length} שירותים</p>
+        <p className="text-xs text-sand-400">{partners.length} ספקים</p>
         <button onClick={openNew}
           className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-white text-xs font-bold"
           style={{ background: '#E7C78A' }}>
-          <Plus className="w-3.5 h-3.5" /> הוסף שירות
+          <Plus className="w-3.5 h-3.5" /> הוסף ספק
         </button>
       </div>
 
+      {/* Topic filter chips — הכל / one per existing topic */}
+      {partners.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scroll-hide pb-1">
+          {[null, ...[...new Set(partners.map(p => subcatLabel(p.subcategory)))]].map(t => (
+            <button key={t ?? 'all'} onClick={() => setTopicFilter(t)}
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all ${topicFilter === t ? 'text-white shadow-sm' : 'bg-white text-sand-500 border border-sand-200'}`}
+              style={topicFilter === t ? { background: '#E7C78A' } : {}}>
+              {t ?? 'הכל'}
+            </button>
+          ))}
+        </div>
+      )}
+
       {adding && (
         <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm space-y-3">
-          <p className="font-bold text-sand-800 text-sm">{editing ? 'ערוך שירות' : 'שירות חדש'}</p>
+          <p className="font-bold text-sand-800 text-sm">{editing ? 'עריכת ספק' : 'ספק חדש'}</p>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            placeholder="שם השירות / נותן השירות"
+            placeholder="שם הספק / נותנת השירות"
             className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder="תיאור קצר..." rows={2}
@@ -5405,10 +5422,12 @@ function PartnersTab() {
               <option value="pregnancy">הריון</option>
               <option value="motherhood">אמהות</option>
             </select>
-            <select value={form.subcategory} onChange={e => setForm(f => ({ ...f, subcategory: e.target.value }))}
-              className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400">
-              {SUBCATS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
+            <input value={form.subcategory} onChange={e => setForm(f => ({ ...f, subcategory: e.target.value }))}
+              list="partner-subcats" placeholder="נושא / תיקייה — למשל: מאמנות כושר"
+              className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400" />
+            <datalist id="partner-subcats">
+              {[...new Set([...partners.map(p => subcatLabel(p.subcategory)), ...SUBCAT_PRESETS])].filter(s => s !== 'ללא נושא').map(s => <option key={s} value={s} />)}
+            </datalist>
           </div>
           <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))}
             placeholder="מספר WhatsApp (972...)" dir="ltr"
@@ -5428,7 +5447,26 @@ function PartnersTab() {
         </div>
       )}
 
-      {partners.map(p => (
+      {/* Vendors grouped into collapsible topic folders */}
+      {(() => {
+        const groups: { name: string; items: ServicePartner[] }[] = []
+        for (const p of partners) {
+          const name = subcatLabel(p.subcategory)
+          if (topicFilter && name !== topicFilter) continue
+          const g = groups.find(x => x.name === name)
+          if (g) g.items.push(p)
+          else groups.push({ name, items: [p] })
+        }
+        return groups.map(g => (
+          <div key={g.name} className="space-y-2">
+            <button
+              onClick={() => setClosedGroups(c => ({ ...c, [g.name]: !c[g.name] }))}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-white rounded-2xl shadow-sm border border-sand-100"
+            >
+              <span className="text-sm font-bold text-sand-700">📁 {g.name} <span className="text-sand-400 font-semibold">({g.items.length})</span></span>
+              <ChevronDown className={`w-4 h-4 text-sand-400 transition-transform ${closedGroups[g.name] ? '' : 'rotate-180'}`} />
+            </button>
+            {!closedGroups[g.name] && g.items.map(p => (
         <div key={p.id} className="bg-[#F5F1EB] rounded-2xl p-4 shadow-sm flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -5454,12 +5492,15 @@ function PartnersTab() {
             </button>
           </div>
         </div>
-      ))}
-      {partners.length === 0 && !adding && <p className="text-center text-sand-400 text-sm py-8">אין שירותים עדיין</p>}
+            ))}
+          </div>
+        ))
+      })()}
+      {partners.length === 0 && !adding && <p className="text-center text-sand-400 text-sm py-8">אין ספקים עדיין</p>}
       <ConfirmDialog
         open={!!pendingDelete}
-        itemName={pendingDelete?.title ?? 'השירות'}
-        title="מחיקת שירות"
+        itemName={pendingDelete?.title ?? 'הספק'}
+        title="מחיקת ספק"
         busy={deletingBusy}
         onConfirm={performDelete}
         onClose={() => setPendingDelete(null)}
