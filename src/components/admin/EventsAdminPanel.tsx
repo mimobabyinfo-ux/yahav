@@ -374,9 +374,12 @@ export default function EventsAdminPanel() {
 
   return (
     <div className="space-y-4" dir="rtl">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         <h2 className="font-bold text-sand-800" style={{ fontSize: 17 }}>אירועי קהילה</h2>
         <div className="flex items-center gap-2">
+          <button onClick={openCreate} className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-bold shadow-sm" style={{ background: '#C8A460', color: '#33281B' }}>
+            <Plus className="w-4 h-4" /> אירוע חדש
+          </button>
           {/* רשימה / יומן toggle */}
           <div className="flex bg-white border border-sand-200 rounded-2xl p-1 gap-1">
             {([['list', 'רשימה', List], ['calendar', 'יומן', CalendarDays]] as const).map(([v, label, Icon]) => (
@@ -387,9 +390,6 @@ export default function EventsAdminPanel() {
               </button>
             ))}
           </div>
-          <button onClick={openCreate} className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-bold shadow-sm" style={{ background: '#C8A460', color: '#33281B' }}>
-            <Plus className="w-4 h-4" /> אירוע חדש
-          </button>
         </div>
       </div>
 

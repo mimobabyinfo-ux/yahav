@@ -212,7 +212,7 @@ function AppInner() {
 
   if (isAdminMode) {
     return (
-      <div className="min-h-screen lg:flex lg:flex-row-reverse" dir="rtl">
+      <div className="min-h-screen lg:flex" dir="rtl">
         {/* Sidebar — desktop only */}
         <div className="hidden lg:block">
           <AdminSidebar
