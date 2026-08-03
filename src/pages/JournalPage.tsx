@@ -8,6 +8,7 @@ import LogEntryModal from '../components/LogEntryModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import ShareBabyModal from '../components/ShareBabyModal'
 import ActivityTimers from '../components/ActivityTimers'
+import MimoDuck from '../components/MimoDuck'
 import JournalTabs, { JournalTab } from '../components/journal/JournalTabs'
 import DayView from '../components/journal/DayView'
 import WeekView from '../components/journal/WeekView'
@@ -36,7 +37,7 @@ function UpsellCard({ type, onDismiss, ownerWhatsapp }: { type: EntryType; onDis
       <span className="text-2xl flex-shrink-0">{u.emoji}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-sand-800">{u.text}</p>
-        <a href={waUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-xs font-bold text-white px-3 py-1.5 rounded-xl" style={{ background: '#E7C78A' }}>
+        <a href={waUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-xs font-bold text-[#4A3A28] px-3 py-1.5 rounded-xl" style={{ background: '#E7C78A' }}>
           {u.cta} →
         </a>
       </div>
@@ -186,7 +187,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   return (
     <div className="min-h-screen p-4 pb-28 relative" dir="rtl">
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
-        <span className="text-[250px] opacity-5">📔</span>
+        <MimoDuck size={300} withDuckling={false} className="opacity-[0.06]" />
       </div>
 
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
@@ -242,7 +243,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
             tap away. forceModal kicks in only when the Day tab is on a
             past date; on other tabs taps go to the dedicated action
             pages regardless of selectedDate. */}
-        <div className="bg-[#F5F1EB] rounded-3xl p-3 shadow-sm">
+        <div className="bg-white rounded-3xl p-3 shadow-sm border border-[#F0EAE0]">
           <ActivityTimers
             onEntrySaved={handleEntrySaved}
             refetchKey={refetchKey}
@@ -272,6 +273,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
           <UpsellCard type={upsellType} onDismiss={() => setUpsellType(null)} ownerWhatsapp={ownerWhatsapp} />
         )}
 
+        <div key={tab} className="animate-rise space-y-4">
         {tab === 'day' && (
           <DayView
             selectedDate={selectedDate}
@@ -313,6 +315,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
             }}
           />
         )}
+        </div>
       </div>
 
       {/* Create modal (past-date taps + non-hybrid action types) */}

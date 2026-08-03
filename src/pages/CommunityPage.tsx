@@ -206,7 +206,7 @@ export default function CommunityPage() {
           {pageTab === 'members' && profileComplete && !editMode && (
             <button
               onClick={() => setEditMode(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[#F5F1EB] rounded-2xl text-xs font-semibold text-sand-500 shadow-sm hover:text-sand-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-2xl text-xs font-semibold text-sand-500 shadow-sm hover:text-sand-700 transition-colors"
             >
               <Pencil className="w-3.5 h-3.5" />
               ערוך פרופיל
@@ -215,7 +215,7 @@ export default function CommunityPage() {
         </div>
 
         {/* Page tabs — אירועים | חברות */}
-        <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
+        <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
           {([
             ['events',  '🎉 אירועים'],
             ['members', '🌸 חברות'],
@@ -223,7 +223,7 @@ export default function CommunityPage() {
             <button
               key={v}
               onClick={() => setPageTab(v)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${pageTab === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${pageTab === v ? 'text-[#4A3A28] shadow-sm' : 'text-sand-500'}`}
               style={pageTab === v ? { background: '#E7C78A' } : {}}
             >
               {label}
@@ -237,7 +237,7 @@ export default function CommunityPage() {
         {pageTab === 'members' && (<>
         {/* Community profile form */}
         {showEditSection && (
-          <div className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm space-y-4">
+          <div className="bg-white rounded-3xl p-5 shadow-sm space-y-4">
             <p className="text-base font-bold text-sand-800">
               {isPregnant ? 'הצטרפי לקהילת הריון 🤰' : 'הצטרפי לקהילה 🌸'}
             </p>
@@ -340,7 +340,7 @@ export default function CommunityPage() {
               <button
                 onClick={saveMyProfile}
                 disabled={savingProfile}
-                className="flex-1 py-3 rounded-2xl text-white text-sm font-bold disabled:opacity-40 transition-all"
+                className="flex-1 py-3 rounded-2xl text-[#4A3A28] text-sm font-bold disabled:opacity-40 transition-all"
                 style={{ background: '#E7C78A' }}
               >
                 {savingProfile ? 'שומרת...' : editMode ? 'עדכון' : 'הצטרפי לקהילה ✓'}
@@ -351,7 +351,7 @@ export default function CommunityPage() {
 
         {/* Filters */}
         {isPregnant ? (
-          <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
+          <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
             {([
               ['all',  'כולן'],
               ['week', 'שבוע דומה'],
@@ -360,7 +360,7 @@ export default function CommunityPage() {
               <button
                 key={v}
                 onClick={() => setPregnancyFilter(v)}
-                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${pregnancyFilter === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${pregnancyFilter === v ? 'text-[#4A3A28] shadow-sm' : 'text-sand-500'}`}
                 style={pregnancyFilter === v ? { background: '#E7C78A' } : {}}
               >
                 {label}
@@ -368,7 +368,7 @@ export default function CommunityPage() {
             ))}
           </div>
         ) : (
-          <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
+          <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
             {([
               ['all',  'כולן'],
               ['age',  'גיל דומה'],
@@ -377,7 +377,7 @@ export default function CommunityPage() {
               <button
                 key={v}
                 onClick={() => setFilterMode(v as FilterMode)}
-                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${filterMode === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${filterMode === v ? 'text-[#4A3A28] shadow-sm' : 'text-sand-500'}`}
                 style={filterMode === v ? { background: '#E7C78A' } : {}}
               >
                 {label}
@@ -393,7 +393,7 @@ export default function CommunityPage() {
         {/* ── Pregnant community results ─────────────────────────────────────── */}
         {isPregnant && (
           filteredPregnant.length === 0 ? (
-            <div className="bg-[#F5F1EB] rounded-3xl p-8 text-center shadow-sm space-y-2">
+            <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-2">
               <p className="text-3xl">🔍</p>
               <p className="font-semibold text-sand-700 text-sm">
                 {pregnancyFilter === 'week' && myWeek == null
@@ -421,7 +421,7 @@ export default function CommunityPage() {
                     tabIndex={0}
                     onClick={() => setOpenMember({ kind: 'pregnant', member: p })}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMember({ kind: 'pregnant', member: p }) } }}
-                    className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                    className="bg-white rounded-3xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 mt-0.5"
@@ -483,7 +483,7 @@ export default function CommunityPage() {
         {/* ── Mom community results ──────────────────────────────────────────── */}
         {!isPregnant && (
           filteredMoms.length === 0 ? (
-            <div className="bg-[#F5F1EB] rounded-3xl p-8 text-center shadow-sm space-y-2">
+            <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-2">
               <p className="text-3xl">🔍</p>
               <p className="font-semibold text-sand-700 text-sm">
                 {filterMode === 'area' && !myArea
@@ -510,11 +510,11 @@ export default function CommunityPage() {
                     tabIndex={0}
                     onClick={() => setOpenMember({ kind: 'mom', member: p })}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMember({ kind: 'mom', member: p }) } }}
-                    className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                    className="bg-white rounded-3xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 mt-0.5"
-                        style={{ background: '#FFFFFF' }}>
+                        style={{ background: '#F4EDE1' }}>
                         {genderEmoji(p.child_gender)}
                       </div>
                       <div className="flex-1 min-w-0">

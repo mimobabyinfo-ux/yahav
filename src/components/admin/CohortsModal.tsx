@@ -211,7 +211,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose} dir="rtl">
       <div
-        className="bg-[#F5F1EB] rounded-3xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-white rounded-3xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

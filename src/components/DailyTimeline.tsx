@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, Baby, Milk, Utensils, Moon, Droplets, Shapes, Stethoscope, Star, StickyNote, type LucideIcon } from 'lucide-react'
 import type { DailyLogEntryWithDetails } from '../lib/supabase'
-import { entryTypeLabel, entryTypeEmoji, formatDuration } from '../utils/dateUtils'
+import { entryTypeLabel, formatDuration } from '../utils/dateUtils'
 import { supabase } from '../lib/supabase'
 import DiaperPhotoThumbnail from './DiaperPhotoThumbnail'
 
@@ -29,29 +29,42 @@ type Props = {
 // subtypes (breast/bottle/solid) live in FEEDING_SUBTYPE_COLORS below
 // instead of polluting this map.
 export const ENTRY_COLORS: Record<string, { bg: string; border: string; dot: string; label: string }> = {
-  feeding:      { bg: '#EFF6FF', border: '#93C5FD', dot: '#3B82F6', label: '#1D4ED8' },
-  sleep:        { bg: '#FEF2F2', border: '#FCA5A5', dot: '#EF4444', label: '#B91C1C' },
-  diaper:       { bg: '#F0FDF4', border: '#86EFAC', dot: '#22C55E', label: '#15803D' },
-  tummy_time:   { bg: '#FFF7ED', border: '#FED7AA', dot: '#F97316', label: '#C2410C' },
-  pumping:      { bg: '#F5F3FF', border: '#C4B5FD', dot: '#8B5CF6', label: '#6D28D9' },
-  milestone:    { bg: '#FFFBEB', border: '#FCD34D', dot: '#F59E0B', label: '#B45309' },
-  doctor_visit: { bg: '#F0FDFA', border: '#5EEAD4', dot: '#14B8A6', label: '#0F766E' },
-  note:         { bg: '#F9FAFB', border: '#D1D5DB', dot: '#6B7280', label: '#374151' },
+  // Mimo brand palette mapping — amarillo=feeding, celeste=sleep,
+  // arena=diaper, musgo=tummy, rojo tierra=medical, rosa polvo=milestone.
+  feeding:      { bg: '#FBF3E0', border: '#EBD8AE', dot: '#D9A94F', label: '#7A5A26' },
+  sleep:        { bg: '#EAF0F3', border: '#C3CDD2', dot: '#8FA5B1', label: '#47606D' },
+  diaper:       { bg: '#F1EEE2', border: '#C6BDA0', dot: '#A2966F', label: '#5F5741' },
+  tummy_time:   { bg: '#EBECDF', border: '#B9BAA4', dot: '#818267', label: '#4C4D3B' },
+  pumping:      { bg: '#F3EBDE', border: '#D9C8A8', dot: '#B3915A', label: '#6E5836' },
+  milestone:    { bg: '#F7EFF0', border: '#E3CBCF', dot: '#C99BA4', label: '#85555E' },
+  doctor_visit: { bg: '#F6EAE3', border: '#D8B5A3', dot: '#A35C3D', label: '#7C452D' },
+  note:         { bg: '#F4F1EC', border: '#DCD4C8', dot: '#A79E90', label: '#5F574B' },
 }
 
 // Per-subtype palette for feeding entries — shown in the timeline only.
 // Aggregate views (DailySummary chart, week/month per-day stripes, legends)
 // keep using ENTRY_COLORS.feeding so they don't fragment the eye.
 const FEEDING_SUBTYPE_COLORS: Record<string, { bg: string; border: string; dot: string; label: string }> = {
-  breast: { bg: '#E0F7FA', border: '#80DEEA', dot: '#00ACC1', label: '#00838F' }, // teal
-  bottle: { bg: '#E3F2FD', border: '#90CAF9', dot: '#2196F3', label: '#1565C0' }, // blue
-  solid:  { bg: '#FFF8E1', border: '#FFE082', dot: '#FFC107', label: '#F57F17' }, // yellow
+  breast: { bg: '#FBF3E0', border: '#EBD8AE', dot: '#D9A94F', label: '#7A5A26' }, // amarillo
+  bottle: { bg: '#F3EBDE', border: '#D9C8A8', dot: '#B3915A', label: '#6E5836' }, // bronze
+  solid:  { bg: '#F1EEE2', border: '#C6BDA0', dot: '#A2966F', label: '#5F5741' }, // arena
 }
 
-const FEEDING_SUBTYPE_EMOJI: Record<string, string> = {
-  breast: '🤱',
-  bottle: '🍼',
-  solid:  '🥄',
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  feeding: Milk,
+  sleep: Moon,
+  diaper: Droplets,
+  tummy_time: Shapes,
+  pumping: Milk,
+  milestone: Star,
+  doctor_visit: Stethoscope,
+  note: StickyNote,
+}
+
+const FEEDING_SUBTYPE_ICONS: Record<string, LucideIcon> = {
+  breast: Baby,
+  bottle: Milk,
+  solid:  Utensils,
 }
 
 function entryColors(entry: DailyLogEntryWithDetails) {
@@ -64,14 +77,14 @@ function entryColors(entry: DailyLogEntryWithDetails) {
   return ENTRY_COLORS[entry.entry_type] ?? ENTRY_COLORS.note
 }
 
-function entryIcon(entry: DailyLogEntryWithDetails): string {
+function entryIcon(entry: DailyLogEntryWithDetails): LucideIcon {
   if (entry.entry_type === 'feeding') {
     const fd = pick(entry.feeding_details)
-    if (fd?.feeding_type && FEEDING_SUBTYPE_EMOJI[fd.feeding_type]) {
-      return FEEDING_SUBTYPE_EMOJI[fd.feeding_type]
+    if (fd?.feeding_type && FEEDING_SUBTYPE_ICONS[fd.feeding_type]) {
+      return FEEDING_SUBTYPE_ICONS[fd.feeding_type]
     }
   }
-  return entryTypeEmoji(entry.entry_type)
+  return TYPE_ICONS[entry.entry_type] ?? StickyNote
 }
 
 // PostgREST returns one-to-many embedded relations as arrays at runtime,
@@ -109,8 +122,8 @@ function entrySubtitle(entry: DailyLogEntryWithDetails): string {
   if (entry.entry_type === 'diaper') {
     const dd = pick(entry.diaper_details)
     if (!dd) return entry.notes ?? ''
-    if (dd.diaper_type === 'wet') return 'פיפי 💧'
-    if (dd.diaper_type === 'dirty') return 'קקי 💩'
+    if (dd.diaper_type === 'wet') return 'פיפי'
+    if (dd.diaper_type === 'dirty') return 'קקי'
     if (dd.diaper_type === 'both') return 'פיפי וקקי'
   }
   return ''
@@ -171,7 +184,7 @@ export default function DailyTimeline({ entries, onRefresh, onEditEntry, hideHea
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm">{entryIcon(entry)}</span>
+                    {(() => { const Glyph = entryIcon(entry); return <Glyph className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.label }} strokeWidth={2.2} /> })()}
                     <span className="text-sm font-bold" style={{ color: colors.label }}>
                       {entryTypeLabel(entry.entry_type)}
                     </span>

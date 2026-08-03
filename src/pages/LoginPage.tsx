@@ -99,7 +99,7 @@ export default function LoginPage() {
 
         {/* Signup email-sent confirmation */}
         {signupSent && (
-          <div className="w-full bg-[#F5F1EB] rounded-3xl shadow-lg p-7 text-center space-y-4">
+          <div className="w-full bg-white rounded-3xl shadow-lg p-7 text-center space-y-4">
             <div className="text-5xl">📧</div>
             <h2 className="font-bold text-sand-800 text-xl">בדקי את האימייל שלך!</h2>
             <p className="text-sand-500 text-sm leading-relaxed">
@@ -108,7 +108,7 @@ export default function LoginPage() {
             </p>
             <button
               onClick={() => { setSignupSent(false); setMode('login') }}
-              className="w-full font-bold py-3.5 rounded-2xl text-white"
+              className="w-full font-bold py-3.5 rounded-2xl text-[#4A3A28]"
               style={{ background: '#E7C78A' }}
             >
               חזרה לכניסה
@@ -123,7 +123,7 @@ export default function LoginPage() {
         </p>
 
         {/* Card */}
-        {!signupSent && <div className="w-full bg-[#F5F1EB] rounded-3xl shadow-lg p-7 mt-2">
+        {!signupSent && <div className="w-full bg-white rounded-3xl shadow-lg p-7 mt-2">
           <h2
             className="font-bold text-center mb-6"
             style={{ fontSize: '1.5rem', color: '#3D2E20', fontFamily: 'Nunito, sans-serif' }}
@@ -216,7 +216,7 @@ export default function LoginPage() {
               className="w-full font-bold py-4 rounded-2xl transition-all disabled:opacity-50"
               style={{
                 background: '#E7C78A',
-                color: 'white',
+                color: '#4A3A28',
                 fontSize: '1rem',
                 fontFamily: 'Nunito, sans-serif',
                 marginTop: '8px',

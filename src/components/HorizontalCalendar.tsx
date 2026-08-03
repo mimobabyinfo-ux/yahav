@@ -41,14 +41,14 @@ export default function HorizontalCalendar({ selectedDate, onSelect }: Props) {
               onClick={() => onSelect(str)}
               className={`flex flex-col items-center gap-0.5 py-2 px-2 rounded-2xl transition-all flex-1 ${
                 isSelected
-                  ? 'bg-mustard-500 text-white shadow-md'
+                  ? 'bg-[#E7C78A] text-[#4A3A28] shadow-md'
                   : isToday
                   ? 'bg-mustard-50 text-mustard-700'
                   : 'hover:bg-sand-50 text-sand-600'
               }`}
             >
               <span className="text-xs font-medium">{DAYS_HE[dayIdx]}</span>
-              <span className={`text-sm font-bold ${isSelected ? 'text-white' : ''}`}>
+              <span className={`text-sm font-bold ${isSelected ? 'text-[#4A3A28]' : ''}`}>
                 {date.getDate()}
               </span>
               {isToday && !isSelected && (

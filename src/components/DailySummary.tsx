@@ -1,3 +1,4 @@
+import { Milk, Moon, Droplets, Shapes, type LucideIcon } from 'lucide-react'
 import type { DailyLogEntryWithDetails, FeedingDetail, SleepDetail, DiaperDetail } from '../lib/supabase'
 import { formatDuration } from '../utils/dateUtils'
 import { sleepTypeFromStartTime } from '../utils/sleepTypeFromTime'
@@ -36,9 +37,9 @@ function resolveSleepKind(e: DailyLogEntryWithDetails, sd: SleepDetail | null): 
 export default function DailySummary({ entries }: Props) {
   if (entries.length === 0) {
     return (
-      <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 text-center">
+      <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] p-5 text-center">
         <p className="text-sand-400 text-sm">עדיין אין פעילויות היום</p>
-        <p className="text-sand-300 text-xs mt-1">הוסיפי רשומה ראשונה 👇</p>
+        <p className="text-sand-300 text-xs mt-1">הוסיפי רשומה ראשונה למטה</p>
       </div>
     )
   }
@@ -168,7 +169,7 @@ export default function DailySummary({ entries }: Props) {
   const cards: SummaryCardProps[] = []
   if (napCount + nightCount > 0) {
     cards.push({
-      emoji: '😴',
+      icon: Moon,
       color: ENTRY_COLORS.sleep.dot,
       label: 'שינה',
       primary: formatDuration(totalSleepMins),
@@ -177,7 +178,7 @@ export default function DailySummary({ entries }: Props) {
   }
   if (totalFeedingCount > 0) {
     cards.push({
-      emoji: '🍼',
+      icon: Milk,
       color: ENTRY_COLORS.feeding.dot,
       label: 'האכלה',
       primary: `${totalFeedingCount}`,
@@ -186,7 +187,7 @@ export default function DailySummary({ entries }: Props) {
   }
   if (diaper.total > 0) {
     cards.push({
-      emoji: '💩',
+      icon: Droplets,
       color: ENTRY_COLORS.diaper.dot,
       label: 'חיתולים',
       primary: `${diaper.total}`,
@@ -195,7 +196,7 @@ export default function DailySummary({ entries }: Props) {
   }
   if (tummyCount > 0) {
     cards.push({
-      emoji: '🤸',
+      icon: Shapes,
       color: ENTRY_COLORS.tummy_time.dot,
       label: 'זמן בטן',
       primary: tummyMins > 0 ? formatDuration(tummyMins) : `${tummyCount}`,
@@ -206,7 +207,7 @@ export default function DailySummary({ entries }: Props) {
   return (
     <div className="space-y-3">
       {/* 24-hour color bar (preserved per Addition 1 spec) */}
-      <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-4">
+      <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] p-4">
         <div className="flex items-center justify-between mb-1.5">
           <h3 className="text-xs font-semibold text-sand-500">יום בצבעים</h3>
           <div className="flex items-center gap-2">
@@ -218,7 +219,7 @@ export default function DailySummary({ entries }: Props) {
             ))}
           </div>
         </div>
-        <div className="relative h-5 rounded-xl overflow-hidden" dir="ltr" style={{ background: '#F3F0EB' }}>
+        <div className="relative h-5 rounded-xl overflow-hidden" dir="ltr" style={{ background: '#F1EDE4' }}>
           {colorSegments.map((seg, i) => (
             <div
               key={i}
@@ -258,17 +259,17 @@ export default function DailySummary({ entries }: Props) {
 // ── Sub-component ──────────────────────────────────────────────────────────
 
 type SummaryCardProps = {
-  emoji: string
+  icon: LucideIcon
   color: string         // activity color (left/start bar)
   label: string         // category name
   primary: string       // big bold value
   sub: string           // breakdown sub-line
 }
 
-function SummaryCard({ emoji, color, label, primary, sub }: SummaryCardProps) {
+function SummaryCard({ icon: Icon, color, label, primary, sub }: SummaryCardProps) {
   return (
     <div
-      className="bg-white rounded-2xl shadow-sm p-3"
+      className="bg-white rounded-2xl shadow-sm border border-[#F0EAE0] p-3"
       style={{
         // RTL-aware: borderInlineStart puts the 4px bar on the visual
         // START of the card (right side in RTL, left side in LTR).
@@ -277,7 +278,9 @@ function SummaryCard({ emoji, color, label, primary, sub }: SummaryCardProps) {
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xl leading-none flex-shrink-0">{emoji}</span>
+          <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: color + '26' }}>
+            <Icon className="w-4 h-4" style={{ color }} strokeWidth={2.2} />
+          </span>
           <span className="text-sm font-semibold text-sand-700">{label}</span>
         </div>
         <span className="text-base font-bold text-sand-800 whitespace-nowrap">{primary}</span>

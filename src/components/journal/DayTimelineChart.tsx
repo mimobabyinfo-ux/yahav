@@ -184,7 +184,7 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
   const showNowLine = selectedDate <= today
 
   return (
-    <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
+    <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] overflow-hidden">
       <div
         key={selectedDate}
         className="grid grid-cols-[28px_1fr] animate-fade-in"
@@ -270,7 +270,7 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
                 }}
               >
                 {showText && (
-                  <div className="flex items-start justify-between px-2.5 py-1.5 text-white">
+                  <div className="flex items-start justify-between px-2.5 py-1.5 text-[#4A3A28]">
                     {seg.primaryLabel && (
                       <span className="text-xs font-bold whitespace-nowrap">{seg.primaryLabel}</span>
                     )}

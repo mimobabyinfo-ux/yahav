@@ -205,7 +205,7 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
   const daysRtl = [...days].reverse()
 
   return (
-    <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
+    <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] overflow-hidden">
       {/* Day headers — letter + date, tappable to day view. Rendered in
           RTL order: Sunday on the right, Saturday on the left.
           Time rail moved to column 8 (rightmost) for full-RTL feel —
@@ -226,7 +226,7 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
                   regardless of render order. */}
               <span className="text-[10px] text-sand-400">{DAY_LABELS[d.getDay()]}</span>
               <span
-                className={`text-sm font-bold mt-0.5 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'text-white' : 'text-sand-700'}`}
+                className={`text-sm font-bold mt-0.5 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'text-[#4A3A28]' : 'text-sand-700'}`}
                 style={isToday ? { background: '#E7C78A' } : {}}
               >
                 {d.getDate()}

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, Clock, MapPin } from 'lucide-react'
+import { ChevronLeft, Clock, MapPin, Users } from 'lucide-react'
 import { supabase, type CommunityEventRow } from '../../lib/supabase'
 import type { Page } from '../../App'
+import MimoDuck from '../MimoDuck'
 
 // Community hero for the home dashboard (community-first, 2.8.26): the
 // app's primary draw. Shows the next 3 upcoming events with the user's
@@ -44,15 +45,18 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
       {/* Hero header */}
       <div className="px-5 pt-5 pb-3">
         <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-sand-800">הקהילה של מימו 🎉</h2>
-            <p className="text-xs text-sand-500 mt-0.5">מפגשים, הרצאות ואימונים — ביחד</p>
+          <div className="flex items-center gap-2.5">
+            <MimoDuck variant="mama" size={46} className="duck-bob flex-shrink-0" />
+            <div>
+              <h2 className="text-lg font-bold text-sand-800">הקהילה של מימו</h2>
+              <p className="text-xs text-sand-500 mt-0.5">מפגשים, הרצאות ואימונים — ביחד</p>
+            </div>
           </div>
           <button
             onClick={openMembers}
             className="text-[11px] font-bold text-mustard-700 bg-white px-3 py-1.5 rounded-full shadow-sm"
           >
-            🌸 להכיר אמהות
+            <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" />להכיר אמהות</span>
           </button>
         </div>
       </div>
@@ -109,7 +113,7 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
         {/* Standing CTA */}
         <button
           onClick={openEvents}
-          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white transition-all"
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] transition-all"
           style={{ background: '#E7C78A' }}
         >
           לכל האירועים

@@ -53,15 +53,15 @@ export default function SummaryView({ refetchKey, onNavigateToDay }: Props) {
   return (
     <div className="space-y-3">
       {/* Sub-nav — mustard pill on active, mirrors JournalTabs style. */}
-      <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
+      <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1">
         {SUB_TABS.map(t => (
           <button
             key={t.id}
             onClick={() => setSubTab(t.id)}
             className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${
-              subTab === t.id ? 'text-white shadow-sm' : 'text-sand-500'
+              subTab === t.id ? 'shadow-sm' : 'text-sand-500'
             }`}
-            style={subTab === t.id ? { background: '#E7C78A' } : {}}
+            style={subTab === t.id ? { background: '#E7C78A', color: '#4A3A28' } : {}}
           >
             {t.label}
           </button>
@@ -69,15 +69,15 @@ export default function SummaryView({ refetchKey, onNavigateToDay }: Props) {
       </div>
 
       {/* Range strip — same visual style, smaller text. */}
-      <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1 overflow-x-auto scroll-hide">
+      <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1 overflow-x-auto scroll-hide">
         {RANGES.map(r => (
           <button
             key={r.id}
             onClick={() => setRange(r.id)}
             className={`flex-1 min-w-fit px-2 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
-              range === r.id ? 'text-white shadow-sm' : 'text-sand-500'
+              range === r.id ? 'shadow-sm' : 'text-sand-500'
             }`}
-            style={range === r.id ? { background: '#E7C78A' } : {}}
+            style={range === r.id ? { background: '#E7C78A', color: '#4A3A28' } : {}}
           >
             {r.label}
           </button>
@@ -86,7 +86,7 @@ export default function SummaryView({ refetchKey, onNavigateToDay }: Props) {
 
       {/* Body */}
       {loading ? (
-        <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-8 text-center">
+        <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] p-8 text-center">
           <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
         </div>
       ) : (

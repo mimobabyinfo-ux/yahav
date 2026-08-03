@@ -67,7 +67,7 @@ export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoj
 
         <div className="px-5 pb-5 overflow-y-auto flex-1 space-y-4">
           {/* Top card — avatar + name + secondary line */}
-          <div className="bg-[#F5F1EB] rounded-3xl p-5 text-center space-y-2">
+          <div className="bg-white rounded-3xl p-5 text-center space-y-2">
             <div className="text-5xl">{avatarEmoji}</div>
             <p className="text-xl font-bold text-sand-800">{firstName}</p>
             <p className="text-xs text-sand-500">{secondaryLine}</p>
@@ -100,7 +100,7 @@ export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoj
           {member.community_bio && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-sand-600 px-1">קצת עליי</p>
-              <div className="bg-[#F5F1EB] rounded-2xl p-4">
+              <div className="bg-white rounded-2xl p-4">
                 <p className="text-sm text-sand-700 whitespace-pre-line leading-relaxed">{member.community_bio}</p>
               </div>
             </div>

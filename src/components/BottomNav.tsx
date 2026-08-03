@@ -1,4 +1,4 @@
-import { Home, BookOpen, ShoppingBag, LogOut, ShieldAlert, Eye } from 'lucide-react'
+import { Home, BookOpen, ShoppingBag, LogOut, ShieldAlert, Eye, Users } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import type { Page, AdminSection } from '../App'
 
@@ -123,14 +123,14 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
   // community — קהילה sits right after בית, tracking (יומן) after it.
   const userItems: { id: Page; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard',  label: 'בית',     icon: <Home className="w-5 h-5" /> },
-    { id: 'community',  label: 'קהילה',   icon: <span className="text-lg leading-none">🌸</span> },
+    { id: 'community',  label: 'קהילה',   icon: <Users className="w-5 h-5" /> },
     { id: 'journal',    label: 'יומן',    icon: <BookOpen className="w-5 h-5" /> },
     { id: 'workshops',  label: 'מוצרים',  icon: <ShoppingBag className="w-5 h-5" /> },
   ]
 
   const pregnancyItems: { id: Page; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard',  label: 'מעקב',    icon: <Home className="w-5 h-5" /> },
-    { id: 'community',  label: 'קהילה',   icon: <span className="text-lg leading-none">🌸</span> },
+    { id: 'community',  label: 'קהילה',   icon: <Users className="w-5 h-5" /> },
     { id: 'workshops',  label: 'מוצרים',  icon: <ShoppingBag className="w-5 h-5" /> },
   ]
 

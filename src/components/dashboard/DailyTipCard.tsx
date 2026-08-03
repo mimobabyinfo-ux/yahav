@@ -12,7 +12,7 @@ export default function DailyTipCard() {
   if (!tip) return null
 
   return (
-    <div className="bg-gradient-to-r from-mustard-50 to-beige-50 rounded-3xl p-5 border border-mustard-100" dir="rtl">
+    <div className="rounded-3xl p-5" style={{ background: 'linear-gradient(135deg, #F9F1F2 0%, #F4E9EA 100%)', border: '1px solid #E3CBCF' }} dir="rtl">
       <div className="flex items-start gap-3">
         <span className="text-2xl flex-shrink-0">💡</span>
         <div className="flex-1 min-w-0 space-y-1.5">

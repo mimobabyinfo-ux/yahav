@@ -4,6 +4,7 @@ import type { DailyLogEntryWithDetails } from '../../lib/supabase'
 import { formatDate } from '../../utils/dateUtils'
 import { hebrewDateHeader } from '../../utils/hebrewDate'
 import DailyTimeline from '../DailyTimeline'
+import MimoDuck from '../MimoDuck'
 
 // Phase 3 / C5: ListView — chronological list of the selected week's
 // entries, date-grouped, with filter chips (by entry_type) and a
@@ -15,15 +16,15 @@ type FilterChip = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'docto
 // Chip definitions. Feeding stays a single "האכלה" chip (breast/bottle/
 // solid lumped, per the approved spec). Tummy uses 🤸 to match the
 // Day-view filter strip + TummyTimePage's accent emoji.
-const FILTER_CHIPS: { id: FilterChip; emoji: string; label: string }[] = [
-  { id: 'all',          emoji: '',    label: 'הכל' },
-  { id: 'feeding',      emoji: '🍼',  label: 'האכלה' },
-  { id: 'sleep',        emoji: '😴',  label: 'שינה' },
-  { id: 'diaper',       emoji: '💩',  label: 'חיתול' },
-  { id: 'tummy_time',   emoji: '🤸',  label: 'בטן' },
-  { id: 'doctor_visit', emoji: '👨‍⚕️', label: 'רופא' },
-  { id: 'milestone',    emoji: '🎯',  label: 'אבן דרך' },
-  { id: 'note',         emoji: '📝',  label: 'הערה' },
+const FILTER_CHIPS: { id: FilterChip; label: string }[] = [
+  { id: 'all',          label: 'הכל' },
+  { id: 'feeding',      label: 'האכלה' },
+  { id: 'sleep',        label: 'שינה' },
+  { id: 'diaper',       label: 'חיתול' },
+  { id: 'tummy_time',   label: 'בטן' },
+  { id: 'doctor_visit', label: 'רופא' },
+  { id: 'milestone',    label: 'אבן דרך' },
+  { id: 'note',         label: 'הערה' },
 ]
 
 type Props = {
@@ -107,18 +108,17 @@ export default function ListView({
 
       {/* Filter chips — horizontal-scroll on overflow. Mustard-pill style
           on active matches Day-view's filter strip + the journal tabs. */}
-      <div className="bg-[#F5F1EB] rounded-2xl p-1.5 shadow-sm overflow-x-auto scroll-hide">
+      <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-[#F0EAE0] overflow-x-auto scroll-hide">
         <div className="flex gap-1 min-w-fit">
           {FILTER_CHIPS.map(c => (
             <button
               key={c.id}
               onClick={() => setFilter(c.id)}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                filter === c.id ? 'text-white shadow-sm' : 'text-sand-500 hover:text-sand-700'
+                filter === c.id ? 'shadow-sm' : 'text-sand-500 hover:text-sand-700'
               }`}
-              style={filter === c.id ? { background: '#E7C78A' } : {}}
+              style={filter === c.id ? { background: '#E7C78A', color: '#4A3A28' } : {}}
             >
-              {c.emoji && <span className="text-sm leading-none">{c.emoji}</span>}
               <span>{c.label}</span>
             </button>
           ))}
@@ -148,12 +148,12 @@ export default function ListView({
 
       {/* Body */}
       {loading ? (
-        <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-8 text-center">
+        <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] p-8 text-center">
           <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
         </div>
       ) : groups.length === 0 ? (
-        <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-8 text-center space-y-2">
-          <div className="text-4xl">📜</div>
+        <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] p-8 text-center space-y-2">
+          <MimoDuck variant="chick" size={56} className="mx-auto duck-bob" />
           <p className="text-sm text-sand-500">
             {filter === 'all' ? 'אין רשומות בשבוע זה' : 'אין רשומות מסוג זה השבוע'}
           </p>

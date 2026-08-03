@@ -28,7 +28,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose
             </button>
           </div>
         ) : (
-          <div className="relative w-full h-24 flex items-center justify-center rounded-t-3xl" style={{ background: '#FFFFFF' }}>
+          <div className="relative w-full h-24 flex items-center justify-center rounded-t-3xl" style={{ background: '#F4EDE1' }}>
             <ShoppingBag className="w-10 h-10 text-sand-300" />
             <button
               onClick={onClose}
@@ -74,7 +74,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose
                 href={ws.payment_link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-2 text-white font-bold py-3.5 rounded-2xl text-sm transition-all"
+                className="flex-1 flex items-center justify-center gap-2 text-[#4A3A28] font-bold py-3.5 rounded-2xl text-sm transition-all"
                 style={{ background: '#E7C78A' }}
               >
                 <ExternalLink className="w-4 h-4" />
@@ -182,7 +182,7 @@ export default function WorkshopsPage() {
                 onClick={() => setCategory(c.key)}
                 className="flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all"
                 style={category === c.key
-                  ? { background: '#E7C78A', color: 'white' }
+                  ? { background: '#E7C78A', color: '#4A3A28' }
                   : { background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)' }}
               >
                 {c.label}
@@ -208,11 +208,11 @@ export default function WorkshopsPage() {
               filtered.map(ws => {
                 const isFeatured = ws.display_order === 1
                 return (
-                  <div key={ws.id} className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => setSelected(ws)}>
+                  <div key={ws.id} className="bg-white rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => setSelected(ws)}>
                     <div className="flex gap-3 p-4">
                       <div className="flex-1 min-w-0 space-y-2">
                         {ws.workshop_type && (
-                          <span className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#FFFFFF', color: '#D9B978' }}>
+                          <span className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#F4EDE1', color: '#B98F4E' }}>
                             {ws.workshop_type}
                           </span>
                         )}
@@ -228,7 +228,7 @@ export default function WorkshopsPage() {
                         {ws.image_url ? (
                           <img src={ws.image_url} alt={ws.title} className="w-24 h-24 object-cover rounded-2xl" />
                         ) : (
-                          <div className="w-24 h-24 rounded-2xl flex items-center justify-center" style={{ background: '#FFFFFF' }}>
+                          <div className="w-24 h-24 rounded-2xl flex items-center justify-center" style={{ background: '#F4EDE1' }}>
                             <ShoppingBag className="w-8 h-8 text-sand-300" />
                           </div>
                         )}
@@ -248,7 +248,7 @@ export default function WorkshopsPage() {
                       </a>
                       {ws.payment_link && (
                         <a href={ws.payment_link} target="_blank" rel="noopener noreferrer"
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28]"
                           style={{ background: '#E7C78A' }}>
                           <CreditCard className="w-4 h-4" /> רכישה
                         </a>
@@ -269,7 +269,7 @@ export default function WorkshopsPage() {
             </div>
           ) : (
             purchases.map(p => (
-              <div key={p.id} className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
+              <div key={p.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
                 {p.workshops.image_url && (
                   <img src={p.workshops.image_url} alt={p.workshops.title} className="w-full h-32 object-cover" />
                 )}

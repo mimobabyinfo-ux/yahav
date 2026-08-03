@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ChevronDown, ChevronUp, Square } from 'lucide-react'
+import { ChevronDown, ChevronUp, Square, Baby, Milk, Utensils, Moon, Droplets, Shapes, Stethoscope, Star, StickyNote, type LucideIcon } from 'lucide-react'
 import { supabase, ActiveTimer } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDate, formatTime } from '../utils/dateUtils'
@@ -36,7 +36,7 @@ type SinceKey = 'feeding' | 'sleep' | 'tummy_time' | 'diaper'
 
 type Tile = {
   key: LogPageRoute
-  emoji: string
+  icon: LucideIcon
   label: string
   // What to send to LogEntryModal as a fallback / past-date route.
   modalEntry: 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
@@ -49,18 +49,34 @@ type Tile = {
 }
 
 const PRIMARY_TILES: Tile[] = [
-  { key: 'feeding-breast', emoji: '🤱', label: 'הנקה',    modalEntry: 'feeding', modalPreset: 'breast', sinceKey: 'feeding',    sinceFallback: 'טרם נרשמה האכלה' },
-  { key: 'feeding-bottle', emoji: '🍼', label: 'בקבוק',   modalEntry: 'feeding', modalPreset: 'bottle', sinceKey: 'feeding',    sinceFallback: 'טרם נרשמה האכלה' },
-  { key: 'feeding-solid',  emoji: '🥄', label: 'אוכל',    modalEntry: 'feeding', modalPreset: 'solid',  sinceKey: 'feeding',    sinceFallback: 'טרם נרשמה האכלה' },
-  { key: 'sleep',          emoji: '😴', label: 'שינה',     modalEntry: 'sleep',                          sinceKey: 'sleep',      sinceFallback: 'טרם נרשמה שינה' },
-  { key: 'diaper',         emoji: '💩', label: 'חיתול',    modalEntry: 'diaper',                         sinceKey: 'diaper',     sinceFallback: 'טרם נרשם חיתול' },
-  { key: 'tummy_time',     emoji: '🤸', label: 'זמן בטן',  modalEntry: 'tummy_time',                     sinceKey: 'tummy_time', sinceFallback: 'טרם נרשם זמן בטן' },
+  { key: 'feeding-breast', icon: Baby,     label: 'הנקה',    modalEntry: 'feeding', modalPreset: 'breast', sinceKey: 'feeding',    sinceFallback: 'עוד אין רישום' },
+  { key: 'feeding-bottle', icon: Milk,     label: 'בקבוק',   modalEntry: 'feeding', modalPreset: 'bottle', sinceKey: 'feeding',    sinceFallback: 'עוד אין רישום' },
+  { key: 'feeding-solid',  icon: Utensils, label: 'אוכל',    modalEntry: 'feeding', modalPreset: 'solid',  sinceKey: 'feeding',    sinceFallback: 'עוד אין רישום' },
+  { key: 'sleep',          icon: Moon,     label: 'שינה',     modalEntry: 'sleep',                          sinceKey: 'sleep',      sinceFallback: 'עוד אין רישום' },
+  { key: 'diaper',         icon: Droplets, label: 'חיתול',    modalEntry: 'diaper',                         sinceKey: 'diaper',     sinceFallback: 'עוד אין רישום' },
+  { key: 'tummy_time',     icon: Shapes,   label: 'זמן בטן',  modalEntry: 'tummy_time',                     sinceKey: 'tummy_time', sinceFallback: 'עוד אין רישום' },
 ]
 
+// Brand color per tile — bubble = pastel tint behind the emoji,
+// border = the tile's outline. Follows the journal-wide mapping
+// (amarillo=feeding, celeste=sleep, arena=diaper, musgo=tummy,
+// rojo=medical, rosa=milestone, beige=note).
+const TILE_COLORS: Record<string, { bg: string; icon: string }> = {
+  'feeding-breast': { bg: '#F6ECD8', icon: '#8A6A2F' },
+  'feeding-bottle': { bg: '#F0E6D4', icon: '#6E5836' },
+  'feeding-solid':  { bg: '#F6ECD8', icon: '#8A6A2F' },
+  sleep:            { bg: '#E4EBEF', icon: '#47606D' },
+  diaper:           { bg: '#EEEADC', icon: '#5F5741' },
+  tummy_time:       { bg: '#E6E7D8', icon: '#4C4D3B' },
+  doctor_visit:     { bg: '#F3E3DA', icon: '#8A4D33' },
+  milestone:        { bg: '#F4E9EA', icon: '#85555E' },
+  note:             { bg: '#F1EDE6', icon: '#5F574B' },
+}
+
 const MORE_TILES: Tile[] = [
-  { key: 'doctor_visit', emoji: '👨‍⚕️', label: 'רופא',    modalEntry: 'doctor_visit', more: true },
-  { key: 'milestone',    emoji: '🎯',         label: 'אבן דרך', modalEntry: 'milestone',    more: true },
-  { key: 'note',         emoji: '📝',         label: 'הערה',    modalEntry: 'note',         more: true },
+  { key: 'doctor_visit', icon: Stethoscope, label: 'רופא',    modalEntry: 'doctor_visit', more: true },
+  { key: 'milestone',    icon: Star,        label: 'אבן דרך', modalEntry: 'milestone',    more: true },
+  { key: 'note',         icon: StickyNote,  label: 'הערה',    modalEntry: 'note',         more: true },
 ]
 
 // All nine tiles now have dedicated action pages (Phase 2 fully landed).
@@ -231,16 +247,21 @@ export default function ActivityTimers({
   // ── Render a single tile ──────────────────────────────────────────────
   function renderTile(tile: Tile) {
     const since = sinceTextFor(tile)
+    const c = TILE_COLORS[tile.key] ?? TILE_COLORS.note
+    const Icon = tile.icon
     return (
       <button
         key={tile.key}
         onClick={() => handleTileTap(tile)}
-        className="flex flex-col items-center justify-center gap-1 py-3 px-1 bg-[#F5F1EB] rounded-2xl shadow-sm hover:shadow-md border-2 border-transparent hover:border-mustard-200 transition-all"
+        className="flex flex-col items-center justify-center gap-1.5 py-3 px-1 rounded-2xl transition-all hover:brightness-[0.98]"
+        style={{ background: c.bg }}
       >
-        <span className="text-2xl leading-none">{tile.emoji}</span>
-        <span className="text-xs font-semibold text-sand-700 whitespace-nowrap">{tile.label}</span>
+        <span className="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center">
+          <Icon className="w-[18px] h-[18px]" style={{ color: c.icon }} strokeWidth={2.2} />
+        </span>
+        <span className="text-xs font-bold whitespace-nowrap" style={{ color: '#4A3A28' }}>{tile.label}</span>
         {since && (
-          <span className="text-[10px] text-sand-400 leading-tight whitespace-nowrap">{since}</span>
+          <span className="text-[10px] leading-tight whitespace-nowrap text-sand-500">{since}</span>
         )}
       </button>
     )
@@ -287,11 +308,12 @@ export default function ActivityTimers({
             pages own stop/save for hybrid timers; the banner surfaces them. */}
         {bigCardTimers.map(timer => {
           const addl = (timer.additional_data ?? {}) as AdditionalData
-          const emojiByType: Record<string, string> = {
-            feeding: '🤱',
-            sleep: '😴',
-            tummy_time: '🤸',
+          const iconByType: Record<string, LucideIcon> = {
+            feeding: Baby,
+            sleep: Moon,
+            tummy_time: Shapes,
           }
+          const TimerIcon = iconByType[timer.timer_type] ?? Milk
           const labelByType: Record<string, string> = {
             feeding: 'הנקה',
             sleep: 'שינה',
@@ -304,7 +326,7 @@ export default function ActivityTimers({
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">{emojiByType[timer.timer_type] ?? '⏱️'}</span>
+                  <TimerIcon className="w-5 h-5 text-mustard-600" />
                   <p className="text-sm font-bold text-sand-800">{labelByType[timer.timer_type] ?? timer.timer_type} פעיל</p>
                 </div>
                 <div className="text-2xl font-mono font-bold text-mustard-600">

@@ -1,21 +1,22 @@
 import { useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, BarChart3, LayoutGrid, List, type LucideIcon } from 'lucide-react'
 import type { DailyLogEntryWithDetails } from '../../lib/supabase'
 import { formatDate, formatDisplayDate } from '../../utils/dateUtils'
 import { hebrewDateHeader } from '../../utils/hebrewDate'
 import HorizontalCalendar from '../HorizontalCalendar'
+import MimoDuck from '../MimoDuck'
 import DailySummary from '../DailySummary'
 import DailyTimeline from '../DailyTimeline'
 import DayTimelineChart from './DayTimelineChart'
 
 // Timeline filter — shown only inside the "list" sub-view.
 type TimelineFilter = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time'
-const TIMELINE_FILTERS: { value: TimelineFilter; emoji: string; label: string }[] = [
-  { value: 'all',        emoji: '',   label: 'הכל' },
-  { value: 'feeding',    emoji: '🍼', label: 'האכלה' },
-  { value: 'sleep',      emoji: '😴', label: 'שינה' },
-  { value: 'diaper',     emoji: '💩', label: 'חיתול' },
-  { value: 'tummy_time', emoji: '🤸', label: 'בטן' },
+const TIMELINE_FILTERS: { value: TimelineFilter; label: string }[] = [
+  { value: 'all',        label: 'הכל' },
+  { value: 'feeding',    label: 'האכלה' },
+  { value: 'sleep',      label: 'שינה' },
+  { value: 'diaper',     label: 'חיתול' },
+  { value: 'tummy_time', label: 'בטן' },
 ]
 
 // Phase 3 / C4 UX restructure: Day-view now toggles between 3
@@ -23,10 +24,10 @@ const TIMELINE_FILTERS: { value: TimelineFilter; emoji: string; label: string }[
 // them at once. Default 'graph' on every mount — intentionally NOT
 // persisted to localStorage (Q from the spec).
 type DayViewMode = 'graph' | 'cards' | 'list'
-const VIEW_MODES: { id: DayViewMode; emoji: string; label: string }[] = [
-  { id: 'graph', emoji: '📊', label: 'ציר זמן' },
-  { id: 'cards', emoji: '🎴', label: 'סיכום יומי' },
-  { id: 'list',  emoji: '📝', label: 'פירוט' },
+const VIEW_MODES: { id: DayViewMode; icon: LucideIcon; label: string }[] = [
+  { id: 'graph', icon: BarChart3,  label: 'ציר זמן' },
+  { id: 'cards', icon: LayoutGrid, label: 'סיכום יומי' },
+  { id: 'list',  icon: List,       label: 'פירוט' },
 ]
 
 type Props = {
@@ -143,22 +144,22 @@ export default function DayView({
       </div>
 
       {/* Horizontal week strip — for jumping ±N days beyond the arrow row. */}
-      <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm">
+      <div className="bg-white rounded-3xl p-4 shadow-sm border border-[#F0EAE0]">
         <HorizontalCalendar selectedDate={selectedDate} onSelect={onDateChange} />
       </div>
 
       {/* ── View toggle (graph / cards / list) ────────────────────────── */}
-      <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
+      <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1">
         {VIEW_MODES.map(m => (
           <button
             key={m.id}
             onClick={() => setMode(m.id)}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
-              mode === m.id ? 'text-white shadow-sm' : 'text-sand-500'
+              mode === m.id ? 'shadow-sm' : 'text-sand-500'
             }`}
-            style={mode === m.id ? { background: '#E7C78A' } : {}}
+            style={mode === m.id ? { background: '#E7C78A', color: '#4A3A28' } : {}}
           >
-            <span className="text-base leading-none">{m.emoji}</span>
+            <m.icon className="w-4 h-4" strokeWidth={2.2} />
             <span>{m.label}</span>
           </button>
         ))}
@@ -170,7 +171,8 @@ export default function DayView({
         </div>
       )}
 
-      {/* ── Mode-specific content ─────────────────────────────────────── */}
+      {/* ── Mode-specific content — keyed so tab switches animate ────── */}
+      <div key={mode} className="animate-rise space-y-4">
       {!loading && mode === 'graph' && (
         <DayTimelineChart entries={entries} selectedDate={selectedDate} />
       )}
@@ -182,25 +184,24 @@ export default function DayView({
       {!loading && mode === 'list' && (
         <>
           {/* Filter strip — narrows the timeline to a single category. */}
-          <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
+          <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1">
             {TIMELINE_FILTERS.map(f => (
               <button
                 key={f.value}
                 onClick={() => onFilterChange(f.value)}
-                className={`flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-semibold transition-all leading-tight ${
-                  filter === f.value ? 'text-white shadow-sm' : 'text-sand-500'
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  filter === f.value ? 'shadow-sm' : 'text-sand-500'
                 }`}
-                style={filter === f.value ? { background: '#E7C78A' } : {}}
+                style={filter === f.value ? { background: '#E7C78A', color: '#4A3A28' } : {}}
               >
-                {f.emoji && <span className="text-base">{f.emoji}</span>}
-                <span>{f.label}</span>
+                {f.label}
               </button>
             ))}
           </div>
 
           {todayEntries.length === 0 ? (
-            <div className="bg-[#F5F1EB] rounded-3xl p-8 shadow-sm text-center space-y-2">
-              <div className="text-4xl">📒</div>
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-[#F0EAE0] text-center space-y-2">
+              <MimoDuck variant="chick" size={64} className="mx-auto duck-bob" />
               <p className="text-sm text-sand-500">{isToday ? 'עוד לא נרשמו פעולות היום' : `אין רשומות מ${formatDisplayDate(selectedDate)}`}</p>
             </div>
           ) : (
@@ -212,6 +213,7 @@ export default function DayView({
           )}
         </>
       )}
+      </div>
     </div>
   )
 }

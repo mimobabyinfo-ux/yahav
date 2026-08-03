@@ -1,7 +1,6 @@
-// 4-tab strip at the top of the Journal page (Phase 3 / C3).
-// Reuses the existing mustard-pill style from the previous viewMode strip
-// so the visual change is just: 3 tabs (יום / שבוע / חודש) → 4 tabs
-// (יום / שבוע / רשימה / סיכום). Month view is replaced by List per spec.
+// 4-tab strip at the top of the Journal page.
+// Brand segmented control: white track, amarillo pill with dark text
+// (WCAG rule: never white-on-amarillo), springy transition.
 
 export type JournalTab = 'day' | 'week' | 'list' | 'summary'
 
@@ -19,15 +18,15 @@ type Props = {
 
 export default function JournalTabs({ value, onChange }: Props) {
   return (
-    <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
+    <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1">
       {TABS.map(t => (
         <button
           key={t.id}
           onClick={() => onChange(t.id)}
-          className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${
-            value === t.id ? 'text-white shadow-sm' : 'text-sand-500'
+          className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+            value === t.id ? 'shadow-sm' : 'text-sand-500 hover:text-sand-700'
           }`}
-          style={value === t.id ? { background: '#E7C78A' } : {}}
+          style={value === t.id ? { background: '#E7C78A', color: '#4A3A28' } : {}}
         >
           {t.label}
         </button>

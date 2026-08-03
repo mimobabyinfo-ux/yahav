@@ -1,10 +1,8 @@
-﻿import { Check } from 'lucide-react'
+﻿import { Check, Baby } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function ChildSwitcher() {
   const { children, selectedChild, setSelectedChild } = useAuth()
-
-  const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏻' : g === 'girl' ? '👧' : '👶'
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto scroll-hide pb-1">
@@ -14,12 +12,12 @@ export default function ChildSwitcher() {
           onClick={() => setSelectedChild(child)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all ${
             selectedChild?.id === child.id
-              ? 'text-white shadow-sm'
+              ? 'shadow-sm'
               : 'bg-white text-sand-500 border border-sand-100'
           }`}
-          style={selectedChild?.id === child.id ? { background: '#E7C78A' } : {}}
+          style={selectedChild?.id === child.id ? { background: '#E7C78A', color: '#4A3A28' } : {}}
         >
-          <span>{genderEmoji(child.gender)}</span>
+          <Baby className="w-3.5 h-3.5" />
           <span>{child.name}</span>
           {selectedChild?.id === child.id && <Check className="w-3 h-3" />}
         </button>

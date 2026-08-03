@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Baby, Moon, Droplets, Shapes, type LucideIcon } from 'lucide-react'
 import type { DailyLogEntryWithDetails, SleepDetail } from '../../lib/supabase'
 import { formatDate, formatDuration, entryTypeLabel } from '../../utils/dateUtils'
 import { ENTRY_COLORS } from '../DailyTimeline'
@@ -119,7 +119,7 @@ export default function WeekView({ entries, weekStart, onWeekShift, onDayClick }
       {/* Highlights — 2×2 grid, only renders cards that have a value. */}
       <div className="grid grid-cols-2 gap-2">
         <HighlightCard
-          emoji="😴"
+          icon={Moon}
           headline={
             highlights.longestSleep
               ? formatDuration(highlights.longestSleep.mins)
@@ -133,7 +133,7 @@ export default function WeekView({ entries, weekStart, onWeekShift, onDayClick }
           label="שינה ארוכה ביותר"
         />
         <HighlightCard
-          emoji="🤱"
+          icon={Baby}
           headline={
             highlights.mostFeedings
               ? `${highlights.mostFeedings.count}`
@@ -147,13 +147,13 @@ export default function WeekView({ entries, weekStart, onWeekShift, onDayClick }
           label="הכי הרבה האכלות"
         />
         <HighlightCard
-          emoji="🤸"
+          icon={Shapes}
           headline={highlights.totalTummyMins > 0 ? formatDuration(highlights.totalTummyMins) : '—'}
           sub="סה״כ השבוע"
           label="זמן בטן"
         />
         <HighlightCard
-          emoji="💩"
+          icon={Droplets}
           headline={highlights.totalDiapers > 0 ? `${highlights.totalDiapers}` : '—'}
           sub="סה״כ השבוע"
           label="חיתולים"
@@ -163,7 +163,7 @@ export default function WeekView({ entries, weekStart, onWeekShift, onDayClick }
       {/* Legend — restricted to the 4 chart categories per Q3/Q4 (single
           color per category). Other types render in the chart as instants
           but aren't worth a legend chip. */}
-      <div className="bg-[#F5F1EB] rounded-2xl p-3 shadow-sm">
+      <div className="bg-white rounded-2xl p-3 shadow-sm border border-[#F0EAE0]">
         <p className="text-[10px] font-semibold text-sand-500 mb-1.5">מקרא</p>
         <div className="flex flex-wrap gap-3">
           {(['sleep', 'feeding', 'tummy_time', 'diaper'] as const).map(type => {
@@ -184,15 +184,17 @@ export default function WeekView({ entries, weekStart, onWeekShift, onDayClick }
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function HighlightCard({ emoji, headline, sub, label }: {
-  emoji: string
+function HighlightCard({ icon: Icon, headline, sub, label }: {
+  icon: LucideIcon
   headline: string
   sub: string
   label: string
 }) {
   return (
-    <div className="bg-[#F5F1EB] rounded-2xl p-3 shadow-sm flex items-center gap-2.5">
-      <span className="text-2xl flex-shrink-0">{emoji}</span>
+    <div className="bg-white rounded-2xl p-3 shadow-sm border border-[#F0EAE0] flex items-center gap-2.5">
+      <span className="w-9 h-9 rounded-full bg-[#F4EDE1] flex items-center justify-center flex-shrink-0">
+        <Icon className="w-4 h-4 text-sand-600" strokeWidth={2.2} />
+      </span>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-semibold text-sand-500 truncate">{label}</p>
         <p className="text-sm font-bold text-sand-800 mt-0.5">{headline}</p>

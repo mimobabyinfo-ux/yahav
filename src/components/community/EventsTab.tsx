@@ -3,6 +3,7 @@ import { MapPin, Clock, Users, ExternalLink, Check, X, CalendarHeart, CalendarDa
 import { supabase, type CommunityEventRow, type EventAttendee } from '../../lib/supabase'
 import { getBabyAge } from '../../utils/dateUtils'
 import CommunityMemberSheet from './CommunityMemberSheet'
+import MimoDuck from '../MimoDuck'
 
 // "הקהילה של מימו" — user-facing community events. Two views:
 // רשימה (monthly-grouped cards + month chips) and יומן (month calendar
@@ -123,10 +124,10 @@ export default function EventsTab() {
     const names = attendees[ev.id]
 
     return (
-      <div key={ev.id} className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
+      <div key={ev.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
         <div className="p-4 cursor-pointer" onClick={() => toggleExpand(ev)}>
           <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 bg-white">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 bg-[#F4EDE1]">
               {ev.emoji ?? '🎉'}
             </div>
             <div className="flex-1 min-w-0">
@@ -134,8 +135,8 @@ export default function EventsTab() {
                 <p className="font-bold text-sand-800 text-sm leading-snug">{ev.title}</p>
                 <span className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full"
                   style={ev.price > 0
-                    ? { background: '#FFF', color: '#A35C3D' }
-                    : { background: '#FFF', color: '#818267' }}>
+                    ? { background: '#F4EDE1', color: '#A35C3D' }
+                    : { background: '#F4EDE1', color: '#818267' }}>
                   {ev.price > 0 ? `₪${ev.price}` : 'חינם'}
                 </span>
               </div>
@@ -170,7 +171,7 @@ export default function EventsTab() {
                   </span>
                 )}
                 {isFull && !isMine && (
-                  <span className="text-[11px] font-bold text-sand-500 px-2 py-0.5 rounded-full bg-white">האירוע מלא</span>
+                  <span className="text-[11px] font-bold text-sand-500 px-2 py-0.5 rounded-full bg-[#F4EDE1]">האירוע מלא</span>
                 )}
               </div>
             </div>
@@ -197,7 +198,7 @@ export default function EventsTab() {
                       <button
                         key={a.user_id}
                         onClick={e => { e.stopPropagation(); setOpenAttendee({ attendee: a, eventTitle: ev.title }) }}
-                        className="flex items-center gap-1 text-[11px] bg-white text-sand-700 px-2.5 py-1 rounded-full font-semibold shadow-sm hover:shadow transition-all"
+                        className="flex items-center gap-1 text-[11px] bg-[#F4EDE1] text-sand-700 px-2.5 py-1 rounded-full font-semibold shadow-sm hover:shadow transition-all"
                       >
                         <span>{genderEmoji(a.child_gender)}</span>
                         {(a.mother_name ?? 'אמא').split(' ')[0]}
@@ -220,7 +221,7 @@ export default function EventsTab() {
               <button
                 onClick={() => cancel(ev)}
                 disabled={busyId === ev.id}
-                className="px-3 py-2.5 rounded-2xl bg-white text-sand-400 text-xs font-semibold disabled:opacity-40"
+                className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-400 text-xs font-semibold disabled:opacity-40"
                 title="ביטול הרשמה"
               >
                 <X className="w-4 h-4" />
@@ -230,7 +231,7 @@ export default function EventsTab() {
             <button
               onClick={() => register(ev)}
               disabled={isFull || busyId === ev.id}
-              className="w-full py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-40 transition-all"
+              className="w-full py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-40 transition-all"
               style={{ background: isFull ? '#C9C2B6' : '#E7C78A' }}
             >
               {busyId === ev.id ? 'רגע...' : isFull ? 'אין מקומות 😢' : ev.price > 0 ? `אני מגיעה! 🙋‍♀️ (₪${ev.price})` : 'אני מגיעה! 🙋‍♀️'}
@@ -238,7 +239,7 @@ export default function EventsTab() {
           )}
           {isMine && ev.price > 0 && ev.payment_link && (
             <a href={ev.payment_link} target="_blank" rel="noopener noreferrer"
-              className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-2xl text-xs font-bold text-mustard-700 bg-white">
+              className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-2xl text-xs font-bold text-mustard-700 bg-[#F4EDE1]">
               <ExternalLink className="w-3.5 h-3.5" /> להשלמת התשלום
             </a>
           )}
@@ -257,8 +258,8 @@ export default function EventsTab() {
 
   if (events.length === 0) {
     return (
-      <div className="bg-[#F5F1EB] rounded-3xl p-8 text-center shadow-sm space-y-2">
-        <CalendarHeart className="w-10 h-10 text-mustard-400 mx-auto" />
+      <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-3 animate-rise">
+        <div className="flex justify-center"><MimoDuck size={110} className="duck-bob" /></div>
         <p className="font-semibold text-sand-700 text-sm">אירועי הקהילה הבאים בדרך 🎉</p>
         <p className="text-xs text-sand-400">ברגע שנפרסם את לוח האירועים החודשי — הוא יופיע כאן</p>
       </div>
@@ -292,12 +293,12 @@ export default function EventsTab() {
       )}
 
       {/* רשימה / יומן toggle */}
-      <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
+      <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
         {([['list', 'רשימה', List], ['calendar', 'יומן', CalendarDays]] as const).map(([v, label, Icon]) => (
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${view === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${view === v ? 'text-[#4A3A28] shadow-sm' : 'text-sand-500'}`}
             style={view === v ? { background: '#E7C78A' } : {}}
           >
             <Icon className="w-3.5 h-3.5" /> {label}
@@ -314,7 +315,7 @@ export default function EventsTab() {
                 <button
                   key={k ?? 'all'}
                   onClick={() => setMonthFilter(k)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all ${monthFilter === k ? 'text-white shadow-sm' : 'bg-[#F5F1EB] text-sand-500'}`}
+                  className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all ${monthFilter === k ? 'text-[#4A3A28] shadow-sm' : 'bg-[#F4EDE1] text-sand-500'}`}
                   style={monthFilter === k ? { background: '#E7C78A' } : {}}
                 >
                   {k ?? 'הכל'}
@@ -336,17 +337,17 @@ export default function EventsTab() {
       ) : (
         /* ── יומן — month calendar grid ── */
         <div className="space-y-3">
-          <div className="flex items-center justify-between bg-[#F5F1EB] rounded-2xl px-3 py-2 shadow-sm">
-            <button onClick={() => calMove(-1)} className="p-1.5 rounded-xl text-sand-400 hover:bg-white transition-colors" title="חודש קודם">
+          <div className="flex items-center justify-between bg-white rounded-2xl px-3 py-2 shadow-sm">
+            <button onClick={() => calMove(-1)} className="p-1.5 rounded-xl text-sand-400 hover:bg-[#EFE6D6] transition-colors" title="חודש קודם">
               <ChevronRight className="w-4 h-4" />
             </button>
             <p className="text-sm font-bold text-sand-800">{MONTHS_HE[calYm.m - 1]} {calYm.y}</p>
-            <button onClick={() => calMove(1)} className="p-1.5 rounded-xl text-sand-400 hover:bg-white transition-colors" title="חודש הבא">
+            <button onClick={() => calMove(1)} className="p-1.5 rounded-xl text-sand-400 hover:bg-[#EFE6D6] transition-colors" title="חודש הבא">
               <ChevronLeft className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="bg-[#F5F1EB] rounded-3xl p-3 shadow-sm">
+          <div className="bg-white rounded-3xl p-3 shadow-sm">
             <div className="grid grid-cols-7 gap-1 mb-1">
               {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(d => (
                 <div key={d} className="text-center text-[10px] font-bold text-sand-400 py-1">{d}</div>
@@ -359,7 +360,7 @@ export default function EventsTab() {
                 const dayEvents = eventsByDate[ds] ?? []
                 const isToday = ds === todayLocalIso()
                 return (
-                  <div key={day} className={`min-h-[50px] rounded-xl p-1 text-center ${isToday ? 'bg-mustard-50 ring-1 ring-mustard-300' : 'bg-white/60'}`}>
+                  <div key={day} className={`min-h-[50px] rounded-xl p-1 text-center ${isToday ? 'bg-mustard-50 ring-1 ring-mustard-300' : 'bg-[#F4EDE1]/70'}`}>
                     <p className={`text-[10px] font-bold ${isToday ? 'text-mustard-700' : 'text-sand-400'}`}>{day}</p>
                     <div className="flex flex-col items-center gap-0.5 mt-0.5">
                       {dayEvents.map(ev => {
@@ -368,7 +369,7 @@ export default function EventsTab() {
                           <button key={ev.id}
                             onClick={() => { setCalSelectedId(cur => cur === ev.id ? null : ev.id); setExpandedId(ev.id); if (!attendees[ev.id]) loadAttendees(ev.id) }}
                             title={ev.title}
-                            className={`w-full text-sm leading-none py-0.5 rounded-lg transition-all ${calSelectedId === ev.id ? 'bg-mustard-100 ring-2 ring-mustard-300' : 'hover:bg-white'} ${mine ? 'ring-1 ring-musgo-300' : ''}`}>
+                            className={`w-full text-sm leading-none py-0.5 rounded-lg transition-all ${calSelectedId === ev.id ? 'bg-mustard-100 ring-2 ring-mustard-300' : 'hover:bg-[#EFE6D6]'} ${mine ? 'ring-1 ring-musgo-300' : ''}`}>
                             {ev.emoji ?? '🎉'}
                           </button>
                         )

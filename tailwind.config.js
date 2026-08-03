@@ -72,6 +72,19 @@ export default {
           800: '#572B1B',
           900: '#3D1E12',
         },
+        // Celeste — cool highlight / info accents
+        celeste: {
+          50: '#F7F9FA',
+          100: '#EDF1F3',
+          200: '#DDE4E8',
+          300: '#C3CDD2',  // base — official celeste
+          400: '#A9B6BD',
+          500: '#8FA0A9',
+          600: '#75868F',
+          700: '#5D6B73',
+          800: '#455057',
+          900: '#2E363B',
+        },
         // Rosa polvo — special mood cards (use sparingly)
         rosa: {
           50: '#FCF9FA',
@@ -88,6 +101,11 @@ export default {
       },
       fontFamily: {
         sans: ['Nunito', 'system-ui', '-apple-system', 'sans-serif'],
+        // Display — rounded & playful (web stand-in for Gveret Levin /
+        // Audrey Kids from the brand book; supports Hebrew).
+        display: ['"Varela Round"', 'Nunito', 'system-ui', 'sans-serif'],
+        // Editorial serif (brand: Coustard).
+        serif: ['Coustard', 'Georgia', 'serif'],
       },
       borderRadius: {
         '4xl': '2rem',

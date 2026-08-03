@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback } from 'react'
-import { ChevronLeft, ChevronDown, Settings as SettingsIcon } from 'lucide-react'
+import { ChevronLeft, ChevronDown, Settings as SettingsIcon, Baby, MessageCircle } from 'lucide-react'
 import { supabase, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
@@ -11,6 +11,7 @@ import LogEntryModal from '../components/LogEntryModal'
 import TodaysJournalPanel from '../components/dashboard/TodaysJournalPanel'
 import DailyTipCard from '../components/dashboard/DailyTipCard'
 import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard'
+import MimoDuck from '../components/MimoDuck'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import type { Page } from '../App'
 
@@ -66,9 +67,9 @@ export default function DashboardPage({ onNavigate }: Props) {
 
   return (
     <div className="min-h-screen p-5 pb-24 relative" dir="rtl">
-      {/* Watermark */}
+      {/* Brand duck watermark */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
-        <span className="text-[250px] opacity-5">🍼</span>
+        <MimoDuck size={340} className="opacity-[0.06]" />
       </div>
 
       <div className="relative z-10 space-y-5 max-w-sm mx-auto">
@@ -96,17 +97,18 @@ export default function DashboardPage({ onNavigate }: Props) {
 
         {/* ── Daily tracking — condensed, opt-in ── */}
         {selectedChild && (
-          <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
             <button onClick={toggleTracking} className="w-full flex items-center justify-between p-4">
               <span className="flex items-center gap-2 text-sm font-bold text-sand-800">
-                🍼 המעקב היומי{selectedChild?.name ? ` של ${selectedChild.name}` : ''}
+                <Baby className="w-4 h-4 text-mustard-600" />
+                המעקב היומי{selectedChild?.name ? ` של ${selectedChild.name}` : ''}
               </span>
               <ChevronDown className={`w-4 h-4 text-sand-400 transition-transform ${showTracking ? 'rotate-180' : ''}`} />
             </button>
             {showTracking && (
               <div className="px-3 pb-3 space-y-3">
                 {children.length > 0 && <ChildSwitcher />}
-                <div className="bg-white/60 rounded-2xl p-2">
+                <div className="bg-[#F6F0E3] rounded-2xl p-2">
             <ActivityTimers
               onEntrySaved={handleEntrySaved}
               refetchKey={refetchKey}
@@ -172,7 +174,7 @@ export default function DashboardPage({ onNavigate }: Props) {
                 <button
                   key={perk.id}
                   onClick={() => setSelectedPerk(perk)}
-                  className="bg-[#F5F1EB] rounded-2xl p-3 shadow-sm hover:shadow-md transition-all text-right"
+                  className="bg-white rounded-2xl p-3 shadow-sm hover:shadow-md transition-all text-right"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     {perk.logo_url ? (
@@ -192,9 +194,9 @@ export default function DashboardPage({ onNavigate }: Props) {
         )}
 
         {/* Contact */}
-        <div className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm text-right">
+        <div className="bg-white rounded-3xl p-5 shadow-sm text-right">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 text-2xl" style={{ background: 'rgba(163,92,61,0.1)' }}>💬</div>
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(163,92,61,0.1)' }}><MessageCircle className="w-5 h-5" style={{ color: '#A35C3D' }} /></div>
             <div className="flex-1">
               <p className="font-semibold text-sand-800 text-sm">יש שאלה?</p>
               <p className="text-xs text-musgo-600">{ownerName} כאן לכל שאלה או התייעצות</p>

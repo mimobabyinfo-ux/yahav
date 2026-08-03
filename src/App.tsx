@@ -146,7 +146,7 @@ function AppInner() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#FFFFFF' }}>
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center flex flex-col items-center gap-4">
           <div className="animate-pulse">
             <MimoLogo size={120} />
@@ -166,7 +166,7 @@ function AppInner() {
   // Guests see ONLY the journal — no nav, no other pages
   if (isGuest) {
     return (
-      <div className="min-h-screen" style={{ background: '#FFFFFF' }}>
+      <div className="min-h-screen">
         <JournalPage />
       </div>
     )
@@ -250,9 +250,9 @@ function AppInner() {
   const isLogPage = currentPage.startsWith('log-')
 
   return (
-    <div className={`min-h-screen ${isLogPage ? '' : 'pb-20'}`} style={{ background: '#FFFFFF' }}>
+    <div className={`min-h-screen ${isLogPage ? '' : 'pb-20'}`}>
       <ActiveTimerBanner onNavigate={setCurrentPage} refetchKey={timerVersion} />
-      {renderPage()}
+      <div key={currentPage} className="page-enter">{renderPage()}</div>
       {!isLogPage && (
         <>
           <BottomNav

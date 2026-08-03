@@ -340,7 +340,7 @@ export default function PublicRegisterPage() {
             <div className="flex justify-center mb-2"><MimoLogo size={120} /></div>
             <p className="text-sand-500 text-sm">{subtitle}</p>
           </div>
-          <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-6 text-center space-y-3">
+          <div className="bg-white rounded-3xl shadow-sm p-6 text-center space-y-3">
             <p className="text-3xl">💝</p>
             <h2 className="text-lg font-bold text-sand-800">ההצעה הסתיימה</h2>
             <p className="text-sm text-sand-600 leading-relaxed">
@@ -379,7 +379,7 @@ export default function PublicRegisterPage() {
           </div>
         )}
 
-        <form onSubmit={submit} className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-4">
+        <form onSubmit={submit} className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם מלא</label>
             <input
