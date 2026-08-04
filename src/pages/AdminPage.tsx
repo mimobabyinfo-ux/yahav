@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, SlidersHorizontal, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy, Clock, ClipboardList, FileText, Sparkles, Link2, MapPin } from 'lucide-react'
+import { Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, SlidersHorizontal, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy, Clock, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -6553,6 +6553,17 @@ function RegistrationsTab() {
           <Plus style={{ width: 17, height: 17 }} />
           הרשמה חדשה
         </button>
+        <a
+          href="?register"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 whitespace-nowrap hover:underline"
+          style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D' }}
+          title="עמוד ההרשמה הציבורי — מה שהאמהות רואות"
+        >
+          עמוד ההרשמה
+          <ExternalLink style={{ width: 14, height: 14 }} />
+        </a>
       </div>
       {addRegOpen && (
         <AddRegistrationModal
