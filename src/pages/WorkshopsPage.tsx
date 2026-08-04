@@ -10,7 +10,7 @@ type WorkshopExt = Workshop & { whatsapp_number?: string }
 // ── Product detail modal ──────────────────────────────────────────────────────
 function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose: () => void; ownerWhatsapp: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
       <div
         className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm max-h-[88vh] flex flex-col shadow-2xl"
         onClick={e => e.stopPropagation()}
