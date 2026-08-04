@@ -10,12 +10,15 @@ type WorkshopExt = Workshop & { whatsapp_number?: string }
 // ── Product detail modal ──────────────────────────────────────────────────────
 function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose: () => void; ownerWhatsapp: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-t-3xl w-full max-w-sm max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm max-h-[88vh] flex flex-col shadow-2xl"
         onClick={e => e.stopPropagation()}
         dir="rtl"
       >
+      {/* Scrollable body — image + details. The CTA footer below stays
+          pinned so הרשמה / וואטסאפ are always visible without scrolling. */}
+      <div className="overflow-y-auto flex-1 min-h-0">
         {/* Image or placeholder */}
         {ws.image_url ? (
           <div className="relative">
@@ -57,32 +60,34 @@ function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose
             </div>
           )}
 
-          {/* Action buttons */}
-          <div className="flex gap-3 pt-2">
-            <a
-              href={`https://wa.me/${ws.whatsapp_number ?? ownerWhatsapp}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 bg-musgo-500 hover:bg-musgo-600 text-white font-bold py-3.5 rounded-2xl text-sm transition-all"
-            >
-              <MessageCircle className="w-4 h-4" />
-              WhatsApp
-            </a>
-
-            {ws.payment_link && (
-              <a
-                href={ws.payment_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-2 text-[#4A3A28] font-bold py-3.5 rounded-2xl text-sm transition-all"
-                style={{ background: '#E7C78A' }}
-              >
-                <ExternalLink className="w-4 h-4" />
-                להרשמה
-              </a>
-            )}
-          </div>
         </div>
+      </div>
+
+      {/* Pinned CTA footer — always visible */}
+      <div className="flex gap-3 p-4 pt-3 border-t border-[#F0EAE0] bg-white rounded-b-none sm:rounded-b-3xl flex-shrink-0">
+        <a
+          href={`https://wa.me/${ws.whatsapp_number ?? ownerWhatsapp}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-2 bg-musgo-500 hover:bg-musgo-600 text-white font-bold py-3.5 rounded-2xl text-sm transition-all"
+        >
+          <MessageCircle className="w-4 h-4" />
+          WhatsApp
+        </a>
+
+        {ws.payment_link && (
+          <a
+            href={ws.payment_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center gap-2 font-bold py-3.5 rounded-2xl text-sm transition-all"
+            style={{ background: '#C8A460', color: '#33281B' }}
+          >
+            <ExternalLink className="w-4 h-4" />
+            להרשמה
+          </a>
+        )}
+      </div>
       </div>
     </div>
   )

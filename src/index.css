@@ -123,8 +123,14 @@ button:active:not(:disabled) {
   0%, 100% { transform: scaleX(-1) translateY(0) rotate(0deg); }
   50%      { transform: scaleX(-1) translateY(-4px) rotate(2deg); }
 }
+/* NOTE: no fill-mode here on purpose. A filled (`both`) transform
+   animation leaves the wrapper acting as a containing block for
+   fixed-position descendants in Chrome — every modal/bottom-sheet
+   inside a page would anchor to the page column instead of the
+   viewport. Without fill, the transform releases when the 280ms
+   entry animation ends and fixed overlays behave normally. */
 .page-enter {
-  animation: pageIn 0.28s cubic-bezier(0.22, 0.9, 0.35, 1) both;
+  animation: pageIn 0.28s cubic-bezier(0.22, 0.9, 0.35, 1);
 }
 
 @keyframes pageIn {
