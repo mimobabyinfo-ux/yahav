@@ -66,12 +66,22 @@ export default function BottomNav({ currentPage, onNavigate, isAdminMode, isGues
       { id: 'registrations', label: 'הרשמות',   icon: <ClipboardList className="w-[21px] h-[21px]" /> },
       { id: 'forms',     label: 'שאלונים',  icon: <FileText className="w-[21px] h-[21px]" /> },
       { id: 'events',    label: 'אירועים',  icon: <Sparkles className="w-[21px] h-[21px]" /> },
-      { id: 'partners',  label: 'ספקות',    icon: <Link2 className="w-[21px] h-[21px]" /> },
+      { id: 'partners',  label: 'ספקים',    icon: <Link2 className="w-[21px] h-[21px]" /> },
     ]
-    void signOut
-
     return (
       <nav className="fixed bottom-0 right-0 left-0 max-w-[480px] mx-auto z-50" style={{ background: '#2E2C24' }}>
+        {/* Quiet utility strip — view-as-user + sign-out (no red ADMIN
+            MODE banner; the dark chrome carries the message). */}
+        <div className="flex items-center justify-between px-4 py-1.5" style={{ borderBottom: '1px solid #45423636' }}>
+          <button onClick={onToggleUserView} className="flex items-center gap-1.5 font-semibold" style={{ fontSize: 13, color: '#C6C0AE' }}>
+            <Eye className="w-3.5 h-3.5" />
+            {viewAsUser ? 'חזרה לניהול' : 'צפי כמשתמשת'}
+          </button>
+          <button onClick={signOut} className="flex items-center gap-1.5 font-semibold" style={{ fontSize: 13, color: '#A8A088' }}>
+            <LogOut className="w-3.5 h-3.5" />
+            יציאה
+          </button>
+        </div>
         <div className="flex items-center justify-around" style={{ padding: '9px 4px 12px' }}>
           {adminItems.map(item => {
             const active = adminSection === item.id && currentPage === 'admin'

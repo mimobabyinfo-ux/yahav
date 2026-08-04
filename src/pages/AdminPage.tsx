@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Plus, Pencil, Trash2, GraduationCap, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy, Clock, ClipboardList, FileText, Sparkles, Link2, MapPin } from 'lucide-react'
+import { Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, SlidersHorizontal, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy, Clock, ClipboardList, FileText, Sparkles, Link2, MapPin } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -23,6 +23,7 @@ import AddRegistrationModal from '../components/admin/AddRegistrationModal'
 import EventsAdminPanel from '../components/admin/EventsAdminPanel'
 import CategoryManagerModal from '../components/admin/CategoryManagerModal'
 import { useWorkshopCategories } from '../hooks/useWorkshopCategories'
+import MimoDuck from '../components/MimoDuck'
 
 type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'events' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
@@ -49,7 +50,7 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
 // the thumb on mobile.
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'registrations', label: 'הרשמות',     icon: <ClipboardList className="w-3.5 h-3.5" /> },
-  { id: 'forms',     label: 'שאלונים וטפסים', icon: <FileText className="w-3.5 h-3.5" /> },
+  { id: 'forms',     label: 'שאלונים', icon: <FileText className="w-3.5 h-3.5" /> },
   { id: 'events',    label: 'אירועי קהילה',  icon: <Sparkles className="w-3.5 h-3.5" /> },
   { id: 'partners',  label: 'ספקי קהילה',     icon: <Link2 className="w-3.5 h-3.5" /> },
   { id: 'workshops', label: 'מוצרים ותשלום', icon: <GraduationCap className="w-3.5 h-3.5" /> },
@@ -1015,6 +1016,8 @@ function WorkshopsTabDesktop() {
   const [deletingBusy, setDeletingBusy] = useState(false)
   // Phase 5 / A2 Part 2: forms list for the "שאלון משויך" dropdown.
   const [formsList, setFormsList] = useState<{ id: string; title: string }[]>([])
+  // Active discount offers (workshop_offers) per product id.
+  const [offersByWorkshop, setOffersByWorkshop] = useState<Record<string, string[]>>({})
   // Store categories are admin-managed (content_categories) + local
   // search / category filter for the products list.
   const { categories, reload: reloadCategories } = useWorkshopCategories()
@@ -1051,12 +1054,22 @@ function WorkshopsTabDesktop() {
   }
 
   const load = useCallback(async () => {
-    const [{ data: ws }, { data: fs }] = await Promise.all([
+    const [{ data: ws }, { data: fs }, { data: offers }] = await Promise.all([
       supabase.from('workshops').select('*').order('display_order'),
       supabase.from('forms').select('id, title').eq('is_active', true).order('title'),
+      supabase.from('workshop_offers').select('id, workshop_id, label, is_active, expires_at'),
     ])
     setWorkshops(ws ?? [])
     setFormsList((fs ?? []) as { id: string; title: string }[])
+    // Active discounted links per product - shown next to the payment
+    // link so which products have offers is visible at a glance.
+    const byWs: Record<string, string[]> = {}
+    for (const o of (offers ?? []) as { workshop_id: string; label: string; is_active: boolean; expires_at: string | null }[]) {
+      if (!o.is_active) continue
+      if (o.expires_at && new Date(o.expires_at) <= new Date()) continue
+      ;(byWs[o.workshop_id] ??= []).push(o.label)
+    }
+    setOffersByWorkshop(byWs)
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -1246,6 +1259,19 @@ function WorkshopsTabDesktop() {
                               >
                                 <span style={{ width: 9, height: 9, borderRadius: 9999, background: '#A35C3D', display: 'inline-block' }} />
                                 <span style={{ color: '#8B4A30', fontWeight: 700, fontSize: 14 }}>חסר — הוספה</span>
+                              </button>
+                            )}
+                            {(offersByWorkshop[w.id]?.length ?? 0) > 0 && (
+                              <button
+                                onClick={() => openEdit(w)}
+                                className="mt-1 block text-right hover:underline"
+                                title={`לינקים מוזלים: ${offersByWorkshop[w.id].join(', ')} — לחיצה פותחת את עריכת המוצר`}
+                              >
+                                <span className="inline-flex items-center rounded-full" style={{ background: '#E4EBEF', color: '#3E5966', fontWeight: 700, fontSize: 12, padding: '3px 10px', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {offersByWorkshop[w.id].length === 1
+                                    ? `מוזל: ${offersByWorkshop[w.id][0]}`
+                                    : `${offersByWorkshop[w.id].length} מוזלים · ${offersByWorkshop[w.id].join(', ')}`}
+                                </span>
                               </button>
                             )}
                           </td>
@@ -1841,11 +1867,6 @@ function FormsTabDesktop() {
   // forms list, the full submissions list, or the seen-bump tick
   // changes (the latter triggers re-derivation after bumpFormSeen /
   // bumpAllFormsSeen mutate localStorage).
-  const recentNew = useMemo(
-    () => deriveRecentNew(allSubmissions, forms, 5),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- seenBumpTick is a re-derive trigger
-    [allSubmissions, forms, seenBumpTick],
-  )
   const newCountByFormId = useMemo(() => {
     const m = new Map<string, number>()
     for (const s of allSubmissions) {
@@ -1856,6 +1877,53 @@ function FormsTabDesktop() {
     return m
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seenBumpTick is a re-derive trigger
   }, [allSubmissions, seenBumpTick])
+
+  // README-IA PR11: answers-first split. 'answers' = the submissions
+  // stream (default landing); 'builder' = the untouched forms builder.
+  const [formsView, setFormsView] = useState<'answers' | 'builder'>('answers')
+  const [streamFilter, setStreamFilter] = useState<'new' | 'all'>('new')
+  const [streamFormFilter, setStreamFormFilter] = useState<string>('all')
+  const [expandedSubId, setExpandedSubId] = useState<string | null>(null)
+
+  // The stream — newest-first submissions resolved once per derive
+  // (admin scale). 'חדשות' rides the same per-form localStorage seen
+  // keys that powered the old מה חדש strip.
+  const streamRows = useMemo(() => {
+    const formById = new Map(forms.map(f => [f.id, f]))
+    const rows: { sub: FormsPageSubmission; form: FormRecord; name: string | null; phone: string | null; isNew: boolean; preview: string }[] = []
+    for (const sub of allSubmissions) {
+      const form = formById.get(sub.form_id)
+      if (!form) continue
+      if (streamFormFilter !== 'all' && form.id !== streamFormFilter) continue
+      const isNew = sub.created_at > getEffectiveFormSeen(form.id)
+      if (streamFilter === 'new' && !isNew) continue
+      const r = resolveSubmitter(
+        { fields_json: form.fields_json },
+        { responses_json: sub.responses_json, user_profiles: sub.user_profiles ?? null },
+      )
+      // Preview: first open-ended (>80 chars) answer, else the first
+      // non-empty one — same heuristic as the questionnaire panel.
+      let preview = ''
+      let firstNonEmpty = ''
+      for (const f of form.fields_json) {
+        if (f.type === 'info' || f.type === 'link') continue
+        const v = formatAnswerValue(sub.responses_json[f.label])
+        if (!v) continue
+        if (!firstNonEmpty) firstNonEmpty = v
+        if (v.length > 80) { preview = v; break }
+      }
+      if (!preview) preview = firstNonEmpty
+      rows.push({ sub, form, name: r.name ?? sub.user_profiles?.mother_name ?? null, phone: r.phone, isNew, preview })
+    }
+    rows.sort((a, b) => b.sub.created_at.localeCompare(a.sub.created_at))
+    return rows
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seenBumpTick re-derives seen state
+  }, [allSubmissions, forms, streamFilter, streamFormFilter, seenBumpTick])
+  const streamNewCount = useMemo(() => {
+    let n = 0
+    for (const v of newCountByFormId.values()) n += v
+    return n
+  }, [newCountByFormId])
 
   async function loadSubmissions(form: FormRecord) {
     setSelected(form); setLoadingSubs(true); setFilterQuestion(null)
@@ -1998,7 +2066,138 @@ function FormsTabDesktop() {
   ]
 
   return (
-    <div className="flex gap-6" dir="rtl">
+    <div className="space-y-4" dir="rtl">
+      {/* README-IA PR11: two-tab split — תשובות (stream, default) / הטפסים (builder). */}
+      <div className="inline-flex items-center" style={{ background: '#F0EBE3', borderRadius: 14, padding: 3 }}>
+        {([['answers', 'תשובות'], ['builder', 'הטפסים']] as ['answers' | 'builder', string][]).map(([v, label]) => (
+          <button
+            key={v}
+            onClick={() => setFormsView(v)}
+            style={formsView === v
+              ? { background: '#FFF', color: '#4A3A28', fontWeight: 700, fontSize: 15, borderRadius: 11, boxShadow: '0 1px 2px rgba(0,0,0,.06)', padding: '8px 20px' }
+              : { color: '#7B604C', fontWeight: 600, fontSize: 15, padding: '8px 20px' }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {formsView === 'answers' && (
+        <>
+          {/* Filter chips row */}
+          <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
+            {([['new', 'חדשות', streamNewCount], ['all', 'הכל', allSubmissions.length]] as ['new' | 'all', string, number][]).map(([v, label, n]) => (
+              <button
+                key={v}
+                onClick={() => setStreamFilter(v)}
+                className="rounded-full whitespace-nowrap transition-all"
+                style={streamFilter === v
+                  ? { background: '#F6ECD8', border: '1px solid #E7C78A', color: '#4A3A28', fontWeight: 700, fontSize: 14, padding: '9px 18px' }
+                  : { background: 'transparent', border: '1px solid #E4DAD0', color: '#A79E90', fontWeight: 600, fontSize: 14, padding: '9px 18px' }}
+              >
+                {label} <span style={{ fontWeight: 600 }}>{n}</span>
+              </button>
+            ))}
+            <span className="inline-flex items-center gap-1.5 rounded-full" style={{ border: '1px solid #E4DAD0', padding: '8px 14px', marginInlineStart: 'auto' }}>
+              <SlidersHorizontal className="flex-shrink-0" style={{ width: 15, height: 15, color: '#7B604C' }} />
+              <select
+                value={streamFormFilter}
+                onChange={e => setStreamFormFilter(e.target.value)}
+                className="bg-transparent focus:outline-none max-w-[180px]"
+                style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}
+              >
+                <option value="all">כל הטפסים</option>
+                {forms.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
+              </select>
+            </span>
+            <button
+              onClick={() => { bumpAllFormsSeen(forms.map(f => f.id)); setSeenBumpTick(t => t + 1) }}
+              className="hover:underline whitespace-nowrap"
+              style={{ fontWeight: 700, fontSize: 13, color: '#7B604C' }}
+            >
+              סמני הכל כנקרא
+            </button>
+          </div>
+
+          {/* The stream */}
+          {streamRows.length === 0 ? (
+            <div className="bg-white text-center" style={{ border: '1px solid #E4DAD0', borderRadius: 20, padding: 40 }}>
+              <p style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>
+                {streamFilter === 'new' ? 'אין תשובות חדשות — הכל נקרא' : 'אין תשובות עדיין'}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white" style={{ border: '1px solid #E4DAD0', borderRadius: 20, overflow: 'hidden' }}>
+              {streamRows.map(row => {
+                const expanded = expandedSubId === row.sub.id
+                const isAnon = !row.name
+                const initial = (row.name ?? row.form.title).trim().charAt(0)
+                const waHref = (() => {
+                  if (!row.phone) return null
+                  const d = row.phone.replace(/\D/g, '')
+                  const p = d.startsWith('0') ? '972' + d.slice(1) : d
+                  return p ? `https://wa.me/${p}` : null
+                })()
+                return (
+                  <div key={row.sub.id} className="border-b border-[#F0EBE3] last:border-b-0">
+                    <div
+                      className="flex items-center cursor-pointer hover:bg-[#FBF8F3] transition-colors"
+                      style={{ padding: '16px 20px', gap: 16 }}
+                      onClick={() => setExpandedSubId(prev => (prev === row.sub.id ? null : row.sub.id))}
+                    >
+                      <div className="flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44, borderRadius: 9999, background: isAnon ? '#E6E6E0' : '#E4EBEF', color: isAnon ? '#434434' : '#3E5966', fontWeight: 700, fontSize: 19 }}>
+                        {initial}
+                      </div>
+                      <div className="min-w-0" style={{ flex: 1, minWidth: 170 }}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="truncate" style={{ fontWeight: 700, fontSize: 17, color: '#443327' }}>{row.name ?? row.form.title}</span>
+                          {row.isNew && (
+                            <span className="whitespace-nowrap" style={{ fontWeight: 700, fontSize: 12, color: '#4A3A28', background: '#F6ECD8', padding: '3px 9px', borderRadius: 9999 }}>חדש</span>
+                          )}
+                        </div>
+                        <p className="truncate" style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>
+                          {row.name ? `${row.form.title} · ` : ''}{timeAgoHebrew(row.sub.created_at)}
+                        </p>
+                      </div>
+                      <p className="truncate hidden md:block" style={{ flex: 2, minWidth: 200, fontWeight: 400, fontSize: 15, lineHeight: 1.5, color: '#5E4938' }}>
+                        {row.preview ? `"${row.preview}"` : ''}
+                      </p>
+                      <ChevronDown className={`flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} style={{ width: 18, height: 18, color: '#A79E90' }} />
+                    </div>
+                    {expanded && (
+                      <div style={{ padding: '0 20px 20px' }}>
+                        <div style={{ border: '1.5px solid #E7C78A', borderRadius: 18, overflow: 'hidden' }}>
+                          <div className="flex items-center justify-between gap-3" style={{ background: '#F6ECD8', padding: '10px 16px' }}>
+                            <span className="truncate" style={{ fontWeight: 700, fontSize: 14, color: '#6E5836' }}>
+                              {row.form.title} · {timeAgoHebrew(row.sub.created_at)}
+                            </span>
+                            {waHref && !isAnon && (
+                              <a
+                                href={waHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                className="inline-flex items-center gap-1.5 flex-shrink-0"
+                                style={{ fontWeight: 700, fontSize: 14, color: '#8B4A30' }}
+                              >
+                                <MessageCircle className="w-4 h-4" /> WhatsApp
+                              </a>
+                            )}
+                          </div>
+                          <RegistrationQuestionnairePanel match={{ form: { fields_json: row.form.fields_json }, sub: { responses_json: row.sub.responses_json } }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {formsView === 'builder' && (
+      <div className="flex gap-6">
       {/* Left: form list */}
       <div className="flex-1 min-w-0 space-y-4">
         <button
@@ -2113,16 +2312,6 @@ function FormsTabDesktop() {
           </div>
         )}
 
-        {/* Polish #9: "מה חדש" strip — shown only when there are unseen
-            submissions. Each row opens that form's responses (which
-            bumps its per-form seen key); "סמני הכל כנקרא" bumps the
-            global key. Independent of the top-nav badge in App.tsx. */}
-        <FormsWhatsNewStrip
-          recentNew={recentNew}
-          onOpenForm={loadSubmissions}
-          onMarkAllSeen={() => { bumpAllFormsSeen(forms.map(f => f.id)); setSeenBumpTick(t => t + 1) }}
-        />
-
         {/* Forms table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full text-sm">
@@ -2223,6 +2412,8 @@ function FormsTabDesktop() {
           {forms.length === 0 && <p className="text-center text-gray-400 text-sm py-12">אין טפסים</p>}
         </div>
       </div>
+      </div>
+      )}
 
       {assignForm && <AssignFormModal form={assignForm} onClose={() => setAssignForm(null)} />}
 
@@ -5410,11 +5601,11 @@ function PartnersTab() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-[13px] font-semibold text-sand-600">{partners.length} ספקות</p>
+        <p className="text-[13px] font-semibold text-sand-600">{partners.length} ספקים</p>
         <button onClick={openNew}
           className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-bold"
           style={{ background: '#C8A460', color: '#33281B' }}>
-          <Plus className="w-4 h-4" /> ספקה חדשה
+          <Plus className="w-4 h-4" /> ספק חדש
         </button>
       </div>
 
@@ -5690,7 +5881,7 @@ type RegistrationLead = {
 const REG_STATUS_LABELS: Record<RegistrationLead['status'], { label: string; color: string; bg: string }> = {
   pending: { label: 'ממתינה',  color: '#b45309', bg: '#fef3c7' },
   paid:    { label: 'שילמה',   color: '#15803d', bg: '#dcfce7' },
-  handled: { label: 'מומש',    color: '#475569', bg: '#f1f5f9' },
+  handled: { label: 'מומש',    color: '#6E6852', bg: '#F0EBE3' },
 }
 
 // Phase 5 / A1 Stage 2 helpers ───────────────────────────────────────
@@ -5743,7 +5934,9 @@ function isCohortPast(c: WorkshopCohort): boolean {
 //     on future cohorts)
 //   - stored 'paid' → 'handled' iff cohort assigned AND cohort past;
 //     otherwise stays 'paid'
-//   - no cohort / cohort missing from map → no auto-flip (safe default)
+//   - no cohort / cohort missing from map → no auto-flip; dateless
+//     registrations (ליווי פרטני וכו') live in their own פרטני section
+//     instead of aging out by time.
 function effectiveStatus(
   lead: RegistrationLead,
   cohortById: Map<string, WorkshopCohort>,
@@ -5831,8 +6024,17 @@ function RegistrationsTab() {
   // cohorts yet, the row exposes a "+ הוסיפי מחזור" link that opens the
   // CohortsModal for THAT workshop. Closing the modal reloads.
   const [cohortsForRegWorkshop, setCohortsForRegWorkshop] = useState<Workshop | null>(null)
-  const [statusFilter, setStatusFilter] = useState<'all' | RegistrationLead['status']>('all')
+  // Default 'active' = ממתינה + שילמה. מומש (cohort already happened —
+  // rolled automatically by effectiveStatus) is history, hidden until asked.
+  const [statusFilter, setStatusFilter] = useState<'active' | 'all' | RegistrationLead['status']>('active')
   const [workshopFilter, setWorkshopFilter] = useState<string>('all')
+  // פרטני section: dateless products (no cohorts defined) get their own
+  // bucket so they don't clutter the main cohort-based list forever.
+  const [showPrivateSection, setShowPrivateSection] = useState(false)
+  // Workshop-first UX: the page opens with a workshop picker, not a
+  // 90-row list. A registration list renders only after a choice
+  // (workshop / פרטני / search / "הצג הכל").
+  const [showAllAnyway, setShowAllAnyway] = useState(false)
   // Cohort filter: 'all' | 'none' (ללא מחזור) | cohort id. Options are
   // scoped to the selected workshop when one is chosen.
   const [cohortFilter, setCohortFilter] = useState<string>('all')
@@ -5981,6 +6183,8 @@ function RegistrationsTab() {
   // and "<formId>|e|<lowerEmail>" → present iff that person has
   // submitted that linked form. Built once per load using the A4
   // resolver. Per-row gap lookup is then O(1) Set check.
+  const workshopIdsWithCohorts = useMemo(() => new Set(cohorts.map(c => c.workshop_id)), [cohorts])
+
   const workshopById = useMemo(() => {
     const m = new Map<string, Workshop>()
     for (const w of workshops) m.set(w.id, w)
@@ -6027,10 +6231,17 @@ function RegistrationsTab() {
   }, [leads, workshopById, linkedFormDefs, filledIndex])
 
   const filtered = useMemo(() => {
+    if (workshopFilter === 'all' && !showPrivateSection && !search.trim() && !showAllAnyway) return []
     return leads.filter(l => {
       // Filter chip targets the EFFECTIVE status. Picking "מומש"
       // surfaces both stored-'handled' and stored-'paid'+past-cohort.
-      if (statusFilter !== 'all' && effectiveStatus(l, cohortById) !== statusFilter) return false
+      const eff = effectiveStatus(l, cohortById)
+      // Dateless products (workshop with no cohorts at all, or no
+      // workshop) belong to the פרטני section; the main list hides them.
+      const isDateless = !l.selected_workshop_id || !workshopIdsWithCohorts.has(l.selected_workshop_id)
+      if (showPrivateSection !== isDateless) return false
+      if (statusFilter === 'active' && eff === 'handled') return false
+      if (statusFilter !== 'all' && statusFilter !== 'active' && eff !== statusFilter) return false
       if (workshopFilter !== 'all' && l.selected_workshop_id !== workshopFilter) return false
       if (cohortFilter === 'none') {
         if (l.cohort_id) return false
@@ -6043,7 +6254,7 @@ function RegistrationsTab() {
       }
       return true
     })
-  }, [leads, statusFilter, workshopFilter, cohortFilter, search, cohortById])
+  }, [leads, statusFilter, workshopFilter, cohortFilter, search, cohortById, showPrivateSection, workshopIdsWithCohorts, showAllAnyway])
 
   // Chip counts also reflect effective status so the numbers match
   // what the filter would actually surface.
@@ -6053,19 +6264,6 @@ function RegistrationsTab() {
     return c
   }, [leads, cohortById])
 
-  // UX handoff: 3-card stat row (desktop). Computed entirely from data
-  // already loaded — no extra queries. "ממתינות" counts the currently
-  // visible (filtered) rows; the other two run over all registrations.
-  const regStats = useMemo(() => {
-    const pendingVisible = filtered.filter(l => effectiveStatus(l, cohortById) === 'pending').length
-    const now = new Date()
-    const paidThisMonth = leads.filter(l => {
-      if (l.status === 'pending') return false
-      const d = new Date(l.created_at)
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-    }).length
-    return { pendingVisible, paidThisMonth, total: leads.length }
-  }, [filtered, leads, cohortById])
 
   // Polish #8: cohort-scoped form responses modal. Opened from a
   // CohortGroup header button when the cohort's workshop has a linked
@@ -6173,10 +6371,11 @@ function RegistrationsTab() {
   // B1: tapping a cohort in the upcoming/calendar views drills into its
   // registrant list — sets the cohort filter and jumps to flat list.
   const openCohortLeads = useCallback((c: WorkshopCohort) => {
-    setWorkshopFilter('all')
+    setWorkshopFilter(c.workshop_id)
     setCohortFilter(c.id)
     setStatusFilter('all')
     setViewMode('list')
+    setShowAllAnyway(false)
   }, [])
   // Phase 5 / A2 Stage 3 (Part 3): manual "+ הרשמה חדשה" entry point.
   const [addRegOpen, setAddRegOpen] = useState(false)
@@ -6186,6 +6385,8 @@ function RegistrationsTab() {
   // linked-form answers. Matching reuses the same resolver identity
   // check as the gap report — no extra queries.
   const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null)
+  // README-IA PR10: per-group "עוד n" expansion in the מחכה לך inbox.
+  const [inboxOpen, setInboxOpen] = useState<Record<string, boolean>>({})
   const submissionForLead = useCallback((lead: RegistrationLead): { form: LinkedFormDef; sub: LinkedSubmission } | null => {
     const w = lead.selected_workshop_id ? workshopById.get(lead.selected_workshop_id) : null
     const form = w?.linked_form_id ? linkedFormDefs.get(w.linked_form_id) : null
@@ -6205,20 +6406,154 @@ function RegistrationsTab() {
     return null
   }, [workshopById, linkedFormDefs, linkedSubmissions])
 
+  const pickerMode = workshopFilter === 'all' && !showPrivateSection && !search.trim() && !showAllAnyway
+
+  // Per-workshop registration counts for the picker cards.
+  const pickerCards = (() => {
+    const stats = new Map<string, { total: number; active: number }>()
+    let privTotal = 0
+    let privActive = 0
+    for (const l of leads) {
+      const dateless = !l.selected_workshop_id || !workshopIdsWithCohorts.has(l.selected_workshop_id)
+      const isActive = effectiveStatus(l, cohortById) !== 'handled'
+      if (dateless) { privTotal++; if (isActive) privActive++; continue }
+      const s = stats.get(l.selected_workshop_id!) ?? { total: 0, active: 0 }
+      s.total++; if (isActive) s.active++
+      stats.set(l.selected_workshop_id!, s)
+    }
+    const cards = workshops
+      .filter(w => stats.has(w.id))
+      .map(w => ({ id: w.id, title: w.title, ...stats.get(w.id)! }))
+    return { cards, privTotal, privActive }
+  })()
+
+  const backToPicker = () => {
+    setWorkshopFilter('all')
+    setCohortFilter('all')
+    setShowPrivateSection(false)
+    setShowAllAnyway(false)
+    setSearch('')
+  }
+
+  // README-IA PR10: "מחכה לך" inbox groups — computed from data already
+  // loaded (no queries). q1 = paid, workshop has a linked form, no
+  // matched submission; q2 = pending payment; q3 = paid, workshop has
+  // cohorts, none assigned.
+  const inboxGroups = (() => {
+    const pending: RegistrationLead[] = []
+    const unassigned: RegistrationLead[] = []
+    const q1urgent: RegistrationLead[] = []
+    const q1quiet: RegistrationLead[] = []
+    // Urgency window for missing questionnaires: only cohorts starting
+    // within the next 7 days are loud. No cohort date = can't be urgent.
+    const soonLimit = (() => {
+      const d = new Date()
+      d.setDate(d.getDate() + 7)
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${dd}`
+    })()
+    for (const l of leads) {
+      const eff = effectiveStatus(l, cohortById)
+      const gap = gapByLeadId.get(l.id)
+      if (eff === 'pending') pending.push(l)
+      if (eff === 'paid' && l.selected_workshop_id && workshopIdsWithCohorts.has(l.selected_workshop_id) && !l.cohort_id) unassigned.push(l)
+      if (eff === 'paid' && gap && !gap.isFilled) {
+        const c = l.cohort_id ? cohortById.get(l.cohort_id) : null
+        if (c && c.start_date <= soonLimit) q1urgent.push(l)
+        else q1quiet.push(l)
+      }
+    }
+    return { pending, unassigned, q1urgent, q1quiet, total: pending.length + unassigned.length + q1urgent.length }
+  })()
+  const unfilledByWorkshop = (() => {
+    const m = new Map<string, number>()
+    for (const l of [...inboxGroups.q1urgent, ...inboxGroups.q1quiet]) {
+      if (!l.selected_workshop_id) continue
+      m.set(l.selected_workshop_id, (m.get(l.selected_workshop_id) ?? 0) + 1)
+    }
+    return m
+  })()
+  // Row click in the inbox drills into that lead's workshop (or the
+  // פרטני bucket for dateless products).
+  const drillToLead = (l: RegistrationLead) => {
+    const dateless = !l.selected_workshop_id || !workshopIdsWithCohorts.has(l.selected_workshop_id)
+    if (dateless) setShowPrivateSection(true)
+    else setWorkshopFilter(l.selected_workshop_id!)
+    setShowAllAnyway(false)
+  }
+
+  // PR10 follow-up: non-urgent unfilled questionnaires (cohort further
+  // than 7 days out, or no cohort date) collapse into one quiet footer
+  // line — "יש עוד זמן" — instead of shouting from the warm strips.
+  const renderQuietFooter = (withTopBorder: boolean) => {
+    if (inboxGroups.q1quiet.length === 0) return null
+    return (
+      <div className={withTopBorder ? 'border-t border-[#F0EBE3]' : undefined}>
+        <button
+          onClick={() => setInboxOpen(o => ({ ...o, quiet: !o.quiet }))}
+          className="w-full flex items-center justify-between text-right"
+          style={{ fontWeight: 600, fontSize: 14, color: '#7B604C', padding: '12px 20px' }}
+        >
+          <span>עוד {inboxGroups.q1quiet.length} שאלונים לא מולאו — יש עוד זמן</span>
+          <ChevronDown className={`flex-shrink-0 transition-transform ${inboxOpen.quiet ? 'rotate-180' : ''}`} style={{ width: 16, height: 16 }} />
+        </button>
+        {inboxOpen.quiet && inboxGroups.q1quiet.map(l => {
+          const cohort = l.cohort_id ? cohortById.get(l.cohort_id) : null
+          const wTitle = (l.selected_workshop_id ? workshopById.get(l.selected_workshop_id)?.title : null) ?? l.workshops?.title ?? '—'
+          const gap = gapByLeadId.get(l.id)
+          const href = regReminderHref(l, cohorts, workshops, gap ?? null)
+          return (
+            <div
+              key={l.id}
+              onClick={() => drillToLead(l)}
+              className="flex items-center cursor-pointer border-t border-[#F0EBE3] hover:bg-[#FBF8F3] transition-colors"
+              style={{ padding: '15px 20px', gap: 16 }}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="truncate" style={{ fontWeight: 700, fontSize: 17, color: '#443327' }}>{l.name}</p>
+                <p className="truncate" style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>
+                  {wTitle} · {cohort ? `מחזור ${cohortDateTimeLabel(cohort, { shortYear: true })}` : 'אין מחזור'}
+                </p>
+              </div>
+              <span className="whitespace-nowrap flex-shrink-0" style={{ fontWeight: 700, fontSize: 13, color: '#8B4A30', background: '#F5E2D8', padding: '5px 12px', borderRadius: 9999 }}>שאלון לא מולא</span>
+              {href && (
+                <a href={href} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="whitespace-nowrap flex-shrink-0" style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D' }}>
+                  שלחי תזכורת
+                </a>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3" dir="rtl">
-      {/* Phase 5 / A2 Stage 3: large mustard "+ הרשמה חדשה" button
-          at the top of the page — for moms who registered directly
-          via WhatsApp / phone / in person, not the public form. */}
-      <button
-        type="button"
-        onClick={() => setAddRegOpen(true)}
-        className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-2xl text-white font-bold text-sm shadow-sm transition-all hover:shadow-md"
-        style={{ background: 'linear-gradient(135deg, #E7C78A, #d4af6e)' }}
-      >
-        <Plus className="w-4 h-4" />
-        הרשמה חדשה
-      </button>
+      {/* README-IA PR10: compact header — one search + new-registration. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2" style={{ flex: '1 1 260px', minWidth: 240, maxWidth: 440, background: '#F8F4EC', border: '1px solid #E4DAD0', borderRadius: 16, padding: '0 14px', height: 44 }}>
+          <Search className="flex-shrink-0" style={{ width: 17, height: 17, color: '#7B604C' }} />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="שם, טלפון או אימייל"
+            className="flex-1 min-w-0 bg-transparent focus:outline-none placeholder:text-[#7B604C]"
+            style={{ fontSize: 15, color: '#443327', height: '100%' }}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setAddRegOpen(true)}
+          className="inline-flex items-center gap-2 transition-all hover:shadow-sm"
+          style={{ background: '#C8A460', color: '#33281B', borderRadius: 16, padding: '12px 20px', fontWeight: 700, fontSize: 15 }}
+        >
+          <Plus style={{ width: 17, height: 17 }} />
+          הרשמה חדשה
+        </button>
+      </div>
       {addRegOpen && (
         <AddRegistrationModal
           mode="new-mother"
@@ -6227,22 +6562,154 @@ function RegistrationsTab() {
         />
       )}
 
-      {/* UX handoff: desktop stat row above the registrations list. */}
-      <div className="hidden lg:grid grid-cols-3 gap-3">
-        {([
-          ['ממתינות לתשלום', regStats.pendingVisible, '#A35C3D'],
-          ['שילמו החודש', regStats.paidThisMonth, '#434434'],
-          ['סה"כ הרשמות', regStats.total, '#5E4938'],
-        ] as [string, number, string][]).map(([label, num, color]) => (
-          <div key={label} className="bg-white" style={{ border: '1px solid #E4DAD0', borderRadius: 20, padding: '18px 20px' }}>
-            <p style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>{label}</p>
-            <p style={{ fontWeight: 700, fontSize: 32, color }}>{num}</p>
+      {/* README-IA PR10: "מחכה לך" inbox — the page's needs-action queue. */}
+      {pickerMode && (
+        <div className="space-y-3">
+          <div className="flex items-baseline gap-3">
+            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>מחכה לך</h2>
+            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{inboxGroups.total} פריטים</span>
           </div>
-        ))}
-      </div>
-      <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3 lg:p-5">
+          {inboxGroups.total === 0 ? (
+            <>
+              <div className="bg-white flex flex-col items-center text-center" style={{ border: '1px solid #E4DAD0', borderRadius: 20, padding: 40 }}>
+                <MimoDuck variant="chick" size={64} />
+                <p className="font-display" style={{ fontSize: 26, color: '#5E4938', marginTop: 10 }}>הכל מטופל</p>
+                <p style={{ fontWeight: 400, fontSize: 16, color: '#7B604C', marginTop: 4 }}>אין הרשמות שמחכות לך הבוקר</p>
+              </div>
+              {inboxGroups.q1quiet.length > 0 && (
+                <div className="bg-white" style={{ border: '1px solid #E4DAD0', borderRadius: 20, overflow: 'hidden' }}>
+                  {renderQuietFooter(false)}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="bg-white" style={{ border: '1px solid #E4DAD0', borderRadius: 20, overflow: 'hidden' }}>
+              {([
+                { key: 'q2', items: inboxGroups.pending, stripBg: '#F5E2D8', stripBorder: '#E8C3B2', stripColor: '#713924', icon: <CreditCard style={{ width: 17, height: 17, color: '#8B4A30' }} />, stripLabel: `${inboxGroups.pending.length} ממתינות לתשלום`, badge: { label: 'ממתינה לתשלום', color: '#8B4A30', bg: '#F5E2D8' }, action: null },
+                { key: 'q3', items: inboxGroups.unassigned, stripBg: '#E4EBEF', stripBorder: '#D3DEE4', stripColor: '#3E5966', icon: <CalendarDays style={{ width: 17, height: 17, color: '#3E5966' }} />, stripLabel: `${inboxGroups.unassigned.length} ללא שיבוץ למחזור`, badge: { label: 'ללא שיבוץ', color: '#3E5966', bg: '#E4EBEF' }, action: 'assign' as const },
+                { key: 'q1', items: inboxGroups.q1urgent, stripBg: '#F5E2D8', stripBorder: '#E8C3B2', stripColor: '#713924', icon: <AlertCircle style={{ width: 17, height: 17, color: '#8B4A30' }} />, stripLabel: `${inboxGroups.q1urgent.length} שאלונים שחסרים לסדנאות הקרובות`, badge: { label: 'שאלון לא מולא', color: '#8B4A30', bg: '#F5E2D8' }, action: 'reminder' as const },
+              ]).filter(g => g.items.length > 0).map(g => {
+                const shown = inboxOpen[g.key] ? g.items : g.items.slice(0, 3)
+                return (
+                  <div key={g.key}>
+                    <div className="flex items-center gap-2" style={{ background: g.stripBg, borderBottom: `1px solid ${g.stripBorder}`, padding: '10px 20px' }}>
+                      {g.icon}
+                      <span style={{ fontWeight: 700, fontSize: 15, color: g.stripColor }}>{g.stripLabel}</span>
+                    </div>
+                    {shown.map(l => {
+                      const cohort = l.cohort_id ? cohortById.get(l.cohort_id) : null
+                      const wTitle = (l.selected_workshop_id ? workshopById.get(l.selected_workshop_id)?.title : null) ?? l.workshops?.title ?? '—'
+                      const gap = gapByLeadId.get(l.id)
+                      const href = g.action === 'reminder' ? regReminderHref(l, cohorts, workshops, gap ?? null) : null
+                      return (
+                        <div
+                          key={l.id}
+                          onClick={() => drillToLead(l)}
+                          className="flex items-center cursor-pointer border-b border-[#F0EBE3] last:border-b-0 hover:bg-[#FBF8F3] transition-colors"
+                          style={{ padding: '15px 20px', gap: 16 }}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate" style={{ fontWeight: 700, fontSize: 17, color: '#443327' }}>{l.name}</p>
+                            <p className="truncate" style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>
+                              {wTitle} · {cohort ? `מחזור ${cohortDateTimeLabel(cohort, { shortYear: true })}` : 'אין מחזור'}
+                            </p>
+                          </div>
+                          <span className="whitespace-nowrap flex-shrink-0" style={{ fontWeight: 700, fontSize: 13, color: g.badge.color, background: g.badge.bg, padding: '5px 12px', borderRadius: 9999 }}>{g.badge.label}</span>
+                          {href && (
+                            <a href={href} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="whitespace-nowrap flex-shrink-0" style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D' }}>
+                              שלחי תזכורת
+                            </a>
+                          )}
+                          {g.action === 'assign' && (
+                            <button onClick={e => { e.stopPropagation(); drillToLead(l) }} className="whitespace-nowrap flex-shrink-0" style={{ fontWeight: 700, fontSize: 14, color: '#3E5966' }}>
+                              שבצי למחזור
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {g.items.length > 3 && !inboxOpen[g.key] && (
+                      <button
+                        onClick={() => setInboxOpen(o => ({ ...o, [g.key]: true }))}
+                        className="w-full text-center border-b border-[#F0EBE3] last:border-b-0"
+                        style={{ fontWeight: 700, fontSize: 14, color: '#7B604C', padding: '12px 0' }}
+                      >
+                        עוד {g.items.length - 3}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+              {renderQuietFooter(true)}
+            </div>
+          )}
+        </div>
+      )}
+      {/* ── לפי סדנה — workshop picker, the page's opening state ── */}
+      {pickerMode && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-baseline gap-3">
+            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>לפי סדנה</h2>
+            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{leads.length} הרשמות · {counts.pending + counts.paid} פעילות</span>
+            <button onClick={() => setShowAllAnyway(true)} className="hover:underline" style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D', marginInlineStart: 'auto' }}>
+              הצגת כל ההרשמות ברשימה אחת
+            </button>
+          </div>
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+            {pickerCards.cards.map(c => (
+              <button
+                key={c.id}
+                onClick={() => { setWorkshopFilter(c.id); setShowAllAnyway(false) }}
+                className="text-right transition-all hover:shadow-sm"
+                style={{ border: '1px solid #E4DAD0', borderRadius: 18, padding: '16px 18px', background: c.active > 0 ? '#fff' : '#FAF7F1' }}
+              >
+                <p className="font-bold" style={{ fontSize: 15, color: '#443327' }}>{c.title}</p>
+                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#7B604C' }}>
+                  {c.active > 0
+                    ? <><span style={{ color: '#8A6A2F', fontWeight: 700 }}>{c.active} פעילות</span> · {c.total} סה"כ</>
+                    : `${c.total} סה"כ · אין פעילות`}
+                </p>
+                {(unfilledByWorkshop.get(c.id) ?? 0) > 0 && (
+                  <span className="inline-block mt-2 whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: '#8B4A30', background: '#F5E2D8', padding: '4px 10px', borderRadius: 9999 }}>
+                    {unfilledByWorkshop.get(c.id)} שאלונים
+                  </span>
+                )}
+              </button>
+            ))}
+            {pickerCards.privTotal > 0 && (
+              <button
+                onClick={() => { setShowPrivateSection(true); setShowAllAnyway(false) }}
+                className="text-right transition-all hover:shadow-sm"
+                style={{ border: '1px solid #C3CDD2', borderRadius: 18, padding: '16px 18px', background: '#E4EBEF' }}
+              >
+                <p className="font-bold" style={{ fontSize: 15, color: '#3E5966' }}>פרטני וללא תאריך</p>
+                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#3E5966' }}>
+                  {pickerCards.privActive > 0 ? `${pickerCards.privActive} פעילות · ` : ''}{pickerCards.privTotal} סה"כ
+                </p>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!pickerMode && <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3 lg:p-5">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-sand-800 text-sm lg:text-base">הרשמות מטופס הרשמה</h2>
+          <div className="flex items-center gap-3">
+            {!pickerMode && (
+              <button onClick={backToPicker} className="font-bold hover:underline whitespace-nowrap" style={{ fontSize: 13, color: '#8A6A2F' }}>
+                → בחירת סדנה
+              </button>
+            )}
+          <h2 className="font-bold text-sand-800 text-sm lg:text-base">
+            {pickerMode
+              ? 'חיפוש אמא'
+              : showPrivateSection
+                ? 'פרטני וללא תאריך'
+                : workshopFilter !== 'all'
+                  ? (workshopById.get(workshopFilter)?.title ?? 'הרשמות')
+                  : 'כל ההרשמות'}
+          </h2>
+          </div>
           <a
             href="?register"
             target="_blank"
@@ -6253,40 +6720,42 @@ function RegistrationsTab() {
           </a>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {(['all', 'pending', 'paid', 'handled'] as const).map(s => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${statusFilter === s ? 'bg-mustard-500 text-white' : 'bg-sand-50 text-sand-600 hover:bg-sand-100'}`}
-            >
-              {s === 'all' ? 'הכל' : REG_STATUS_LABELS[s].label} ({counts[s]})
-            </button>
-          ))}
-        </div>
+        {!pickerMode && <div className="flex flex-wrap gap-2">
+          {(['active', 'pending', 'paid', 'handled', 'all'] as const).map(s => {
+            const label = s === 'active' ? 'פעילות' : s === 'all' ? 'הכל' : REG_STATUS_LABELS[s].label
+            const num = s === 'active' ? counts.pending + counts.paid : counts[s]
+            const active = statusFilter === s
+            return (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className="rounded-full font-bold transition-all"
+                style={active
+                  ? { background: '#F6ECD8', color: '#4A3A28', padding: '9px 18px', fontSize: 14, border: '1.5px solid #E7C78A' }
+                  : { background: 'transparent', color: '#7B604C', padding: '9px 18px', fontSize: 14, border: '1px solid #E4DAD0' }}
+              >
+                {label}
+                <span className="mr-1.5" style={{ fontWeight: 600, color: active ? '#8A6A2F' : '#C0B5A5' }}>{num}</span>
+              </button>
+            )
+          })}
+          <span className="self-center" style={{ width: 1, height: 22, background: '#E4DAD0' }} />
+          <button
+            onClick={() => setShowPrivateSection(v => !v)}
+            className="rounded-full font-bold transition-all"
+            style={showPrivateSection
+              ? { background: '#E4EBEF', color: '#3E5966', padding: '9px 18px', fontSize: 14, border: '1.5px solid #C3CDD2' }
+              : { background: 'transparent', color: '#7B604C', padding: '9px 18px', fontSize: 14, border: '1px solid #E4DAD0' }}
+            title="הרשמות למוצרים בלי מחזור — פרטני, בוקר של מימו וכו'"
+          >
+            פרטני וללא תאריך
+            <span className="mr-1.5" style={{ fontWeight: 600, color: showPrivateSection ? '#3E5966' : '#C0B5A5' }}>
+              {leads.filter(l => !l.selected_workshop_id || !workshopIdsWithCohorts.has(l.selected_workshop_id)).length}
+            </span>
+          </button>
+        </div>}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="חיפוש לפי שם / טלפון / אימייל"
-            className="px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
-          />
-          <select
-            value={workshopFilter}
-            onChange={e => {
-              setWorkshopFilter(e.target.value)
-              // Workshop change invalidates a cohort pick from another
-              // workshop — reset so the two filters never contradict.
-              setCohortFilter('all')
-            }}
-            className="px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white"
-          >
-            <option value="all">כל הסדנאות</option>
-            {workshops.map(w => (
-              <option key={w.id} value={w.id}>{w.title}</option>
-            ))}
-          </select>
           <select
             value={cohortFilter}
             onChange={e => setCohortFilter(e.target.value)}
@@ -6305,9 +6774,9 @@ function RegistrationsTab() {
               ))}
           </select>
         </div>
-      </div>
+      </div>}
 
-      {filtered.length === 0 && (viewMode === 'list' || viewMode === 'grouped') && (
+      {!pickerMode && filtered.length === 0 && (viewMode === 'list' || viewMode === 'grouped') && (
         <div className="bg-white rounded-2xl shadow-sm py-12 text-center">
           <p className="text-sand-400 text-sm">{leads.length === 0 ? 'אין הרשמות עדיין' : 'אין תוצאות לפילטר הנוכחי'}</p>
         </div>
@@ -6315,29 +6784,27 @@ function RegistrationsTab() {
 
       {/* Phase 5 / A1 Stage 2 + B1: view-mode segmented control. 2x2 on
           mobile, one row on desktop. */}
-      <div className="bg-white rounded-2xl p-1 shadow-sm grid grid-cols-2 lg:grid-cols-4 gap-1">
+      {!pickerMode && <div className="bg-white rounded-2xl p-1 shadow-sm grid grid-cols-2 gap-1">
         {([
           ['list',     `רשימה (${filtered.length})`],
-          ['grouped',  'מקובץ לפי מחזור'],
-          ['upcoming', 'מחזורים קרובים'],
-          ['calendar', 'יומן'],
-        ] as ['list' | 'grouped' | 'upcoming' | 'calendar', string][]).map(([v, label]) => (
+          ['upcoming', 'מחזורים'],
+        ] as ['list' | 'upcoming', string][]).map(([v, label]) => (
           <button
             key={v}
             onClick={() => setViewMode(v)}
-            className={`py-1.5 rounded-xl text-xs font-semibold transition-all ${viewMode === v ? 'text-white shadow-sm' : 'text-sand-500'}`}
-            style={viewMode === v ? { background: '#E7C78A' } : {}}
+            className={`py-1.5 rounded-xl text-xs font-bold transition-all ${viewMode === v ? 'shadow-sm' : ''}`}
+            style={viewMode === v ? { background: '#E7C78A', color: '#4A3A28' } : { color: '#7B604C' }}
           >
             {label}
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* Phase 5 / A3 fix-1: tri-state "select all visible" row. Flat
           list only — grouped view has per-cohort select-all in each
           header. Stays in sync with selection: empty / indeterminate
           / fully checked. Acts only on currently-visible rows. */}
-      {filtered.length > 0 && viewMode === 'list' && (() => {
+      {filtered.length > 0 && viewMode === 'list' && cohortFilter !== 'all' && (() => {
         const allVisibleOn = filtered.every(l => selected.has(l.id))
         const someVisibleOn = !allVisibleOn && filtered.some(l => selected.has(l.id))
         return (
@@ -6357,7 +6824,7 @@ function RegistrationsTab() {
         )
       })()}
 
-      {filtered.length > 0 && viewMode === 'list' && filtered.map(l => {
+      {filtered.length > 0 && viewMode === 'list' && cohortFilter !== 'all' && filtered.map(l => {
         const expanded = expandedLeadId === l.id
         return (
           <div
@@ -6385,13 +6852,30 @@ function RegistrationsTab() {
               onToggleSelect={toggleSelect}
               effectiveStatus={effectiveStatus(l, cohortById)}
               gapStatus={gapByLeadId.get(l.id) ?? null}
+              slim
+              expanded={expanded}
             />
             {expanded && <RegistrationQuestionnairePanel match={submissionForLead(l)} />}
+            {expanded && (
+              <RegistrationRowControls
+                lead={l}
+                workshops={workshops}
+                cohorts={cohorts}
+                onUpdateStatus={updateStatus}
+                onUpdateCohort={updateCohort}
+                onAddCohort={ws => setCohortsForRegWorkshop(ws)}
+                onEdit={setEditingLead}
+                onDelete={del}
+                gapStatus={gapByLeadId.get(l.id) ?? null}
+              />
+            )}
           </div>
         )
       })}
 
-      {filtered.length > 0 && viewMode === 'grouped' && (
+      {/* README-IA PR10: list + "כל המחזורים" = grouped-by-cohort rendering
+          (the old grouped view) so cohort context survives the 4→2 view cut. */}
+      {filtered.length > 0 && viewMode === 'list' && cohortFilter === 'all' && (
         <RegistrationsGroupedView
           leads={filtered}
           workshops={workshops}
@@ -6411,7 +6895,7 @@ function RegistrationsTab() {
 
       {/* B1: cohort-centric views. Counts come from ALL leads (not the
           filtered list) so numbers reflect real cohort fullness. */}
-      {viewMode === 'upcoming' && (
+      {!pickerMode && viewMode === 'upcoming' && (
         <UpcomingCohortsView
           cohorts={cohorts}
           leads={leads}
@@ -6420,7 +6904,7 @@ function RegistrationsTab() {
         />
       )}
 
-      {viewMode === 'calendar' && (
+      {!pickerMode && viewMode === 'calendar' && (
         <CohortCalendarView
           cohorts={cohorts}
           leads={leads}
@@ -6835,6 +7319,35 @@ type GapStatusType = {
   isFilled: boolean
 }
 
+// README-IA PR10: reminder WhatsApp link builder — shared by the slim
+// row, the מחכה לך inbox and the expanded-row controls. Returns null
+// when the questionnaire is filled or there's no usable phone.
+function regReminderHref(
+  l: RegistrationLead,
+  cohorts: WorkshopCohort[],
+  workshops: Workshop[],
+  gapStatus: GapStatusType | null,
+): string | null {
+  if (!gapStatus || gapStatus.isFilled) return null
+  const c = l.cohort_id ? cohorts.find(x => x.id === l.cohort_id) : null
+  const w = l.selected_workshop_id ? workshops.find(x => x.id === l.selected_workshop_id) : null
+  const firstName = l.name?.split(' ')[0] ?? ''
+  let context = ''
+  if (c) {
+    const [y, m, d] = c.start_date.split('-')
+    const t = c.start_time ? ` ${c.start_time.slice(0, 5)}` : ''
+    context = `${w?.title ?? ''} ${d}/${m}/${y.slice(2)}${t}${c.label ? ' · ' + c.label : ''}`.trim()
+  } else if (w?.title) {
+    context = w.title
+  }
+  const url = `${window.location.origin}/?form=${gapStatus.form.id}`
+  const msg = `היי ${firstName}! זה Mimo ❤️\nעדיין לא קיבלנו ממך את התשובות ל"${gapStatus.form.title}"${context ? ` לקראת ${context}` : ''}.\nאשמח אם תמלאי כאן: ${url}`
+  const phoneDigits = (l.phone ?? '').replace(/\D/g, '')
+  const waPhone = phoneDigits.startsWith('0') ? '972' + phoneDigits.slice(1) : phoneDigits
+  if (!waPhone) return null
+  return `https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`
+}
+
 type RegistrationCardProps = {
   lead: RegistrationLead
   workshops: Workshop[]
@@ -6857,6 +7370,10 @@ type RegistrationCardProps = {
   // row's workshop has no linked form. {isFilled:true} → ✅ chip,
   // {isFilled:false} → ⚠️ chip + reminder button.
   gapStatus?: GapStatusType | null
+  // README-IA PR10: slim list-row variant (controls live in the
+  // expanded panel) + chevron rotation state.
+  slim?: boolean
+  expanded?: boolean
 }
 
 function RegistrationCard({
@@ -6874,31 +7391,14 @@ function RegistrationCard({
   onToggleSelect,
   effectiveStatus: effective,
   gapStatus,
+  slim,
+  expanded,
 }: RegistrationCardProps) {
   const badgeStatus = effective ?? l.status
   // Phase 5 / A2 Stage 3: build the reminder WhatsApp link only when
   // there's an unfilled linked form. Cohort context is woven into
   // the message: "...לקראת [workshop] [date+time]".
-  const reminderHref = useMemo(() => {
-    if (!gapStatus || gapStatus.isFilled) return null
-    const c = l.cohort_id ? cohorts.find(x => x.id === l.cohort_id) : null
-    const w = l.selected_workshop_id ? workshops.find(x => x.id === l.selected_workshop_id) : null
-    const firstName = l.name?.split(' ')[0] ?? ''
-    let context = ''
-    if (c) {
-      const [y, m, d] = c.start_date.split('-')
-      const t = c.start_time ? ` ${c.start_time.slice(0, 5)}` : ''
-      context = `${w?.title ?? ''} ${d}/${m}/${y.slice(2)}${t}${c.label ? ' · ' + c.label : ''}`.trim()
-    } else if (w?.title) {
-      context = w.title
-    }
-    const url = `${window.location.origin}/?form=${gapStatus.form.id}`
-    const msg = `היי ${firstName}! זה Mimo ❤️\nעדיין לא קיבלנו ממך את התשובות ל"${gapStatus.form.title}"${context ? ` לקראת ${context}` : ''}.\nאשמח אם תמלאי כאן: ${url}`
-    const phoneDigits = (l.phone ?? '').replace(/\D/g, '')
-    const waPhone = phoneDigits.startsWith('0') ? '972' + phoneDigits.slice(1) : phoneDigits
-    if (!waPhone) return null
-    return `https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`
-  }, [gapStatus, l, cohorts, workshops])
+  const reminderHref = useMemo(() => regReminderHref(l, cohorts, workshops, gapStatus ?? null), [gapStatus, l, cohorts, workshops])
 
   // Selected cards get a subtle mustard ring + tint — scannable but
   // doesn't break the existing aesthetic.
@@ -6910,6 +7410,65 @@ function RegistrationCard({
   // Phase 5 / A2 Part 3: tapping the mother's name opens the unified
   // customer card with this registration's phone+email as the key.
   const openCustomer = useOpenCustomer()
+
+  // README-IA PR10: slim row for the flat list — identity + status +
+  // one action; everything else lives in the expanded panel.
+  if (slim) {
+    const workshopTitle = l.workshops?.title ?? (l.selected_workshop_id ? workshops.find(w => w.id === l.selected_workshop_id)?.title : null) ?? '—'
+    const cohort = l.cohort_id ? cohorts.find(c => c.id === l.cohort_id) : null
+    const cohortPart = cohort
+      ? ` · מחזור ${cohortDateTimeLabel(cohort, { shortYear: true })}${cohort.label ? ' · ' + cohort.label : ''}`
+      : ' · אין מחזור'
+    return (
+      <div className={selected ? 'bg-mustard-50 ring-2 ring-mustard-400 rounded-2xl shadow-sm p-4' : 'bg-white rounded-2xl shadow-sm p-4'}>
+        <div className="flex items-center" style={{ gap: 14 }}>
+          {onToggleSelect && (
+            <input
+              type="checkbox"
+              checked={!!selected}
+              onChange={() => onToggleSelect(l.id)}
+              aria-label={`בחירת ${l.name}`}
+              className="w-5 h-5 accent-mustard-500 flex-shrink-0 cursor-pointer"
+            />
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => openCustomer({ phone: l.phone, email: l.email })}
+                className="hover:underline underline-offset-2 text-right truncate"
+                style={{ fontWeight: 700, fontSize: 17, color: '#443327' }}
+                title="פתיחת כרטיס לקוחה"
+              >
+                {l.name}
+              </button>
+              <span className="whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: REG_STATUS_LABELS[badgeStatus].color, background: REG_STATUS_LABELS[badgeStatus].bg, padding: '4px 10px', borderRadius: 9999 }}>
+                {REG_STATUS_LABELS[badgeStatus].label}
+              </span>
+              {gapStatus && (gapStatus.isFilled
+                ? <span className="whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: '#434434', background: '#E6E6E0', padding: '4px 10px', borderRadius: 9999 }}>שאלון מולא</span>
+                : <span className="whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: '#8B4A30', background: '#F5E2D8', padding: '4px 10px', borderRadius: 9999 }}>שאלון לא מולא</span>)}
+            </div>
+            <p className="truncate mt-0.5" style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>{workshopTitle}{cohortPart}</p>
+          </div>
+          {reminderHref && (
+            <a
+              href={reminderHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="whitespace-nowrap flex-shrink-0"
+              style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D' }}
+              title={`תזכורת למילוי ${gapStatus?.form.title ?? 'השאלון'}`}
+            >
+              שלחי תזכורת
+            </a>
+          )}
+          <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} style={{ color: '#7B604C' }} />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={cardClass}>
       <div className="flex items-start justify-between gap-2">
@@ -7062,6 +7621,131 @@ function RegistrationCard({
           onAddCohort={onAddCohort}
         />
       )}
+    </div>
+  )
+}
+
+// ─── RegistrationRowControls (README-IA PR10) ───────────────────────
+// Bottom controls row of an expanded slim row: status + cohort selects,
+// contact actions, reminder, edit, delete — all reusing the handlers
+// that previously lived directly on the card.
+function RegistrationRowControls({
+  lead: l,
+  workshops,
+  cohorts,
+  onUpdateStatus,
+  onUpdateCohort,
+  onAddCohort,
+  onEdit,
+  onDelete,
+  gapStatus,
+}: {
+  lead: RegistrationLead
+  workshops: Workshop[]
+  cohorts: WorkshopCohort[]
+  onUpdateStatus: (id: string, status: RegistrationLead['status']) => void
+  onUpdateCohort: (id: string, cohortId: string | null) => void
+  onAddCohort: (w: Workshop) => void
+  onEdit: (lead: RegistrationLead) => void
+  onDelete: (id: string) => void
+  gapStatus: GapStatusType | null
+}) {
+  const [phoneCopied, setPhoneCopied] = useState(false)
+  const reminderHref = regReminderHref(l, cohorts, workshops, gapStatus)
+  const selStyle = { border: '1.5px solid #DCD4C8', borderRadius: 12, padding: '9px 12px', fontWeight: 600, fontSize: 14, background: '#fff', color: '#443327' } as const
+  const wsCohorts = cohorts.filter(c => c.workshop_id === l.selected_workshop_id)
+  return (
+    <div
+      className="flex flex-wrap items-center gap-x-4 gap-y-3"
+      style={{ background: '#fff', padding: '14px 20px 20px', borderTop: '1px solid #F0EBE3' }}
+      onClick={e => e.stopPropagation()}
+    >
+      <select
+        value={l.status}
+        onChange={e => onUpdateStatus(l.id, e.target.value as RegistrationLead['status'])}
+        className="focus:outline-none"
+        style={selStyle}
+      >
+        <option value="pending">ממתינה לתשלום</option>
+        <option value="paid">שילמה</option>
+        <option value="handled">מומש</option>
+      </select>
+      {l.selected_workshop_id && (wsCohorts.length > 0 ? (
+        <select
+          value={l.cohort_id ?? ''}
+          onChange={e => onUpdateCohort(l.id, e.target.value || null)}
+          className="focus:outline-none"
+          style={selStyle}
+        >
+          <option value="">ללא מחזור</option>
+          {wsCohorts.map(c => (
+            <option key={c.id} value={c.id}>
+              {cohortDateTimeLabel(c, { shortYear: true })}{c.label ? ` · ${c.label}` : ''}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <button
+          onClick={() => { const w = workshops.find(x => x.id === l.selected_workshop_id); if (w) onAddCohort(w) }}
+          style={{ fontWeight: 700, fontSize: 14, color: '#7B604C' }}
+        >
+          + הוסיפי מחזור
+        </button>
+      ))}
+      <span className="inline-flex items-center gap-1.5">
+        <a
+          href={regWaLink(l.phone, l.name)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 hover:underline"
+          style={{ fontWeight: 700, fontSize: 14, color: '#434434' }}
+          dir="ltr"
+        >
+          <MessageCircle className="w-4 h-4" style={{ color: '#818267' }} />
+          {l.phone}
+        </a>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard.writeText(l.phone).then(() => {
+              setPhoneCopied(true)
+              setTimeout(() => setPhoneCopied(false), 1500)
+            })
+          }}
+          className="p-1"
+          title="העתקת המספר"
+          aria-label="העתקת המספר"
+          style={{ color: '#7B604C' }}
+        >
+          {phoneCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+        </button>
+      </span>
+      <a
+        href={`mailto:${l.email}`}
+        className="inline-flex items-center gap-1.5 hover:underline"
+        style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}
+        dir="ltr"
+      >
+        <Mail className="w-4 h-4" />
+        {l.email}
+      </a>
+      {reminderHref && (
+        <a
+          href={reminderHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D' }}
+          title={`תזכורת למילוי ${gapStatus?.form.title ?? 'השאלון'}`}
+        >
+          שלחי תזכורת
+        </a>
+      )}
+      <button onClick={() => onEdit(l)} style={{ fontWeight: 700, fontSize: 14, color: '#7B604C' }}>
+        עריכה
+      </button>
+      <button onClick={() => onDelete(l.id)} style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D', marginInlineStart: 'auto' }}>
+        מחיקה
+      </button>
     </div>
   )
 }

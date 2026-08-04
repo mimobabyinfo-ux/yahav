@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+﻿import { useCallback, useEffect, useState } from 'react'
 import { MapPin, Clock, Users, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft } from 'lucide-react'
 import { supabase, type CommunityEventRow, type EventAttendee } from '../../lib/supabase'
 import { getBabyAge } from '../../utils/dateUtils'
@@ -234,7 +234,7 @@ export default function EventsTab() {
               className="w-full py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-40 transition-all"
               style={{ background: isFull ? '#C9C2B6' : '#E7C78A' }}
             >
-              {busyId === ev.id ? 'רגע...' : isFull ? 'אין מקומות 😢' : ev.price > 0 ? `אני מגיעה! 🙋‍♀️ (₪${ev.price})` : 'אני מגיעה! 🙋‍♀️'}
+              {busyId === ev.id ? 'רגע...' : isFull ? 'אין מקומות' : ev.price > 0 ? `אני מגיעה! (₪${ev.price})` : 'אני מגיעה!'}
             </button>
           )}
           {isMine && ev.price > 0 && ev.payment_link && (
@@ -292,18 +292,32 @@ export default function EventsTab() {
         </div>
       )}
 
-      {/* רשימה / יומן toggle */}
-      <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
-        {([['list', 'רשימה', List], ['calendar', 'יומן', CalendarDays]] as const).map(([v, label, Icon]) => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${view === v ? 'text-[#4A3A28] shadow-sm' : 'text-sand-500'}`}
-            style={view === v ? { background: '#E7C78A' } : {}}
-          >
-            <Icon className="w-3.5 h-3.5" /> {label}
-          </button>
-        ))}
+      {/* Events sub-header: context line + list/calendar icon pair.
+          Small and adjacent to the content it controls — it's a
+          rendering choice, not navigation (IA handoff §3). */}
+      <div className="flex items-center" style={{ gap: 10 }}>
+        <p className="flex-1 font-semibold" style={{ fontSize: 15, color: '#7B604C' }}>
+          {(() => {
+            const now = new Date()
+            const mk = `${MONTHS_HE[now.getMonth()]} ${now.getFullYear()}`
+            const n = events.filter(ev => monthKey(ev.event_date) === mk).length
+            return n > 0 ? `${n === 1 ? 'מפגש אחד' : `${n} מפגשים`} החודש` : 'האירועים הקרובים'
+          })()}
+        </p>
+        <div className="flex flex-none" style={{ background: '#F0EBE3', borderRadius: 12, padding: 3 }}>
+          {([['list', List], ['calendar', CalendarDays]] as const).map(([v, Icon]) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              aria-label={v === 'list' ? 'רשימה' : 'יומן'}
+              style={view === v
+                ? { background: '#FFF', color: '#4A3A28', borderRadius: 9, padding: '7px 10px', boxShadow: '0 1px 2px rgba(0,0,0,.06)' }
+                : { color: '#7B604C', padding: '7px 10px' }}
+            >
+              <Icon style={{ width: 17, height: 17 }} />
+            </button>
+          ))}
+        </div>
       </div>
 
       {view === 'list' ? (

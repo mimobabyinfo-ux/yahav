@@ -1,6 +1,13 @@
 ﻿import { useEffect, useState, useMemo } from 'react'
 import { supabase, Workshop, type WorkshopOffer, type PublicCohort } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
+import { Instagram, Facebook } from 'lucide-react'
+
+// Mimo social profiles — shown as quiet icons at the bottom of the
+// public registration page (both the general form and per-product
+// links). Leave empty to hide an icon.
+const SOCIAL_INSTAGRAM = 'https://www.instagram.com/mimo.brenlevin/'
+const SOCIAL_FACEBOOK = 'https://www.facebook.com/mimo.brenlevin'
 
 // Cohort chip label: DD/MM + optional HH:MM. Compact — the year is
 // implied (only upcoming cohorts are ever returned by the RPC).
@@ -320,7 +327,7 @@ export default function PublicRegisterPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#FFFFFF' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F8F4EC' }}>
         <div className="animate-pulse"><MimoLogo size={120} /></div>
       </div>
     )
@@ -334,7 +341,7 @@ export default function PublicRegisterPage() {
       ? `?register=${offerUnavailable.workshopId}`
       : '?register'
     return (
-      <div className="min-h-screen px-4 py-8 flex items-center justify-center" dir="rtl" style={{ background: '#FFFFFF' }}>
+      <div className="min-h-screen px-4 py-8 flex items-center justify-center" dir="rtl" style={{ background: '#F8F4EC' }}>
         <div className="max-w-md w-full">
           <div className="text-center mb-6">
             <div className="flex justify-center mb-2"><MimoLogo size={120} /></div>
@@ -360,7 +367,7 @@ export default function PublicRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-8" dir="rtl" style={{ background: '#FFFFFF' }}>
+    <div className="min-h-screen px-4 py-8" dir="rtl" style={{ background: '#F8F4EC' }}>
       <div className="max-w-md mx-auto">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-2"><MimoLogo size={120} /></div>
@@ -495,11 +502,14 @@ export default function PublicRegisterPage() {
                         known. Choosing one attaches cohort_id to the
                         lead, so it lands pre-classified in the admin. */}
                     {(active || locked) && (() => {
-                      const list = cohortsByWorkshop.get(w.id) ?? []
+                      // Only the next 3 upcoming cohorts — a longer list
+                      // overwhelms the form (the RPC already returns them
+                      // sorted by start date, past cohorts excluded).
+                      const list = (cohortsByWorkshop.get(w.id) ?? []).slice(0, 3)
                       if (list.length === 0) return null
                       return (
                         <div className="mt-3 pt-3 border-t border-mustard-200/60" onClick={e => e.stopPropagation()}>
-                          <p className="text-xs font-semibold text-sand-700 mb-2">📅 באיזה מחזור תרצי להשתתף?</p>
+                          <p className="text-xs font-semibold text-sand-700 mb-2">באיזה מחזור תרצי להשתתף?</p>
                           <div className="grid grid-cols-2 gap-2">
                             {list.map(c => {
                               const spotsLeft = c.capacity != null ? c.capacity - c.registered_count : null
@@ -565,8 +575,8 @@ export default function PublicRegisterPage() {
             // available; in offer mode there's always exactly one
             // (locked) workshop, so the gate must NOT fire.
             disabled={submitting || (!offer && workshops.length === 0)}
-            className="w-full py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50 transition-opacity"
-            style={{ background: '#E7C78A' }}
+            className="w-full py-3.5 rounded-2xl font-bold text-sm disabled:opacity-50 transition-opacity"
+            style={{ background: '#C8A460', color: '#33281B' }}
           >
             {submitting ? 'שולח...' : 'המשך לתשלום'}
           </button>
@@ -575,6 +585,26 @@ export default function PublicRegisterPage() {
         <p className="text-center text-[13px] text-sand-600 mt-4">
           לאחר שליחת הטופס תועברי לעמוד התשלום
         </p>
+
+        {/* Social footer */}
+        {(SOCIAL_INSTAGRAM || SOCIAL_FACEBOOK) && (
+          <div className="flex items-center justify-center gap-3 mt-6 pb-2">
+            {SOCIAL_INSTAGRAM && (
+              <a href={SOCIAL_INSTAGRAM} target="_blank" rel="noopener noreferrer" aria-label="Instagram"
+                className="rounded-full flex items-center justify-center transition-all hover:brightness-95"
+                style={{ width: 40, height: 40, background: '#F6ECD8' }}>
+                <Instagram style={{ width: 19, height: 19, color: '#8A6A2F' }} />
+              </a>
+            )}
+            {SOCIAL_FACEBOOK && (
+              <a href={SOCIAL_FACEBOOK} target="_blank" rel="noopener noreferrer" aria-label="Facebook"
+                className="rounded-full flex items-center justify-center transition-all hover:brightness-95"
+                style={{ width: 40, height: 40, background: '#F6ECD8' }}>
+                <Facebook style={{ width: 19, height: 19, color: '#8A6A2F' }} />
+              </a>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -214,17 +214,21 @@ export default function CommunityPage() {
           )}
         </div>
 
-        {/* Page tabs — אירועים | חברות */}
-        <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
+        {/* Page tabs — underlined: these switch WORLDS (events/members),
+            unlike the list/calendar pair which is just a rendering of
+            the events (IA handoff §3). */}
+        <div className="flex" style={{ gap: 26, borderBottom: '1px solid #E4DAD0' }}>
           {([
-            ['events',  '🎉 אירועים'],
-            ['members', '🌸 חברות'],
+            ['events',  'אירועים'],
+            ['members', 'חברות'],
           ] as [PageTab, string][]).map(([v, label]) => (
             <button
               key={v}
               onClick={() => setPageTab(v)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${pageTab === v ? 'text-[#4A3A28] shadow-sm' : 'text-sand-500'}`}
-              style={pageTab === v ? { background: '#E7C78A' } : {}}
+              className="transition-all"
+              style={pageTab === v
+                ? { fontWeight: 700, fontSize: 18, color: '#443327', padding: '0 0 12px', borderBottom: '3px solid #C8A460', marginBottom: -1 }
+                : { fontWeight: 600, fontSize: 18, color: '#7B604C', padding: '0 0 12px' }}
             >
               {label}
             </button>

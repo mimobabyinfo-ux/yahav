@@ -145,29 +145,31 @@ export default function WorkshopsPage() {
 
   return (
     <div className="min-h-screen pb-28" dir="rtl">
-      {/* Dark header */}
-      <div className="px-5 pt-10 pb-6" style={{ background: 'linear-gradient(160deg, #3D2E20 0%, #2A1F15 100%)' }}>
+      {/* Brand header — cream, matching the rest of the app */}
+      <div className="px-5 pt-8 pb-5">
         <div className="max-w-sm mx-auto flex items-start justify-between">
           <div>
-            <h1 className="font-display text-white" style={{ fontSize: 26, fontWeight: 400 }}>מוצרים מיוחדים</h1>
-            <p className="text-sm mt-1" style={{ color: '#D9B978' }}>נבחרו במיוחד עבורך</p>
+            <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>מוצרים מיוחדים</h1>
+            <p className="text-sm mt-1 font-semibold" style={{ color: '#957860' }}>נבחרו במיוחד עבורך</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: '#E7C78A' }}>
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: '#F6ECD8' }}>
+            <Sparkles className="w-5 h-5" style={{ color: '#8A6A2F' }} />
           </div>
         </div>
 
         {/* Tab switcher */}
-        <div className="max-w-sm mx-auto mt-4 flex bg-white/10 rounded-2xl p-1 gap-1">
+        <div className="max-w-sm mx-auto mt-4 flex bg-white rounded-2xl border border-[#F0EAE0] p-1 gap-1">
           <button
             onClick={() => setTab('store')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${tab === 'store' ? 'bg-white text-sand-800' : 'text-white/70'}`}
+            className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'store' ? 'shadow-sm' : ''}`}
+            style={tab === 'store' ? { background: '#E7C78A', color: '#4A3A28' } : { color: '#7B604C' }}
           >
             החנות
           </button>
           <button
             onClick={() => setTab('purchases')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${tab === 'purchases' ? 'bg-white text-sand-800' : 'text-white/70'}`}
+            className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'purchases' ? 'shadow-sm' : ''}`}
+            style={tab === 'purchases' ? { background: '#E7C78A', color: '#4A3A28' } : { color: '#7B604C' }}
           >
             הרכישות שלי {purchases.length > 0 && `(${purchases.length})`}
           </button>
@@ -182,8 +184,8 @@ export default function WorkshopsPage() {
                 onClick={() => setCategory(c.key)}
                 className="flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all"
                 style={category === c.key
-                  ? { background: '#E7C78A', color: '#4A3A28' }
-                  : { background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)' }}
+                  ? { background: '#E7C78A', color: '#4A3A28', fontWeight: 700 }
+                  : { background: '#FFFFFF', color: '#7B604C', border: '1px solid #E4DAD0' }}
               >
                 {c.label}
               </button>
