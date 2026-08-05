@@ -43,6 +43,7 @@ export default function MembershipCard({ onClose, event }: Props) {
     supabase.from('partner_perks')
       .select('*')
       .eq('is_active', true)
+      .eq('redeem_in_person', true) // online perks live in the benefits page, not on the card
       .order('display_order')
       .then(({ data }) => setPerks(data ?? []))
   }, [event])
@@ -114,7 +115,7 @@ export default function MembershipCard({ onClose, event }: Props) {
         {!event && perks.length > 0 && (
           <div className="mt-3 bg-white rounded-3xl p-4 shadow-xl max-h-[32vh] overflow-y-auto">
             <p className="font-bold mb-2 flex items-center gap-1.5" style={{ fontSize: 14, color: '#443327' }}>
-              <Gift className="w-4 h-4" style={{ color: '#A35C3D' }} /> ההטבות שלך
+              <Gift className="w-4 h-4" style={{ color: '#A35C3D' }} /> הטבות בהצגת הכרטיס
             </p>
             <div className="space-y-2">
               {perks.map(p => (

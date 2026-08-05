@@ -41,9 +41,9 @@ const GROUPS: NavGroup[] = [
   {
     label: 'תוכן',
     items: [
+      { id: 'perks',     label: 'הטבות',          icon: <Gift className="w-[18px] h-[18px]" /> },
       { id: 'tips',      label: 'טיפים',          icon: <Lightbulb className="w-[18px] h-[18px]" /> },
       { id: 'videos',    label: 'סרטונים',        icon: <Video className="w-[18px] h-[18px]" /> },
-      { id: 'perks',     label: 'הטבות',          icon: <Gift className="w-[18px] h-[18px]" /> },
       { id: 'pregnancy', label: 'מדריכי הריון',   icon: <MapPin className="w-[18px] h-[18px]" /> },
       { id: 'insights',  label: 'תובנות',         icon: <BarChart2 className="w-[18px] h-[18px]" /> },
     ],

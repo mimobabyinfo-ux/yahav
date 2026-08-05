@@ -282,6 +282,7 @@ export type PartnerPerk = {
   action_link: string | null
   is_featured: boolean
   is_active: boolean
+  redeem_in_person: boolean
   display_order: number
   created_at: string
   updated_at: string

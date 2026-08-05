@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Search, WalletCards } from 'lucide-react'
 import { supabase, PartnerPerk } from '../lib/supabase'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import { useAuth } from '../contexts/AuthContext'
@@ -40,6 +40,49 @@ export default function BenefitsPage() {
     (p.short_description ?? '').toLowerCase().includes(search.toLowerCase())
   )
 
+  // Separation the moms need to understand: in-person perks are claimed by
+  // showing the digital membership card at the business; online perks are a
+  // code/link for web purchases — no card involved.
+  const inPerson = filtered.filter(p => p.redeem_in_person)
+  const online = filtered.filter(p => !p.redeem_in_person)
+
+  const perkCard = (perk: PartnerPerk) => (
+    <button
+      key={perk.id}
+      onClick={() => trackView(perk)}
+      className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all text-right"
+    >
+      {perk.logo_url ? (
+        <img
+          src={perk.logo_url}
+          alt={perk.partner_name}
+          className="w-12 h-12 rounded-2xl object-contain bg-sand-50 p-1.5 mb-3"
+        />
+      ) : (
+        <div className="w-12 h-12 rounded-2xl bg-mustard-100 flex items-center justify-center mb-3 text-2xl">
+          🎁
+        </div>
+      )}
+      <p className="text-sm font-bold text-sand-800 leading-tight">{perk.partner_name}</p>
+      {perk.short_description && (
+        <p className="text-xs text-sand-400 mt-1 line-clamp-2 leading-relaxed">
+          {perk.short_description}
+        </p>
+      )}
+      {perk.discount_code && (
+        <div className="mt-2 bg-mustard-50 rounded-xl px-2 py-1 inline-block">
+          <span className="text-xs text-mustard-600 font-bold">{perk.discount_code}</span>
+        </div>
+      )}
+      {perk.redeem_in_person && (
+        <div className="mt-2 rounded-xl px-2 py-1 inline-flex items-center gap-1" style={{ background: '#E4EBEF' }}>
+          <WalletCards className="w-3 h-3" style={{ color: '#3E5966' }} />
+          <span className="text-xs font-bold" style={{ color: '#3E5966' }}>בהצגת הכרטיס</span>
+        </div>
+      )}
+    </button>
+  )
+
   return (
     <div className="min-h-screen p-4 pb-24 relative" dir="rtl">
       {/* Watermark */}
@@ -77,37 +120,24 @@ export default function BenefitsPage() {
             <p className="text-sm">לא נמצאו הטבות</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {filtered.map(perk => (
-              <button
-                key={perk.id}
-                onClick={() => trackView(perk)}
-                className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all text-right"
-              >
-                {perk.logo_url ? (
-                  <img
-                    src={perk.logo_url}
-                    alt={perk.partner_name}
-                    className="w-12 h-12 rounded-2xl object-contain bg-sand-50 p-1.5 mb-3"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-2xl bg-mustard-100 flex items-center justify-center mb-3 text-2xl">
-                    🎁
-                  </div>
+          <div className="space-y-4">
+            {inPerson.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <WalletCards className="w-4 h-4" style={{ color: '#3E5966' }} />
+                  <h2 className="font-bold" style={{ fontSize: 15, color: '#443327' }}>בבתי העסק — בהצגת הכרטיס</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-3">{inPerson.map(perkCard)}</div>
+              </div>
+            )}
+            {online.length > 0 && (
+              <div>
+                {inPerson.length > 0 && (
+                  <h2 className="font-bold mb-2" style={{ fontSize: 15, color: '#443327' }}>אונליין — קוד או קישור</h2>
                 )}
-                <p className="text-sm font-bold text-sand-800 leading-tight">{perk.partner_name}</p>
-                {perk.short_description && (
-                  <p className="text-xs text-sand-400 mt-1 line-clamp-2 leading-relaxed">
-                    {perk.short_description}
-                  </p>
-                )}
-                {perk.discount_code && (
-                  <div className="mt-2 bg-mustard-50 rounded-xl px-2 py-1 inline-block">
-                    <span className="text-xs text-mustard-600 font-bold">{perk.discount_code}</span>
-                  </div>
-                )}
-              </button>
-            ))}
+                <div className="grid grid-cols-2 gap-3">{online.map(perkCard)}</div>
+              </div>
+            )}
           </div>
         )}
       </div>

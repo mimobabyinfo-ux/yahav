@@ -66,7 +66,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 
 export default function AdminPage({ defaultSection, unreadForms = 0, onFormsViewed, unreadRegistrations = 0, onRegistrationsViewed }: { defaultSection?: AdminSection; unreadForms?: number; onFormsViewed?: () => void; unreadRegistrations?: number; onRegistrationsViewed?: () => void }) {
   const { profile } = useAuth()
-  const [tab, setTab] = useState<Tab>(defaultSection ? SECTION_TAB[defaultSection] : 'insights')
+  const [tab, setTab] = useState<Tab>(defaultSection ? SECTION_TAB[defaultSection] : 'registrations')
 
   // Sync when parent nav changes the section
   useEffect(() => {
@@ -3893,7 +3893,7 @@ function PerksTab() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<PartnerPerk | null>(null)
   const [showAnalytics, setShowAnalytics] = useState(false)
-  const [form, setForm] = useState({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false })
+  const [form, setForm] = useState({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false, redeem_in_person: false })
   // Task A: shared delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<PartnerPerk | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
@@ -3934,6 +3934,7 @@ function PerksTab() {
       action_link: form.action_link || null,
       logo_url: form.logo_url || null,
       is_featured: form.is_featured,
+      redeem_in_person: form.redeem_in_person,
     }
     if (editing) {
       await supabase.from('partner_perks').update(payload).eq('id', editing.id)
@@ -3941,7 +3942,7 @@ function PerksTab() {
       const maxOrder = perks.length > 0 ? Math.max(...perks.map(p => p.display_order)) : 0
       await supabase.from('partner_perks').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false })
+    setForm({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false, redeem_in_person: false })
     setEditing(null); setShowForm(false); load()
   }
 
@@ -4014,6 +4015,13 @@ function PerksTab() {
             <input type="checkbox" checked={form.is_featured} onChange={e => setForm(f => ({ ...f, is_featured: e.target.checked }))} className="rounded" />
             מוצג בדף הבית
           </label>
+          {/* Physical businesses: the perk is claimed by showing the digital
+              membership card at the counter — so it appears ON the card.
+              Online perks (code / link) stay in the benefits page only. */}
+          <label className="flex items-center gap-2 text-sm text-sand-600 cursor-pointer">
+            <input type="checkbox" checked={form.redeem_in_person} onChange={e => setForm(f => ({ ...f, redeem_in_person: e.target.checked }))} className="rounded" />
+            מימוש בהצגת הכרטיס הדיגיטלי (עסק פיזי)
+          </label>
           <div className="flex gap-2">
             <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold">שמירה</button>
             <button onClick={() => { setShowForm(false); setEditing(null) }} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
@@ -4030,6 +4038,9 @@ function PerksTab() {
                 <div className="flex items-center gap-1.5">
                   <p className="font-semibold text-sand-800 text-sm truncate">{p.partner_name}</p>
                   {p.is_featured && <span className="text-xs bg-mustard-100 text-mustard-600 px-1.5 py-0.5 rounded-lg">מוצג</span>}
+                  <span className="text-xs px-1.5 py-0.5 rounded-lg font-semibold" style={p.redeem_in_person ? { background: '#E4EBEF', color: '#3E5966' } : { background: '#F6ECD8', color: '#8A6A2F' }}>
+                    {p.redeem_in_person ? 'בהצגת הכרטיס' : 'אונליין'}
+                  </span>
                 </div>
                 {p.discount_code && <p className="text-xs text-sand-400">{p.discount_code}</p>}
                 {showAnalytics && (
@@ -4047,7 +4058,7 @@ function PerksTab() {
                 <button onClick={() => toggle(p, 'is_active')} className="text-sand-400 hover:text-mustard-500">
                   {p.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
                 </button>
-                <button onClick={() => { setEditing(p); setForm({ partner_name: p.partner_name, short_description: p.short_description ?? '', full_description: p.full_description ?? '', discount_code: p.discount_code ?? '', action_link: p.action_link ?? '', logo_url: p.logo_url ?? '', is_featured: p.is_featured }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+                <button onClick={() => { setEditing(p); setForm({ partner_name: p.partner_name, short_description: p.short_description ?? '', full_description: p.full_description ?? '', discount_code: p.discount_code ?? '', action_link: p.action_link ?? '', logo_url: p.logo_url ?? '', is_featured: p.is_featured, redeem_in_person: p.redeem_in_person }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
                 <button onClick={() => setPendingDelete(p)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
@@ -6185,6 +6196,30 @@ function RegistrationsTab() {
   // resolver. Per-row gap lookup is then O(1) Set check.
   const workshopIdsWithCohorts = useMemo(() => new Set(cohorts.map(c => c.workshop_id)), [cohorts])
 
+  // Workshops with a live future: an active cohort that hasn't started
+  // yet. Only these earn a picker card — a workshop whose cohorts are
+  // all past isn't "activity", it just crowds the page (Yahav: בוקר של
+  // מימו has no upcoming cohort — don't show it). Everything stays
+  // reachable through the full-list link.
+  const workshopIdsWithUpcoming = useMemo(
+    () => new Set(cohorts.filter(c => c.is_active && !isCohortPast(c)).map(c => c.workshop_id)),
+    [cohorts],
+  )
+
+  // Nearest upcoming cohort per workshop — shown on the picker card so
+  // the next date jumps out without drilling in.
+  const nextCohortByWorkshop = useMemo(() => {
+    const m = new Map<string, WorkshopCohort>()
+    for (const c of cohorts) {
+      if (!c.is_active || isCohortPast(c)) continue
+      const cur = m.get(c.workshop_id)
+      if (!cur || c.start_date < cur.start_date || (c.start_date === cur.start_date && (c.start_time ?? '') < (cur.start_time ?? ''))) {
+        m.set(c.workshop_id, c)
+      }
+    }
+    return m
+  }, [cohorts])
+
   const workshopById = useMemo(() => {
     const m = new Map<string, Workshop>()
     for (const w of workshops) m.set(w.id, w)
@@ -6421,10 +6456,11 @@ function RegistrationsTab() {
       s.total++; if (isActive) s.active++
       stats.set(l.selected_workshop_id!, s)
     }
-    const cards = workshops
-      .filter(w => stats.has(w.id))
+    const withRegs = workshops.filter(w => stats.has(w.id))
+    const cards = withRegs
+      .filter(w => workshopIdsWithUpcoming.has(w.id))
       .map(w => ({ id: w.id, title: w.title, ...stats.get(w.id)! }))
-    return { cards, privTotal, privActive }
+    return { cards, privTotal, privActive, hiddenCount: withRegs.length - cards.length }
   })()
 
   const backToPicker = () => {
@@ -6445,10 +6481,11 @@ function RegistrationsTab() {
     const q1urgent: RegistrationLead[] = []
     const q1quiet: RegistrationLead[] = []
     // Urgency window for missing questionnaires: only cohorts starting
-    // within the next 7 days are loud. No cohort date = can't be urgent.
+    // within the next 3 days are loud (Yahav: a week out = there's
+    // time, don't shout). No cohort date = can't be urgent.
     const soonLimit = (() => {
       const d = new Date()
-      d.setDate(d.getDate() + 7)
+      d.setDate(d.getDate() + 3)
       const y = d.getFullYear()
       const m = String(d.getMonth() + 1).padStart(2, '0')
       const dd = String(d.getDate()).padStart(2, '0')
@@ -6573,6 +6610,66 @@ function RegistrationsTab() {
         />
       )}
 
+      {/* ── לפי סדנה — workshop picker, the page's opening state ── */}
+      {pickerMode && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-baseline gap-3">
+            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>לפי סדנה</h2>
+            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{leads.length} הרשמות · {counts.pending + counts.paid} פעילות</span>
+            <button onClick={() => setShowAllAnyway(true)} className="hover:underline" style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D', marginInlineStart: 'auto' }}>
+              הצגת כל ההרשמות ברשימה אחת
+            </button>
+          </div>
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+            {pickerCards.cards.map(c => (
+              <button
+                key={c.id}
+                onClick={() => { setWorkshopFilter(c.id); setShowAllAnyway(false) }}
+                className="text-right transition-all hover:shadow-sm"
+                style={{ border: '1px solid #E4DAD0', borderRadius: 18, padding: '16px 18px', background: c.active > 0 ? '#fff' : '#FAF7F1' }}
+              >
+                <p className="font-bold" style={{ fontSize: 15, color: '#443327' }}>{c.title}</p>
+                {nextCohortByWorkshop.has(c.id) && (
+                  <p className="mt-1 font-bold flex items-center gap-1" style={{ fontSize: 13, color: '#8A6A2F' }}>
+                    <CalendarDays style={{ width: 14, height: 14 }} />
+                    מחזור קרוב · {cohortDateTimeLabel(nextCohortByWorkshop.get(c.id)!, { shortYear: true })}
+                  </p>
+                )}
+                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#7B604C' }}>
+                  {c.active > 0
+                    ? <><span style={{ color: '#8A6A2F', fontWeight: 700 }}>{c.active} פעילות</span> · {c.total} סה"כ</>
+                    : `${c.total} סה"כ · אין פעילות`}
+                </p>
+                {(unfilledByWorkshop.get(c.id) ?? 0) > 0 && (
+                  <span className="inline-block mt-2 whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: '#8B4A30', background: '#F5E2D8', padding: '4px 10px', borderRadius: 9999 }}>
+                    {unfilledByWorkshop.get(c.id)} שאלונים
+                  </span>
+                )}
+              </button>
+            ))}
+            {pickerCards.privTotal > 0 && (
+              <button
+                onClick={() => { setShowPrivateSection(true); setShowAllAnyway(false) }}
+                className="text-right transition-all hover:shadow-sm"
+                style={{ border: '1px solid #C3CDD2', borderRadius: 18, padding: '16px 18px', background: '#E4EBEF' }}
+              >
+                <p className="font-bold" style={{ fontSize: 15, color: '#3E5966' }}>פרטני וללא תאריך</p>
+                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#3E5966' }}>
+                  {pickerCards.privActive > 0 ? `${pickerCards.privActive} פעילות · ` : ''}{pickerCards.privTotal} סה"כ
+                </p>
+              </button>
+            )}
+          </div>
+          {pickerCards.hiddenCount > 0 && (
+            <p style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
+              {pickerCards.hiddenCount === 1 ? 'סדנה אחת ללא מחזור קרוב מוסתרת' : `${pickerCards.hiddenCount} סדנאות ללא מחזור קרוב מוסתרות`}
+              {' · '}
+              <button onClick={() => setShowAllAnyway(true)} className="hover:underline" style={{ fontWeight: 700, color: '#A35C3D' }}>לרשימה המלאה</button>
+            </p>
+          )}
+        </div>
+      )}
+
       {/* README-IA PR10: "מחכה לך" inbox — the page's needs-action queue. */}
       {pickerMode && (
         <div className="space-y-3">
@@ -6632,9 +6729,17 @@ function RegistrationsTab() {
                             </a>
                           )}
                           {g.action === 'assign' && (
-                            <button onClick={e => { e.stopPropagation(); drillToLead(l) }} className="whitespace-nowrap flex-shrink-0" style={{ fontWeight: 700, fontSize: 14, color: '#3E5966' }}>
-                              שבצי למחזור
-                            </button>
+                            <>
+                              <button onClick={e => { e.stopPropagation(); drillToLead(l) }} className="whitespace-nowrap flex-shrink-0" style={{ fontWeight: 700, fontSize: 14, color: '#3E5966' }}>
+                                שבצי למחזור
+                              </button>
+                              {/* The escape hatch for a registration that never
+                                  materialized (e.g. עיסוי that didn't happen):
+                                  mark it מומש so it stops waiting forever. */}
+                              <button onClick={e => { e.stopPropagation(); updateStatus(l.id, 'handled') }} className="whitespace-nowrap flex-shrink-0 hover:underline" style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
+                                סמני כמומש
+                              </button>
+                            </>
                           )}
                         </div>
                       )
@@ -6656,53 +6761,6 @@ function RegistrationsTab() {
           )}
         </div>
       )}
-      {/* ── לפי סדנה — workshop picker, the page's opening state ── */}
-      {pickerMode && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-baseline gap-3">
-            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>לפי סדנה</h2>
-            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{leads.length} הרשמות · {counts.pending + counts.paid} פעילות</span>
-            <button onClick={() => setShowAllAnyway(true)} className="hover:underline" style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D', marginInlineStart: 'auto' }}>
-              הצגת כל ההרשמות ברשימה אחת
-            </button>
-          </div>
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-            {pickerCards.cards.map(c => (
-              <button
-                key={c.id}
-                onClick={() => { setWorkshopFilter(c.id); setShowAllAnyway(false) }}
-                className="text-right transition-all hover:shadow-sm"
-                style={{ border: '1px solid #E4DAD0', borderRadius: 18, padding: '16px 18px', background: c.active > 0 ? '#fff' : '#FAF7F1' }}
-              >
-                <p className="font-bold" style={{ fontSize: 15, color: '#443327' }}>{c.title}</p>
-                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#7B604C' }}>
-                  {c.active > 0
-                    ? <><span style={{ color: '#8A6A2F', fontWeight: 700 }}>{c.active} פעילות</span> · {c.total} סה"כ</>
-                    : `${c.total} סה"כ · אין פעילות`}
-                </p>
-                {(unfilledByWorkshop.get(c.id) ?? 0) > 0 && (
-                  <span className="inline-block mt-2 whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: '#8B4A30', background: '#F5E2D8', padding: '4px 10px', borderRadius: 9999 }}>
-                    {unfilledByWorkshop.get(c.id)} שאלונים
-                  </span>
-                )}
-              </button>
-            ))}
-            {pickerCards.privTotal > 0 && (
-              <button
-                onClick={() => { setShowPrivateSection(true); setShowAllAnyway(false) }}
-                className="text-right transition-all hover:shadow-sm"
-                style={{ border: '1px solid #C3CDD2', borderRadius: 18, padding: '16px 18px', background: '#E4EBEF' }}
-              >
-                <p className="font-bold" style={{ fontSize: 15, color: '#3E5966' }}>פרטני וללא תאריך</p>
-                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#3E5966' }}>
-                  {pickerCards.privActive > 0 ? `${pickerCards.privActive} פעילות · ` : ''}{pickerCards.privTotal} סה"כ
-                </p>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {!pickerMode && <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3 lg:p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

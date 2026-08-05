@@ -59,7 +59,7 @@ const REGS_LS_KEY = 'registrations_last_seen'
 function AppInner() {
   const { user, profile, loading, isGuest } = useAuth()
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
-  const [adminSection, setAdminSection] = useState<AdminSection>('insights')
+  const [adminSection, setAdminSection] = useState<AdminSection>('registrations')
   const [viewAsUser, setViewAsUser] = useState(false)
   const [unreadForms, setUnreadForms] = useState(0)
   const [unreadRegistrations, setUnreadRegistrations] = useState(0)
