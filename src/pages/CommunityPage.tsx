@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef } from 'react'
-import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft, Tag } from 'lucide-react'
+import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft, Tag, WalletCards } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
@@ -10,6 +10,7 @@ import TagSelector from '../components/community/TagSelector'
 import CommunityTagFilter from '../components/community/CommunityTagFilter'
 import CommunityMemberSheet from '../components/community/CommunityMemberSheet'
 import EventsTab from '../components/community/EventsTab'
+import MembershipCard from '../components/community/MembershipCard'
 
 type CommunityProfile = {
   id: string
@@ -72,6 +73,7 @@ export default function CommunityPage() {
   const [pregnancyFilter, setPregnancyFilter] = useState<PregnancyFilter>('all')
 
   const [editMode, setEditMode] = useState(false)
+  const [cardOpen, setCardOpen] = useState(false)
   const [registeredInSession, setRegisteredInSession] = useState(false)
   const initialized = useRef(false)
   const [areaInput, setAreaInput] = useState('')
@@ -203,15 +205,26 @@ export default function CommunityPage() {
         {/* Header */}
         <div className="pt-2 flex items-center justify-between">
           <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>קהילת מימו</h1>
-          {pageTab === 'members' && profileComplete && !editMode && (
+          <div className="flex items-center gap-2">
+            {pageTab === 'members' && profileComplete && !editMode && (
+              <button
+                onClick={() => setEditMode(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-2xl text-xs font-semibold text-sand-500 shadow-sm hover:text-sand-700 transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                ערוך פרופיל
+              </button>
+            )}
+            {/* Digital membership card — shown at partner businesses for perks */}
             <button
-              onClick={() => setEditMode(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-2xl text-xs font-semibold text-sand-500 shadow-sm hover:text-sand-700 transition-colors"
+              onClick={() => setCardOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold shadow-sm transition-all"
+              style={{ background: '#F6ECD8', border: '1px solid #E7C78A', color: '#4A3A28' }}
             >
-              <Pencil className="w-3.5 h-3.5" />
-              ערוך פרופיל
+              <WalletCards className="w-4 h-4" />
+              הכרטיס שלי
             </button>
-          )}
+          </div>
         </div>
 
         {/* Page tabs — underlined: these switch WORLDS (events/members),
@@ -610,6 +623,8 @@ export default function CommunityPage() {
           />
         )
       })()}
+
+      {cardOpen && <MembershipCard onClose={() => setCardOpen(false)} />}
     </div>
   )
 }

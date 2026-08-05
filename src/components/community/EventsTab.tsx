@@ -4,6 +4,7 @@ import { supabase, type CommunityEventRow, type EventAttendee } from '../../lib/
 import { getBabyAge } from '../../utils/dateUtils'
 import CommunityMemberSheet from './CommunityMemberSheet'
 import MimoDuck from '../MimoDuck'
+import MembershipCard from './MembershipCard'
 
 // "הקהילה של מימו" — user-facing community events. Two views:
 // רשימה (monthly-grouped cards + month chips) and יומן (month calendar
@@ -40,6 +41,8 @@ const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏻' : g === 'girl
 
 export default function EventsTab() {
   const [events, setEvents] = useState<CommunityEventRow[]>([])
+  // Entry-ticket modal for a registered event (digital card).
+  const [ticketEvent, setTicketEvent] = useState<CommunityEventRow | null>(null)
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [attendees, setAttendees] = useState<Record<string, EventAttendee[]>>({})
@@ -215,9 +218,14 @@ export default function EventsTab() {
         <div className="px-4 pb-4">
           {isMine ? (
             <div className="flex gap-2">
-              <div className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white" style={{ background: '#818267' }}>
-                <Check className="w-4 h-4" /> רשומה! נתראה שם
-              </div>
+              <button
+                onClick={() => setTicketEvent(ev)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white transition-all hover:brightness-95"
+                style={{ background: '#818267' }}
+                title="הצגת כרטיס הכניסה"
+              >
+                <Check className="w-4 h-4" /> רשומה · הכרטיס שלי
+              </button>
               <button
                 onClick={() => cancel(ev)}
                 disabled={busyId === ev.id}
@@ -419,6 +427,20 @@ export default function EventsTab() {
           />
         )
       })()}
+
+      {/* Event ticket — the member's entry card for a closed community event */}
+      {ticketEvent && (
+        <MembershipCard
+          event={{
+            title: ticketEvent.title,
+            emoji: ticketEvent.emoji,
+            dateLabel: dayLabel(ticketEvent.event_date),
+            timeLabel: hhmm(ticketEvent.start_time) ?? undefined,
+            location: ticketEvent.location,
+          }}
+          onClose={() => setTicketEvent(null)}
+        />
+      )}
     </div>
   )
 }
