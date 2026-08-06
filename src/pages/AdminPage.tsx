@@ -21,6 +21,7 @@ import GlobalSearchBar from '../components/admin/GlobalSearchBar'
 import { normalizeIlPhone } from '../components/admin/customerLookup'
 import AddRegistrationModal from '../components/admin/AddRegistrationModal'
 import EventsAdminPanel from '../components/admin/EventsAdminPanel'
+import HomeAnnouncementsPanel from '../components/admin/HomeAnnouncementsPanel'
 import CategoryManagerModal from '../components/admin/CategoryManagerModal'
 import { useWorkshopCategories } from '../hooks/useWorkshopCategories'
 import MimoDuck from '../components/MimoDuck'
@@ -995,7 +996,7 @@ function LeadsTabDesktop() {
 }
 
 // ─── Workshops Desktop Table ──────────────────────────────────────────────────
-const EMPTY_WORKSHOP_FORM = { title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '' }
+const EMPTY_WORKSHOP_FORM = { title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '' }
 
 function WorkshopsTabDesktop() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
@@ -1094,7 +1095,7 @@ function WorkshopsTabDesktop() {
 
   function openEdit(w: Workshop) {
     setEditing(w)
-    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '', feedback_form_id: w.feedback_form_id ?? '' })
+    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '', feedback_form_id: w.feedback_form_id ?? '', age_from: w.age_range_start_months?.toString() ?? '', age_to: w.age_range_end_months?.toString() ?? '' })
     setDrawer('edit')
   }
 
@@ -1150,6 +1151,8 @@ function WorkshopsTabDesktop() {
       public_registration: form.public_registration,
       linked_form_id: form.linked_form_id || null,
       feedback_form_id: form.feedback_form_id || null,
+      age_range_start_months: form.age_from !== '' ? parseFloat(form.age_from) : null,
+      age_range_end_months: form.age_to !== '' ? parseFloat(form.age_to) : null,
     }
     if (editing) {
       await supabase.from('workshops').update(payload).eq('id', editing.id)
@@ -1343,6 +1346,15 @@ function WorkshopsTabDesktop() {
           <div className="grid grid-cols-2 gap-2">
             <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="מחיר (₪)" type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
             <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מקסימום נרשמות למחזור / מלאי" title="לסדנאות עם מחזורים: מקסימום נרשמות בכל מחזור. למוצרי חנות: מלאי." type="number" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+          </div>
+          {/* Age targeting — drives the age-matched recommendation on the
+              user home screen. Months, decimals allowed (e.g. 3.5). */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">טווח גיל מומלץ (חודשים) — להמלצה אוטומטית בדף הבית לפי גיל התינוק</label>
+            <div className="grid grid-cols-2 gap-2">
+              <input value={form.age_from} onChange={e => setForm(f => ({ ...f, age_from: e.target.value }))} placeholder="מגיל (למשל 3)" type="number" step="0.5" min="0" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+              <input value={form.age_to} onChange={e => setForm(f => ({ ...f, age_to: e.target.value }))} placeholder="עד גיל (למשל 6)" type="number" step="0.5" min="0" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+            </div>
           </div>
           <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור תשלום" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" dir="ltr" />
           {/* Image upload + URL fallback */}
@@ -3541,7 +3553,7 @@ function WorkshopsTab() {
   // Task A: shared delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<Workshop | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '' })
   const [uploadingImage, setUploadingImage] = useState(false)
   // Phase 5 / B: per-workshop registration link copy. Tracks which row
   // just showed the "copied" feedback so the icon flips for ~1.5s.
@@ -3639,6 +3651,8 @@ function WorkshopsTab() {
       public_registration: form.public_registration,
       linked_form_id: form.linked_form_id || null,
       feedback_form_id: form.feedback_form_id || null,
+      age_range_start_months: form.age_from !== '' ? parseFloat(form.age_from) : null,
+      age_range_end_months: form.age_to !== '' ? parseFloat(form.age_to) : null,
     }
     if (editing) {
       await supabase.from('workshops').update(payload).eq('id', editing.id)
@@ -3646,7 +3660,7 @@ function WorkshopsTab() {
       const maxOrder = workshops.length > 0 ? Math.max(...workshops.map(w => w.display_order)) : 0
       await supabase.from('workshops').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '' })
+    setForm({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '' })
     setEditing(null); setShowForm(false); load()
   }
 
@@ -3734,6 +3748,15 @@ function WorkshopsTab() {
           <div className="flex gap-2">
             <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="מקסימום נרשמות למחזור / מלאי" title="לסדנאות עם מחזורים: מקסימום נרשמות בכל מחזור. למוצרי חנות: מלאי." type="number" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
             <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="מספר WhatsApp" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
+          </div>
+          {/* Age targeting — drives the age-matched recommendation on the
+              user home screen. Months, decimals allowed (e.g. 3.5). */}
+          <div>
+            <label className="text-xs text-sand-500 mb-1 block">טווח גיל מומלץ (חודשים) — להמלצה בדף הבית לפי גיל התינוק</label>
+            <div className="flex gap-2">
+              <input value={form.age_from} onChange={e => setForm(f => ({ ...f, age_from: e.target.value }))} placeholder="מגיל (למשל 3)" type="number" step="0.5" min="0" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
+              <input value={form.age_to} onChange={e => setForm(f => ({ ...f, age_to: e.target.value }))} placeholder="עד גיל (למשל 6)" type="number" step="0.5" min="0" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
+            </div>
           </div>
           <div>
             <label className="text-xs text-sand-500 mb-1 block">קטגוריה — מוצרים בחנות <span className="text-mustard-600">(ללא = סדנה דיגיטלית בלבד)</span></label>
@@ -3832,7 +3855,7 @@ function WorkshopsTab() {
                       <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
                         {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
                       </button>
-                      <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '', feedback_form_id: w.feedback_form_id ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '', feedback_form_id: w.feedback_form_id ?? '', age_from: w.age_range_start_months?.toString() ?? '', age_to: w.age_range_end_months?.toString() ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
                       <button onClick={() => setPendingDelete(w)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </div>
@@ -3982,6 +4005,10 @@ function PerksTab() {
 
   return (
     <div className="space-y-3">
+      {/* Admin-controlled home-page announcements (מבצעים / הנחות) —
+          rendered on the user dashboard by HomeAnnouncementsBanner */}
+      <HomeAnnouncementsPanel />
+
       {/* Show/hide the perks section on the moms' home screen */}
       <button
         onClick={toggleHomeVisibility}

@@ -187,6 +187,30 @@ export type Workshop = {
   // Product max / stock. For cohort-based workshops this doubles as the
   // DEFAULT cohort capacity — cohorts with capacity=NULL inherit it.
   stock_quantity: number | null
+  // Recommended baby age window in MONTHS (decimals allowed, e.g. 3.5).
+  // Powers the age-matched recommendation card on the home dashboard.
+  // Both NULL = no age targeting; end NULL = open-ended.
+  age_range_start_months: number | null
+  age_range_end_months: number | null
+}
+
+// Admin-controlled home-page announcement (מבצע / הנחה / הודעה).
+// Shown as a prominent banner on the dashboard for logged-in users.
+// starts_at/ends_at (dates, Asia/Jerusalem semantics) bound visibility;
+// NULL = unbounded on that side.
+export type HomeAnnouncement = {
+  id: string
+  title: string
+  body: string | null
+  emoji: string | null
+  link_type: 'workshops' | 'benefits' | 'community' | 'url' | null
+  link_url: string | null
+  starts_at: string | null // YYYY-MM-DD
+  ends_at: string | null   // YYYY-MM-DD
+  is_active: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
 }
 
 // Row shape returned by the get_public_cohorts RPC (SECURITY DEFINER)

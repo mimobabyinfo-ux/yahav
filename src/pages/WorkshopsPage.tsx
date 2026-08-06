@@ -1,14 +1,58 @@
-﻿import { useEffect, useState } from 'react'
-import { ExternalLink, MessageCircle, ShoppingBag, Star, X, Sparkles, CreditCard } from 'lucide-react'
-import { supabase, Workshop } from '../lib/supabase'
+﻿import { useEffect, useState, useMemo } from 'react'
+import { ExternalLink, MessageCircle, ShoppingBag, Star, X, Sparkles, CreditCard, CalendarDays } from 'lucide-react'
+import { supabase, Workshop, type PublicCohort } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { useWorkshopCategories, categoryLabel } from '../hooks/useWorkshopCategories'
 
 type WorkshopExt = Workshop & { whatsapp_number?: string }
 
+// ── Cohorts (מחזורים) ─────────────────────────────────────────────────────────
+// Same data source as the public registration page: the SECURITY DEFINER
+// get_public_cohorts RPC returns only upcoming, active cohorts (sorted by
+// start date, past cohorts excluded) with effective capacity + live count.
+
+// Cohort chip label: DD/MM + optional HH:MM. Year implied (upcoming only).
+function cohortDateLabel(c: PublicCohort): string {
+  const [, m, d] = c.start_date.split('-')
+  const t = c.start_time ? ` · ${c.start_time.slice(0, 5)}` : ''
+  return `${d}/${m}${t}`
+}
+
+function CohortSpots({ c }: { c: PublicCohort }) {
+  const spotsLeft = c.capacity != null ? c.capacity - c.registered_count : null
+  const full = spotsLeft != null && spotsLeft <= 0
+  if (full) return <span className="font-bold text-red-500">המחזור מלא</span>
+  if (spotsLeft === 1) return <span className="font-bold text-amber-600">נותר מקום אחרון!</span>
+  if (spotsLeft != null && spotsLeft <= 3) return <span className="font-bold text-amber-600">נותרו {spotsLeft} מקומות</span>
+  return <span className="text-green-700 font-semibold">יש מקום 🤍</span>
+}
+
+// Info list of upcoming cohorts — used inside the product modal.
+function CohortList({ list }: { list: PublicCohort[] }) {
+  if (list.length === 0) return null
+  return (
+    <div>
+      <p className="text-xs font-bold text-sand-700 mb-2 flex items-center gap-1.5">
+        <CalendarDays className="w-3.5 h-3.5" /> מחזורים קרובים
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {list.slice(0, 4).map(c => (
+          <div key={c.id} className="text-right p-2.5 rounded-xl border-2 border-sand-200 bg-white">
+            <span className="block text-sm font-bold text-sand-800">{cohortDateLabel(c)}</span>
+            <span className="block mt-1 text-[13px] leading-tight">
+              {c.label && <span className="text-sand-500">{c.label} · </span>}
+              <CohortSpots c={c} />
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Product detail modal ──────────────────────────────────────────────────────
-function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose: () => void; ownerWhatsapp: string }) {
+function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt; onClose: () => void; ownerWhatsapp: string; cohorts: PublicCohort[] }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
       <div
@@ -59,6 +103,9 @@ function ProductModal({ ws, onClose, ownerWhatsapp }: { ws: WorkshopExt; onClose
               {ws.description}
             </div>
           )}
+
+          {/* Upcoming cohorts — same info the registration page shows */}
+          <CohortList list={cohorts} />
 
         </div>
       </div>
@@ -115,6 +162,8 @@ export default function WorkshopsPage() {
   const [selected, setSelected] = useState<WorkshopExt | null>(null)
   const [category, setCategory] = useState(isPregnant ? 'הריון' : 'all')
   const [tab, setTab] = useState<'store' | 'purchases'>('store')
+  // Upcoming cohorts for ALL displayed products (one RPC call).
+  const [cohorts, setCohorts] = useState<PublicCohort[]>([])
 
   useEffect(() => {
     supabase
@@ -124,10 +173,26 @@ export default function WorkshopsPage() {
       .not('workshop_type', 'is', null)
       .order('display_order')
       .then(({ data }) => {
-        setWorkshops((data ?? []) as WorkshopExt[])
+        const ws = (data ?? []) as WorkshopExt[]
+        setWorkshops(ws)
         setLoading(false)
+        const ids = ws.map(w => w.id)
+        if (ids.length === 0) return
+        supabase.rpc('get_public_cohorts', { p_workshop_ids: ids }).then(({ data: cs }) => {
+          setCohorts((cs ?? []) as PublicCohort[])
+        })
       })
   }, [])
+
+  const cohortsByWorkshop = useMemo(() => {
+    const m = new Map<string, PublicCohort[]>()
+    for (const c of cohorts) {
+      const arr = m.get(c.workshop_id) ?? []
+      arr.push(c)
+      m.set(c.workshop_id, arr)
+    }
+    return m
+  }, [cohorts])
 
   useEffect(() => {
     if (!user) return
@@ -214,6 +279,7 @@ export default function WorkshopsPage() {
             ) : (
               filtered.map(ws => {
                 const isFeatured = ws.display_order === 1
+                const wsCohorts = cohortsByWorkshop.get(ws.id) ?? []
                 return (
                   <div key={ws.id} className="bg-white rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => setSelected(ws)}>
                     <div className="flex gap-3 p-4">
@@ -246,6 +312,32 @@ export default function WorkshopsPage() {
                         )}
                       </div>
                     </div>
+                    {/* Upcoming cohorts — compact chips, same data as the
+                        registration page. Tapping the card opens the modal
+                        with the full list. */}
+                    {wsCohorts.length > 0 && (
+                      <div className="flex items-center gap-1.5 px-4 pb-3 -mt-1 overflow-x-auto scroll-hide">
+                        <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#8A6A2F' }} />
+                        {wsCohorts.slice(0, 3).map(c => {
+                          const spotsLeft = c.capacity != null ? c.capacity - c.registered_count : null
+                          const full = spotsLeft != null && spotsLeft <= 0
+                          return (
+                            <span
+                              key={c.id}
+                              className={`flex-shrink-0 text-[12px] font-bold px-2.5 py-1 rounded-full ${full ? 'line-through opacity-50' : ''}`}
+                              style={{ background: '#F6ECD8', color: '#6E5836' }}
+                            >
+                              {cohortDateLabel(c)}
+                              {!full && spotsLeft != null && spotsLeft <= 3 && (
+                                <span className="mr-1" style={{ color: '#A35C3D' }}>
+                                  · {spotsLeft === 1 ? 'מקום אחרון!' : `נותרו ${spotsLeft}`}
+                                </span>
+                              )}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    )}
                     <div className="flex gap-2 px-4 pb-4" onClick={e => e.stopPropagation()}>
                       <a href={`https://wa.me/${ws.whatsapp_number ?? ownerWhatsapp}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
                         target="_blank" rel="noopener noreferrer"
@@ -305,7 +397,7 @@ export default function WorkshopsPage() {
         )}
       </div>
 
-      {selected && <ProductModal ws={selected} onClose={() => setSelected(null)} ownerWhatsapp={ownerWhatsapp} />}
+      {selected && <ProductModal ws={selected} onClose={() => setSelected(null)} ownerWhatsapp={ownerWhatsapp} cohorts={cohortsByWorkshop.get(selected.id) ?? []} />}
     </div>
   )
 }

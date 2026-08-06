@@ -12,6 +12,8 @@ import ActivityTimers from '../components/ActivityTimers'
 import LogEntryModal from '../components/LogEntryModal'
 import DailyTipCard from '../components/dashboard/DailyTipCard'
 import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard'
+import RecommendedWorkshopCard from '../components/dashboard/RecommendedWorkshopCard'
+import HomeAnnouncementsBanner from '../components/dashboard/HomeAnnouncementsBanner'
 import MimoDuck from '../components/MimoDuck'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import type { Page } from '../App'
@@ -263,6 +265,10 @@ export default function DashboardPage({ onNavigate }: Props) {
           </div>
         </div>
 
+        {/* Admin announcements — מבצעים/הנחות, top of the feed so they
+            "pop" the moment the app opens */}
+        <HomeAnnouncementsBanner onNavigate={onNavigate} />
+
         {/* 2 · Quick-log — Tier 1, always visible */}
         {selectedChild && (
           <div className="flex flex-col" style={{ background: '#F6ECD8', borderRadius: 26, padding: '18px 16px 14px', gap: 14 }}>
@@ -283,6 +289,10 @@ export default function DashboardPage({ onNavigate }: Props) {
             />
           </div>
         )}
+
+        {/* Age-matched product recommendation — what fits the baby's age
+            right now, without digging through the store */}
+        <RecommendedWorkshopCard onNavigate={onNavigate} />
 
         {/* 3 · Community — Tier 2 */}
         <UpcomingEventsCard onNavigate={onNavigate} />
