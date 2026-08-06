@@ -1,9 +1,8 @@
 ﻿import { useEffect, useState } from 'react'
-import { ChevronLeft, CalendarDays } from 'lucide-react'
+import { ChevronLeft, CalendarDays, Baby } from 'lucide-react'
 import { supabase, Workshop, type PublicCohort } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Page } from '../../App'
-import MimoDuck from '../MimoDuck'
 
 // Age-matched product recommendation for the home dashboard.
 // Matches the selected child's age (in months) against the admin-set
@@ -80,7 +79,11 @@ export default function RecommendedWorkshopCard({ onNavigate }: { onNavigate: (p
       style={{ background: '#F6ECD8', borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}
     >
       <div className="flex items-center" style={{ gap: 12 }}>
-        <MimoDuck variant="chick" size={46} className="flex-shrink-0" />
+        {/* Quiet icon tile (no duck — the home feed already has one on
+            the community card) */}
+        <span className="rounded-2xl flex items-center justify-center flex-shrink-0" style={{ width: 46, height: 46, background: '#FFFFFF' }}>
+          <Baby style={{ width: 24, height: 24, color: '#8A6A2F' }} strokeWidth={2} />
+        </span>
         <div className="flex-1 min-w-0">
           <p className="font-bold" style={{ fontSize: 13, color: '#8A6A2F' }}>
             מתאים בדיוק לגיל של {selectedChild.name} 💛
