@@ -39,6 +39,9 @@ function computeOfferPrice(offer: WorkshopOffer, workshop: Workshop | null): num
 export default function PublicRegisterPage() {
   const params = new URLSearchParams(window.location.search)
   const preselect = params.get('register') || ''
+  // Cohort pre-selection from the in-app store (?register=<id>&cohort=<id>)
+  // — the mom already picked a cohort in the product modal.
+  const preCohort = params.get('cohort') || ''
   const offerToken = params.get('offer') || ''
   const source = params.get('source') || ''
 
@@ -163,10 +166,20 @@ export default function PublicRegisterPage() {
     if (ids.length === 0) return
     let cancelled = false
     supabase.rpc('get_public_cohorts', { p_workshop_ids: ids }).then(({ data }) => {
-      if (!cancelled) setCohorts((data ?? []) as PublicCohort[])
+      if (cancelled) return
+      const list = (data ?? []) as PublicCohort[]
+      setCohorts(list)
+      // Apply the URL cohort pre-selection once, if it's a valid,
+      // non-full cohort of the pre-selected workshop.
+      if (preCohort && preselect) {
+        const c = list.find(x => x.id === preCohort && x.workshop_id === preselect)
+        if (c && (c.capacity == null || c.capacity - c.registered_count > 0)) {
+          setSelectedCohort(prev => prev || c.id)
+        }
+      }
     })
     return () => { cancelled = true }
-  }, [workshops, offerWorkshop])
+  }, [workshops, offerWorkshop]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cohortsByWorkshop = useMemo(() => {
     const m = new Map<string, PublicCohort[]>()
@@ -504,8 +517,15 @@ export default function PublicRegisterPage() {
                     {(active || locked) && (() => {
                       // Only the next 3 upcoming cohorts — a longer list
                       // overwhelms the form (the RPC already returns them
-                      // sorted by start date, past cohorts excluded).
-                      const list = (cohortsByWorkshop.get(w.id) ?? []).slice(0, 3)
+                      // sorted by start date, past cohorts excluded). A
+                      // cohort pre-chosen in the app store may be further
+                      // out — append it so the selection stays visible.
+                      const all = cohortsByWorkshop.get(w.id) ?? []
+                      const list = all.slice(0, 3)
+                      const chosenExtra = selectedCohort && !list.some(c => c.id === selectedCohort)
+                        ? all.find(c => c.id === selectedCohort)
+                        : undefined
+                      if (chosenExtra) list.push(chosenExtra)
                       if (list.length === 0) return null
                       return (
                         <div className="mt-3 pt-3 border-t border-mustard-200/60" onClick={e => e.stopPropagation()}>

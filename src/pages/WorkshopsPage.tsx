@@ -28,24 +28,49 @@ function CohortSpots({ c }: { c: PublicCohort }) {
   return <span className="text-green-700 font-semibold">יש מקום 🤍</span>
 }
 
-// Info list of upcoming cohorts — used inside the product modal.
-function CohortList({ list }: { list: PublicCohort[] }) {
+// Selectable list of upcoming cohorts — used inside the product modal.
+// Same radio-chip pattern as the public registration page; the chosen
+// cohort is carried into ?register=<id>&cohort=<id> so it arrives
+// pre-selected on the registration form.
+function CohortList({ list, selected, onSelect }: { list: PublicCohort[]; selected: string; onSelect: (id: string) => void }) {
   if (list.length === 0) return null
   return (
     <div>
       <p className="text-xs font-bold text-sand-700 mb-2 flex items-center gap-1.5">
-        <CalendarDays className="w-3.5 h-3.5" /> מחזורים קרובים
+        <CalendarDays className="w-3.5 h-3.5" /> באיזה מחזור תרצי להשתתף?
       </p>
       <div className="grid grid-cols-2 gap-2">
-        {list.slice(0, 4).map(c => (
-          <div key={c.id} className="text-right p-2.5 rounded-xl border-2 border-sand-200 bg-white">
-            <span className="block text-sm font-bold text-sand-800">{cohortDateLabel(c)}</span>
-            <span className="block mt-1 text-[13px] leading-tight">
-              {c.label && <span className="text-sand-500">{c.label} · </span>}
-              <CohortSpots c={c} />
-            </span>
-          </div>
-        ))}
+        {list.slice(0, 4).map(c => {
+          const spotsLeft = c.capacity != null ? c.capacity - c.registered_count : null
+          const full = spotsLeft != null && spotsLeft <= 0
+          const chosen = selected === c.id
+          return (
+            <button
+              key={c.id}
+              type="button"
+              disabled={full}
+              onClick={() => onSelect(c.id)}
+              className={`text-right p-2.5 rounded-xl border-2 transition-all ${
+                full
+                  ? 'border-sand-200 bg-sand-50 opacity-50 cursor-not-allowed'
+                  : chosen
+                    ? 'border-mustard-500 bg-white shadow-sm'
+                    : 'border-sand-200 bg-white hover:border-mustard-300'
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${chosen ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
+                  {chosen && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                </span>
+                <span className="text-sm font-bold text-sand-800">{cohortDateLabel(c)}</span>
+              </span>
+              <span className="block mt-1 text-[13px] leading-tight">
+                {c.label && <span className="text-sand-500">{c.label} · </span>}
+                <CohortSpots c={c} />
+              </span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -53,6 +78,17 @@ function CohortList({ list }: { list: PublicCohort[] }) {
 
 // ── Product detail modal ──────────────────────────────────────────────────────
 function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt; onClose: () => void; ownerWhatsapp: string; cohorts: PublicCohort[] }) {
+  // Pre-select the first cohort that still has room, so the register
+  // CTA works with zero extra taps.
+  const [selectedCohort, setSelectedCohort] = useState<string>(() =>
+    cohorts.find(c => c.capacity == null || c.capacity - c.registered_count > 0)?.id ?? ''
+  )
+  const chosen = cohorts.find(c => c.id === selectedCohort) ?? null
+  // Cohort-based products go through the registration page (which
+  // records the lead + chosen cohort and then leads to payment).
+  const registerFlow = cohorts.length > 0 && ws.public_registration
+  const registerHref = `${window.location.origin}/?register=${ws.id}${selectedCohort ? `&cohort=${selectedCohort}` : ''}`
+  const waText = `היי! אני מעוניינת ב: ${ws.title}${chosen ? ` (מחזור ${cohortDateLabel(chosen)})` : ''}`
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
       <div
@@ -104,8 +140,8 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt
             </div>
           )}
 
-          {/* Upcoming cohorts — same info the registration page shows */}
-          <CohortList list={cohorts} />
+          {/* Upcoming cohorts — pick the one to register to */}
+          <CohortList list={cohorts} selected={selectedCohort} onSelect={setSelectedCohort} />
 
         </div>
       </div>
@@ -113,7 +149,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt
       {/* Pinned CTA footer — always visible */}
       <div className="flex gap-3 p-4 pt-3 border-t border-[#F0EAE0] bg-white rounded-b-none sm:rounded-b-3xl flex-shrink-0">
         <a
-          href={`https://wa.me/${ws.whatsapp_number ?? ownerWhatsapp}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
+          href={`https://wa.me/${ws.whatsapp_number ?? ownerWhatsapp}?text=${encodeURIComponent(waText)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex-1 flex items-center justify-center gap-2 bg-musgo-500 hover:bg-musgo-600 text-white font-bold py-3.5 rounded-2xl text-sm transition-all"
@@ -122,7 +158,18 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt
           WhatsApp
         </a>
 
-        {ws.payment_link && (
+        {registerFlow ? (
+          /* Registration page with the chosen cohort pre-selected —
+             records the lead + cohort, then continues to payment */
+          <a
+            href={registerHref}
+            className="flex-1 flex flex-col items-center justify-center font-bold py-2.5 rounded-2xl text-sm transition-all"
+            style={{ background: '#C8A460', color: '#33281B' }}
+          >
+            <span className="flex items-center gap-2"><ExternalLink className="w-4 h-4" /> להרשמה</span>
+            {chosen && <span className="text-[12px] font-semibold opacity-80 mt-0.5">למחזור {cohortDateLabel(chosen)}</span>}
+          </a>
+        ) : ws.payment_link && (
           <a
             href={ws.payment_link}
             target="_blank"
@@ -345,7 +392,15 @@ export default function WorkshopsPage() {
                         style={{ background: '#818267' }}>
                         <MessageCircle className="w-4 h-4" /> וואטסאפ
                       </a>
-                      {ws.payment_link && (
+                      {wsCohorts.length > 0 && ws.public_registration ? (
+                        /* Cohort-based product — open the modal to pick a
+                           cohort before continuing to registration */
+                        <button onClick={() => setSelected(ws)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28]"
+                          style={{ background: '#E7C78A' }}>
+                          <CalendarDays className="w-4 h-4" /> לבחירת מחזור והרשמה
+                        </button>
+                      ) : ws.payment_link && (
                         <a href={ws.payment_link} target="_blank" rel="noopener noreferrer"
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28]"
                           style={{ background: '#E7C78A' }}>
