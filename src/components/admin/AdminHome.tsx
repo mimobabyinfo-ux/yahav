@@ -1,5 +1,5 @@
-﻿import { useState } from 'react'
-import { ChevronLeft, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users } from 'lucide-react'
+﻿import { useEffect, useRef, useState } from 'react'
+import { ChevronLeft, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, Plus, RotateCcw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { AdminOverview } from './useAdminOverview'
@@ -36,8 +36,68 @@ type Props = {
 
 export default function AdminHome({ overview, onSection }: Props) {
   const { profile } = useAuth()
-  const { loading, tasks, counters, capacity, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
+  const { loading, tasks, manualTasks, counters, capacity, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
   const [busyToggle, setBusyToggle] = useState<string | null>(null)
+
+  // ── טופל + undo (phase 2). One undo slot, visible ~10 seconds. ──
+  const [undo, setUndo] = useState<{ label: string; run: () => Promise<void> } | null>(null)
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
+
+  function showUndo(label: string, run: () => Promise<void>) {
+    if (undoTimer.current) clearTimeout(undoTimer.current)
+    setUndo({ label, run })
+    undoTimer.current = setTimeout(() => setUndo(null), 10_000)
+  }
+
+  // Dismiss a DERIVED task — persisted by stable key; resurfaces when
+  // the source row changes after dismissed_at.
+  async function dismissDerived(taskKey: string, label: string) {
+    setBusyToggle(taskKey)
+    await supabase.from('admin_task_dismissals').upsert(
+      { task_key: taskKey, dismissed_at: new Date().toISOString(), dismissed_by: profile?.id ?? null },
+      { onConflict: 'task_key' },
+    )
+    await reload()
+    setBusyToggle(null)
+    showUndo(label, async () => {
+      await supabase.from('admin_task_dismissals').delete().eq('task_key', taskKey)
+      await reload()
+    })
+  }
+
+  // Complete a MANUAL task (admin_tasks row).
+  async function completeManual(id: string, label: string) {
+    setBusyToggle(id)
+    await supabase.from('admin_tasks').update({ status: 'done', done_at: new Date().toISOString() }).eq('id', id)
+    await reload()
+    setBusyToggle(null)
+    showUndo(label, async () => {
+      await supabase.from('admin_tasks').update({ status: 'open', done_at: null }).eq('id', id)
+      await reload()
+    })
+  }
+
+  // ── Manual task quick-add ──
+  const [adding, setAdding] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newSeverity, setNewSeverity] = useState<'high' | 'mid'>('mid')
+  const [savingTask, setSavingTask] = useState(false)
+
+  async function addManualTask() {
+    if (!newTitle.trim()) return
+    setSavingTask(true)
+    await supabase.from('admin_tasks').insert({
+      title: newTitle.trim(),
+      severity: newSeverity,
+      created_by: profile?.id ?? null,
+    })
+    setSavingTask(false)
+    setNewTitle('')
+    setNewSeverity('mid')
+    setAdding(false)
+    reload()
+  }
 
   async function toggleAnnouncement(id: string, isActive: boolean) {
     setBusyToggle(id)
@@ -62,6 +122,7 @@ export default function AdminHome({ overview, onSection }: Props) {
   }
 
   const firstName = (profile?.mother_name ?? 'ברנדה').split(' ')[0]
+  const totalOpen = tasks.length + manualTasks.length
 
   return (
     <div dir="rtl">
@@ -78,8 +139,8 @@ export default function AdminHome({ overview, onSection }: Props) {
               <div className="min-w-0">
                 <h1 className="font-display" style={{ fontSize: 22, color: '#443327' }}>
                   {greetingByHour()} {firstName}
-                  {tasks.length > 0
-                    ? ` — ${tasks.length === 1 ? 'דבר אחד מחכה' : `${tasks.length} דברים מחכים`} לך`
+                  {totalOpen > 0
+                    ? ` — ${totalOpen === 1 ? 'דבר אחד מחכה' : `${totalOpen} דברים מחכים`} לך`
                     : ' — הכול נקי ✨'}
                 </h1>
               </div>
@@ -100,16 +161,101 @@ export default function AdminHome({ overview, onSection }: Props) {
             </div>
           </div>
 
-          {/* דורש תשומת לב — one line per task */}
+          {/* דורש תשומת לב — one line per task, טופל persists (phase 2) */}
           <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-            <h2 className="font-bold mb-3" style={{ fontSize: 16, color: '#443327' }}>דורש תשומת לב</h2>
-            {tasks.length === 0 ? (
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>דורש תשומת לב</h2>
+              <button
+                onClick={() => setAdding(a => !a)}
+                className="flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95"
+                style={{ fontSize: 13, padding: '6px 12px', background: '#C8A460', color: '#33281B' }}
+              >
+                <Plus className="w-3.5 h-3.5" /> משימה
+              </button>
+            </div>
+
+            {/* Quick-add manual task */}
+            {adding && (
+              <div className="flex items-center gap-2 rounded-2xl px-3 py-2.5 mb-2" style={{ background: '#F6F3ED' }}>
+                <select
+                  value={newSeverity}
+                  onChange={e => setNewSeverity(e.target.value as 'high' | 'mid')}
+                  className="flex-shrink-0 rounded-xl px-2 py-2 text-sm font-semibold bg-white focus:outline-none"
+                  style={{ border: '1px solid #E9E2D6', color: '#5E4938' }}
+                >
+                  <option value="mid">רגיל</option>
+                  <option value="high">דחוף</option>
+                </select>
+                <input
+                  value={newTitle}
+                  onChange={e => setNewTitle(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') addManualTask() }}
+                  autoFocus
+                  placeholder="מה צריך לעשות? (Enter לשמירה)"
+                  className="flex-1 min-w-0 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-mustard-400"
+                  style={{ border: '1px solid #E9E2D6', color: '#443327' }}
+                />
+                <button onClick={addManualTask} disabled={savingTask || !newTitle.trim()}
+                  className="flex-shrink-0 font-bold rounded-xl disabled:opacity-40"
+                  style={{ fontSize: 13, padding: '8px 14px', background: '#C8A460', color: '#33281B' }}>
+                  {savingTask ? '...' : 'הוספה'}
+                </button>
+              </div>
+            )}
+
+            {/* Undo row — visible ~10s after טופל */}
+            {undo && (
+              <div className="flex items-center gap-2 rounded-2xl px-3.5 py-2.5 mb-2" style={{ background: '#EDEDE6' }}>
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: '#4F5040' }} />
+                <p className="flex-1 min-w-0 truncate font-semibold" style={{ fontSize: 13, color: '#4F5040' }}>
+                  טופל: {undo.label}
+                </p>
+                <button
+                  onClick={async () => { const u = undo; setUndo(null); if (undoTimer.current) clearTimeout(undoTimer.current); await u.run() }}
+                  className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl"
+                  style={{ fontSize: 13, padding: '5px 10px', background: '#fff', color: '#4F5040' }}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> ביטול
+                </button>
+              </div>
+            )}
+
+            {totalOpen === 0 ? (
               <div className="flex items-center gap-3 rounded-2xl px-4 py-4" style={{ background: '#EDEDE6' }}>
                 <CheckCircle2 className="w-5 h-5 flex-shrink-0" style={{ color: '#4F5040' }} />
                 <p className="font-semibold" style={{ fontSize: 14, color: '#4F5040' }}>אין משימות פתוחות — הכול מטופל</p>
               </div>
             ) : (
               <div className="space-y-1.5">
+                {/* Manual tasks first — Brenda wrote them herself */}
+                {manualTasks.map(t => (
+                  <div key={t.id} className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5 transition-colors hover:bg-[#FAF7F1]">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.severity === 'high' ? '#8B4A30' : '#C8A460' }} />
+                    <p className="flex-1 min-w-0 truncate" style={{ fontSize: 14 }}>
+                      <span className="font-bold" style={{ color: '#443327' }}>{t.title}</span>
+                      {t.detail && <span style={{ color: '#A2937D' }}> · {t.detail}</span>}
+                      <span style={{ color: '#A2937D' }}> · משימה שלך</span>
+                    </p>
+                    {t.link_section && (
+                      <button onClick={() => onSection(t.link_section as AdminTaskSection)}
+                        className="flex-shrink-0 flex items-center gap-0.5 font-bold rounded-xl transition-all hover:brightness-95"
+                        style={{ fontSize: 13, padding: '6px 12px', background: '#F6ECD8', color: '#6E5836' }}>
+                        מעבר <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => completeManual(t.id, t.title)}
+                      disabled={busyToggle === t.id}
+                      className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95 disabled:opacity-40"
+                      style={{ fontSize: 13, padding: '6px 12px', background: '#EDEDE6', color: '#4F5040' }}
+                      title="סימון כטופל"
+                    >
+                      <Check className="w-3.5 h-3.5" /> טופל
+                    </button>
+                  </div>
+                ))}
+
+                {/* Derived tasks — טופל hides until the source changes */}
                 {tasks.map(t => (
                   <div key={t.key} className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5 transition-colors hover:bg-[#FAF7F1]">
                     <span
@@ -130,6 +276,15 @@ export default function AdminHome({ overview, onSection }: Props) {
                     >
                       {t.actionLabel}
                       <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => dismissDerived(t.key, t.title)}
+                      disabled={busyToggle === t.key}
+                      className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95 disabled:opacity-40"
+                      style={{ fontSize: 13, padding: '6px 12px', background: '#EDEDE6', color: '#4F5040' }}
+                      title="טופל — יחזור אם משהו ישתנה במקור"
+                    >
+                      <Check className="w-3.5 h-3.5" /> טופל
                     </button>
                   </div>
                 ))}

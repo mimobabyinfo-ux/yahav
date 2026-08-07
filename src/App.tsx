@@ -234,7 +234,7 @@ function AppInner() {
             onToggleUserView={toggleUserView}
             unreadForms={unreadForms}
             unreadRegistrations={unreadRegistrations}
-            taskCount={adminOverview.tasks.length}
+            taskCount={adminOverview.tasks.length + adminOverview.manualTasks.length}
             workshopIssues={adminOverview.tasks.filter(t => t.section === 'workshops').length}
             partnersWaiting={adminOverview.recentPartnerLeads}
           />

@@ -21,6 +21,9 @@ export type AdminTask = {
   severity: 'high' | 'mid'
   section: AdminTaskSection
   actionLabel: string
+  /** When the task's SOURCE row last changed (ISO). A dismissed task
+   *  resurfaces when this is newer than dismissed_at (handoff §3.5). */
+  sourceUpdatedAt: string | null
 }
 
 // Minimal lead shape the rules need (subset of RegistrationsTab's
@@ -51,7 +54,7 @@ export type LinkedSubmission = {
 export type AdminTaskInput = {
   workshops: Workshop[]
   cohorts: Pick<WorkshopCohort, 'id' | 'workshop_id' | 'is_active'>[]
-  events: Pick<CommunityEvent, 'id' | 'title' | 'event_date' | 'is_active' | 'price' | 'payment_link' | 'vendor_id' | 'vendor_name'>[]
+  events: Pick<CommunityEvent, 'id' | 'title' | 'event_date' | 'is_active' | 'price' | 'payment_link' | 'vendor_id' | 'vendor_name' | 'updated_at'>[]
   checkinEventIds: Set<string>
   leads: TaskLead[]
   linkedFormDefs: Map<string, LinkedFormDef>
@@ -109,6 +112,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
         severity: 'high',
         section: 'workshops',
         actionLabel: 'למוצר',
+        sourceUpdatedAt: w.updated_at ?? null,
       })
     }
   }
@@ -123,6 +127,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
         severity: 'high',
         section: 'events',
         actionLabel: 'לאירוע',
+        sourceUpdatedAt: ev.updated_at ?? null,
       })
     }
   }
@@ -138,12 +143,13 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
       severity: 'high',
       section: 'registrations',
       actionLabel: 'להרשמות',
+      sourceUpdatedAt: stalePending.reduce<string | null>((m, l) => (m == null || l.created_at > m ? l.created_at : m), null),
     })
   }
 
   // 4 · Opening questionnaire not filled — one line per linked form.
   const filledIndex = buildFilledIndex(linkedFormDefs, linkedSubmissions)
-  const unfilledByForm = new Map<string, { title: string; count: number }>()
+  const unfilledByForm = new Map<string, { title: string; count: number; latest: string | null }>()
   for (const lead of leads) {
     if (lead.status === 'handled') continue
     const w = lead.selected_workshop_id ? workshops.find(x => x.id === lead.selected_workshop_id) : null
@@ -155,8 +161,9 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
     const isFilled = (!!phone && filledIndex.has(`${form.id}|p|${phone}`))
       || (!!emailL && filledIndex.has(`${form.id}|e|${emailL}`))
     if (!isFilled) {
-      const cur = unfilledByForm.get(form.id) ?? { title: form.title, count: 0 }
+      const cur = unfilledByForm.get(form.id) ?? { title: form.title, count: 0, latest: null as string | null }
       cur.count += 1
+      if (cur.latest == null || lead.created_at > cur.latest) cur.latest = lead.created_at
       unfilledByForm.set(form.id, cur)
     }
   }
@@ -168,6 +175,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
       severity: 'mid',
       section: 'forms',
       actionLabel: 'לשאלון',
+      sourceUpdatedAt: info.latest,
     })
   }
 
@@ -182,6 +190,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
         severity: 'mid',
         section: 'events',
         actionLabel: 'לאירוע',
+        sourceUpdatedAt: ev.updated_at ?? null,
       })
     }
   }
@@ -197,6 +206,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
         severity: 'mid',
         section: 'events',
         actionLabel: 'לאירוע',
+        sourceUpdatedAt: ev.updated_at ?? null,
       })
     }
   }
@@ -219,10 +229,37 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
         severity: 'mid',
         section: 'workshops',
         actionLabel: 'למוצר',
+        sourceUpdatedAt: w.updated_at ?? null,
       })
     }
   }
 
   // high first, then mid; stable within severity.
   return tasks.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'high' ? -1 : 1))
+}
+
+// ─── Phase 2: persistence glue ───────────────────────────────────────────────
+
+/** Row shape of admin_tasks (manual tasks). */
+export type ManualTask = {
+  id: string
+  title: string
+  detail: string | null
+  severity: 'high' | 'mid' | 'low'
+  link_section: AdminTaskSection | null
+  link_id: string | null
+  status: 'open' | 'done'
+  created_at: string
+  done_at: string | null
+}
+
+/** Filter derived tasks through persisted dismissals. A dismissed task
+ *  stays hidden until its source row changes AFTER dismissed_at — then
+ *  the condition is "new news" and it resurfaces (handoff §3.5). */
+export function applyDismissals(tasks: AdminTask[], dismissals: Map<string, string>): AdminTask[] {
+  return tasks.filter(t => {
+    const dismissedAt = dismissals.get(t.key)
+    if (!dismissedAt) return true
+    return t.sourceUpdatedAt != null && t.sourceUpdatedAt > dismissedAt
+  })
 }
