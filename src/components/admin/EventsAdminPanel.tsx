@@ -107,6 +107,10 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
   // Waiting count per event — for the "המתנה: N" chip and the
   // freed-spot alert on event rows.
   const [waitCounts, setWaitCounts] = useState<Record<string, number>>({})
+  // Phase 6: attended count per event (past-event fill = attended/registered)
+  // + which events already have a check-in link (state pill).
+  const [attendedCounts, setAttendedCounts] = useState<Record<string, number>>({})
+  const [checkinIds, setCheckinIds] = useState<Set<string>>(new Set())
   const [regsLoading, setRegsLoading] = useState(false)
   // Registrant row expanded to full profile details
   const [expandedRegId, setExpandedRegId] = useState<string | null>(null)
@@ -128,19 +132,24 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
   const load = useCallback(async () => {
     setLoading(true)
     loadWaitlistCounts()
-    const [{ data: evs }, { data: regRows }, { data: partners }] = await Promise.all([
+    const [{ data: evs }, { data: regRows }, { data: partners }, { data: toks }] = await Promise.all([
       supabase.from('community_events').select('*').order('event_date', { ascending: true }),
       supabase.from('event_registrations').select('event_id, status'),
       supabase.from('service_partners').select('*').eq('is_active', true).order('display_order'),
+      supabase.from('event_checkin_tokens').select('event_id'),
     ])
     setEvents((evs ?? []) as CommunityEvent[])
     const counter: Record<string, number> = {}
+    const attended: Record<string, number> = {}
     for (const r of (regRows ?? []) as { event_id: string; status: string }[]) {
       if (r.status === 'registered' || r.status === 'attended') {
         counter[r.event_id] = (counter[r.event_id] ?? 0) + 1
       }
+      if (r.status === 'attended') attended[r.event_id] = (attended[r.event_id] ?? 0) + 1
     }
     setCounts(counter)
+    setAttendedCounts(attended)
+    setCheckinIds(new Set(((toks ?? []) as { event_id: string }[]).map(t => t.event_id)))
     setVendors((partners ?? []) as ServicePartner[])
     setLoading(false)
   }, [])
@@ -371,6 +380,22 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
     const d = new Date(ev.event_date + 'T12:00:00')
     const isDraft = !ev.is_active
     const missingLink = ev.is_active && ev.price > 0 && !ev.payment_link
+    // Phase 6: check-in state, derived from event_checkin_tokens +
+    // attendance. Past links genuinely don't open (the RPC only answers
+    // day-before → day-after), so a past event shows a CLOSED state.
+    const isPast = ev.event_date < todayLocalIso()
+    const attended = attendedCounts[ev.id] ?? 0
+    const checkinPill = isPast
+      ? (attended > 0
+          ? { text: `צ'ק-אין הושלם · ${attended}/${count}`, color: '#4F5040', bg: '#EDEDE6' }
+          : count > 0
+            ? { text: 'לא סומנה נוכחות', color: '#8B4A30', bg: '#F7EBE4' }
+            : null)
+      : (checkinIds.has(ev.id)
+          ? { text: 'קישור צ\'ק-אין נוצר', color: '#4F5040', bg: '#EDEDE6' }
+          : ev.is_active
+            ? { text: 'אין קישור צ\'ק-אין', color: '#8B4A30', bg: '#F7EBE4' }
+            : null)
     return (
       <div
         key={ev.id}
@@ -395,6 +420,16 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
               </span>
               {missingLink && (
                 <span className="font-semibold whitespace-nowrap" style={{ fontSize: 13, color: '#8B4A30' }}>חסר לינק תשלום</span>
+              )}
+              {checkinPill && (
+                <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: checkinPill.bg, color: checkinPill.color }}>
+                  {checkinPill.text}
+                </span>
+              )}
+              {isPast && (
+                <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: '#F1EBE1', color: '#A2937D' }}>
+                  הסתיים
+                </span>
               )}
               {(waitCounts[ev.id] ?? 0) > 0 && (
                 ev.capacity != null && count < ev.capacity && ev.event_date >= todayLocalIso() ? (

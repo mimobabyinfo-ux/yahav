@@ -5673,16 +5673,37 @@ function PartnersTab() {
   const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({})
   // Topic filter — null = show all folders.
   const [topicFilter, setTopicFilter] = useState<string | null>(null)
+  // Phase 6 (handoff §6): each vendor carries its leads + events context
+  // instead of the leads living in a separate tab with no connection.
+  type VendorLead = { id: string; partner_id: string | null; action_type: string; contact_name: string | null; contact_phone: string | null; created_at: string }
+  const [leadsByVendor, setLeadsByVendor] = useState<Record<string, VendorLead[]>>({})
+  const [eventsByVendor, setEventsByVendor] = useState<Record<string, { id: string; title: string; event_date: string }[]>>({})
+  const [openLeadsVendor, setOpenLeadsVendor] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const [{ data }, { data: info }] = await Promise.all([
+    const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
+    const [{ data }, { data: info }, { data: pls }, { data: evs }] = await Promise.all([
       supabase.from('service_partners').select('*').order('category').order('display_order'),
       supabase.from('vendor_admin_info').select('*'),
+      supabase.from('partner_leads').select('id, partner_id, action_type, contact_name, contact_phone, created_at').order('created_at', { ascending: false }),
+      supabase.from('community_events').select('id, title, event_date, vendor_id').gte('event_date', todayIso).eq('is_active', true).order('event_date'),
     ])
     setPartners((data ?? []) as ServicePartner[])
     const m: Record<string, VendorAdminInfo> = {}
     for (const i of (info ?? []) as VendorAdminInfo[]) m[i.vendor_id] = i
     setAdminInfo(m)
+    const lb: Record<string, VendorLead[]> = {}
+    for (const l of (pls ?? []) as VendorLead[]) {
+      if (!l.partner_id) continue
+      ;(lb[l.partner_id] ??= []).push(l)
+    }
+    setLeadsByVendor(lb)
+    const eb: Record<string, { id: string; title: string; event_date: string }[]> = {}
+    for (const e of (evs ?? []) as { id: string; title: string; event_date: string; vendor_id: string | null }[]) {
+      if (!e.vendor_id) continue
+      ;(eb[e.vendor_id] ??= []).push({ id: e.id, title: e.title, event_date: e.event_date })
+    }
+    setEventsByVendor(eb)
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -5880,6 +5901,46 @@ function PartnersTab() {
                     </div>
                     {p.description && (
                       <p className="line-clamp-3" style={{ fontWeight: 400, fontSize: 14, lineHeight: 1.55, color: '#7B604C' }}>{p.description}</p>
+                    )}
+                    {/* Phase 6: leads + upcoming-event context ON the vendor */}
+                    {((leadsByVendor[p.id]?.length ?? 0) > 0 || (eventsByVendor[p.id]?.length ?? 0) > 0) && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {(leadsByVendor[p.id]?.length ?? 0) > 0 && (
+                          <button
+                            onClick={() => setOpenLeadsVendor(cur => cur === p.id ? null : p.id)}
+                            className="font-bold rounded-full transition-all hover:brightness-95"
+                            style={{ fontSize: 12, padding: '4px 10px', background: '#E4EBEF', color: '#3E5966' }}
+                          >
+                            📞 {leadsByVendor[p.id].length} לידים {openLeadsVendor === p.id ? '▲' : '▼'}
+                          </button>
+                        )}
+                        {(eventsByVendor[p.id]?.length ?? 0) > 0 && (
+                          <span className="font-bold rounded-full" style={{ fontSize: 12, padding: '4px 10px', background: '#F4EDE1', color: '#8A6A2F' }} title={eventsByVendor[p.id].map(e => e.title).join(', ')}>
+                            🎪 אירוע קרוב: {(() => { const [, m2, d2] = eventsByVendor[p.id][0].event_date.split('-'); return `${d2}/${m2}` })()}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {openLeadsVendor === p.id && (leadsByVendor[p.id]?.length ?? 0) > 0 && (
+                      <div className="space-y-1.5 rounded-xl p-2.5" style={{ background: '#F8F4EC' }}>
+                        {leadsByVendor[p.id].slice(0, 6).map(l => (
+                          <div key={l.id} className="flex items-center gap-2">
+                            <span className="flex-1 min-w-0 truncate" style={{ fontSize: 13, fontWeight: 600, color: '#443327' }}>
+                              {l.contact_name ?? 'ללא שם'}
+                              <span style={{ color: '#A2937D', fontWeight: 500 }}> · {(() => { const [, m2, d2] = l.created_at.slice(0, 10).split('-'); return `${d2}/${m2}` })()} · {l.action_type === 'callback' ? 'ביקשה שיחה' : 'וואטסאפ'}</span>
+                            </span>
+                            {l.contact_phone && (
+                              <a href={`https://wa.me/${l.contact_phone.replace(/\D/g, '').replace(/^0/, '972')}`} target="_blank" rel="noopener noreferrer"
+                                className="flex-shrink-0 font-bold" style={{ fontSize: 12, color: '#A35C3D' }}>
+                                💬 {l.contact_phone}
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                        {leadsByVendor[p.id].length > 6 && (
+                          <p style={{ fontSize: 12, color: '#A2937D' }}>ועוד {leadsByVendor[p.id].length - 6} בטאב לידים</p>
+                        )}
+                      </div>
                     )}
                     <div className="flex items-center gap-4" style={{ borderTop: '1px solid #F0EBE3', paddingTop: 12, marginTop: 'auto' }}>
                       {p.whatsapp_number && (
