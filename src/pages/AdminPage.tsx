@@ -2547,257 +2547,465 @@ function FormsTabDesktop() {
 }
 
 // ─── Insights Tab ─────────────────────────────────────────────────────────────
+// Screen B: the tab measures the app as it is NOW — commerce (registrations,
+// payments, cohort fill), community (real attendance, measurable since vendor
+// check-in shipped), the lead pipeline (lead_stage + lost reasons), and only
+// then app usage. Reader-of-views: v_registration_funnel / v_cohort_fill /
+// v_event_attendance / v_lead_outcomes + the existing v_video_performance /
+// v_retention_cohort.
+
 type VideoPerf = { title: string; total_views: number; completions: number; completion_pct: number }
 type RetentionRow = { cohort_week: string; total_users: number; day1: number; day3: number; day7: number }
-type User360 = UserProfile & { childCount: number; logCount: number; activityCount: number; lead_status: string | null; staff_notes: string | null }
+type FunnelRow = { store_views: number; forms_filled: number; registered: number; paid: number; attended: number }
+type CohortFillRow = { cohort_id: string; workshop_title: string; capacity: number | null; registered: number }
+type EventAttRow = { past_registered: number; past_attended: number; past_no_show: number; events_this_month: number; events_no_vendor: number; events_no_checkin: number }
+type LeadOutRow = { total_leads: number; stage_new: number; stage_contacted: number; stage_registered: number; stage_paid: number; stage_lost: number; open_unanswered_48h: number; avg_days_to_close: number | null }
+type InsightsLeadRow = { id: string; status: 'pending' | 'paid' | 'handled'; created_at: string; selected_workshop_id: string | null }
+type InsightsUserRow = { id: string; created_at: string; last_active: string | null; lead_stage: string | null; lost_reason: string | null; is_admin: boolean | null }
+
+// B2: rates get a colour + a 5px fill track; plain counts do not.
+function rateColor(p: number): string {
+  if (p >= 70) return '#4F5040'
+  if (p >= 40) return '#7A5C1F'
+  return '#8B4A30'
+}
+
+export const LOST_REASON_LABELS: Record<string, string> = {
+  no_response: 'לא ענתה',
+  price: 'המחיר גבוה',
+  timing: 'התזמון לא התאים',
+  chose_other: 'בחרה מקום אחר',
+  not_relevant: 'לא רלוונטי',
+  other: 'אחר',
+}
+
+function KpiCard({ label, value, sub, subColor, ratePct }: {
+  label: string
+  value: string
+  sub?: string | null
+  subColor?: string
+  /** When set, the value is a rate: colour it by threshold + render the
+   *  5px fill track. Never set for plain counts (₪4,180, 21, 148). */
+  ratePct?: number | null
+}) {
+  const valueColor = ratePct != null ? rateColor(ratePct) : '#443327'
+  return (
+    <div className="bg-white text-right" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: '14px 16px' }}>
+      <p style={{ fontWeight: 700, fontSize: 12.5, color: '#8A7A63' }}>{label}</p>
+      <p className="font-display" style={{ fontSize: 26, color: valueColor, marginTop: 2 }}>{value}</p>
+      {ratePct != null && (
+        <div style={{ height: 5, background: '#F1EBE1', borderRadius: 9999, marginTop: 6, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, ratePct))}%`, background: valueColor, borderRadius: 9999 }} />
+        </div>
+      )}
+      {sub && <p style={{ fontWeight: 600, fontSize: 12.5, color: subColor ?? '#A2937D', marginTop: 6 }}>{sub}</p>}
+    </div>
+  )
+}
+
+function KpiGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2.5">
+      <h3 className="font-display" style={{ fontSize: 17, color: '#443327' }}>{title}</h3>
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))' }}>
+        {children}
+      </div>
+    </div>
+  )
+}
 
 function InsightsTab() {
-  const [stats, setStats] = useState({ users: 0, pregnant: 0, moms: 0, children: 0, logs: 0 })
+  const [funnel, setFunnel] = useState<FunnelRow | null>(null)
+  const [cohortFill, setCohortFill] = useState<CohortFillRow[]>([])
+  const [eventAtt, setEventAtt] = useState<EventAttRow | null>(null)
+  const [leadOut, setLeadOut] = useState<LeadOutRow | null>(null)
   const [videoPerf, setVideoPerf] = useState<VideoPerf[]>([])
   const [retention, setRetention] = useState<RetentionRow[]>([])
-  const [user360Id, setUser360Id] = useState<string | null>(null)
-  const [user360, setUser360] = useState<User360 | null>(null)
-  const [user360Logs, setUser360Logs] = useState<{ entry_type: string; created_at: string }[]>([])
-  const [user360Activity, setUser360Activity] = useState<{ event_type: string; created_at: string; event_data: Record<string, unknown> }[]>([])
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([])
+  const [regLeads, setRegLeads] = useState<InsightsLeadRow[]>([])
+  const [workshopPrices, setWorkshopPrices] = useState<Map<string, number>>(new Map())
+  const [partnerLeadDates, setPartnerLeadDates] = useState<string[]>([])
+  const [users, setUsers] = useState<InsightsUserRow[]>([])
+  const [journalCount, setJournalCount] = useState(0)
 
   useEffect(() => {
     Promise.all([
-      supabase.from('user_profiles').select('*').order('created_at', { ascending: false }),
-      supabase.from('children').select('id'),
-      supabase.from('daily_log_entries').select('id'),
+      supabase.from('v_registration_funnel').select('*').limit(1),
+      supabase.from('v_cohort_fill').select('*'),
+      supabase.from('v_event_attendance').select('*').limit(1),
+      supabase.from('v_lead_outcomes').select('*').limit(1),
       supabase.from('v_video_performance').select('*').limit(10),
       supabase.from('v_retention_cohort').select('*').limit(8),
-    ]).then(([{ data: users }, { data: children }, { data: logs }, { data: vids }, { data: ret }]) => {
-      setAllUsers(users ?? [])
-      setStats({
-        users: users?.length ?? 0,
-        pregnant: users?.filter(u => u.user_mode === 'pregnant').length ?? 0,
-        moms: users?.filter(u => u.user_mode === 'mom').length ?? 0,
-        children: children?.length ?? 0,
-        logs: logs?.length ?? 0,
-      })
-      setVideoPerf((vids ?? []).map(v => ({ ...v, title: v.title.slice(0, 20) })))
-      setRetention(ret ?? [])
+      supabase.from('registration_leads').select('id, status, created_at, selected_workshop_id'),
+      supabase.from('workshops').select('id, price'),
+      supabase.from('partner_leads').select('created_at'),
+      supabase.from('user_profiles').select('id, created_at, last_active, lead_stage, lost_reason, is_admin'),
+      supabase.from('daily_log_entries').select('id', { count: 'exact', head: true }),
+    ]).then(([f, cf, ea, lo, vids, ret, rl, ws, pl, up, logs]) => {
+      setFunnel((f.data?.[0] ?? null) as FunnelRow | null)
+      setCohortFill((cf.data ?? []) as CohortFillRow[])
+      setEventAtt((ea.data?.[0] ?? null) as EventAttRow | null)
+      setLeadOut((lo.data?.[0] ?? null) as LeadOutRow | null)
+      setVideoPerf(((vids.data ?? []) as VideoPerf[]).map(v => ({ ...v, title: v.title.slice(0, 20) })))
+      setRetention((ret.data ?? []) as RetentionRow[])
+      setRegLeads((rl.data ?? []) as InsightsLeadRow[])
+      setWorkshopPrices(new Map(((ws.data ?? []) as { id: string; price: number | null }[]).map(w => [w.id, w.price ?? 0])))
+      setPartnerLeadDates(((pl.data ?? []) as { created_at: string }[]).map(x => x.created_at))
+      setUsers((up.data ?? []) as InsightsUserRow[])
+      setJournalCount(logs.count ?? 0)
     })
   }, [])
 
-  async function load360(userId: string) {
-    setUser360Id(userId)
-    const [
-      { data: profile },
-      { data: children },
-      { data: logs },
-      { data: acts },
-    ] = await Promise.all([
-      supabase.from('user_profiles').select('*').eq('id', userId).single(),
-      supabase.from('children').select('id').eq('user_id', userId),
-      supabase.from('daily_log_entries').select('entry_type, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
-      supabase.from('user_activities').select('event_type, created_at, event_data').eq('user_id', userId).order('created_at', { ascending: false }).limit(30),
-    ])
-    setUser360({ ...profile!, childCount: children?.length ?? 0, logCount: logs?.length ?? 0, activityCount: acts?.length ?? 0 })
-    setUser360Logs(logs ?? [])
-    setUser360Activity(acts ?? [])
-  }
+  // ── כסף והרשמות ────────────────────────────────────────────────────
+  const money = useMemo(() => {
+    const now = new Date()
+    const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const thisMonth = ym(now)
+    const lastMonth = ym(new Date(now.getFullYear(), now.getMonth() - 1, 1))
+    let regsThis = 0, regsLast = 0, revenueThis = 0
+    for (const l of regLeads) {
+      const m = l.created_at.slice(0, 7)
+      if (m === thisMonth) {
+        regsThis++
+        if (l.status === 'paid' || l.status === 'handled') {
+          revenueThis += l.selected_workshop_id ? (workshopPrices.get(l.selected_workshop_id) ?? 0) : 0
+        }
+      } else if (m === lastMonth) {
+        regsLast++
+      }
+    }
+    const total = regLeads.length
+    const paid = regLeads.filter(l => l.status === 'paid' || l.status === 'handled').length
+    const conversion = total > 0 ? Math.round((paid / total) * 100) : null
+    const withCap = cohortFill.filter(c => c.capacity != null)
+    const capSum = withCap.reduce((s, c) => s + (c.capacity ?? 0), 0)
+    const regSum = withCap.reduce((s, c) => s + c.registered, 0)
+    const occupancy = capSum > 0 ? Math.round((regSum / capSum) * 100) : null
+    return { regsThis, regsLast, revenueThis, total, paid, conversion, capSum, regSum, occupancy, openCohorts: cohortFill.length }
+  }, [regLeads, workshopPrices, cohortFill])
 
-  const statCards = [
-    { label: 'סה"כ משתמשות', value: stats.users,    emoji: '👩',  color: '#EFF6FF' },
-    { label: 'בהריון',        value: stats.pregnant, emoji: '🤰',  color: '#F5F3FF' },
-    { label: 'אמהות',         value: stats.moms,     emoji: '👶',  color: '#F0FDF4' },
-    { label: 'ילדים',         value: stats.children, emoji: '🍼',  color: '#FFF7ED' },
-    { label: 'רשומות יומן',  value: stats.logs,     emoji: '📔',  color: '#FAF5FF' },
-  ]
+  // ── קהילה ואירועים ─────────────────────────────────────────────────
+  const community = useMemo(() => {
+    const attendance = eventAtt && eventAtt.past_registered > 0
+      ? Math.round((eventAtt.past_attended / eventAtt.past_registered) * 100)
+      : null
+    const now = Date.now()
+    const last30 = partnerLeadDates.filter(d => now - new Date(d).getTime() < 30 * 86400_000).length
+    const newest = partnerLeadDates.length > 0
+      ? Math.floor((now - Math.max(...partnerLeadDates.map(d => new Date(d).getTime()))) / 86400_000)
+      : null
+    return { attendance, partnerTotal: partnerLeadDates.length, partnerLast30: last30, newestAgeDays: newest }
+  }, [eventAtt, partnerLeadDates])
+
+  // ── לידים וסגירה (B6: the denominator is DECIDED leads only) ───────
+  const leadsKpi = useMemo(() => {
+    if (!leadOut) return null
+    const decided = leadOut.stage_paid + leadOut.stage_lost
+    const closeRate = decided > 0 ? Math.round((leadOut.stage_paid / decided) * 100) : null
+    const open = leadOut.stage_new + leadOut.stage_contacted + leadOut.stage_registered
+    return { ...leadOut, decided, closeRate, open }
+  }, [leadOut])
+
+  // ── B5-3: lost reasons — same source as the לידים שאבדו KPI, so the
+  //    bars sum to it exactly ──────────────────────────────────────────
+  const lostReasons = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const u of users) {
+      if (u.is_admin || u.lead_stage !== 'lost') continue
+      const key = u.lost_reason ?? 'none'
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return Array.from(counts.entries())
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [users])
+
+  // ── שימוש באפליקציה ────────────────────────────────────────────────
+  const usage = useMemo(() => {
+    const nonAdmin = users.filter(u => !u.is_admin)
+    const now = Date.now()
+    const active7 = nonAdmin.filter(u => u.last_active && now - new Date(u.last_active).getTime() < 7 * 86400_000).length
+    const newThisMonth = nonAdmin.filter(u => u.created_at.slice(0, 7) === new Date().toISOString().slice(0, 7)).length
+    const latestRet = retention[0] ?? null
+    const day7 = latestRet && latestRet.total_users > 0 ? Math.round((latestRet.day7 / latestRet.total_users) * 100) : null
+    return { total: nonAdmin.length, active7, newThisMonth, day7 }
+  }, [users, retention])
 
   const retentionChart = retention.map(r => ({
-    week: r.cohort_week?.slice(0, 10) ?? '',
+    week: r.cohort_week?.slice(5, 10) ?? '',
     'יום 1': r.total_users ? Math.round((r.day1 / r.total_users) * 100) : 0,
     'יום 3': r.total_users ? Math.round((r.day3 / r.total_users) * 100) : 0,
     'יום 7': r.total_users ? Math.round((r.day7 / r.total_users) * 100) : 0,
   }))
 
   return (
-    <div className="space-y-5">
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-3">
-        {statCards.map(c => (
-          <div key={c.label} className="rounded-2xl p-4 shadow-sm text-right" style={{ background: c.color }}>
-            <div className="text-2xl mb-1">{c.emoji}</div>
-            <div className="text-2xl font-black text-sand-800">{c.value}</div>
-            <div className="text-xs text-sand-500 mt-0.5">{c.label}</div>
-          </div>
-        ))}
-      </div>
+    <div className="space-y-6">
+      {/* ── B1-1: כסף והרשמות ── */}
+      <KpiGroup title="כסף והרשמות">
+        <KpiCard
+          label="הרשמות החודש"
+          value={String(money.regsThis)}
+          sub={money.regsLast > 0 || money.regsThis > 0
+            ? `${money.regsLast} בחודש שעבר`
+            : 'אין עדיין הרשמות'}
+          subColor={money.regsThis > money.regsLast ? '#4F5040' : money.regsThis < money.regsLast ? '#8B4A30' : '#A2937D'}
+        />
+        <KpiCard
+          label="המרה לתשלום"
+          value={money.conversion != null ? `${money.conversion}%` : '—'}
+          ratePct={money.conversion}
+          sub={money.total > 0 ? `${money.paid} מתוך ${money.total} הרשמות` : 'אין עדיין הרשמות'}
+        />
+        <KpiCard
+          label="הכנסה משוערת החודש"
+          value={`₪${money.revenueThis.toLocaleString()}`}
+          sub="לפי מחיר המוצר"
+        />
+        <KpiCard
+          label="תפוסת מחזורים פתוחים"
+          value={money.occupancy != null ? `${money.occupancy}%` : '—'}
+          ratePct={money.occupancy}
+          sub={money.capSum > 0
+            ? `${money.regSum} מתוך ${money.capSum} מקומות ב-${money.openCohorts === 1 ? 'מחזור אחד' : `${money.openCohorts} מחזורים`}`
+            : 'אין מחזורים פתוחים עם תפוסה מוגדרת'}
+        />
+      </KpiGroup>
 
-      {/* Retention chart */}
+      {/* ── B1-2: קהילה ואירועים ── */}
+      <KpiGroup title="קהילה ואירועים">
+        <KpiCard
+          label="הגעה בפועל לאירועים"
+          value={community.attendance != null ? `${community.attendance}%` : '—'}
+          ratePct={community.attendance}
+          sub={eventAtt && eventAtt.past_registered > 0
+            ? `${eventAtt.past_attended} הגיעו מתוך ${eventAtt.past_registered} שנרשמו`
+            : 'ימדד אחרי האירוע הראשון עם צ׳ק-אין'}
+        />
+        <KpiCard
+          label="לידים לספקים (30 יום)"
+          value={String(community.partnerLast30)}
+          sub={community.partnerTotal > 0
+            ? `סה"כ ${community.partnerTotal}${community.newestAgeDays != null ? ` · האחרון לפני ${community.newestAgeDays === 0 ? 'פחות מיום' : `${community.newestAgeDays} ימים`}` : ''}`
+            : 'אין עדיין לידים לספקים'}
+        />
+        <KpiCard
+          label="אירועים החודש"
+          value={String(eventAtt?.events_this_month ?? 0)}
+          sub={eventAtt && eventAtt.events_this_month > 0
+            ? (eventAtt.events_no_vendor > 0 || eventAtt.events_no_checkin > 0
+              ? `${eventAtt.events_no_vendor} בלי ספק · ${eventAtt.events_no_checkin} בלי קישור צ׳ק-אין`
+              : 'לכולם ספק וקישור צ׳ק-אין')
+            : 'אין אירועים החודש'}
+          subColor={eventAtt && eventAtt.events_this_month > 0 && (eventAtt.events_no_vendor > 0 || eventAtt.events_no_checkin > 0) ? '#8B4A30' : eventAtt && eventAtt.events_this_month > 0 ? '#4F5040' : '#A2937D'}
+        />
+      </KpiGroup>
+
+      {/* ── B1-3: לידים וסגירה ── */}
+      <KpiGroup title="לידים וסגירה">
+        <KpiCard
+          label="אחוז סגירה"
+          value={leadsKpi?.closeRate != null ? `${leadsKpi.closeRate}%` : '—'}
+          ratePct={leadsKpi?.closeRate ?? null}
+          sub={leadsKpi && leadsKpi.decided > 0
+            ? `${leadsKpi.stage_paid} מתוך ${leadsKpi.decided} לידים שהוכרעו`
+            : 'אין עדיין לידים שהוכרעו (שולם / אבד)'}
+        />
+        <KpiCard
+          label="זמן ממוצע לסגירה"
+          value={leadsKpi?.avg_days_to_close != null ? `${leadsKpi.avg_days_to_close} ימים` : '—'}
+          sub={leadsKpi?.avg_days_to_close != null ? 'מליד חדש עד תשלום' : 'ימדד מהסגירה הראשונה'}
+        />
+        <KpiCard
+          label="לידים שאבדו"
+          value={String(leadsKpi?.stage_lost ?? 0)}
+          sub={leadsKpi && leadsKpi.total_leads > 0 ? `מתוך ${leadsKpi.total_leads} לידים` : null}
+        />
+        <KpiCard
+          label="פתוחים ללא מענה 48 שעות"
+          value={String(leadsKpi?.open_unanswered_48h ?? 0)}
+          sub={leadsKpi && leadsKpi.open_unanswered_48h > 0 ? 'שוות פנייה היום' : 'אין לידים שמחכים'}
+          subColor={leadsKpi && leadsKpi.open_unanswered_48h > 0 ? '#8B4A30' : '#4F5040'}
+        />
+      </KpiGroup>
+
+      {/* ── B5-1: המסע לסדנה ── */}
+      {funnel && <FunnelBlock funnel={funnel} />}
+
+      {/* ── B5-2: צנרת הלידים ── */}
+      {leadsKpi && <PipelineBlock leads={leadsKpi} />}
+
+      {/* ── B5-3: למה לידים לא נסגרו ── */}
+      <LostReasonsBlock reasons={lostReasons} totalLost={leadsKpi?.stage_lost ?? 0} />
+
+      {/* ── B1-4: שימוש באפליקציה (existing — demoted to last) ── */}
+      <KpiGroup title="שימוש באפליקציה">
+        <KpiCard
+          label="משתמשות פעילות (7 ימים)"
+          value={String(usage.active7)}
+          sub={`מתוך ${usage.total} רשומות`}
+        />
+        <KpiCard
+          label="הצטרפו החודש"
+          value={String(usage.newThisMonth)}
+        />
+        <KpiCard
+          label="רשומות יומן"
+          value={String(journalCount)}
+        />
+        <KpiCard
+          label="Retention יום 7 (שבוע אחרון)"
+          value={usage.day7 != null ? `${usage.day7}%` : '—'}
+          ratePct={usage.day7}
+        />
+      </KpiGroup>
+
       {retentionChart.length > 0 && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <h3 className="font-bold text-sand-800 text-sm mb-3">Retention (%) לפי שבוע</h3>
-          <ResponsiveContainer width="100%" height={160}>
+        <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: 18 }}>
+          <h3 className="font-display" style={{ fontSize: 16, color: '#443327', marginBottom: 12 }}>Retention (%) לפי שבוע הצטרפות</h3>
+          <ResponsiveContainer width="100%" height={180}>
             <LineChart data={retentionChart}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F0EB" />
-              <XAxis dataKey="week" tick={{ fontSize: 9 }} />
-              <YAxis unit="%" tick={{ fontSize: 9 }} domain={[0, 100]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#F1EBE1" />
+              <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#8A7A63' }} />
+              <YAxis unit="%" tick={{ fontSize: 10, fill: '#8A7A63' }} domain={[0, 100]} />
               <Tooltip formatter={(v) => `${v}%`} />
-              <Legend wrapperStyle={{ fontSize: 10 }} />
-              <Line type="monotone" dataKey="יום 1" stroke="#3B82F6" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="יום 3" stroke="#D9B978" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="יום 7" stroke="#22C55E" strokeWidth={2} dot={false} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="יום 1" stroke="#C8A460" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="יום 3" stroke="#35505C" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="יום 7" stroke="#4F5040" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {/* Video performance chart */}
       {videoPerf.length > 0 && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <h3 className="font-bold text-sand-800 text-sm mb-3">ביצועי סרטונים</h3>
-          <ResponsiveContainer width="100%" height={160}>
+        <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: 18 }}>
+          <h3 className="font-display" style={{ fontSize: 16, color: '#443327', marginBottom: 12 }}>ביצועי סרטונים</h3>
+          <ResponsiveContainer width="100%" height={Math.max(160, videoPerf.length * 34)}>
             <BarChart data={videoPerf} layout="vertical">
-              <XAxis type="number" tick={{ fontSize: 9 }} />
-              <YAxis dataKey="title" type="category" width={80} tick={{ fontSize: 9 }} />
+              <XAxis type="number" tick={{ fontSize: 10, fill: '#8A7A63' }} />
+              <YAxis dataKey="title" type="category" width={110} tick={{ fontSize: 10, fill: '#5E4938' }} />
               <Tooltip />
-              <Bar dataKey="total_views" name="צפיות" fill="#D9B978" radius={[0, 4, 4, 0]} />
-              <Bar dataKey="completions" name="השלמות" fill="#86EFAC" radius={[0, 4, 4, 0]} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="total_views" name="צפיות" fill="#C8A460" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="completions" name="השלמות" fill="#35505C" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* User 360 */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-sand-100">
-          <h3 className="font-bold text-sand-800 text-sm">User 360°</h3>
-        </div>
-        <div className="max-h-40 overflow-y-auto divide-y divide-sand-50">
-          {allUsers.map(u => (
-            <button
-              key={u.id}
-              onClick={() => load360(u.id)}
-              className={`w-full text-right px-4 py-2.5 text-sm hover:bg-sand-50 transition-colors flex items-center justify-between ${user360Id === u.id ? 'bg-mustard-50' : ''}`}
-            >
-              <span className="font-medium text-sand-700 truncate">{u.mother_name ?? u.email}</span>
-              <span className="text-xs text-sand-400 flex-shrink-0 mr-2">{u.lead_status ?? 'new'}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 360 Detail Panel */}
-      {user360 && (
-        <div className="bg-white rounded-2xl shadow-sm p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-sand-800">{user360.mother_name ?? user360.email}</h3>
-              <p className="text-xs text-sand-400">{user360.email}</p>
-            </div>
-            <div className="flex gap-1.5">
-              {user360.is_admin && <span className="text-[13px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">ADMIN</span>}
-            </div>
-          </div>
-
-          {/* Lead status + notes */}
-          <LeadStatusEditor user={user360} onSaved={() => load360(user360.id)} />
-
-          {/* Quick stats */}
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: 'ילדים', value: user360.childCount },
-              { label: 'לוגים', value: user360.logCount },
-              { label: 'אירועים', value: user360.activityCount },
-            ].map(s => (
-              <div key={s.label} className="text-center bg-sand-50 rounded-xl py-2">
-                <div className="font-black text-lg text-sand-800">{s.value}</div>
-                <div className="text-[13px] text-sand-400">{s.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Recent logs */}
-          {user360Logs.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-sand-500 mb-1.5">פעילות אחרונה ביומן</p>
-              <div className="space-y-1">
-                {user360Logs.slice(0, 5).map((l, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs text-sand-600">
-                    <span>{l.entry_type}</span>
-                    <span className="text-sand-400">{new Date(l.created_at).toLocaleDateString('he-IL')}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Activity history */}
-          {user360Activity.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-sand-500 mb-1.5">היסטוריית פעילות</p>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
-                {user360Activity.map((a, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="text-sand-600">{a.event_type}</span>
-                    <span className="text-sand-400">{new Date(a.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
   )
 }
 
-function LeadStatusEditor({ user, onSaved }: { user: User360; onSaved: () => void }) {
-  const [status, setStatus] = useState(user.lead_status ?? 'new')
-  const [notes, setNotes] = useState(user.staff_notes ?? '')
-  const [saving, setSaving] = useState(false)
-
-  async function save() {
-    setSaving(true)
-    await supabase.from('user_profiles').update({ lead_status: status, staff_notes: notes }).eq('id', user.id)
-    setSaving(false)
-    onSaved()
-  }
-
-  const statuses = [
-    { value: 'new', label: 'חדשה', color: '#60A5FA' },
-    { value: 'active_coaching', label: 'בתהליך', color: '#F59E0B' },
-    { value: 'completed', label: 'הושלם', color: '#22C55E' },
+// ─── B5-1: one funnel crossing screens ──────────────────────────────
+function FunnelBlock({ funnel }: { funnel: FunnelRow }) {
+  const steps = [
+    { key: 'store', label: 'צפו בחנות', value: funnel.store_views },
+    { key: 'form', label: 'מילאו שאלון', value: funnel.forms_filled },
+    { key: 'reg', label: 'נרשמו', value: funnel.registered },
+    { key: 'paid', label: 'שילמו', value: funnel.paid },
+    { key: 'att', label: 'השתתפו', value: funnel.attended },
   ]
-
+  const max = Math.max(1, ...steps.map(s => s.value))
   return (
-    <div className="space-y-2">
-      <div className="flex gap-1.5">
-        {statuses.map(s => (
-          <button
-            key={s.value}
-            onClick={() => setStatus(s.value)}
-            className="flex-1 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
-            style={{
-              borderColor: status === s.value ? s.color : '#C6BDA0',
-              background: status === s.value ? s.color + '20' : 'white',
-              color: status === s.value ? s.color : '#818267',
-            }}
-          >
-            {s.label}
-          </button>
+    <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: 18 }}>
+      <h3 className="font-display" style={{ fontSize: 16, color: '#443327' }}>המסע לסדנה</h3>
+      <div className="space-y-2.5" style={{ marginTop: 14 }}>
+        {steps.map((s, i) => {
+          const prev = i > 0 ? steps[i - 1].value : null
+          // The drop between steps; clay when a step loses ≥50%. A step
+          // larger than its predecessor is stated, not hidden (B6) —
+          // the store counter started later than the historical data.
+          let dropText = ''
+          let dropColor = '#A2937D'
+          if (prev != null && prev > 0 && s.value <= prev) {
+            const lossPct = Math.round(((prev - s.value) / prev) * 100)
+            dropText = lossPct === 0 ? 'ללא נשירה' : `‎-${lossPct}%`
+            if (lossPct >= 50) dropColor = '#8B4A30'
+          } else if (prev != null && s.value > prev) {
+            dropText = 'מעל הצעד הקודם — מדידת החנות התחילה מאוחר'
+          }
+          return (
+            <div key={s.key} className="flex items-center gap-3">
+              <span className="flex-shrink-0" style={{ width: 96, fontWeight: 700, fontSize: 13.5, color: '#5E4938' }}>{s.label}</span>
+              <div className="flex-1" style={{ height: 26, background: '#F1EBE1', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(s.value / max) * 100}%`, background: '#C8A460', borderRadius: 8, minWidth: s.value > 0 ? 4 : 0 }} />
+              </div>
+              <span className="font-display flex-shrink-0" style={{ width: 40, fontSize: 16, color: '#443327' }}>{s.value}</span>
+              <span className="flex-shrink-0 hidden md:block" style={{ width: 210, fontWeight: 700, fontSize: 12, color: dropColor }}>{dropText}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── B5-2: the pipeline — B6: the header states the full breakdown ──
+function PipelineBlock({ leads }: { leads: LeadOutRow & { decided: number; closeRate: number | null; open: number } }) {
+  const boxes = [
+    { label: 'חדשות', value: leads.stage_new },
+    { label: 'נוצר קשר', value: leads.stage_contacted },
+    { label: 'נרשמו', value: leads.stage_registered },
+    { label: 'שילמו', value: leads.stage_paid },
+  ]
+  return (
+    <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: 18 }}>
+      <div className="flex items-baseline gap-3 flex-wrap">
+        <h3 className="font-display" style={{ fontSize: 16, color: '#443327' }}>צנרת הלידים</h3>
+        <span style={{ fontWeight: 600, fontSize: 12.5, color: '#8A7A63' }}>
+          {leads.total_leads === 1 ? 'ליד אחד' : `${leads.total_leads} לידים`} · {leads.open} פעילים · {leads.stage_lost} אבדו
+        </span>
+      </div>
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginTop: 14 }}>
+        {boxes.map(b => (
+          <div key={b.label} className="text-center" style={{ background: '#FBF9F5', border: '1px solid #F1EBE1', borderRadius: 14, padding: '14px 10px' }}>
+            <p className="font-display" style={{ fontSize: 24, color: '#443327' }}>{b.value}</p>
+            <p style={{ fontWeight: 700, fontSize: 12.5, color: '#8A7A63', marginTop: 2 }}>{b.label}</p>
+          </div>
         ))}
       </div>
-      <textarea
-        value={notes}
-        onChange={e => setNotes(e.target.value)}
-        placeholder="הערות צוות..."
-        rows={2}
-        className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 resize-none"
-      />
-      <button
-        onClick={save}
-        disabled={saving}
-        className="w-full py-2 rounded-xl text-white text-xs font-bold disabled:opacity-50"
-        style={{ background: '#E7C78A' }}
-      >
-        {saving ? 'שומר...' : 'שמור הערות'}
-      </button>
+    </div>
+  )
+}
+
+// ─── B5-3: lost reasons, with the remedy beside the top two ─────────
+const LOST_REASON_REMEDIES: Record<string, string> = {
+  no_response: 'תזכורת אוטומטית אחרי 48 שעות',
+  price: 'קישור הצעה בהנחה מעמוד המוצר',
+}
+
+function LostReasonsBlock({ reasons, totalLost }: { reasons: { reason: string; count: number }[]; totalLost: number }) {
+  const max = Math.max(1, ...reasons.map(r => r.count))
+  return (
+    <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: 18 }}>
+      <h3 className="font-display" style={{ fontSize: 16, color: '#443327' }}>למה לידים לא נסגרו</h3>
+      {totalLost === 0 ? (
+        <p style={{ fontWeight: 600, fontSize: 13.5, color: '#A2937D', marginTop: 10 }}>
+          אין עדיין לידים שאבדו. כשליד יסומן "אבדה" בכרטיס הלקוחה, הסיבה תיאסף ותופיע כאן.
+        </p>
+      ) : (
+        <div className="space-y-2.5" style={{ marginTop: 14 }}>
+          {reasons.map((r, i) => {
+            const noReason = r.reason === 'none'
+            const label = noReason ? 'ללא סיבה מתועדת' : (LOST_REASON_LABELS[r.reason] ?? r.reason)
+            const pct = totalLost > 0 ? Math.round((r.count / totalLost) * 100) : 0
+            const remedy = !noReason && i < 2 ? LOST_REASON_REMEDIES[r.reason] : null
+            return (
+              <div key={r.reason} className="flex items-center gap-3">
+                <span className="flex-shrink-0 truncate" style={{ width: 130, fontWeight: 700, fontSize: 13.5, color: noReason ? '#A2937D' : '#5E4938' }}>{label}</span>
+                <div className="flex-1" style={{ height: 22, background: '#F1EBE1', borderRadius: 8, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${(r.count / max) * 100}%`, background: noReason ? '#D9CFBC' : '#8B4A30', borderRadius: 8, minWidth: 4 }} />
+                </div>
+                <span className="font-display flex-shrink-0" style={{ width: 60, fontSize: 14, color: '#443327' }}>{r.count} · {pct}%</span>
+                {remedy && (
+                  <span className="flex-shrink-0 hidden lg:block" style={{ width: 220, fontWeight: 600, fontSize: 12, color: '#35505C' }}>
+                    ← {remedy}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
