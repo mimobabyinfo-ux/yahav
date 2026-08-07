@@ -62,6 +62,15 @@ type RegistrantRow = {
   } | null
 }
 
+// A waiting row in the simple waitlist (event_waitlist, admin RLS).
+type WaitlistRow = {
+  id: string
+  user_id: string
+  status: string
+  created_at: string
+  user_profiles: { mother_name: string | null; phone_number: string | null } | null
+}
+
 function todayLocalIso(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -94,6 +103,10 @@ export default function EventsAdminPanel() {
   // Registrants drill-down
   const [regsEvent, setRegsEvent] = useState<CommunityEvent | null>(null)
   const [regs, setRegs] = useState<RegistrantRow[]>([])
+  const [regsWaitlist, setRegsWaitlist] = useState<WaitlistRow[]>([])
+  // Waiting count per event — for the "המתנה: N" chip and the
+  // freed-spot alert on event rows.
+  const [waitCounts, setWaitCounts] = useState<Record<string, number>>({})
   const [regsLoading, setRegsLoading] = useState(false)
   // Registrant row expanded to full profile details
   const [expandedRegId, setExpandedRegId] = useState<string | null>(null)
@@ -105,8 +118,16 @@ export default function EventsAdminPanel() {
   })
   const [calSelected, setCalSelected] = useState<CommunityEvent | null>(null)
 
+  const loadWaitlistCounts = useCallback(async () => {
+    const { data } = await supabase.from('event_waitlist').select('event_id').eq('status', 'waiting')
+    const m: Record<string, number> = {}
+    for (const w of (data ?? []) as { event_id: string }[]) m[w.event_id] = (m[w.event_id] ?? 0) + 1
+    setWaitCounts(m)
+  }, [])
+
   const load = useCallback(async () => {
     setLoading(true)
+    loadWaitlistCounts()
     const [{ data: evs }, { data: regRows }, { data: partners }] = await Promise.all([
       supabase.from('community_events').select('*').order('event_date', { ascending: true }),
       supabase.from('event_registrations').select('event_id, status'),
@@ -217,13 +238,41 @@ export default function EventsAdminPanel() {
     setRegsEvent(ev)
     setExpandedRegId(null)
     setRegsLoading(true)
-    const { data } = await supabase
-      .from('event_registrations')
-      .select('id, user_id, status, paid, created_at, user_profiles(mother_name, phone_number, email, area, baby_name, baby_dob, community_bio, community_tags, staff_notes)')
-      .eq('event_id', ev.id)
-      .order('created_at')
+    const [{ data }, { data: wl }] = await Promise.all([
+      supabase
+        .from('event_registrations')
+        .select('id, user_id, status, paid, created_at, user_profiles(mother_name, phone_number, email, area, baby_name, baby_dob, community_bio, community_tags, staff_notes)')
+        .eq('event_id', ev.id)
+        .order('created_at'),
+      supabase
+        .from('event_waitlist')
+        .select('id, user_id, status, created_at, user_profiles(mother_name, phone_number)')
+        .eq('event_id', ev.id)
+        .eq('status', 'waiting')
+        .order('created_at'),
+    ])
     setRegs((data ?? []) as unknown as RegistrantRow[])
+    setRegsWaitlist((wl ?? []) as unknown as WaitlistRow[])
     setRegsLoading(false)
+  }
+
+  // Simple waitlist admin actions: remove from line, or convert (adds a
+  // registration — the DB trigger flips the waitlist row to converted).
+  async function removeFromWaitlist(w: WaitlistRow) {
+    await supabase.from('event_waitlist').update({ status: 'removed', updated_at: new Date().toISOString() }).eq('id', w.id)
+    if (regsEvent) openRegs(regsEvent)
+    loadWaitlistCounts()
+  }
+
+  async function convertFromWaitlist(w: WaitlistRow) {
+    if (!regsEvent) return
+    await supabase.from('event_registrations').upsert(
+      { event_id: regsEvent.id, user_id: w.user_id, status: 'registered', paid: false },
+      { onConflict: 'event_id,user_id' },
+    )
+    openRegs(regsEvent)
+    load()
+    loadWaitlistCounts()
   }
 
   async function setRegStatus(reg: RegistrantRow, status: RegistrantRow['status']) {
@@ -337,6 +386,19 @@ export default function EventsAdminPanel() {
               </span>
               {missingLink && (
                 <span className="font-semibold whitespace-nowrap" style={{ fontSize: 13, color: '#8B4A30' }}>חסר לינק תשלום</span>
+              )}
+              {(waitCounts[ev.id] ?? 0) > 0 && (
+                ev.capacity != null && count < ev.capacity && ev.event_date >= todayLocalIso() ? (
+                  /* A spot freed while moms are waiting — reach out to the
+                     first in line (list inside נרשמות) */
+                  <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: '#A35C3D', color: '#fff' }}>
+                    🔔 התפנה מקום · {waitCounts[ev.id]} ממתינות
+                  </span>
+                ) : (
+                  <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: '#E4EBEF', color: '#3E5966' }}>
+                    ⏳ המתנה: {waitCounts[ev.id]}
+                  </span>
+                )
               )}
             </div>
             <p className="font-semibold mt-0.5" style={{ fontSize: 14, color: '#7B604C' }}>
@@ -684,6 +746,52 @@ export default function EventsAdminPanel() {
                   )
                 })
               )}
+
+              {/* ── Waitlist — ordered by join time. When a spot frees,
+                  message the first in line (prefilled WhatsApp) or add
+                  her directly; converting/removing keeps the order. ── */}
+              {!regsLoading && regsWaitlist.length > 0 && (() => {
+                const regCount = regs.filter(r => r.status === 'registered' || r.status === 'attended').length
+                const hasFreeSpot = regsEvent.capacity != null && regCount < regsEvent.capacity
+                return (
+                  <div className="pt-3 mt-3 border-t border-sand-100 space-y-2">
+                    <p className="text-sm font-bold text-sand-700">⏳ רשימת המתנה ({regsWaitlist.length})</p>
+                    {hasFreeSpot && (
+                      <p className="text-[13px] font-bold rounded-xl px-3 py-2" style={{ background: '#F9EDE7', color: '#8B4A30' }}>
+                        🔔 יש מקום פנוי — שלחי הודעה לראשונה בתור או הוסיפי אותה ישירות
+                      </p>
+                    )}
+                    {regsWaitlist.map((w, idx) => {
+                      const name = w.user_profiles?.mother_name ?? '—'
+                      const phone = w.user_profiles?.phone_number
+                      const waText = `היי ${name.split(' ')[0]}! התפנה מקום ב"${regsEvent.title}" (${weekdayHe(regsEvent.event_date)} ${ddmm(regsEvent.event_date)}${regsEvent.start_time ? ` בשעה ${regsEvent.start_time.slice(0, 5)}` : ''}) ואת הבאה בתור 💛 אפשר להירשם עכשיו באפליקציה: https://mimo-baby.co.il`
+                      return (
+                        <div key={w.id} className="flex items-center gap-2 border border-sand-100 rounded-2xl p-3">
+                          <span className="w-6 h-6 rounded-full flex items-center justify-center text-[13px] font-bold flex-shrink-0" style={{ background: '#F4EDE1', color: '#6E5836' }}>{idx + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-sand-800 truncate">{name}</p>
+                            <p className="text-[13px] text-sand-500">הצטרפה {ddmm(w.created_at.slice(0, 10))}</p>
+                          </div>
+                          {phone && (
+                            <a href={`https://wa.me/${phone.replace(/\D/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(waText)}`} target="_blank" rel="noopener noreferrer"
+                              className="p-2 rounded-xl bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title="הודעה שהתפנה מקום">
+                              <MessageCircle className="w-4 h-4" />
+                            </a>
+                          )}
+                          <button onClick={() => convertFromWaitlist(w)}
+                            className="text-[13px] font-bold px-2.5 py-1.5 rounded-xl border-2 border-mustard-300 bg-mustard-50 text-mustard-700"
+                            title="הוספה כנרשמה">
+                            + הוספה
+                          </button>
+                          <button onClick={() => removeFromWaitlist(w)} className="p-1.5 text-sand-300 hover:text-red-400 transition-colors" title="הסרה מהרשימה">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
             </div>
           </div>
         </div>

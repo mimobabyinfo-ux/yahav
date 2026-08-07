@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
 import { MapPin, Clock, Users, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft } from 'lucide-react'
-import { supabase, type CommunityEventRow, type EventAttendee } from '../../lib/supabase'
+import { supabase, type CommunityEventRow, type EventAttendee, type MyWaitlist } from '../../lib/supabase'
 import { getBabyAge } from '../../utils/dateUtils'
 import CommunityMemberSheet from './CommunityMemberSheet'
 import MimoDuck from '../MimoDuck'
@@ -60,9 +60,20 @@ export default function EventsTab() {
   // Tapped attendee — opens the community profile bottom-sheet
   const [openAttendee, setOpenAttendee] = useState<{ attendee: EventAttendee; eventTitle: string } | null>(null)
 
+  // My waitlist entries (event_id → position). Simple waitlist: joining
+  // is possible only when full; when a spot frees the card highlights
+  // "התפנה מקום" and registering auto-converts the entry (DB trigger).
+  const [waitlists, setWaitlists] = useState<Record<string, MyWaitlist>>({})
+
   const load = useCallback(async () => {
-    const { data } = await supabase.rpc('get_community_events')
+    const [{ data }, { data: wl }] = await Promise.all([
+      supabase.rpc('get_community_events'),
+      supabase.rpc('get_my_waitlists'),
+    ])
     setEvents((data ?? []) as CommunityEventRow[])
+    const m: Record<string, MyWaitlist> = {}
+    for (const w of (wl ?? []) as MyWaitlist[]) m[w.event_id] = w
+    setWaitlists(m)
     setLoading(false)
   }, [])
 
@@ -110,6 +121,27 @@ export default function EventsTab() {
     if (attendees[ev.id]) loadAttendees(ev.id)
   }
 
+  async function joinWaitlist(ev: CommunityEventRow) {
+    setBusyId(ev.id)
+    const { data, error } = await supabase.rpc('join_event_waitlist', { p_event_id: ev.id })
+    setBusyId(null)
+    if (error) { showToast('שגיאה — נסי שוב'); return }
+    if (data === 'not_full') { showToast('התפנה מקום — אפשר להירשם! 💛'); load(); return }
+    if (data === 'already_registered') { showToast('את כבר רשומה לאירוע 💛'); load(); return }
+    if (data === 'ok') {
+      showToast('נכנסת לרשימת ההמתנה — נעדכן אותך אם יתפנה מקום 🤍')
+      load()
+    }
+  }
+
+  async function leaveWaitlist(ev: CommunityEventRow) {
+    setBusyId(ev.id)
+    await supabase.rpc('leave_event_waitlist', { p_event_id: ev.id })
+    setBusyId(null)
+    showToast('ירדת מרשימת ההמתנה')
+    load()
+  }
+
   function calMove(delta: number) {
     setCalYm(({ y, m }) => {
       const idx = y * 12 + (m - 1) + delta
@@ -123,6 +155,7 @@ export default function EventsTab() {
     const spotsLeft = ev.capacity != null ? ev.capacity - ev.registered_count : null
     const isFull = spotsLeft != null && spotsLeft <= 0
     const isMine = ev.my_status === 'registered' || ev.my_status === 'attended'
+    const onWaitlist = waitlists[ev.id]
     const expanded = expandedId === ev.id
     const names = attendees[ev.id]
 
@@ -235,15 +268,49 @@ export default function EventsTab() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+          ) : isFull ? (
+            /* Full event — waitlist instead of a dead-end */
+            onWaitlist ? (
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold" style={{ background: '#F4EDE1', color: '#6E5836' }}>
+                  ⏳ ברשימת ההמתנה (מקום {onWaitlist.my_position})
+                </div>
+                <button
+                  onClick={() => leaveWaitlist(ev)}
+                  disabled={busyId === ev.id}
+                  className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-semibold disabled:opacity-40"
+                  title="ירידה מרשימת ההמתנה"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => joinWaitlist(ev)}
+                disabled={busyId === ev.id}
+                className="w-full py-2.5 rounded-2xl text-sm font-bold disabled:opacity-40 transition-all"
+                style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
+              >
+                {busyId === ev.id ? 'רגע...' : 'האירוע מלא — שמרי לי מקום בהמתנה 🤍'}
+              </button>
+            )
           ) : (
-            <button
-              onClick={() => register(ev)}
-              disabled={isFull || busyId === ev.id}
-              className="w-full py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-40 transition-all"
-              style={{ background: isFull ? '#C9C2B6' : '#E7C78A' }}
-            >
-              {busyId === ev.id ? 'רגע...' : isFull ? 'אין מקומות' : ev.price > 0 ? `אני מגיעה! (₪${ev.price})` : 'אני מגיעה!'}
-            </button>
+            <>
+              {/* A spot just freed while she's on the waitlist */}
+              {onWaitlist && (
+                <p className="text-center text-[13px] font-bold mb-2" style={{ color: '#A35C3D' }}>
+                  🎉 התפנה מקום! מהרי להירשם
+                </p>
+              )}
+              <button
+                onClick={() => register(ev)}
+                disabled={busyId === ev.id}
+                className="w-full py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-40 transition-all"
+                style={{ background: '#E7C78A' }}
+              >
+                {busyId === ev.id ? 'רגע...' : ev.price > 0 ? `אני מגיעה! (₪${ev.price})` : 'אני מגיעה!'}
+              </button>
+            </>
           )}
           {isMine && ev.price > 0 && ev.payment_link && (
             <a href={ev.payment_link} target="_blank" rel="noopener noreferrer"

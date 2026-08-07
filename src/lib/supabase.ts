@@ -542,6 +542,14 @@ export type CommunityEventRow = {
   my_status: 'registered' | 'cancelled' | 'attended' | 'no_show' | null
 }
 
+// Row shape of the get_my_waitlists RPC — the calling user's place in
+// line for upcoming full events (simple waitlist, no auto-cascade yet).
+export type MyWaitlist = {
+  event_id: string
+  my_position: number
+  waiting_count: number
+}
+
 export type EventRegistration = {
   id: string
   event_id: string
