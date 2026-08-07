@@ -18,6 +18,7 @@ import PublicBabyPage from './pages/PublicBabyPage'
 import GuestJoinPage from './pages/GuestJoinPage'
 import PublicPartnerPage from './pages/PublicPartnerPage'
 import PublicRegisterPage from './pages/PublicRegisterPage'
+import VendorCheckinPage from './pages/VendorCheckinPage'
 import ThankYouPage from './pages/ThankYouPage'
 import UserSettingsPage from './pages/UserSettingsPage'
 import SleepPage from './pages/log/SleepPage'
@@ -50,6 +51,9 @@ const isRegisterPage = new URLSearchParams(window.location.search).has('register
 // the admin auto-redirect (useEffect → setCurrentPage('admin')) never
 // fires for a logged-in admin testing an offer link.
 const isOfferPage = new URLSearchParams(window.location.search).has('offer')
+// Vendor/host check-in for community events (?checkin=<token>) — public,
+// no login; access enforced by the token RPCs.
+const checkinToken = new URLSearchParams(window.location.search).get('checkin')
 const isThanksPage = new URLSearchParams(window.location.search).has('thanks')
 const isSettingsPage = new URLSearchParams(window.location.search).has('settings')
 
@@ -142,6 +146,7 @@ function AppInner() {
   if (isPartnerPage) return <PublicPartnerPage />
   if (isRegisterPage) return <PublicRegisterPage />
   if (isOfferPage) return <PublicRegisterPage />
+  if (checkinToken) return <VendorCheckinPage token={checkinToken} />
   if (isThanksPage) return <ThankYouPage />
 
   if (loading) {

@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
-import { Plus, Pencil, Trash2, X, MessageCircle, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, MessageCircle, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown, Link2, Copy, RefreshCw, ExternalLink, Check } from 'lucide-react'
 import { supabase, type CommunityEvent, type ServicePartner } from '../../lib/supabase'
 import ConfirmDialog from './ConfirmDialog'
 import { getBabyAge } from '../../utils/dateUtils'
@@ -80,6 +80,8 @@ export default function EventsAdminPanel() {
   const [events, setEvents] = useState<CommunityEvent[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [vendors, setVendors] = useState<ServicePartner[]>([])
+  // Vendor check-in link share modal (Phase 1 of the vendor flow).
+  const [checkinEvent, setCheckinEvent] = useState<CommunityEvent | null>(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -358,6 +360,11 @@ export default function EventsAdminPanel() {
             ) : (
               <button onClick={() => openRegs(ev)} className="font-bold rounded-xl transition-all hover:bg-sand-50" style={{ border: '1.5px solid #DCD4C8', color: '#7B604C', padding: '9px 14px', fontSize: 14 }}>
                 נרשמות
+              </button>
+            )}
+            {!isDraft && (
+              <button onClick={() => setCheckinEvent(ev)} className="flex items-center justify-center rounded-xl transition-colors hover:brightness-95" style={{ width: 38, height: 38, background: '#F8F4EC' }} title="קישור צ'ק-אין לספק">
+                <Link2 className="w-[17px] h-[17px]" style={{ color: '#7B604C' }} />
               </button>
             )}
             <button onClick={() => openEdit(ev)} className="flex items-center justify-center rounded-xl transition-colors hover:brightness-95" style={{ width: 38, height: 38, background: '#F8F4EC' }} title="עריכה">
@@ -682,6 +689,15 @@ export default function EventsAdminPanel() {
         </div>
       )}
 
+      {/* Vendor check-in link — copy / WhatsApp to vendor / regenerate */}
+      {checkinEvent && (
+        <CheckinShareModal
+          ev={checkinEvent}
+          vendors={vendors}
+          onClose={() => setCheckinEvent(null)}
+        />
+      )}
+
       {/* Delete confirm — only when registrations exist */}
       <ConfirmDialog
         open={!!pendingDelete}
@@ -693,6 +709,133 @@ export default function EventsAdminPanel() {
         onConfirm={reallyDelete}
         onClose={() => setPendingDelete(null)}
       />
+    </div>
+  )
+}
+
+// ─── Vendor check-in link share ───────────────────────────────────────────────
+// Creates (or fetches) the event's secure check-in token and offers:
+// copy link, send to the vendor's WhatsApp (or a free-choice WhatsApp
+// share when the event has no vendor phone), open the page, and
+// regenerate (revokes the old link). The token lives in the admin-only
+// event_checkin_tokens table; the public page is /?checkin=<token>.
+
+function normalizeIlWa(phone: string): string {
+  const digits = phone.replace(/[^\d]/g, '')
+  if (digits.startsWith('972')) return digits
+  if (digits.startsWith('0')) return '972' + digits.slice(1)
+  return digits
+}
+
+function CheckinShareModal({ ev, vendors, onClose }: { ev: CommunityEvent; vendors: ServicePartner[]; onClose: () => void }) {
+  const [token, setToken] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [regenBusy, setRegenBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    // Create if missing, then read. ignoreDuplicates keeps an existing
+    // token stable (so a link already sent to the vendor stays valid).
+    await supabase.from('event_checkin_tokens').upsert(
+      { event_id: ev.id }, { onConflict: 'event_id', ignoreDuplicates: true },
+    )
+    const { data } = await supabase.from('event_checkin_tokens').select('token').eq('event_id', ev.id).maybeSingle()
+    setToken(data?.token ?? null)
+  }, [ev.id])
+  useEffect(() => { load() }, [load])
+
+  async function regenerate() {
+    setRegenBusy(true)
+    await supabase.from('event_checkin_tokens').update({ token: crypto.randomUUID() }).eq('event_id', ev.id)
+    await load()
+    setRegenBusy(false)
+  }
+
+  const link = token ? `${window.location.origin}/?checkin=${token}` : ''
+  const vendor = ev.vendor_id ? vendors.find(v => v.id === ev.vendor_id) : undefined
+  const vendorPhone = vendor?.whatsapp_number ? normalizeIlWa(vendor.whatsapp_number) : null
+  const greetName = ev.vendor_name || vendor?.title || ''
+  const waMessage =
+    `היי${greetName ? ` ${greetName}` : ''}! מצרפים את קישור הצ'ק-אין לאירוע "${ev.title}" בתאריך ${ddmm(ev.event_date)}` +
+    (ev.start_time ? ` בשעה ${ev.start_time.slice(0, 5)}` : '') +
+    `. ביום האירוע פשוט פותחים את הקישור ומסמנים מי הגיעה:\n${link}\n\nתודה! 🤍 מימו`
+  const waHref = vendorPhone
+    ? `https://wa.me/${vendorPhone}?text=${encodeURIComponent(waMessage)}`
+    : `https://wa.me/?text=${encodeURIComponent(waMessage)}`
+
+  function copyLink() {
+    if (!link) return
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" onClick={onClose} dir="rtl">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-sand-800" style={{ fontSize: 17 }}>קישור צ'ק-אין לספק</h3>
+            <p className="text-sm text-sand-500 mt-0.5">{ev.emoji ? `${ev.emoji} ` : ''}{ev.title} · {ddmm(ev.event_date)}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-sand-50 flex items-center justify-center flex-shrink-0">
+            <X className="w-4 h-4 text-sand-600" />
+          </button>
+        </div>
+
+        <p className="text-[13px] leading-relaxed text-sand-500">
+          מי שמקבל את הקישור רואה את רשימת השמות הפרטיים בלבד ומסמן מי הגיעה — בלי חשבון ובלי סיסמה.
+          הקישור פעיל מיום לפני האירוע ועד יום אחריו. מי שלא תסומן — תיסגר אוטומטית כ"לא הגיעה" למחרת.
+        </p>
+
+        {token === null ? (
+          <div className="text-center py-4">
+            <div className="w-6 h-6 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 bg-sand-50 rounded-xl px-3 py-2.5">
+              <span className="flex-1 text-xs text-sand-600 truncate" dir="ltr">{link}</span>
+              <button onClick={copyLink} className="flex items-center gap-1 text-xs font-bold flex-shrink-0" style={{ color: '#8A6A2F' }}>
+                {copied ? <><Check className="w-3.5 h-3.5" /> הועתק</> : <><Copy className="w-3.5 h-3.5" /> העתקה</>}
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <a
+                href={waHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-2 bg-musgo-500 hover:bg-musgo-600 text-white font-bold py-3 rounded-2xl text-sm transition-all"
+              >
+                <MessageCircle className="w-4 h-4" />
+                {vendorPhone ? `וואטסאפ ל${greetName || 'ספק'}` : 'שיתוף בוואטסאפ'}
+              </a>
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 font-bold py-3 px-4 rounded-2xl text-sm"
+                style={{ background: '#F6ECD8', color: '#6E5836' }}
+              >
+                <ExternalLink className="w-4 h-4" /> פתיחה
+              </a>
+            </div>
+            {!vendorPhone && ev.vendor_id && (
+              <p className="text-xs text-amber-700">לספק אין מספר וואטסאפ בכרטיס הספק — השיתוף ייפתח לבחירת איש קשר.</p>
+            )}
+
+            <button
+              onClick={regenerate}
+              disabled={regenBusy}
+              className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-sand-400 hover:text-sand-600 transition-colors disabled:opacity-50 pt-1"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${regenBusy ? 'animate-spin' : ''}`} />
+              חידוש קישור (הקישור הישן יפסיק לעבוד)
+            </button>
+          </>
+        )}
+      </div>
     </div>
   )
 }
