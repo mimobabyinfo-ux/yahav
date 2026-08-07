@@ -4,7 +4,7 @@ import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSe
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
-import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent, type WorkshopCohort } from '../lib/supabase'
+import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent, type WorkshopCohort, type VendorAdminInfo } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { BUYING_SUBCATEGORIES } from '../data/buyingSubcategories'
 import type { AdminSection } from '../App'
@@ -5579,8 +5579,12 @@ function PartnersTab() {
   const [partners, setPartners] = useState<ServicePartner[]>([])
   const [editing, setEditing] = useState<ServicePartner | null>(null)
   const [adding, setAdding] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', category: 'pregnancy' as 'pregnancy' | 'motherhood', subcategory: '', whatsapp_number: '', logo_url: '', display_order: 0 })
+  const [form, setForm] = useState({ title: '', description: '', category: 'pregnancy' as 'pregnancy' | 'motherhood', subcategory: '', whatsapp_number: '', logo_url: '', display_order: 0, cost: '', cost_notes: '' })
   const [saving, setSaving] = useState(false)
+  // Admin-only cost info per vendor (vendor_admin_info, admin RLS) —
+  // lets Brenda/Yahav compare what vendors charge inside each topic
+  // folder and pick. Never rendered anywhere user-facing.
+  const [adminInfo, setAdminInfo] = useState<Record<string, VendorAdminInfo>>({})
   // Task A: shared delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<ServicePartner | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
@@ -5590,19 +5594,26 @@ function PartnersTab() {
   const [topicFilter, setTopicFilter] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('service_partners').select('*').order('category').order('display_order')
+    const [{ data }, { data: info }] = await Promise.all([
+      supabase.from('service_partners').select('*').order('category').order('display_order'),
+      supabase.from('vendor_admin_info').select('*'),
+    ])
     setPartners((data ?? []) as ServicePartner[])
+    const m: Record<string, VendorAdminInfo> = {}
+    for (const i of (info ?? []) as VendorAdminInfo[]) m[i.vendor_id] = i
+    setAdminInfo(m)
   }, [])
   useEffect(() => { load() }, [load])
 
   function openNew() {
-    setForm({ title: '', description: '', category: 'pregnancy', subcategory: '', whatsapp_number: '', logo_url: '', display_order: partners.length })
+    setForm({ title: '', description: '', category: 'pregnancy', subcategory: '', whatsapp_number: '', logo_url: '', display_order: partners.length, cost: '', cost_notes: '' })
     setEditing(null)
     setAdding(true)
   }
 
   function openEdit(p: ServicePartner) {
-    setForm({ title: p.title, description: p.description ?? '', category: p.category, subcategory: subcatLabel(p.subcategory) === 'ללא נושא' ? '' : subcatLabel(p.subcategory), whatsapp_number: p.whatsapp_number ?? '', logo_url: p.logo_url ?? '', display_order: p.display_order })
+    const info = adminInfo[p.id]
+    setForm({ title: p.title, description: p.description ?? '', category: p.category, subcategory: subcatLabel(p.subcategory) === 'ללא נושא' ? '' : subcatLabel(p.subcategory), whatsapp_number: p.whatsapp_number ?? '', logo_url: p.logo_url ?? '', display_order: p.display_order, cost: info?.cost != null ? String(info.cost) : '', cost_notes: info?.cost_notes ?? '' })
     setEditing(p)
     setAdding(true)
   }
@@ -5610,11 +5621,23 @@ function PartnersTab() {
   async function save() {
     if (!form.title.trim()) return
     setSaving(true)
-    const payload = { ...form, subcategory: form.subcategory.trim() || null }
+    const { cost, cost_notes, ...partnerForm } = form
+    const payload = { ...partnerForm, subcategory: form.subcategory.trim() || null }
+    let vendorId = editing?.id ?? null
     if (editing) {
       await supabase.from('service_partners').update(payload).eq('id', editing.id)
     } else {
-      await supabase.from('service_partners').insert({ ...payload, is_active: true })
+      const { data: inserted } = await supabase.from('service_partners').insert({ ...payload, is_active: true }).select('id').single()
+      vendorId = (inserted as { id: string } | null)?.id ?? null
+    }
+    // Admin-only cost info — separate table (see vendor_admin_info).
+    if (vendorId) {
+      await supabase.from('vendor_admin_info').upsert({
+        vendor_id: vendorId,
+        cost: cost !== '' ? parseFloat(cost) : null,
+        cost_notes: cost_notes.trim() || null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'vendor_id' })
     }
     await load()
     setAdding(false)
@@ -5688,6 +5711,19 @@ function PartnersTab() {
           <input value={form.logo_url} onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))}
             placeholder="קישור לתמונה (אופציונלי)" dir="ltr"
             className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
+          {/* Admin-only cost block — stored in vendor_admin_info (admin
+              RLS), never shown to users anywhere in the app */}
+          <div className="rounded-2xl p-3 space-y-2" style={{ background: '#F8F4EC', border: '1px dashed #C6BDA0' }}>
+            <p className="text-xs font-bold text-sand-600">💰 עלות — לעיניים שלך בלבד (לא מוצג לאמהות)</p>
+            <div className="flex gap-2">
+              <input value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))}
+                placeholder="עלות לאירוע (₪)" type="number" min="0"
+                className="w-36 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400" />
+              <input value={form.cost_notes} onChange={e => setForm(f => ({ ...f, cost_notes: e.target.value }))}
+                placeholder="הערות — מה כלול, תנאים, התרשמות..."
+                className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400" />
+            </div>
+          </div>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving || !form.title.trim()}
               className="flex-1 py-2.5 rounded-2xl text-white font-bold text-sm disabled:opacity-40"
@@ -5752,6 +5788,13 @@ function PartnersTab() {
                         <p className="truncate" style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
                           {subcatLabel(p.subcategory)} · {p.category === 'pregnancy' ? 'הריון' : 'אמהות'}
                         </p>
+                        {/* Admin-only cost chip — from vendor_admin_info */}
+                        {adminInfo[p.id]?.cost != null && (
+                          <p className="truncate mt-0.5" style={{ fontWeight: 700, fontSize: 13, color: '#8A6A2F' }} title={adminInfo[p.id]?.cost_notes ?? undefined}>
+                            💰 ₪{adminInfo[p.id].cost} לאירוע
+                            {adminInfo[p.id]?.cost_notes && <span style={{ fontWeight: 500, color: '#957860' }}> · {adminInfo[p.id].cost_notes}</span>}
+                          </p>
+                        )}
                       </div>
                     </div>
                     {p.description && (

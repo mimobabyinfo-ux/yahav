@@ -459,6 +459,16 @@ export type ServicePartner = {
   created_at: string
 }
 
+// Admin-only vendor business info (cost per event + notes). Separate
+// table on purpose — service_partners is publicly readable, costs are
+// not for moms' eyes. RLS: admin-only.
+export type VendorAdminInfo = {
+  vendor_id: string
+  cost: number | null
+  cost_notes: string | null
+  updated_at: string
+}
+
 export type PartnerLead = {
   id: string
   user_id: string | null
