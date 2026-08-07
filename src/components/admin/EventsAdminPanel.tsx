@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react'
+﻿import { useCallback, useEffect, useRef, useState } from 'react'
 import { Plus, Pencil, Trash2, X, MessageCircle, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown, Link2, Copy, RefreshCw, ExternalLink, Check } from 'lucide-react'
 import { supabase, type CommunityEvent, type ServicePartner } from '../../lib/supabase'
 import ConfirmDialog from './ConfirmDialog'
@@ -85,7 +85,7 @@ function weekdayHe(dateStr: string): string {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'long' })
 }
 
-export default function EventsAdminPanel() {
+export default function EventsAdminPanel({ openEditId }: { openEditId?: string } = {}) {
   const [events, setEvents] = useState<CommunityEvent[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [vendors, setVendors] = useState<ServicePartner[]>([])
@@ -146,6 +146,15 @@ export default function EventsAdminPanel() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // Phase 3 (handoff §4): a home-screen task click opens the event it
+  // points at, once per id.
+  const openedFromTask = useRef<string | null>(null)
+  useEffect(() => {
+    if (!openEditId || events.length === 0 || openedFromTask.current === openEditId) return
+    const ev = events.find(x => x.id === openEditId)
+    if (ev) { openedFromTask.current = openEditId; openEdit(ev) }
+  }, [openEditId, events])
 
   function openCreate() {
     setDraft({ ...EMPTY_DRAFT, event_date: todayLocalIso() })

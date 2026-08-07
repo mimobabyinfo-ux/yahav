@@ -24,6 +24,10 @@ export type AdminTask = {
   /** When the task's SOURCE row last changed (ISO). A dismissed task
    *  resurfaces when this is newer than dismissed_at (handoff §3.5). */
   sourceUpdatedAt: string | null
+  /** Phase 3: object id the destination should open (workshop/event/form). */
+  targetId?: string
+  /** Phase 3: exact lead ids the destination should filter+pre-select. */
+  targetLeadIds?: string[]
 }
 
 // Minimal lead shape the rules need (subset of RegistrationsTab's
@@ -113,6 +117,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
         section: 'workshops',
         actionLabel: 'למוצר',
         sourceUpdatedAt: w.updated_at ?? null,
+        targetId: w.id,
       })
     }
   }
@@ -128,6 +133,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
         section: 'events',
         actionLabel: 'לאירוע',
         sourceUpdatedAt: ev.updated_at ?? null,
+        targetId: ev.id,
       })
     }
   }
@@ -144,6 +150,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
       section: 'registrations',
       actionLabel: 'להרשמות',
       sourceUpdatedAt: stalePending.reduce<string | null>((m, l) => (m == null || l.created_at > m ? l.created_at : m), null),
+      targetLeadIds: stalePending.map(l => l.id),
     })
   }
 
@@ -176,6 +183,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
       section: 'forms',
       actionLabel: 'לשאלון',
       sourceUpdatedAt: info.latest,
+      targetId: formId,
     })
   }
 
@@ -191,6 +199,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
         section: 'events',
         actionLabel: 'לאירוע',
         sourceUpdatedAt: ev.updated_at ?? null,
+        targetId: ev.id,
       })
     }
   }
@@ -207,6 +216,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
         section: 'events',
         actionLabel: 'לאירוע',
         sourceUpdatedAt: ev.updated_at ?? null,
+        targetId: ev.id,
       })
     }
   }
@@ -230,6 +240,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
         section: 'workshops',
         actionLabel: 'למוצר',
         sourceUpdatedAt: w.updated_at ?? null,
+        targetId: w.id,
       })
     }
   }

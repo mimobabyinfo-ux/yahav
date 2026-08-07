@@ -3,7 +3,7 @@ import { ChevronLeft, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, U
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { AdminOverview } from './useAdminOverview'
-import type { AdminTaskSection } from './adminTasks'
+import type { AdminTask, AdminTaskSection } from './adminTasks'
 import MimoDuck from '../MimoDuck'
 
 // Admin home ("בית") — answers "what needs me today" (design handoff §3).
@@ -32,9 +32,12 @@ function weekdayHe(iso: string): string {
 type Props = {
   overview: AdminOverview
   onSection: (section: AdminTaskSection | 'perks') => void
+  /** Phase 3 (handoff §4): open a task's destination WITH its context —
+   *  filter pre-applied, object pre-opened, context bar shown. */
+  onOpenTask?: (task: AdminTask) => void
 }
 
-export default function AdminHome({ overview, onSection }: Props) {
+export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
   const { profile } = useAuth()
   const { loading, tasks, manualTasks, counters, capacity, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
   const [busyToggle, setBusyToggle] = useState<string | null>(null)
@@ -270,7 +273,7 @@ export default function AdminHome({ overview, onSection }: Props) {
                       )}
                     </p>
                     <button
-                      onClick={() => onSection(t.section)}
+                      onClick={() => (onOpenTask ? onOpenTask(t) : onSection(t.section))}
                       className="flex-shrink-0 flex items-center gap-0.5 font-bold rounded-xl transition-all hover:brightness-95"
                       style={{ fontSize: 13, padding: '6px 12px', background: '#F6ECD8', color: '#6E5836' }}
                     >

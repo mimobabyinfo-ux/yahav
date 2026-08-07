@@ -27,6 +27,8 @@ import { useWorkshopCategories } from '../hooks/useWorkshopCategories'
 import MimoDuck from '../components/MimoDuck'
 import AdminHome from '../components/admin/AdminHome'
 import type { AdminOverview } from '../components/admin/useAdminOverview'
+import type { AdminTask } from '../components/admin/adminTasks'
+import { ChevronRight as CtxBack } from 'lucide-react'
 
 type Tab = 'home' | 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'events' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
@@ -72,6 +74,21 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function AdminPage({ defaultSection, unreadForms = 0, onFormsViewed, unreadRegistrations = 0, onRegistrationsViewed, overview }: { defaultSection?: AdminSection; unreadForms?: number; onFormsViewed?: () => void; unreadRegistrations?: number; onRegistrationsViewed?: () => void; overview?: AdminOverview }) {
   const { profile } = useAuth()
   const [tab, setTab] = useState<Tab>(defaultSection ? SECTION_TAB[defaultSection] : 'home')
+
+  // Phase 3 (handoff §4): a task click carries its context to the
+  // destination — label for the context bar, exact lead ids to
+  // filter+pre-select, or the object to open.
+  const [taskContext, setTaskContext] = useState<{ label: string; section: Tab; targetId?: string; leadIds?: string[] } | null>(null)
+
+  function openTask(t: AdminTask) {
+    setTaskContext({ label: t.title, section: t.section, targetId: t.targetId, leadIds: t.targetLeadIds })
+    setTab(t.section)
+  }
+
+  // Leaving the task's destination clears its context.
+  useEffect(() => {
+    if (taskContext && tab !== taskContext.section) setTaskContext(null)
+  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync when parent nav changes the section
   useEffect(() => {
@@ -140,31 +157,58 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
           tab's content. Tapping a result opens the customer card. */}
       <GlobalSearchBar />
 
+      {/* Task context bar (handoff §4) — the destination knows WHY you
+          arrived and offers the way back. */}
+      {taskContext && (
+        <div className="px-4 lg:px-8 pt-3">
+          <div className="max-w-sm lg:max-w-none mx-auto flex items-center gap-3 rounded-2xl px-4 py-2.5 flex-wrap" style={{ background: '#EEF2F4', border: '1px solid #DDE6EA' }}>
+            <button
+              onClick={() => { setTaskContext(null); setTab('home') }}
+              className="flex items-center gap-1 font-bold flex-shrink-0"
+              style={{ fontSize: 13, color: '#35505C' }}
+            >
+              <CtxBack className="w-4 h-4" /> חזרה לבית
+            </button>
+            <span className="font-semibold min-w-0 truncate" style={{ fontSize: 13, color: '#35505C' }}>
+              מסונן לפי: {taskContext.label}
+            </span>
+            <button
+              onClick={() => setTaskContext(null)}
+              className="mr-auto p-1 rounded-lg flex-shrink-0"
+              title="ניקוי הסינון"
+              aria-label="ניקוי הסינון"
+            >
+              <X className="w-4 h-4" style={{ color: '#35505C' }} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Mobile content ── */}
       <div className="lg:hidden max-w-sm mx-auto px-4 pt-4 space-y-4">
-        {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
+        {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTab />}
         {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <TipsTab />}
         {tab === 'videos'     && <VideosTab />}
-        {tab === 'workshops'  && <WorkshopsTab />}
-        {tab === 'events'     && <EventsAdminPanel />}
+        {tab === 'workshops'  && <WorkshopsTab openEditId={taskContext?.section === 'workshops' ? taskContext.targetId : undefined} />}
+        {tab === 'events'     && <EventsAdminPanel openEditId={taskContext?.section === 'events' ? taskContext.targetId : undefined} />}
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'partners'   && <PartnersTab />}
         {tab === 'leads'      && <LeadsTab />}
         {tab === 'forms'      && <FormsTab />}
-        {tab === 'registrations' && <RegistrationsTab />}
+        {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
 
       {/* ── Desktop content ── */}
       <div className="hidden lg:block px-8 py-6">
-        {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
+        {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTabDesktop />}
         {tab === 'leads'      && <LeadsTabDesktop />}
-        {tab === 'workshops'  && <WorkshopsTabDesktop />}
-        {tab === 'events'     && <EventsAdminPanel />}
+        {tab === 'workshops'  && <WorkshopsTabDesktop openEditId={taskContext?.section === 'workshops' ? taskContext.targetId : undefined} />}
+        {tab === 'events'     && <EventsAdminPanel openEditId={taskContext?.section === 'events' ? taskContext.targetId : undefined} />}
         {tab === 'forms'      && <FormsTabDesktop />}
         {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <TipsTab />}
@@ -172,7 +216,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'partners'   && <PartnersTab />}
-        {tab === 'registrations' && <RegistrationsTab />}
+        {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
     </div>
@@ -1004,7 +1048,7 @@ function LeadsTabDesktop() {
 // ─── Workshops Desktop Table ──────────────────────────────────────────────────
 const EMPTY_WORKSHOP_FORM = { title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '' }
 
-function WorkshopsTabDesktop() {
+function WorkshopsTabDesktop({ openEditId }: { openEditId?: string } = {}) {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   // Phase 5 / A1: cohort manager modal. User-facing label "מחזורים".
@@ -1079,6 +1123,14 @@ function WorkshopsTabDesktop() {
     setOffersByWorkshop(byWs)
   }, [])
   useEffect(() => { load() }, [load])
+
+  // Phase 3: a task click opens the product it points at, once.
+  const openedFromTask = useRef<string | null>(null)
+  useEffect(() => {
+    if (!openEditId || workshops.length === 0 || openedFromTask.current === openEditId) return
+    const w = workshops.find(x => x.id === openEditId)
+    if (w) { openedFromTask.current = openEditId; openEdit(w) }
+  }, [openEditId, workshops])
 
   async function toggle(w: Workshop) {
     await supabase.from('workshops').update({ is_active: !w.is_active }).eq('id', w.id); load()
@@ -3549,7 +3601,7 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
 }
 
 // ─── Workshops Tab ────────────────────────────────────────────────────────────
-function WorkshopsTab() {
+function WorkshopsTab({ openEditId }: { openEditId?: string } = {}) {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Workshop | null>(null)
@@ -3638,6 +3690,18 @@ function WorkshopsTab() {
     setFormsList((fs ?? []) as { id: string; title: string }[])
   }, [])
   useEffect(() => { load() }, [load])
+
+  // Phase 3: a task click opens the product it points at, once.
+  const openedFromTask = useRef<string | null>(null)
+  useEffect(() => {
+    if (!openEditId || workshops.length === 0 || openedFromTask.current === openEditId) return
+    const w = workshops.find(x => x.id === openEditId)
+    if (!w) return
+    openedFromTask.current = openEditId
+    setEditing(w)
+    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '', feedback_form_id: w.feedback_form_id ?? '', age_from: w.age_range_start_months?.toString() ?? '', age_to: w.age_range_end_months?.toString() ?? '' })
+    setShowForm(false)
+  }, [openEditId, workshops])
 
   async function save() {
     if (!form.title.trim()) return
@@ -6088,7 +6152,7 @@ function RegistrationQuestionnairePanel({ match }: {
   )
 }
 
-function RegistrationsTab() {
+function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
   const [leads, setLeads] = useState<RegistrationLead[]>([])
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   // Task A: shared delete confirmation for the lead-row trash button.
@@ -6342,6 +6406,12 @@ function RegistrationsTab() {
   }, [leads, workshopById, linkedFormDefs, filledIndex])
 
   const filtered = useMemo(() => {
+    // Phase 3 focus mode (handoff §4): a task click lands here with the
+    // exact lead ids — show them and nothing else, bypassing the picker.
+    if (focusLeadIds) {
+      const set = new Set(focusLeadIds)
+      return leads.filter(l => set.has(l.id))
+    }
     if (workshopFilter === 'all' && !showPrivateSection && !search.trim() && !showAllAnyway) return []
     return leads.filter(l => {
       // Filter chip targets the EFFECTIVE status. Picking "מומש"
@@ -6365,7 +6435,7 @@ function RegistrationsTab() {
       }
       return true
     })
-  }, [leads, statusFilter, workshopFilter, cohortFilter, search, cohortById, showPrivateSection, workshopIdsWithCohorts, showAllAnyway])
+  }, [leads, statusFilter, workshopFilter, cohortFilter, search, cohortById, showPrivateSection, workshopIdsWithCohorts, showAllAnyway, focusLeadIds])
 
   // Chip counts also reflect effective status so the numbers match
   // what the filter would actually surface.
@@ -6517,7 +6587,13 @@ function RegistrationsTab() {
     return null
   }, [workshopById, linkedFormDefs, linkedSubmissions])
 
-  const pickerMode = workshopFilter === 'all' && !showPrivateSection && !search.trim() && !showAllAnyway
+  const pickerMode = !focusLeadIds && workshopFilter === 'all' && !showPrivateSection && !search.trim() && !showAllAnyway
+
+  // Focus mode pre-selects the matching rows so the existing bulk bar
+  // (visible-only contract intact) appears ready for action.
+  useEffect(() => {
+    if (focusLeadIds && focusLeadIds.length > 0) setSelected(new Set(focusLeadIds))
+  }, [focusLeadIds])
 
   // Per-workshop registration counts for the picker cards.
   const pickerCards = (() => {
