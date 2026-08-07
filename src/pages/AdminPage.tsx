@@ -1173,12 +1173,6 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
     setDrawer('create')
   }
 
-  function openEdit(w: Workshop) {
-    setEditing(w)
-    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '', feedback_form_id: w.feedback_form_id ?? '', age_from: w.age_range_start_months?.toString() ?? '', age_to: w.age_range_end_months?.toString() ?? '' })
-    setDrawer('edit')
-  }
-
   function closeDrawer() {
     setDrawer(null); setEditing(null); setForm({ ...EMPTY_WORKSHOP_FORM })
   }
@@ -1336,9 +1330,9 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
                               </span>
                             ) : (
                               <button
-                                onClick={() => openEdit(w)}
+                                onClick={() => onOpenProduct?.(w.id)}
                                 className="inline-flex items-center gap-1.5 whitespace-nowrap hover:underline"
-                                title="פתיחת עריכת המוצר להוספת קישור תשלום"
+                                title="פתיחת עמוד המוצר להוספת קישור תשלום"
                               >
                                 <span style={{ width: 9, height: 9, borderRadius: 9999, background: '#A35C3D', display: 'inline-block' }} />
                                 <span style={{ color: '#8B4A30', fontWeight: 700, fontSize: 14 }}>חסר — הוספה</span>
@@ -1346,9 +1340,9 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
                             )}
                             {(offersByWorkshop[w.id]?.length ?? 0) > 0 && (
                               <button
-                                onClick={() => openEdit(w)}
+                                onClick={() => onOpenProduct?.(w.id)}
                                 className="mt-1 block text-right hover:underline"
-                                title={`לינקים מוזלים: ${offersByWorkshop[w.id].join(', ')} — לחיצה פותחת את עריכת המוצר`}
+                                title={`לינקים מוזלים: ${offersByWorkshop[w.id].join(', ')} — לחיצה פותחת את עמוד המוצר`}
                               >
                                 <span className="inline-flex items-center rounded-full" style={{ background: '#E4EBEF', color: '#3E5966', fontWeight: 700, fontSize: 12, padding: '3px 10px', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {offersByWorkshop[w.id].length === 1
@@ -1386,7 +1380,7 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
                                   {copiedId === w.id ? '✓ הועתק' : '🔗 לינק'}
                                 </button>
                               )}
-                              <button onClick={() => openEdit(w)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => onOpenProduct?.(w.id)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
                               <button onClick={() => setPendingDelete(w)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           </td>
@@ -3936,7 +3930,7 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
                       <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
                         {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
                       </button>
-                      <button onClick={() => { setEditing(w); setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '', feedback_form_id: w.feedback_form_id ?? '', age_from: w.age_range_start_months?.toString() ?? '', age_to: w.age_range_end_months?.toString() ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => onOpenProduct?.(w.id)} className="p-1.5 text-sand-400 hover:text-mustard-500" title="פתיחת עמוד המוצר"><Pencil className="w-4 h-4" /></button>
                       <button onClick={() => setPendingDelete(w)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </div>
