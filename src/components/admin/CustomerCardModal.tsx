@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { X, MessageCircle, Mail, ChevronDown, ChevronUp, Loader2, ChevronLeft, Plus } from 'lucide-react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { X, MessageCircle, Mail, ChevronDown, ChevronUp, Loader2, ChevronLeft, ChevronRight, Plus, Maximize2, Minimize2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import AddRegistrationModal from './AddRegistrationModal'
 import {
@@ -34,6 +34,10 @@ import {
 type Props = {
   initialKey: CustomerKey
   onClose: () => void
+  /** Design handoff phase 5: position inside the caller's ordered
+   *  list, for the ‹ › header arrows. Absent → no arrows. */
+  nav?: { index: number; total: number }
+  onNavigate?: (delta: number) => void
 }
 
 type ViewState =
@@ -42,9 +46,14 @@ type ViewState =
   | { kind: 'chooser'; candidates: CustomerCandidate[] }
   | { kind: 'loaded'; profile: CustomerProfile }
 
-export default function CustomerCardModal({ initialKey, onClose }: Props) {
+export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate }: Props) {
   const [view, setView] = useState<ViewState>({ kind: 'loading' })
   const [activeKey, setActiveKey] = useState<CustomerKey>(initialKey)
+  // Phase 5: "הרחבה" — widens the panel for deep work.
+  const [wide, setWide] = useState(false)
+
+  // ‹ › navigation swaps initialKey from the provider — re-seed.
+  useEffect(() => { setActiveKey(initialKey) }, [initialKey])
 
   const load = useCallback(async (key: CustomerKey) => {
     setView({ kind: 'loading' })
@@ -61,23 +70,55 @@ export default function CustomerCardModal({ initialKey, onClose }: Props) {
   }
 
   return (
+    // Design handoff phase 5: "a person is a panel" — side panel docked
+    // to the far edge (left in RTL), stretched to full height, instead
+    // of a centered modal. Backdrop click still closes.
     <div
-      // Phase 5 / A2 Stage 3 fix: leave 96px at the bottom on mobile
-      // so the admin BottomNav + "צפי כמשתמשת" banner don't cover
-      // the card's footer. Same family of fix as the A3 bulk bar.
-      className="fixed inset-0 z-50 flex items-stretch lg:items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-3 pb-[96px] lg:pb-6"
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
       onClick={onClose}
       dir="rtl"
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="bg-white w-full lg:max-w-2xl h-full lg:max-h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+        className="absolute inset-y-0 left-0 bg-white h-full w-full lg:rounded-r-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-200"
+        style={{ maxWidth: wide ? 780 : 460 }}
       >
-        {/* Sticky header */}
-        <div className="px-5 py-4 border-b border-sand-200 flex-shrink-0 flex items-center justify-between gap-3">
-          <h2 className="text-lg lg:text-xl font-bold text-sand-800 truncate">
+        {/* Sticky header — name, ‹ › list navigation, expand, close */}
+        <div className="px-5 py-4 border-b border-sand-200 flex-shrink-0 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-sand-800 truncate flex-1 min-w-0">
             {view.kind === 'loaded' ? view.profile.displayName : 'כרטיס לקוחה'}
           </h2>
+          {nav && onNavigate && (
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              <button
+                onClick={() => onNavigate(-1)}
+                disabled={nav.index <= 0}
+                className="p-1.5 rounded-lg hover:bg-sand-100 text-sand-500 disabled:opacity-30"
+                title="הקודמת ברשימה"
+                aria-label="הקודמת ברשימה"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-semibold text-sand-400 px-0.5 whitespace-nowrap">{nav.index + 1}/{nav.total}</span>
+              <button
+                onClick={() => onNavigate(1)}
+                disabled={nav.index >= nav.total - 1}
+                className="p-1.5 rounded-lg hover:bg-sand-100 text-sand-500 disabled:opacity-30"
+                title="הבאה ברשימה"
+                aria-label="הבאה ברשימה"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          <button
+            onClick={() => setWide(x => !x)}
+            className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 flex-shrink-0 hidden lg:block"
+            title={wide ? 'צמצום' : 'הרחבה'}
+            aria-label={wide ? 'צמצום' : 'הרחבה'}
+          >
+            {wide ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
           <button
             onClick={onClose}
             className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 flex-shrink-0"
@@ -87,8 +128,9 @@ export default function CustomerCardModal({ initialKey, onClose }: Props) {
           </button>
         </div>
 
-        {/* Body */}
-        <div className="overflow-y-auto flex-1">
+        {/* Body — bottom padding on mobile keeps the admin BottomNav
+            from covering the footer (same family of fix as A3). */}
+        <div className="overflow-y-auto flex-1 pb-[96px] lg:pb-0">
           {view.kind === 'loading' && (
             <div className="flex items-center justify-center py-20 text-sand-400">
               <Loader2 className="w-6 h-6 animate-spin" />

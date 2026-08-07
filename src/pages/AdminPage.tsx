@@ -7073,6 +7073,7 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
           >
             <RegistrationCard
               lead={l}
+              navLeads={filtered}
               workshops={workshops}
               cohorts={cohorts}
               onUpdateStatus={updateStatus}
@@ -7606,6 +7607,9 @@ type RegistrationCardProps = {
   // expanded panel) + chevron rotation state.
   slim?: boolean
   expanded?: boolean
+  // Phase 5 (handoff §5.1): the ordered list this row belongs to, so
+  // the customer panel's ‹ › arrows can move through it.
+  navLeads?: RegistrationLead[]
 }
 
 function RegistrationCard({
@@ -7625,6 +7629,7 @@ function RegistrationCard({
   gapStatus,
   slim,
   expanded,
+  navLeads,
 }: RegistrationCardProps) {
   const badgeStatus = effective ?? l.status
   // Phase 5 / A2 Stage 3: build the reminder WhatsApp link only when
@@ -7667,7 +7672,7 @@ function RegistrationCard({
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
-                onClick={() => openCustomer({ phone: l.phone, email: l.email })}
+                onClick={() => openCustomer({ phone: l.phone, email: l.email }, navLeads ? { list: navLeads.map(x => ({ phone: x.phone, email: x.email })), index: Math.max(0, navLeads.findIndex(x => x.id === l.id)) } : undefined)}
                 className="hover:underline underline-offset-2 text-right truncate"
                 style={{ fontWeight: 700, fontSize: 17, color: '#443327' }}
                 title="פתיחת כרטיס לקוחה"
@@ -7717,7 +7722,7 @@ function RegistrationCard({
             )}
             <button
               type="button"
-              onClick={() => openCustomer({ phone: l.phone, email: l.email })}
+              onClick={() => openCustomer({ phone: l.phone, email: l.email }, navLeads ? { list: navLeads.map(x => ({ phone: x.phone, email: x.email })), index: Math.max(0, navLeads.findIndex(x => x.id === l.id)) } : undefined)}
               className="font-bold text-sand-800 text-sm hover:text-mustard-600 hover:underline underline-offset-2 transition-colors text-right"
               title="פתיחת כרטיס לקוחה"
             >
@@ -8352,6 +8357,7 @@ function CohortGroup({
             <RegistrationCard
               key={l.id}
               lead={l}
+              navLeads={leads}
               workshops={workshops}
               cohorts={cohorts}
               onUpdateStatus={onUpdateStatus}
