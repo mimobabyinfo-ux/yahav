@@ -1,0 +1,298 @@
+﻿import { useState } from 'react'
+import { ChevronLeft, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../contexts/AuthContext'
+import type { AdminOverview } from './useAdminOverview'
+import type { AdminTaskSection } from './adminTasks'
+import MimoDuck from '../MimoDuck'
+
+// Admin home ("בית") — answers "what needs me today" (design handoff §3).
+// Three blocks: greeting strip with counters, the derived task list
+// (one line per task), and the capacity list (cohorts + events, one
+// list by date). Right column: live controls over what the user-facing
+// app shows right now. Phase 1 — derived tasks only, no persistence.
+
+function greetingByHour(): string {
+  const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: 'numeric', hourCycle: 'h23' }).format(new Date()))
+  if (h >= 5 && h < 12) return 'בוקר טוב'
+  if (h >= 12 && h < 17) return 'צהריים טובים'
+  if (h >= 17 && h < 21) return 'ערב טוב'
+  return 'לילה טוב'
+}
+
+function ddmm(iso: string): string {
+  const [, m, d] = iso.split('-')
+  return `${d}/${m}`
+}
+
+function weekdayHe(iso: string): string {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'long' })
+}
+
+type Props = {
+  overview: AdminOverview
+  onSection: (section: AdminTaskSection | 'perks') => void
+}
+
+export default function AdminHome({ overview, onSection }: Props) {
+  const { profile } = useAuth()
+  const { loading, tasks, counters, capacity, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
+  const [busyToggle, setBusyToggle] = useState<string | null>(null)
+
+  async function toggleAnnouncement(id: string, isActive: boolean) {
+    setBusyToggle(id)
+    await supabase.from('home_announcements').update({ is_active: !isActive, updated_at: new Date().toISOString() }).eq('id', id)
+    await reload()
+    setBusyToggle(null)
+  }
+
+  async function toggleEvent(id: string, isActive: boolean) {
+    setBusyToggle(id)
+    await supabase.from('community_events').update({ is_active: !isActive, updated_at: new Date().toISOString() }).eq('id', id)
+    await reload()
+    setBusyToggle(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
+      </div>
+    )
+  }
+
+  const firstName = (profile?.mother_name ?? 'ברנדה').split(' ')[0]
+
+  return (
+    <div dir="rtl">
+      <style>{`@media (min-width: 1200px) { .admin-home-grid { grid-template-columns: minmax(0, 1fr) 340px !important; } }`}</style>
+      <div className="admin-home-grid grid gap-5 items-start" style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>
+
+        {/* ── Main column ── */}
+        <div className="space-y-5 min-w-0">
+
+          {/* Greeting strip */}
+          <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
+            <div className="flex items-center gap-3">
+              <MimoDuck variant="mama" size={44} className="flex-shrink-0" />
+              <div className="min-w-0">
+                <h1 className="font-display" style={{ fontSize: 22, color: '#443327' }}>
+                  {greetingByHour()} {firstName}
+                  {tasks.length > 0
+                    ? ` — ${tasks.length === 1 ? 'דבר אחד מחכה' : `${tasks.length} דברים מחכים`} לך`
+                    : ' — הכול נקי ✨'}
+                </h1>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              {[
+                { label: 'ממתינות לתשלום', value: String(counters.pendingPayment), sub: null },
+                { label: 'נכנס החודש', value: `₪${counters.monthRevenue.toLocaleString()}`, sub: 'לפי מחיר המוצר' },
+                { label: 'נרשמות פעילות', value: String(counters.activeRegistrations), sub: null },
+              ].map(c => (
+                <div key={c.label} className="rounded-2xl px-4 py-3" style={{ background: '#F6F3ED' }}>
+                  <p className="font-display" style={{ fontSize: 24, lineHeight: 1.1, color: '#443327' }}>{c.value}</p>
+                  <p className="font-semibold mt-0.5" style={{ fontSize: 13, color: '#8A7A63' }}>
+                    {c.label}{c.sub && <span style={{ color: '#A2937D' }}> · {c.sub}</span>}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* דורש תשומת לב — one line per task */}
+          <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
+            <h2 className="font-bold mb-3" style={{ fontSize: 16, color: '#443327' }}>דורש תשומת לב</h2>
+            {tasks.length === 0 ? (
+              <div className="flex items-center gap-3 rounded-2xl px-4 py-4" style={{ background: '#EDEDE6' }}>
+                <CheckCircle2 className="w-5 h-5 flex-shrink-0" style={{ color: '#4F5040' }} />
+                <p className="font-semibold" style={{ fontSize: 14, color: '#4F5040' }}>אין משימות פתוחות — הכול מטופל</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {tasks.map(t => (
+                  <div key={t.key} className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5 transition-colors hover:bg-[#FAF7F1]">
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: t.severity === 'high' ? '#8B4A30' : '#C8A460' }}
+                      title={t.severity === 'high' ? 'דחוף' : 'בינוני'}
+                    />
+                    <p className="flex-1 min-w-0 truncate" style={{ fontSize: 14 }}>
+                      <span className="font-bold" style={{ color: '#443327' }}>{t.title}</span>
+                      {t.facts.filter(Boolean).length > 0 && (
+                        <span style={{ color: '#A2937D' }}> · {t.facts.filter(Boolean).join(' · ')}</span>
+                      )}
+                    </p>
+                    <button
+                      onClick={() => onSection(t.section)}
+                      className="flex-shrink-0 flex items-center gap-0.5 font-bold rounded-xl transition-all hover:brightness-95"
+                      style={{ fontSize: 13, padding: '6px 12px', background: '#F6ECD8', color: '#6E5836' }}
+                    >
+                      {t.actionLabel}
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* כמה נרשמו — cohorts + events, one list by date */}
+          <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
+            <h2 className="font-bold mb-3" style={{ fontSize: 16, color: '#443327' }}>כמה נרשמו</h2>
+            {capacity.length === 0 ? (
+              <p className="text-sm py-3 text-center" style={{ color: '#A2937D' }}>אין מחזורים או אירועים קרובים</p>
+            ) : (
+              <div className="space-y-1">
+                {capacity.map(row => {
+                  const ratio = row.capacity ? Math.min(1, row.count / row.capacity) : 0
+                  const left = row.capacity != null ? Math.max(0, row.capacity - row.count) : null
+                  const tight = left != null && left <= 3
+                  return (
+                    <button
+                      key={`${row.kind}:${row.id}`}
+                      onClick={() => onSection(row.kind === 'cohort' ? 'registrations' : 'events')}
+                      className="w-full flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-right transition-colors hover:bg-[#FAF7F1]"
+                    >
+                      <span className="flex flex-col items-center justify-center flex-shrink-0 rounded-xl" style={{ width: 52, padding: '5px 0', background: '#F6F3ED' }}>
+                        <span className="font-display" style={{ fontSize: 16, lineHeight: 1, color: '#443327' }}>{ddmm(row.date)}</span>
+                        <span className="font-semibold" style={{ fontSize: 11, color: '#8A7A63' }}>{weekdayHe(row.date)}</span>
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block font-bold truncate" style={{ fontSize: 14, color: '#443327' }}>
+                          {row.title}
+                          <span className="font-semibold" style={{ color: '#A2937D' }}> · {row.kind === 'cohort' ? 'מחזור' : 'אירוע'}{row.time ? ` · ${row.time}` : ''}</span>
+                        </span>
+                        <span className="block mt-1.5 rounded-full overflow-hidden" style={{ height: 6, background: '#F1EBE1' }}>
+                          <span className="block h-full rounded-full" style={{ width: `${ratio * 100}%`, background: tight ? '#8B4A30' : '#C8A460' }} />
+                        </span>
+                      </span>
+                      <span className="flex-shrink-0 text-left" style={{ minWidth: 74 }}>
+                        <span className="block font-display" style={{ fontSize: 16, color: '#443327' }}>
+                          {row.count}{row.capacity != null && `/${row.capacity}`}
+                        </span>
+                        <span className="block font-semibold" style={{ fontSize: 12, color: tight ? '#8B4A30' : '#8A7A63' }}>
+                          {row.capacity == null ? 'ללא הגבלה' : left === 0 ? 'מלא' : `נותרו ${left}`}
+                        </span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Right column — מה המשתמשת רואה עכשיו ── */}
+        <div className="space-y-5 min-w-0">
+          <div className="bg-white rounded-3xl p-5 space-y-4" style={{ border: '1px solid #E9E2D6' }}>
+            <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>מה המשתמשת רואה עכשיו</h2>
+
+            {/* Home announcements — compact toggles */}
+            <div>
+              <p className="flex items-center gap-1.5 font-bold mb-1.5" style={{ fontSize: 13, color: '#8A7A63' }}>
+                <Megaphone className="w-3.5 h-3.5" /> הודעות בדף הבית
+              </p>
+              {announcements.length === 0 ? (
+                <p style={{ fontSize: 13, color: '#A2937D' }}>אין הודעות · <button onClick={() => onSection('perks')} className="font-bold underline" style={{ color: '#6E5836' }}>ליצירה</button></p>
+              ) : (
+                <div className="space-y-1">
+                  {announcements.map(a => (
+                    <div key={a.id} className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleAnnouncement(a.id, a.is_active)}
+                        disabled={busyToggle === a.id}
+                        dir="ltr"
+                        className="flex-shrink-0 disabled:opacity-50"
+                        style={{ width: 34, height: 20, borderRadius: 9999, background: a.is_active ? '#818267' : '#DCD4C8', padding: 2, display: 'flex', alignItems: 'center', justifyContent: a.is_active ? 'flex-end' : 'flex-start', transition: 'background .15s' }}
+                        title={a.is_active ? 'מוצג — לחצי לכיבוי' : 'כבוי'}
+                      >
+                        <span style={{ width: 16, height: 16, borderRadius: 9999, background: '#fff', display: 'block' }} />
+                      </button>
+                      <p className="flex-1 min-w-0 truncate" style={{ fontSize: 13, color: a.is_active ? '#443327' : '#A2937D', fontWeight: 600 }}>
+                        {a.emoji && `${a.emoji} `}{a.title}
+                      </p>
+                    </div>
+                  ))}
+                  <button onClick={() => onSection('perks')} className="font-bold" style={{ fontSize: 12, color: '#8A6A2F' }}>ניהול מלא ←</button>
+                </div>
+              )}
+            </div>
+
+            {/* Top of store — display_order === first, NOT a featured flag */}
+            <div>
+              <p className="flex items-center gap-1.5 font-bold mb-1.5" style={{ fontSize: 13, color: '#8A7A63' }}>
+                <Store className="w-3.5 h-3.5" /> בראש החנות
+              </p>
+              {storeProducts.length === 0 ? (
+                <p style={{ fontSize: 13, color: '#A2937D' }}>אין מוצרים פעילים בחנות</p>
+              ) : (
+                <button onClick={() => onSection('workshops')} className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-right transition-colors hover:brightness-95" style={{ background: '#F6F3ED' }}>
+                  <span className="flex-1 min-w-0 truncate font-bold" style={{ fontSize: 13, color: '#443327' }}>{storeProducts[0].title}</span>
+                  <span className="flex-shrink-0 font-semibold" style={{ fontSize: 12, color: '#8A7A63' }}>לשינוי — גרירה במוצרים</span>
+                </button>
+              )}
+            </div>
+
+            {/* Active upcoming community events */}
+            <div>
+              <p className="flex items-center gap-1.5 font-bold mb-1.5" style={{ fontSize: 13, color: '#8A7A63' }}>
+                <Sparkles className="w-3.5 h-3.5" /> אירועי קהילה מוצגים
+              </p>
+              {upcomingEvents.length === 0 ? (
+                <p style={{ fontSize: 13, color: '#A2937D' }}>אין אירועים קרובים</p>
+              ) : (
+                <div className="space-y-1">
+                  {upcomingEvents.slice(0, 5).map(ev => (
+                    <div key={ev.id} className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleEvent(ev.id, ev.is_active)}
+                        disabled={busyToggle === ev.id}
+                        dir="ltr"
+                        className="flex-shrink-0 disabled:opacity-50"
+                        style={{ width: 34, height: 20, borderRadius: 9999, background: ev.is_active ? '#818267' : '#DCD4C8', padding: 2, display: 'flex', alignItems: 'center', justifyContent: ev.is_active ? 'flex-end' : 'flex-start', transition: 'background .15s' }}
+                        title={ev.is_active ? 'מוצג — לחצי לכיבוי' : 'טיוטה'}
+                      >
+                        <span style={{ width: 16, height: 16, borderRadius: 9999, background: '#fff', display: 'block' }} />
+                      </button>
+                      <p className="flex-1 min-w-0 truncate" style={{ fontSize: 13, color: ev.is_active ? '#443327' : '#A2937D', fontWeight: 600 }}>
+                        {ev.emoji && `${ev.emoji} `}{ev.title} · {ddmm(ev.event_date)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ספקים ואירועים */}
+          <div className="bg-white rounded-3xl p-5 space-y-3" style={{ border: '1px solid #E9E2D6' }}>
+            <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>ספקים ואירועים</h2>
+            {eventsMissingVendor.length > 0 && (
+              <div className="rounded-2xl px-3.5 py-3" style={{ background: '#F7EBE4' }}>
+                <p className="flex items-center gap-1.5 font-bold" style={{ fontSize: 13, color: '#8B4A30' }}>
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                  {eventsMissingVendor.length === 1 ? 'אירוע קרוב בלי ספק' : `${eventsMissingVendor.length} אירועים קרובים בלי ספק`}
+                </p>
+                <div className="mt-1 space-y-0.5">
+                  {eventsMissingVendor.slice(0, 3).map(ev => (
+                    <button key={ev.id} onClick={() => onSection('events')} className="block font-semibold text-right" style={{ fontSize: 13, color: '#6B5842' }}>
+                      {ev.title} · {ddmm(ev.event_date)} ←
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <button onClick={() => onSection('partners')} className="w-full flex items-center gap-2 rounded-2xl px-3.5 py-3 text-right transition-colors hover:brightness-95" style={{ background: '#EEF2F4' }}>
+              <Users className="w-4 h-4 flex-shrink-0" style={{ color: '#35505C' }} />
+              <span className="flex-1 font-semibold" style={{ fontSize: 13, color: '#35505C' }}>
+                {recentPartnerLeads === 0 ? 'אין לידים חדשים לספקים השבוע' : `${recentPartnerLeads} לידים לספקים בשבוע האחרון`}
+              </span>
+              <ChevronLeft className="w-4 h-4 flex-shrink-0" style={{ color: '#35505C' }} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

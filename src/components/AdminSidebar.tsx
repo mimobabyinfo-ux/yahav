@@ -1,4 +1,5 @@
-﻿import { BarChart2, Users, LogOut, Eye, Video, Lightbulb, Gift, Settings, ClipboardList, FileText, Sparkles, Link2, GraduationCap, Phone, MapPin } from 'lucide-react'
+﻿import { useState } from 'react'
+import { BarChart2, Users, LogOut, Eye, Video, Lightbulb, Gift, Settings, ClipboardList, FileText, Sparkles, Link2, GraduationCap, Phone, MapPin, Home, ChevronDown } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import MimoDuck from './MimoDuck'
 import type { AdminSection } from '../App'
@@ -10,52 +11,51 @@ type Props = {
   onToggleUserView: () => void
   unreadForms?: number
   unreadRegistrations?: number
+  /** Open derived-task count — the בית badge (design handoff §2). */
+  taskCount?: number
+  /** Products with a problem (missing payment link / low stock). */
+  workshopIssues?: number
+  /** Partner leads waiting (currently: last-7-days count — partner_leads
+   *  has no handled flag yet). */
+  partnersWaiting?: number
 }
 
-// Admin nav — three labelled groups ordered by Brenda's real daily use
-// (registrations + questionnaires first, then the community world, then
-// commerce; content management below). Mimo dark chrome: the sidebar
-// stays dark to separate management from the work area, but the dark is
-// a brand dark (#2E2C24 musgo), not the old purple-black.
+// Admin nav — SIX primary items ordered by what gets touched weekly
+// (design handoff §2), everything else foldable under "עוד". Nothing is
+// deleted: every section stays routable. Mimo dark chrome (#2E2C24).
 type NavItem = { id: AdminSection; label: string; icon: React.ReactNode }
-type NavGroup = { label: string; items: NavItem[] }
 
-const GROUPS: NavGroup[] = [
-  {
-    label: 'יומיומי',
-    items: [
-      { id: 'registrations', label: 'הרשמות',         icon: <ClipboardList className="w-[18px] h-[18px]" /> },
-      { id: 'forms',         label: 'שאלונים וטפסים',  icon: <FileText className="w-[18px] h-[18px]" /> },
-      { id: 'events',        label: 'אירועי קהילה',    icon: <Sparkles className="w-[18px] h-[18px]" /> },
-      { id: 'partners',      label: 'ספקי קהילה',      icon: <Link2 className="w-[18px] h-[18px]" /> },
-    ],
-  },
-  {
-    label: 'מוצרים ומכירות',
-    items: [
-      { id: 'workshops', label: 'מוצרים ותשלום', icon: <GraduationCap className="w-[18px] h-[18px]" /> },
-      { id: 'users',     label: 'משתמשות',       icon: <Users className="w-[18px] h-[18px]" /> },
-      { id: 'leads',     label: 'לידים',          icon: <Phone className="w-[18px] h-[18px]" /> },
-    ],
-  },
-  {
-    label: 'תוכן',
-    items: [
-      { id: 'perks',     label: 'הטבות',          icon: <Gift className="w-[18px] h-[18px]" /> },
-      { id: 'tips',      label: 'טיפים',          icon: <Lightbulb className="w-[18px] h-[18px]" /> },
-      { id: 'videos',    label: 'סרטונים',        icon: <Video className="w-[18px] h-[18px]" /> },
-      { id: 'pregnancy', label: 'מדריכי הריון',   icon: <MapPin className="w-[18px] h-[18px]" /> },
-      { id: 'insights',  label: 'תובנות',         icon: <BarChart2 className="w-[18px] h-[18px]" /> },
-    ],
-  },
+const PRIMARY: NavItem[] = [
+  { id: 'home',          label: 'בית',              icon: <Home className="w-[18px] h-[18px]" /> },
+  { id: 'registrations', label: 'הרשמות',           icon: <ClipboardList className="w-[18px] h-[18px]" /> },
+  { id: 'forms',         label: 'שאלונים וטפסים',    icon: <FileText className="w-[18px] h-[18px]" /> },
+  { id: 'workshops',     label: 'מוצרים ותשלומים',   icon: <GraduationCap className="w-[18px] h-[18px]" /> },
+  { id: 'events',        label: 'אירועי קהילה',      icon: <Sparkles className="w-[18px] h-[18px]" /> },
+  { id: 'partners',      label: 'ספקים',             icon: <Link2 className="w-[18px] h-[18px]" /> },
 ]
 
-export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView, unreadForms = 0, unreadRegistrations = 0 }: Props) {
+const MORE: NavItem[] = [
+  { id: 'users',     label: 'משתמשות',       icon: <Users className="w-[18px] h-[18px]" /> },
+  { id: 'leads',     label: 'לידים',          icon: <Phone className="w-[18px] h-[18px]" /> },
+  { id: 'insights',  label: 'תובנות',         icon: <BarChart2 className="w-[18px] h-[18px]" /> },
+  { id: 'videos',    label: 'סרטונים',        icon: <Video className="w-[18px] h-[18px]" /> },
+  { id: 'tips',      label: 'טיפים',          icon: <Lightbulb className="w-[18px] h-[18px]" /> },
+  { id: 'perks',     label: 'הטבות',          icon: <Gift className="w-[18px] h-[18px]" /> },
+  { id: 'pregnancy', label: 'מדריכי הריון',   icon: <MapPin className="w-[18px] h-[18px]" /> },
+]
+
+export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView, unreadForms = 0, unreadRegistrations = 0, taskCount = 0, workshopIssues = 0, partnersWaiting = 0 }: Props) {
   const { signOut, profile } = useAuth()
+  // "עוד" starts open when the active section lives inside it, so a
+  // deep link never lands on a collapsed nav.
+  const [moreOpen, setMoreOpen] = useState(() => MORE.some(i => i.id === section))
 
   function badgeFor(id: AdminSection): number {
+    if (id === 'home') return taskCount
     if (id === 'forms') return unreadForms
     if (id === 'registrations') return unreadRegistrations
+    if (id === 'workshops') return workshopIssues
+    if (id === 'partners') return partnersWaiting
     return 0
   }
 
@@ -114,18 +114,25 @@ export default function AdminSidebar({ section, onSection, viewAsUser, onToggleU
         )}
       </div>
 
-      {/* Nav — grouped */}
+      {/* Nav — six primary + collapsible עוד */}
       <nav className="flex-1 px-3 py-3 overflow-y-auto">
-        {GROUPS.map(group => (
-          <div key={group.label}>
-            <p className="font-bold" style={{ fontSize: 12, color: '#A8A088', letterSpacing: '0.1em', margin: '10px 12px 5px' }}>
-              {group.label}
-            </p>
-            <div className="space-y-0.5">
-              {group.items.map(navButton)}
-            </div>
+        <div className="space-y-0.5">
+          {PRIMARY.map(navButton)}
+        </div>
+
+        <button
+          onClick={() => setMoreOpen(o => !o)}
+          className="w-full flex items-center gap-2 text-right transition-all mt-3"
+          style={{ padding: '7px 12px', borderRadius: 12, fontSize: 12, fontWeight: 700, color: '#A8A088', letterSpacing: '0.08em' }}
+        >
+          עוד
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {moreOpen && (
+          <div className="space-y-0.5">
+            {MORE.map(navButton)}
           </div>
-        ))}
+        )}
       </nav>
 
       {/* Footer */}

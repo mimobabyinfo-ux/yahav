@@ -32,13 +32,14 @@ import MilestonePage from './pages/log/MilestonePage'
 import NotePage from './pages/log/NotePage'
 import BottomNav from './components/BottomNav'
 import AdminSidebar from './components/AdminSidebar'
+import { useAdminOverview } from './components/admin/useAdminOverview'
 import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
 import ActiveTimerBanner from './components/ActiveTimerBanner'
 import InstallPrompt from './components/InstallPrompt'
 
 export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'community' | 'marketplace' | 'log-sleep' | 'log-tummy' | 'log-feeding-breast' | 'log-feeding-bottle' | 'log-feeding-solid' | 'log-diaper' | 'log-medical' | 'log-milestone' | 'log-note'
-export type AdminSection = 'insights' | 'users' | 'workshops' | 'events' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'registrations' | 'settings'
+export type AdminSection = 'home' | 'insights' | 'users' | 'workshops' | 'events' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'registrations' | 'settings'
 
 // Detect public URLs
 const publicFormId = new URLSearchParams(window.location.search).get('form')
@@ -63,7 +64,9 @@ const REGS_LS_KEY = 'registrations_last_seen'
 function AppInner() {
   const { user, profile, loading, isGuest } = useAuth()
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
-  const [adminSection, setAdminSection] = useState<AdminSection>('registrations')
+  // Admin lands on the home screen ("what needs me today") — design
+  // handoff §3. Everything else stays reachable from the sidebar.
+  const [adminSection, setAdminSection] = useState<AdminSection>('home')
   const [viewAsUser, setViewAsUser] = useState(false)
   const [unreadForms, setUnreadForms] = useState(0)
   const [unreadRegistrations, setUnreadRegistrations] = useState(0)
@@ -72,6 +75,10 @@ function AppInner() {
   // mutate active_timers, so a bump on every page change captures those.
   const [timerVersion, setTimerVersion] = useState(0)
   const { track } = useTracker()
+
+  // One shared fetch feeding the admin home screen AND the sidebar
+  // badges (task count / product problems). Disabled outside admin mode.
+  const adminOverview = useAdminOverview((profile?.is_admin ?? false) && !viewAsUser)
 
   useEffect(() => {
     track('page_view', { page: currentPage })
@@ -191,7 +198,7 @@ function AppInner() {
       case 'benefits':   return <BenefitsPage />
       case 'workshops':  return <WorkshopsPage />
       case 'pro':        return <ProAreaPage />
-      case 'admin':      return <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} />
+      case 'admin':      return <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} overview={adminOverview} />
       case 'marketplace': return <ServicesMarketplacePage />
       case 'community':  return <CommunityPage />
       case 'log-sleep':  return <SleepPage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
@@ -227,6 +234,9 @@ function AppInner() {
             onToggleUserView={toggleUserView}
             unreadForms={unreadForms}
             unreadRegistrations={unreadRegistrations}
+            taskCount={adminOverview.tasks.length}
+            workshopIssues={adminOverview.tasks.filter(t => t.section === 'workshops').length}
+            partnersWaiting={adminOverview.recentPartnerLeads}
           />
         </div>
 

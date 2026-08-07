@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, SlidersHorizontal, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy, Clock, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
+import { Home as HomeIcon, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, SlidersHorizontal, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy, Clock, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -25,12 +25,15 @@ import HomeAnnouncementsPanel from '../components/admin/HomeAnnouncementsPanel'
 import CategoryManagerModal from '../components/admin/CategoryManagerModal'
 import { useWorkshopCategories } from '../hooks/useWorkshopCategories'
 import MimoDuck from '../components/MimoDuck'
+import AdminHome from '../components/admin/AdminHome'
+import type { AdminOverview } from '../components/admin/useAdminOverview'
 
-type Tab = 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'events' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
+type Tab = 'home' | 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'events' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
 
 
 // Map admin nav sections → internal tabs
 const SECTION_TAB: Record<AdminSection, Tab> = {
+  home:      'home',
   insights:  'insights',
   users:     'users',
   workshops: 'workshops',
@@ -50,6 +53,7 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
 // sections (הרשמות / טפסים / סדנאות) leftmost in RTL so they're under
 // the thumb on mobile.
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: 'home',      label: 'בית',           icon: <HomeIcon className="w-3.5 h-3.5" /> },
   { id: 'registrations', label: 'הרשמות',     icon: <ClipboardList className="w-3.5 h-3.5" /> },
   { id: 'forms',     label: 'שאלונים', icon: <FileText className="w-3.5 h-3.5" /> },
   { id: 'events',    label: 'אירועי קהילה',  icon: <Sparkles className="w-3.5 h-3.5" /> },
@@ -65,9 +69,9 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'settings',  label: 'הגדרות',        icon: <Settings className="w-3.5 h-3.5" /> },
 ]
 
-export default function AdminPage({ defaultSection, unreadForms = 0, onFormsViewed, unreadRegistrations = 0, onRegistrationsViewed }: { defaultSection?: AdminSection; unreadForms?: number; onFormsViewed?: () => void; unreadRegistrations?: number; onRegistrationsViewed?: () => void }) {
+export default function AdminPage({ defaultSection, unreadForms = 0, onFormsViewed, unreadRegistrations = 0, onRegistrationsViewed, overview }: { defaultSection?: AdminSection; unreadForms?: number; onFormsViewed?: () => void; unreadRegistrations?: number; onRegistrationsViewed?: () => void; overview?: AdminOverview }) {
   const { profile } = useAuth()
-  const [tab, setTab] = useState<Tab>(defaultSection ? SECTION_TAB[defaultSection] : 'registrations')
+  const [tab, setTab] = useState<Tab>(defaultSection ? SECTION_TAB[defaultSection] : 'home')
 
   // Sync when parent nav changes the section
   useEffect(() => {
@@ -138,6 +142,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
 
       {/* ── Mobile content ── */}
       <div className="lg:hidden max-w-sm mx-auto px-4 pt-4 space-y-4">
+        {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTab />}
         {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <TipsTab />}
@@ -155,6 +160,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
 
       {/* ── Desktop content ── */}
       <div className="hidden lg:block px-8 py-6">
+        {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTabDesktop />}
         {tab === 'leads'      && <LeadsTabDesktop />}
         {tab === 'workshops'  && <WorkshopsTabDesktop />}
