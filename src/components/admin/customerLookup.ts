@@ -19,7 +19,10 @@ export function normalizeIlPhone(raw: string | null | undefined): string | null 
   return digits
 }
 
-export type CustomerKey = { phone?: string | null; email?: string | null }
+// Screen A / A3: leadId (optional) focuses the panel's ההרשמה tab on a
+// specific registration — the row the admin actually clicked — instead
+// of always the latest one. Lookup itself still keys on phone/email.
+export type CustomerKey = { phone?: string | null; email?: string | null; leadId?: string | null }
 
 export type CustomerRegistration = {
   id: string
@@ -64,6 +67,10 @@ export type CustomerProfile = {
 
   registrations: CustomerRegistration[]
   formSubmissions: CustomerFormSubmission[]
+  // Screen A / A3: the linked-form definitions for this person's
+  // registrations (even when unfilled) — the panel's השאלון tab needs
+  // the form title + id to build the reminder message.
+  linkedForms: { id: string; title: string }[]
 }
 
 export type CustomerCandidate = {
@@ -268,6 +275,7 @@ async function assembleProfile(cluster: {
   )
 
   let formSubmissions: CustomerFormSubmission[] = []
+  let linkedForms: { id: string; title: string }[] = []
   if (linkedFormIds.length > 0) {
     const [{ data: forms }, { data: subs }] = await Promise.all([
       supabase.from('forms').select('id, title, fields_json').in('id', linkedFormIds),
@@ -288,6 +296,7 @@ async function assembleProfile(cluster: {
     const formById = new Map<string, FormRow>(
       (forms ?? []).map(f => [(f as FormRow).id, f as FormRow]),
     )
+    linkedForms = Array.from(formById.values()).map(f => ({ id: f.id, title: f.title }))
     for (const s of (subs ?? []) as SubRow[]) {
       const form = formById.get(s.form_id)
       if (!form) continue
@@ -328,5 +337,6 @@ async function assembleProfile(cluster: {
     normalizedPhone: cluster.normalizedPhone,
     registrations,
     formSubmissions,
+    linkedForms,
   }
 }

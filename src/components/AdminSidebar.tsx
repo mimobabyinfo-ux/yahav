@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { BarChart2, Users, LogOut, Eye, Video, Lightbulb, Gift, Settings, ClipboardList, FileText, Sparkles, Link2, GraduationCap, Phone, MapPin, Home, ChevronDown } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import MimoDuck from './MimoDuck'
@@ -46,9 +46,10 @@ const MORE: NavItem[] = [
 
 export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView, unreadForms = 0, unreadRegistrations = 0, taskCount = 0, workshopIssues = 0, partnersWaiting = 0 }: Props) {
   const { signOut, profile } = useAuth()
-  // "עוד" starts open when the active section lives inside it, so a
-  // deep link never lands on a collapsed nav.
-  const [moreOpen, setMoreOpen] = useState(() => MORE.some(i => i.id === section))
+  // Screen A / A1-5: "עוד" ships COLLAPSED — the overflow group exists
+  // to reduce the visible nav, so it must not start expanded. The
+  // active-section highlight still works when the admin opens it.
+  const [moreOpen, setMoreOpen] = useState(false)
 
   function badgeFor(id: AdminSection): number {
     if (id === 'home') return taskCount

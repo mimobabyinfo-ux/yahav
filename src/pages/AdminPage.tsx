@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Home as HomeIcon, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, SlidersHorizontal, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, Copy, Clock, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
+import { Home as HomeIcon, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, SlidersHorizontal, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -14,9 +14,9 @@ import FormSubmissionsModal from '../components/admin/FormSubmissionsModal'
 import AdminLargeModal from '../components/admin/AdminLargeModal'
 import ConfirmDialog from '../components/admin/ConfirmDialog'
 import WorkshopOffersPanel from '../components/admin/WorkshopOffersPanel'
-import RegistrationEditModal from '../components/admin/RegistrationEditModal'
 import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
+import { REGISTRATIONS_CHANGED_EVENT } from '../components/admin/CustomerCardModal'
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
 import { normalizeIlPhone } from '../components/admin/customerLookup'
 import AddRegistrationModal from '../components/admin/AddRegistrationModal'
@@ -6091,25 +6091,6 @@ type RegistrationLead = {
   workshops?: { title: string } | null
 }
 
-// Phase 5 / A3 fix-2: 'handled' label renamed to 'מומש' (workshop happened
-// and the registrant attended/used it). DB enum unchanged (`handled`
-// stays the technical name); the new label flows through every display
-// site via this map.
-const REG_STATUS_LABELS: Record<RegistrationLead['status'], { label: string; color: string; bg: string }> = {
-  pending: { label: 'ממתינה',  color: '#b45309', bg: '#fef3c7' },
-  paid:    { label: 'שילמה',   color: '#15803d', bg: '#dcfce7' },
-  handled: { label: 'מומש',    color: '#6E6852', bg: '#F0EBE3' },
-}
-
-// Phase 5 / A1 Stage 2 helpers ───────────────────────────────────────
-
-// Hebrew greeting that opens a WhatsApp chat with one registrant.
-function regWaLink(phone: string, name: string) {
-  const clean = phone.startsWith('0') ? '972' + phone.slice(1) : phone
-  const msg = encodeURIComponent(`היי ${name}! קיבלתי את ההרשמה שלך לסדנאות מימו 🌸`)
-  return `https://wa.me/${clean}?text=${msg}`
-}
-
 // "DD/MM/YY HH:MM · label" or "DD/MM/YY · label" when no time set.
 // Used in group headers + (compact variant) the picker option.
 function cohortDateTimeLabel(c: WorkshopCohort, opts: { shortYear?: boolean } = {}): string {
@@ -6221,10 +6202,6 @@ function RegistrationQuestionnairePanel({ match }: {
 function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
   const [leads, setLeads] = useState<RegistrationLead[]>([])
   const [workshops, setWorkshops] = useState<Workshop[]>([])
-  // Task A: shared delete confirmation for the lead-row trash button.
-  // Submission-level deletes prompt inside FormSubmissionsView itself.
-  const [pendingDeleteLead, setPendingDeleteLead] = useState<RegistrationLead | null>(null)
-  const [deletingLeadBusy, setDeletingLeadBusy] = useState(false)
   // Phase 5 / A1: all cohorts loaded once and filtered client-side per
   // registration's workshop in the picker. Includes inactive cohorts so
   // existing assignments to deactivated cohorts still render their
@@ -6237,13 +6214,10 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
   type LinkedSubmission = { id: string; form_id: string; user_id: string | null; responses_json: Record<string, unknown>; created_at: string; user_profiles?: { mother_name: string | null; email: string | null } | null }
   const [linkedFormDefs, setLinkedFormDefs] = useState<Map<string, LinkedFormDef>>(new Map())
   const [linkedSubmissions, setLinkedSubmissions] = useState<LinkedSubmission[]>([])
-  // Lazy-create cohort flow: when a registration's workshop has no
-  // cohorts yet, the row exposes a "+ הוסיפי מחזור" link that opens the
-  // CohortsModal for THAT workshop. Closing the modal reloads.
-  const [cohortsForRegWorkshop, setCohortsForRegWorkshop] = useState<Workshop | null>(null)
-  // Default 'active' = ממתינה + שילמה. מומש (cohort already happened —
-  // rolled automatically by effectiveStatus) is history, hidden until asked.
-  const [statusFilter, setStatusFilter] = useState<'active' | 'all' | RegistrationLead['status']>('active')
+  // Screen A / A1: ONE filter layer. The old status chips, the cohort
+  // dropdown and the רשימה/מחזורים tabs are gone — the list is always
+  // grouped by cohort, filtered by exactly one chip row.
+  const [chip, setChip] = useState<'all' | 'pending' | 'no_form' | 'paid'>('all')
   const [workshopFilter, setWorkshopFilter] = useState<string>('all')
   // פרטני section: dateless products (no cohorts defined) get their own
   // bucket so they don't clutter the main cohort-based list forever.
@@ -6252,9 +6226,6 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
   // 90-row list. A registration list renders only after a choice
   // (workshop / פרטני / search / "הצג הכל").
   const [showAllAnyway, setShowAllAnyway] = useState(false)
-  // Cohort filter: 'all' | 'none' (ללא מחזור) | cohort id. Options are
-  // scoped to the selected workshop when one is chosen.
-  const [cohortFilter, setCohortFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
   // Phase 5 / A3: bulk-action selection. Persists across filter and
   // view-mode changes for convenience, but bulk actions act ONLY on
@@ -6279,22 +6250,6 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
         for (const l of groupLeads) next.delete(l.id)
       } else {
         for (const l of groupLeads) next.add(l.id)
-      }
-      return next
-    })
-  }
-
-  // Phase 5 / A3 fix-1: "select all visible" entry point for the flat
-  // list. Same visible-only contract — only acts on rows currently
-  // matching the filter. Hidden selections stay untouched.
-  function toggleSelectAllVisible(visible: RegistrationLead[]) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      const allOn = visible.length > 0 && visible.every(l => next.has(l.id))
-      if (allOn) {
-        for (const l of visible) next.delete(l.id)
-      } else {
-        for (const l of visible) next.add(l.id)
       }
       return next
     })
@@ -6350,42 +6305,18 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
   }, [])
   useEffect(() => { load() }, [load])
 
+  // Screen A / A3: single-person edits (status, contact, cohort,
+  // delete) live in the panel now. It writes to supabase itself and
+  // announces; the list refetches.
+  useEffect(() => {
+    const h = () => { load() }
+    window.addEventListener(REGISTRATIONS_CHANGED_EVENT, h)
+    return () => window.removeEventListener(REGISTRATIONS_CHANGED_EVENT, h)
+  }, [load])
+
   async function updateStatus(id: string, status: RegistrationLead['status']) {
     await supabase.from('registration_leads').update({ status }).eq('id', id)
     setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l))
-  }
-
-  async function updateCohort(id: string, cohortId: string | null) {
-    await supabase.from('registration_leads').update({ cohort_id: cohortId }).eq('id', id)
-    setLeads(prev => prev.map(l => l.id === id ? { ...l, cohort_id: cohortId } : l))
-  }
-
-  // Task C: full edit. Pencil button on each row sets editingLead;
-  // the RegistrationEditModal mounts at the bottom of the return,
-  // calls saveLeadEdit on confirm, which patches the row + updates
-  // local state optimistically.
-  const [editingLead, setEditingLead] = useState<RegistrationLead | null>(null)
-  async function saveLeadEdit(id: string, patch: Partial<RegistrationLead>) {
-    const { error } = await supabase.from('registration_leads').update(patch).eq('id', id)
-    if (error) throw error
-    setLeads(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l))
-  }
-
-  // Task A: lead-row trash button sets pendingDeleteLead; the dialog
-  // at the bottom prompts; performDeleteLead runs the delete. `del`
-  // (id-keyed) stays as the prop name passed to RegistrationCard /
-  // CohortGroup so I don't have to thread a new shape through.
-  function del(id: string) {
-    const lead = leads.find(l => l.id === id)
-    if (lead) setPendingDeleteLead(lead)
-  }
-  async function performDeleteLead() {
-    if (!pendingDeleteLead) return
-    setDeletingLeadBusy(true)
-    await supabase.from('registration_leads').delete().eq('id', pendingDeleteLead.id)
-    setLeads(prev => prev.filter(l => l.id !== pendingDeleteLead.id))
-    setDeletingLeadBusy(false)
-    setPendingDeleteLead(null)
   }
 
   // Phase 5 / A3 fix-2: cohorts keyed by id for fast effective-status
@@ -6480,20 +6411,19 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
     }
     if (workshopFilter === 'all' && !showPrivateSection && !search.trim() && !showAllAnyway) return []
     return leads.filter(l => {
-      // Filter chip targets the EFFECTIVE status. Picking "מומש"
-      // surfaces both stored-'handled' and stored-'paid'+past-cohort.
+      // The chip targets the EFFECTIVE status (paid + past cohort
+      // displays as מומש and is neither ממתינה nor שילמה).
       const eff = effectiveStatus(l, cohortById)
       // Dateless products (workshop with no cohorts at all, or no
       // workshop) belong to the פרטני section; the main list hides them.
       const isDateless = !l.selected_workshop_id || !workshopIdsWithCohorts.has(l.selected_workshop_id)
       if (showPrivateSection !== isDateless) return false
-      if (statusFilter === 'active' && eff === 'handled') return false
-      if (statusFilter !== 'all' && statusFilter !== 'active' && eff !== statusFilter) return false
       if (workshopFilter !== 'all' && l.selected_workshop_id !== workshopFilter) return false
-      if (cohortFilter === 'none') {
-        if (l.cohort_id) return false
-      } else if (cohortFilter !== 'all' && l.cohort_id !== cohortFilter) {
-        return false
+      if (chip === 'pending' && eff !== 'pending') return false
+      if (chip === 'paid' && eff !== 'paid') return false
+      if (chip === 'no_form') {
+        const gap = gapByLeadId.get(l.id)
+        if (!gap || gap.isFilled) return false
       }
       if (search.trim()) {
         const q = search.trim().toLowerCase()
@@ -6501,7 +6431,7 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
       }
       return true
     })
-  }, [leads, statusFilter, workshopFilter, cohortFilter, search, cohortById, showPrivateSection, workshopIdsWithCohorts, showAllAnyway, focusLeadIds])
+  }, [leads, chip, workshopFilter, search, cohortById, showPrivateSection, workshopIdsWithCohorts, showAllAnyway, focusLeadIds, gapByLeadId])
 
   // Chip counts also reflect effective status so the numbers match
   // what the filter would actually surface.
@@ -6599,59 +6529,25 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
     // (e.g. copy phones, then mark שילמה). Explicit × clears.
   }
 
-  function bulkCopyPhones(): string {
-    // Digits only, newline-separated, no country code prefix —
-    // identical format to the cohort-header copy-phones button.
+  // Screen A / A4: the bar's reminder action targets the selected rows
+  // whose questionnaire is missing (the only ones a reminder makes
+  // sense for). One target → open WhatsApp; several → copy phones.
+  const reminderTargets = useMemo(() => {
     const idSet = new Set(visibleSelectedIds)
-    const phones = filtered
-      .filter(l => idSet.has(l.id))
-      .map(l => l.phone.replace(/\D/g, ''))
-      .filter(Boolean)
-      .join('\n')
-    return phones
-  }
+    const out: { href: string; phone: string }[] = []
+    for (const l of filtered) {
+      if (!idSet.has(l.id)) continue
+      const href = regReminderHref(l, cohorts, workshops, gapByLeadId.get(l.id) ?? null)
+      if (href) out.push({ href, phone: l.phone })
+    }
+    return out
+  }, [visibleSelectedIds, filtered, cohorts, workshops, gapByLeadId])
 
-  // Phase 5 / A1 Stage 2 + B1: view mode. 'list' / 'grouped' render the
-  // filtered leads; 'upcoming' / 'calendar' are cohort-centric views
-  // (registration counts per cohort) that ignore the lead filters.
-  const [viewMode, setViewMode] = useState<'list' | 'grouped' | 'upcoming' | 'calendar'>('list')
-  // B1: tapping a cohort in the upcoming/calendar views drills into its
-  // registrant list — sets the cohort filter and jumps to flat list.
-  const openCohortLeads = useCallback((c: WorkshopCohort) => {
-    setWorkshopFilter(c.workshop_id)
-    setCohortFilter(c.id)
-    setStatusFilter('all')
-    setViewMode('list')
-    setShowAllAnyway(false)
-  }, [])
   // Phase 5 / A2 Stage 3 (Part 3): manual "+ הרשמה חדשה" entry point.
   const [addRegOpen, setAddRegOpen] = useState(false)
 
-  // UX handoff: per-row questionnaire expansion (list view). Clicking a
-  // row toggles an inline panel showing that registration's matched
-  // linked-form answers. Matching reuses the same resolver identity
-  // check as the gap report — no extra queries.
-  const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null)
   // README-IA PR10: per-group "עוד n" expansion in the מחכה לך inbox.
   const [inboxOpen, setInboxOpen] = useState<Record<string, boolean>>({})
-  const submissionForLead = useCallback((lead: RegistrationLead): { form: LinkedFormDef; sub: LinkedSubmission } | null => {
-    const w = lead.selected_workshop_id ? workshopById.get(lead.selected_workshop_id) : null
-    const form = w?.linked_form_id ? linkedFormDefs.get(w.linked_form_id) : null
-    if (!form) return null
-    const phone = normalizeIlPhone(lead.phone)
-    const emailL = lead.email?.toLowerCase().trim() || null
-    for (const sub of linkedSubmissions) {
-      if (sub.form_id !== form.id) continue
-      const r = resolveSubmitter(
-        { fields_json: form.fields_json },
-        { responses_json: sub.responses_json, user_profiles: sub.user_profiles ?? null },
-      )
-      const p = normalizeIlPhone(r.phone)
-      const e = r.email?.toLowerCase().trim()
-      if ((!!phone && p === phone) || (!!emailL && !!e && e === emailL)) return { form, sub }
-    }
-    return null
-  }, [workshopById, linkedFormDefs, linkedSubmissions])
 
   const pickerMode = !focusLeadIds && workshopFilter === 'all' && !showPrivateSection && !search.trim() && !showAllAnyway
 
@@ -6683,7 +6579,7 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
 
   const backToPicker = () => {
     setWorkshopFilter('all')
-    setCohortFilter('all')
+    setChip('all')
     setShowPrivateSection(false)
     setShowAllAnyway(false)
     setSearch('')
@@ -6979,23 +6875,20 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
           )}
         </div>
       )}
+      {/* ── Screen A / A1: header + the ONE chip row ── */}
       {!pickerMode && <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3 lg:p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {!pickerMode && (
-              <button onClick={backToPicker} className="font-bold hover:underline whitespace-nowrap" style={{ fontSize: 13, color: '#8A6A2F' }}>
-                → בחירת סדנה
-              </button>
-            )}
-          <h2 className="font-bold text-sand-800 text-sm lg:text-base">
-            {pickerMode
-              ? 'חיפוש אמא'
-              : showPrivateSection
+            <button onClick={backToPicker} className="font-bold hover:underline whitespace-nowrap" style={{ fontSize: 13, color: '#8A6A2F' }}>
+              → בחירת סדנה
+            </button>
+            <h2 className="font-bold text-sand-800 text-sm lg:text-base">
+              {showPrivateSection
                 ? 'פרטני וללא תאריך'
                 : workshopFilter !== 'all'
                   ? (workshopById.get(workshopFilter)?.title ?? 'הרשמות')
                   : 'כל ההרשמות'}
-          </h2>
+            </h2>
           </div>
           <a
             href="?register"
@@ -7007,206 +6900,78 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
           </a>
         </div>
 
-        {!pickerMode && <div className="flex flex-wrap gap-2">
-          {(['active', 'pending', 'paid', 'handled', 'all'] as const).map(s => {
-            const label = s === 'active' ? 'פעילות' : s === 'all' ? 'הכל' : REG_STATUS_LABELS[s].label
-            const num = s === 'active' ? counts.pending + counts.paid : counts[s]
-            const active = statusFilter === s
+        {/* ONE filter layer. The status chips + counters, the cohort
+            dropdown and the רשימה/מחזורים tabs that used to stack here
+            are deleted — this row replaces all three. */}
+        <div className="flex flex-wrap gap-2">
+          {([
+            ['all', 'הכל'],
+            ['pending', 'ממתינות לתשלום'],
+            ['no_form', 'ללא שאלון'],
+            ['paid', 'שילמו'],
+          ] as ['all' | 'pending' | 'no_form' | 'paid', string][]).map(([v, label]) => {
+            const active = chip === v
             return (
               <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
+                key={v}
+                onClick={() => setChip(v)}
                 className="rounded-full font-bold transition-all"
                 style={active
                   ? { background: '#F6ECD8', color: '#4A3A28', padding: '9px 18px', fontSize: 14, border: '1.5px solid #E7C78A' }
                   : { background: 'transparent', color: '#7B604C', padding: '9px 18px', fontSize: 14, border: '1px solid #E4DAD0' }}
               >
                 {label}
-                <span className="mr-1.5" style={{ fontWeight: 600, color: active ? '#8A6A2F' : '#C0B5A5' }}>{num}</span>
               </button>
             )
           })}
-          <span className="self-center" style={{ width: 1, height: 22, background: '#E4DAD0' }} />
-          <button
-            onClick={() => setShowPrivateSection(v => !v)}
-            className="rounded-full font-bold transition-all"
-            style={showPrivateSection
-              ? { background: '#E4EBEF', color: '#3E5966', padding: '9px 18px', fontSize: 14, border: '1.5px solid #C3CDD2' }
-              : { background: 'transparent', color: '#7B604C', padding: '9px 18px', fontSize: 14, border: '1px solid #E4DAD0' }}
-            title="הרשמות למוצרים בלי מחזור — פרטני, בוקר של מימו וכו'"
-          >
-            פרטני וללא תאריך
-            <span className="mr-1.5" style={{ fontWeight: 600, color: showPrivateSection ? '#3E5966' : '#C0B5A5' }}>
-              {leads.filter(l => !l.selected_workshop_id || !workshopIdsWithCohorts.has(l.selected_workshop_id)).length}
-            </span>
-          </button>
-        </div>}
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          <select
-            value={cohortFilter}
-            onChange={e => setCohortFilter(e.target.value)}
-            className="px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white"
-          >
-            <option value="all">כל המחזורים</option>
-            <option value="none">ללא מחזור</option>
-            {cohorts
-              .filter(c => workshopFilter === 'all' || c.workshop_id === workshopFilter)
-              .map(c => (
-                <option key={c.id} value={c.id}>
-                  {cohortDateTimeLabel(c, { shortYear: true })}
-                  {workshopFilter === 'all' ? ` · ${workshopById.get(c.workshop_id)?.title ?? ''}` : ''}
-                  {c.label ? ` · ${c.label}` : ''}
-                </option>
-              ))}
-          </select>
         </div>
       </div>}
 
-      {!pickerMode && filtered.length === 0 && (viewMode === 'list' || viewMode === 'grouped') && (
-        <div className="bg-white rounded-2xl shadow-sm py-12 text-center">
-          <p className="text-sand-400 text-sm">{leads.length === 0 ? 'אין הרשמות עדיין' : 'אין תוצאות לפילטר הנוכחי'}</p>
+      {/* ── Screen A / A4: dark bulk bar, directly above the list ── */}
+      {!pickerMode && (
+        <BulkActionBar
+          visibleCount={visibleSelectedIds.length}
+          reminderTargets={reminderTargets}
+          onClear={clearSelection}
+          onMarkPaid={() => bulkSetStatus('paid')}
+        />
+      )}
+
+      {/* ── Screen A / A5: one global empty state ── */}
+      {!pickerMode && filtered.length === 0 && (
+        <div className="bg-white rounded-2xl shadow-sm flex flex-col items-center text-center" style={{ padding: 40 }}>
+          <MimoDuck variant="chick" size={64} />
+          <p className="font-display" style={{ fontSize: 24, color: '#5E4938', marginTop: 10 }}>
+            {leads.length === 0 ? 'אין הרשמות עדיין' : 'אין נרשמות שתואמות לסינון'}
+          </p>
+          {leads.length > 0 && chip !== 'all' && (
+            <button
+              onClick={() => setChip('all')}
+              className="mt-3 font-bold hover:underline"
+              style={{ fontSize: 14, color: '#A35C3D' }}
+            >
+              חזרה להכל
+            </button>
+          )}
         </div>
       )}
 
-      {/* Phase 5 / A1 Stage 2 + B1: view-mode segmented control. 2x2 on
-          mobile, one row on desktop. */}
-      {!pickerMode && <div className="bg-white rounded-2xl p-1 shadow-sm grid grid-cols-2 gap-1">
-        {([
-          ['list',     `רשימה (${filtered.length})`],
-          ['upcoming', 'מחזורים'],
-        ] as ['list' | 'upcoming', string][]).map(([v, label]) => (
-          <button
-            key={v}
-            onClick={() => setViewMode(v)}
-            className={`py-1.5 rounded-xl text-xs font-bold transition-all ${viewMode === v ? 'shadow-sm' : ''}`}
-            style={viewMode === v ? { background: '#E7C78A', color: '#4A3A28' } : { color: '#7B604C' }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>}
-
-      {/* Phase 5 / A3 fix-1: tri-state "select all visible" row. Flat
-          list only — grouped view has per-cohort select-all in each
-          header. Stays in sync with selection: empty / indeterminate
-          / fully checked. Acts only on currently-visible rows. */}
-      {filtered.length > 0 && viewMode === 'list' && cohortFilter !== 'all' && (() => {
-        const allVisibleOn = filtered.every(l => selected.has(l.id))
-        const someVisibleOn = !allVisibleOn && filtered.some(l => selected.has(l.id))
-        return (
-          <label className="flex items-center gap-2 px-3 py-2 bg-white rounded-2xl shadow-sm cursor-pointer">
-            <input
-              type="checkbox"
-              ref={el => { if (el) el.indeterminate = someVisibleOn }}
-              checked={allVisibleOn}
-              onChange={() => toggleSelectAllVisible(filtered)}
-              aria-label="בחירת כל ההרשמות הגלויות"
-              className="w-5 h-5 accent-mustard-500 cursor-pointer"
-            />
-            <span className="text-xs font-semibold text-sand-700">
-              {allVisibleOn ? `בטלי בחירת הכל (${filtered.length})` : `בחרי הכל גלוי (${filtered.length})`}
-            </span>
-          </label>
-        )
-      })()}
-
-      {filtered.length > 0 && viewMode === 'list' && cohortFilter !== 'all' && filtered.map(l => {
-        const expanded = expandedLeadId === l.id
-        return (
-          <div
-            key={l.id}
-            onClick={e => {
-              // Row click toggles the questionnaire panel; clicks on any
-              // interactive element inside the card are ignored.
-              const t = e.target as HTMLElement
-              if (t.closest('button, a, select, input, label')) return
-              setExpandedLeadId(prev => (prev === l.id ? null : l.id))
-            }}
-            className="cursor-pointer"
-            style={expanded ? { border: '1.5px solid #E7C78A', borderRadius: 18, overflow: 'hidden', background: '#fff' } : undefined}
-          >
-            <RegistrationCard
-              lead={l}
-              navLeads={filtered}
-              workshops={workshops}
-              cohorts={cohorts}
-              onUpdateStatus={updateStatus}
-              onUpdateCohort={updateCohort}
-              onDelete={del}
-              onEdit={setEditingLead}
-              onAddCohort={ws => setCohortsForRegWorkshop(ws)}
-              selected={selected.has(l.id)}
-              onToggleSelect={toggleSelect}
-              effectiveStatus={effectiveStatus(l, cohortById)}
-              gapStatus={gapByLeadId.get(l.id) ?? null}
-              slim
-              expanded={expanded}
-            />
-            {expanded && <RegistrationQuestionnairePanel match={submissionForLead(l)} />}
-            {expanded && (
-              <RegistrationRowControls
-                lead={l}
-                workshops={workshops}
-                cohorts={cohorts}
-                onUpdateStatus={updateStatus}
-                onUpdateCohort={updateCohort}
-                onAddCohort={ws => setCohortsForRegWorkshop(ws)}
-                onEdit={setEditingLead}
-                onDelete={del}
-                gapStatus={gapByLeadId.get(l.id) ?? null}
-              />
-            )}
-          </div>
-        )
-      })}
-
-      {/* README-IA PR10: list + "כל המחזורים" = grouped-by-cohort rendering
-          (the old grouped view) so cohort context survives the 4→2 view cut. */}
-      {filtered.length > 0 && viewMode === 'list' && cohortFilter === 'all' && (
+      {/* ── The list — always grouped by cohort ── */}
+      {!pickerMode && filtered.length > 0 && (
         <RegistrationsGroupedView
           leads={filtered}
+          allLeads={leads}
           workshops={workshops}
           cohorts={cohorts}
-          onUpdateStatus={updateStatus}
-          onUpdateCohort={updateCohort}
-          onDelete={del}
-          onEdit={setEditingLead}
-          onAddCohort={ws => setCohortsForRegWorkshop(ws)}
           selected={selected}
           onToggleSelect={toggleSelect}
           onToggleSelectGroup={toggleSelectGroup}
           gapByLeadId={gapByLeadId}
+          cohortById={cohortById}
           onOpenResponses={openCohortResponses}
         />
       )}
 
-      {/* B1: cohort-centric views. Counts come from ALL leads (not the
-          filtered list) so numbers reflect real cohort fullness. */}
-      {!pickerMode && viewMode === 'upcoming' && (
-        <UpcomingCohortsView
-          cohorts={cohorts}
-          leads={leads}
-          workshopById={workshopById}
-          onPick={openCohortLeads}
-        />
-      )}
-
-      {!pickerMode && viewMode === 'calendar' && (
-        <CohortCalendarView
-          cohorts={cohorts}
-          leads={leads}
-          workshopById={workshopById}
-          onPick={openCohortLeads}
-        />
-      )}
-
-      {cohortsForRegWorkshop && (
-        <CohortsModal
-          workshop={cohortsForRegWorkshop}
-          onClose={() => { setCohortsForRegWorkshop(null); load() }}
-        />
-      )}
 
       {/* Polish #8: cohort-scoped form responses. Reuses the same
           FormSubmissionsModal / FormSubmissionsView / FormAggregatePanel
@@ -7259,357 +7024,25 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
         )
       })()}
 
-      {/* Phase 5 / A3: bulk action bar — shown when ≥1 visible
-          registration is selected. Actions act on visible-selected
-          only; the count makes the split clear. */}
-      <BulkActionBar
-        visibleCount={visibleSelectedIds.length}
-        totalSelected={selected.size}
-        onClear={clearSelection}
-        onMarkPaid={() => bulkSetStatus('paid')}
-        onMarkHandled={() => bulkSetStatus('handled')}
-        onMarkPending={() => bulkSetStatus('pending')}
-        onCopyPhones={() => {
-          const phones = bulkCopyPhones()
-          if (phones) navigator.clipboard.writeText(phones)
-        }}
-      />
-
-      {/* Spacer so the last card isn't hidden under the sticky bar */}
-      {visibleSelectedIds.length > 0 && <div className="h-24" aria-hidden="true" />}
-      <ConfirmDialog
-        open={!!pendingDeleteLead}
-        itemName={pendingDeleteLead?.name ?? 'הליד'}
-        title="מחיקת הרשמה"
-        busy={deletingLeadBusy}
-        onConfirm={performDeleteLead}
-        onClose={() => setPendingDeleteLead(null)}
-      />
-      {editingLead && (
-        <RegistrationEditModal
-          key={editingLead.id}
-          lead={editingLead}
-          workshops={workshops}
-          cohorts={cohorts}
-          onSave={saveLeadEdit}
-          onClose={() => setEditingLead(null)}
-        />
-      )}
     </div>
   )
 }
 
-// ─── B1: cohort-centric views ────────────────────────────────────────
-// Shared bits for the "מחזורים קרובים" list and the "יומן" month grid.
-
-const HEB_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
-const HEB_MONTHS_SHORT = ['ינו׳', 'פבר׳', 'מרץ', 'אפר׳', 'מאי', 'יוני', 'יולי', 'אוג׳', 'ספט׳', 'אוק׳', 'נוב׳', 'דצמ׳']
-const HEB_WEEKDAYS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']
-
-type CohortViewProps = {
-  cohorts: WorkshopCohort[]
-  leads: RegistrationLead[]
-  workshopById: Map<string, Workshop>
-  onPick: (c: WorkshopCohort) => void
-}
-
-// Registration count per cohort — ALL leads regardless of status, same
-// definition the public RPC uses for capacity.
-function useRegCountByCohort(leads: RegistrationLead[]) {
-  return useMemo(() => {
-    const m = new Map<string, number>()
-    for (const l of leads) {
-      if (!l.cohort_id) continue
-      m.set(l.cohort_id, (m.get(l.cohort_id) ?? 0) + 1)
-    }
-    return m
-  }, [leads])
-}
-
-// Effective capacity: cohort override, else the workshop's per-cohort max.
-function effectiveCapacity(c: WorkshopCohort, workshopById: Map<string, Workshop>): number | null {
-  return c.capacity ?? workshopById.get(c.workshop_id)?.stock_quantity ?? null
-}
-
-// One tappable cohort row — shared by both views.
-function CohortRow({ cohort: c, workshopById, regCount, onPick, showDateBadge }: {
-  cohort: WorkshopCohort
-  workshopById: Map<string, Workshop>
-  regCount: number
-  onPick: (c: WorkshopCohort) => void
-  showDateBadge?: boolean
-}) {
-  const cap = effectiveCapacity(c, workshopById)
-  const isFull = cap != null && regCount >= cap
-  const left = cap != null ? Math.max(0, cap - regCount) : null
-  const [, mStr, dStr] = c.start_date.split('-')
-  const chip = isFull
-    ? { text: 'מלא', color: '#A32D2D', bg: '#FCEBEB' }
-    : cap != null
-      ? { text: `${regCount}/${cap}`, color: left != null && left <= 2 ? '#15803d' : '#854F0B', bg: left != null && left <= 2 ? '#dcfce7' : '#FAEEDA' }
-      : { text: `${regCount}`, color: '#5F5E5A', bg: '#F1EFE8' }
-  return (
-    <button
-      type="button"
-      onClick={() => onPick(c)}
-      className="w-full bg-white border border-sand-200 rounded-2xl px-3 py-2.5 flex items-center gap-3 text-right transition-all hover:border-mustard-400 hover:shadow-sm"
-    >
-      {showDateBadge && (
-        <div className="w-11 shrink-0 text-center rounded-xl py-1.5" style={{ background: '#F5EBDA' }}>
-          <div className="text-[17px] font-bold leading-none" style={{ color: '#854F0B' }}>{parseInt(dStr, 10)}</div>
-          <div className="text-[13px]" style={{ color: '#BA7517' }}>{HEB_MONTHS_SHORT[parseInt(mStr, 10) - 1]}</div>
-        </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-semibold text-sand-800 truncate">
-          {workshopById.get(c.workshop_id)?.title ?? 'סדנה'}
-          {c.label ? ` · ${c.label}` : ''}
-        </div>
-        <div className="text-[11.5px] text-sand-400 flex items-center gap-1">
-          {c.start_time && (
-            <>
-              <Clock className="w-3 h-3 shrink-0" />
-              {c.start_time.slice(0, 5)}
-              <span> · </span>
-            </>
-          )}
-          <span>
-            {regCount === 1 ? 'נרשמה אחת' : `${regCount} נרשמו`}
-            {cap != null && !isFull && ` · נותרו ${left} מקומות`}
-          </span>
-        </div>
-      </div>
-      <span className="shrink-0 text-[13px] font-semibold px-2 py-0.5 rounded-full" style={{ color: chip.color, background: chip.bg }}>
-        {chip.text}
-      </span>
-    </button>
-  )
-}
-
-// "מחזורים קרובים": upcoming active cohorts grouped by month, nearest
-// first. Past cohorts hidden behind a toggle at the bottom.
-function UpcomingCohortsView({ cohorts, leads, workshopById, onPick }: CohortViewProps) {
-  const regCountByCohort = useRegCountByCohort(leads)
-  const [showPast, setShowPast] = useState(false)
-
-  const { upcoming, past } = useMemo(() => {
-    const active = cohorts.filter(c => c.is_active)
-    const key = (c: WorkshopCohort) => `${c.start_date}T${c.start_time ?? '00:00:00'}`
-    const up = active.filter(c => !isCohortPast(c)).sort((a, b) => key(a).localeCompare(key(b)))
-    const pa = active.filter(c => isCohortPast(c)).sort((a, b) => key(b).localeCompare(key(a)))
-    return { upcoming: up, past: pa }
-  }, [cohorts])
-
-  // Group by YYYY-MM preserving order.
-  function groupByMonth(list: WorkshopCohort[]) {
-    const groups: { ym: string; items: WorkshopCohort[] }[] = []
-    for (const c of list) {
-      const ym = c.start_date.slice(0, 7)
-      const last = groups[groups.length - 1]
-      if (last && last.ym === ym) last.items.push(c)
-      else groups.push({ ym, items: [c] })
-    }
-    return groups
-  }
-
-  function monthTitle(ym: string) {
-    const [y, m] = ym.split('-')
-    return `${HEB_MONTHS[parseInt(m, 10) - 1]} ${y}`
-  }
-
-  return (
-    <div className="space-y-2">
-      {upcoming.length === 0 && (
-        <div className="bg-white rounded-2xl shadow-sm py-10 text-center">
-          <p className="text-sand-400 text-sm">אין מחזורים קרובים</p>
-        </div>
-      )}
-      {groupByMonth(upcoming).map(g => (
-        <div key={g.ym} className="space-y-2">
-          <div className="text-[13px] font-semibold text-sand-400 px-1 pt-1">{monthTitle(g.ym)}</div>
-          {g.items.map(c => (
-            <CohortRow
-              key={c.id}
-              cohort={c}
-              workshopById={workshopById}
-              regCount={regCountByCohort.get(c.id) ?? 0}
-              onPick={onPick}
-              showDateBadge
-            />
-          ))}
-        </div>
-      ))}
-      {past.length > 0 && (
-        <div className="text-center pt-1">
-          <button
-            type="button"
-            onClick={() => setShowPast(v => !v)}
-            className="text-xs font-semibold text-[#A35C3D] hover:underline"
-          >
-            {showPast ? 'הסתרת מחזורים שעברו' : `הצגת מחזורים שעברו (${past.length})`}
-          </button>
-        </div>
-      )}
-      {showPast && groupByMonth(past).map(g => (
-        <div key={g.ym} className="space-y-2 opacity-60">
-          <div className="text-[13px] font-semibold text-sand-400 px-1 pt-1">{monthTitle(g.ym)}</div>
-          {g.items.map(c => (
-            <CohortRow
-              key={c.id}
-              cohort={c}
-              workshopById={workshopById}
-              regCount={regCountByCohort.get(c.id) ?? 0}
-              onPick={onPick}
-              showDateBadge
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// "יומן": month grid with dots on cohort days; tapping a day lists its
-// cohorts below. Dot color mirrors the fullness chip.
-function CohortCalendarView({ cohorts, leads, workshopById, onPick }: CohortViewProps) {
-  const regCountByCohort = useRegCountByCohort(leads)
-  const today = new Date()
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-  const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
-
-  const activeCohorts = useMemo(() => cohorts.filter(c => c.is_active), [cohorts])
-
-  const byDate = useMemo(() => {
-    const m = new Map<string, WorkshopCohort[]>()
-    for (const c of activeCohorts) {
-      const list = m.get(c.start_date)
-      if (list) list.push(c)
-      else m.set(c.start_date, [c])
-    }
-    for (const list of m.values()) {
-      list.sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''))
-    }
-    return m
-  }, [activeCohorts])
-
-  const monthPrefix = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`
-
-  // Default selection: first cohort day in the displayed month (from
-  // today onwards when viewing the current month).
-  const firstCohortDay = useMemo(() => {
-    const days = Array.from(byDate.keys()).filter(d => d.startsWith(monthPrefix)).sort()
-    return days.find(d => d >= todayStr) ?? days[0] ?? null
-  }, [byDate, monthPrefix, todayStr])
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const shownDate = selectedDate?.startsWith(monthPrefix) ? selectedDate : firstCohortDay
-
-  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
-  const firstWeekday = new Date(month.getFullYear(), month.getMonth(), 1).getDay()
-
-  function dotColor(c: WorkshopCohort): string {
-    const cap = effectiveCapacity(c, workshopById)
-    const count = regCountByCohort.get(c.id) ?? 0
-    if (cap != null && count >= cap) return '#A32D2D'
-    if (cap != null && cap - count <= 2) return '#15803d'
-    return '#BA7517'
-  }
-
-  function shiftMonth(delta: number) {
-    setMonth(m => new Date(m.getFullYear(), m.getMonth() + delta, 1))
-    setSelectedDate(null)
-  }
-
-  const shownCohorts = shownDate ? byDate.get(shownDate) ?? [] : []
-
-  function shownDateTitle() {
-    if (!shownDate) return ''
-    const d = new Date(`${shownDate}T00:00:00`)
-    const weekdayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
-    return `יום ${weekdayNames[d.getDay()]}, ${d.getDate()} ב${HEB_MONTHS[d.getMonth()]}`
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="bg-white rounded-2xl shadow-sm p-3">
-        <div className="flex items-center justify-between mb-2 px-1">
-          <button type="button" onClick={() => shiftMonth(-1)} aria-label="חודש קודם" className="p-1.5 rounded-xl text-sand-500 hover:bg-sand-100 transition-colors">
-            <ChevronRight className="w-4 h-4" />
-          </button>
-          <span className="text-sm font-bold text-sand-800">
-            {HEB_MONTHS[month.getMonth()]} {month.getFullYear()}
-          </span>
-          <button type="button" onClick={() => shiftMonth(1)} aria-label="חודש הבא" className="p-1.5 rounded-xl text-sand-500 hover:bg-sand-100 transition-colors">
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="grid grid-cols-7 gap-0.5 text-center text-[13px] text-sand-400 mb-1">
-          {HEB_WEEKDAYS.map(d => <div key={d}>{d}</div>)}
-        </div>
-        <div className="grid grid-cols-7 gap-0.5 text-center">
-          {Array.from({ length: firstWeekday }).map((_, i) => <div key={`b${i}`} />)}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const day = i + 1
-            const dateStr = `${monthPrefix}-${String(day).padStart(2, '0')}`
-            const dayCohorts = byDate.get(dateStr) ?? []
-            const isToday = dateStr === todayStr
-            const isSelected = dateStr === shownDate && dayCohorts.length > 0
-            const isPastDay = dateStr < todayStr
-            return (
-              <button
-                key={day}
-                type="button"
-                disabled={dayCohorts.length === 0}
-                onClick={() => setSelectedDate(dateStr)}
-                className={`py-1 rounded-lg text-xs transition-colors ${dayCohorts.length > 0 ? 'cursor-pointer hover:bg-sand-100' : 'cursor-default'} ${isPastDay && !isSelected ? 'text-sand-300' : 'text-sand-700'}`}
-                style={isSelected ? { background: '#E7C78A', color: '#5c4a1e', fontWeight: 700 } : isToday ? { background: '#EDE9E0' } : {}}
-              >
-                <span className="leading-none">{day}</span>
-                <span className="flex justify-center gap-0.5 mt-0.5" style={{ minHeight: 5 }}>
-                  {dayCohorts.slice(0, 3).map(c => (
-                    <span key={c.id} className="rounded-full" style={{ width: 5, height: 5, background: dotColor(c) }} />
-                  ))}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {shownDate && shownCohorts.length > 0 && (
-        <>
-          <div className="text-[13px] font-semibold text-sand-400 px-1">{shownDateTitle()}</div>
-          {shownCohorts.map(c => (
-            <CohortRow
-              key={c.id}
-              cohort={c}
-              workshopById={workshopById}
-              regCount={regCountByCohort.get(c.id) ?? 0}
-              onPick={onPick}
-            />
-          ))}
-        </>
-      )}
-      {!shownDate && (
-        <div className="bg-white rounded-2xl shadow-sm py-8 text-center">
-          <p className="text-sand-400 text-sm">אין מחזורים בחודש הזה</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── RegistrationCard ────────────────────────────────────────────────
-// Shared card body used by both the flat list and the grouped view.
-// hideWorkshopMeta drops the workshop-name line for grouped use where
-// the group header already names the workshop.
+// ─── Screen A / A2: the registration row ────────────────────────────
+// One registrant is ONE row, 52px, horizontal, vertically centred:
+//   [checkbox] [avatar 30px] [name 118px] [status] [questionnaire]
+//   [phone, muted, flex] [timestamp]
+// The whole row (except the checkbox) is a single button that opens
+// the panel. No icons, no per-row selects, no edit pencil, no trash —
+// those live in the panel and the bulk bar.
 type GapStatusType = {
   form: { id: string; title: string; public_link_enabled: boolean }
   isFilled: boolean
 }
 
-// README-IA PR10: reminder WhatsApp link builder — shared by the slim
-// row, the מחכה לך inbox and the expanded-row controls. Returns null
-// when the questionnaire is filled or there's no usable phone.
+// README-IA PR10: reminder WhatsApp link builder — shared by the מחכה
+// לך inbox and the bulk bar. Returns null when the questionnaire is
+// filled or there's no usable phone.
 function regReminderHref(
   l: RegistrationLead,
   cohorts: WorkshopCohort[],
@@ -7636,446 +7069,91 @@ function regReminderHref(
   return `https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`
 }
 
-type RegistrationCardProps = {
-  lead: RegistrationLead
-  workshops: Workshop[]
-  cohorts: WorkshopCohort[]
-  onUpdateStatus: (id: string, status: RegistrationLead['status']) => void
-  onUpdateCohort: (id: string, cohortId: string | null) => void
-  onDelete: (id: string) => void
-  // Task C: opens the full edit modal for this lead.
-  onEdit: (lead: RegistrationLead) => void
-  onAddCohort: (w: Workshop) => void
-  hideWorkshopMeta?: boolean
-  hideCohortRow?: boolean
-  // Phase 5 / A3: selection plumbing for bulk actions.
-  selected?: boolean
-  onToggleSelect?: (id: string) => void
-  // Phase 5 / A3 fix-2: badge displays effective status (paid + past
-  // cohort → מומש). Dropdown still binds to lead.status (stored).
-  effectiveStatus?: RegistrationLead['status']
-  // Phase 5 / A2 Stage 3: per-row questionnaire status. null when the
-  // row's workshop has no linked form. {isFilled:true} → ✅ chip,
-  // {isFilled:false} → ⚠️ chip + reminder button.
-  gapStatus?: GapStatusType | null
-  // README-IA PR10: slim list-row variant (controls live in the
-  // expanded panel) + chevron rotation state.
-  slim?: boolean
-  expanded?: boolean
-  // Phase 5 (handoff §5.1): the ordered list this row belongs to, so
-  // the customer panel's ‹ › arrows can move through it.
-  navLeads?: RegistrationLead[]
+// Status is TEXT, not a pill (A2): שילמה blue-grey, ממתינה clay,
+// מומש muted.
+const REG_ROW_STATUS: Record<RegistrationLead['status'], { label: string; color: string }> = {
+  pending: { label: 'ממתינה', color: '#8B4A30' },
+  paid:    { label: 'שילמה',  color: '#35505C' },
+  handled: { label: 'מומש',   color: '#A2937D' },
 }
 
-function RegistrationCard({
-  lead: l,
-  workshops,
-  cohorts,
-  onUpdateStatus,
-  onUpdateCohort,
-  onDelete,
-  onEdit,
-  onAddCohort,
-  hideWorkshopMeta,
-  hideCohortRow,
-  selected,
-  onToggleSelect,
-  effectiveStatus: effective,
-  gapStatus,
-  slim,
-  expanded,
-  navLeads,
-}: RegistrationCardProps) {
-  const badgeStatus = effective ?? l.status
-  // Phase 5 / A2 Stage 3: build the reminder WhatsApp link only when
-  // there's an unfilled linked form. Cohort context is woven into
-  // the message: "...לקראת [workshop] [date+time]".
-  const reminderHref = useMemo(() => regReminderHref(l, cohorts, workshops, gapStatus ?? null), [gapStatus, l, cohorts, workshops])
-
-  // Selected cards get a subtle mustard ring + tint — scannable but
-  // doesn't break the existing aesthetic.
-  const cardClass = selected
-    ? 'bg-mustard-50 ring-2 ring-mustard-400 rounded-2xl shadow-sm p-4 space-y-2'
-    : 'bg-white rounded-2xl shadow-sm p-4 space-y-2'
-  // Copy-phone feedback: swaps the copy icon for a ✓ for 1.5s.
-  const [phoneCopied, setPhoneCopied] = useState(false)
-  // Phase 5 / A2 Part 3: tapping the mother's name opens the unified
-  // customer card with this registration's phone+email as the key.
-  const openCustomer = useOpenCustomer()
-
-  // README-IA PR10: slim row for the flat list — identity + status +
-  // one action; everything else lives in the expanded panel.
-  if (slim) {
-    const workshopTitle = l.workshops?.title ?? (l.selected_workshop_id ? workshops.find(w => w.id === l.selected_workshop_id)?.title : null) ?? '—'
-    const cohort = l.cohort_id ? cohorts.find(c => c.id === l.cohort_id) : null
-    const cohortPart = cohort
-      ? ` · מחזור ${cohortDateTimeLabel(cohort, { shortYear: true })}${cohort.label ? ' · ' + cohort.label : ''}`
-      : ' · אין מחזור'
-    return (
-      <div className={selected ? 'bg-mustard-50 ring-2 ring-mustard-400 rounded-2xl shadow-sm p-4' : 'bg-white rounded-2xl shadow-sm p-4'}>
-        <div className="flex items-center" style={{ gap: 14 }}>
-          {onToggleSelect && (
-            <input
-              type="checkbox"
-              checked={!!selected}
-              onChange={() => onToggleSelect(l.id)}
-              aria-label={`בחירת ${l.name}`}
-              className="w-5 h-5 accent-mustard-500 flex-shrink-0 cursor-pointer"
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => openCustomer({ phone: l.phone, email: l.email }, navLeads ? { list: navLeads.map(x => ({ phone: x.phone, email: x.email })), index: Math.max(0, navLeads.findIndex(x => x.id === l.id)) } : undefined)}
-                className="hover:underline underline-offset-2 text-right truncate"
-                style={{ fontWeight: 700, fontSize: 17, color: '#443327' }}
-                title="פתיחת כרטיס לקוחה"
-              >
-                {l.name}
-              </button>
-              <span className="whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: REG_STATUS_LABELS[badgeStatus].color, background: REG_STATUS_LABELS[badgeStatus].bg, padding: '4px 10px', borderRadius: 9999 }}>
-                {REG_STATUS_LABELS[badgeStatus].label}
-              </span>
-              {gapStatus && (gapStatus.isFilled
-                ? <span className="whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: '#434434', background: '#E6E6E0', padding: '4px 10px', borderRadius: 9999 }}>שאלון מולא</span>
-                : <span className="whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: '#8B4A30', background: '#F5E2D8', padding: '4px 10px', borderRadius: 9999 }}>שאלון לא מולא</span>)}
-            </div>
-            <p className="truncate mt-0.5" style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>{workshopTitle}{cohortPart}</p>
-          </div>
-          {reminderHref && (
-            <a
-              href={reminderHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="whitespace-nowrap flex-shrink-0"
-              style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D' }}
-              title={`תזכורת למילוי ${gapStatus?.form.title ?? 'השאלון'}`}
-            >
-              שלחי תזכורת
-            </a>
-          )}
-          <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} style={{ color: '#7B604C' }} />
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={cardClass}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            {onToggleSelect && (
-              <input
-                type="checkbox"
-                checked={!!selected}
-                onChange={() => onToggleSelect(l.id)}
-                aria-label={`בחירת ${l.name}`}
-                className="w-5 h-5 accent-mustard-500 flex-shrink-0 cursor-pointer"
-              />
-            )}
-            <button
-              type="button"
-              onClick={() => openCustomer({ phone: l.phone, email: l.email }, navLeads ? { list: navLeads.map(x => ({ phone: x.phone, email: x.email })), index: Math.max(0, navLeads.findIndex(x => x.id === l.id)) } : undefined)}
-              className="font-bold text-sand-800 text-sm hover:text-mustard-600 hover:underline underline-offset-2 transition-colors text-right"
-              title="פתיחת כרטיס לקוחה"
-            >
-              {l.name}
-            </button>
-            <span className="text-[13px] px-1.5 py-0.5 rounded-md font-semibold" style={{ color: REG_STATUS_LABELS[badgeStatus].color, background: REG_STATUS_LABELS[badgeStatus].bg }}>
-              {REG_STATUS_LABELS[badgeStatus].label}
-            </span>
-            {gapStatus && gapStatus.isFilled && (
-              <span className="text-[13px] px-1.5 py-0.5 rounded-md font-semibold bg-green-50 text-green-700">
-                ✅ שאלון מולא
-              </span>
-            )}
-            {gapStatus && !gapStatus.isFilled && (
-              <span className="text-[13px] px-1.5 py-0.5 rounded-md font-semibold bg-amber-50 text-amber-700">
-                ⚠️ שאלון לא מולא
-              </span>
-            )}
-            {l.source && <span className="text-[13px] px-1.5 py-0.5 rounded-md bg-[#F6ECD8] text-[#6E5836]">{l.source}</span>}
-          </div>
-          {/* Polish #4: workshop + cohort on one prominent line so the
-              cohort isn't buried as small grey text. created_at drops
-              to a tiny subline beneath. hideWorkshopMeta is set inside
-              the grouped view where the cohort header already shows
-              this info — there we only render created_at. */}
-          {!hideWorkshopMeta && (() => {
-            const workshopTitle = l.workshops?.title ?? '—'
-            const cohort = l.cohort_id ? cohorts.find(c => c.id === l.cohort_id) : null
-            let cohortPart = ''
-            if (cohort) {
-              const [y, m, d] = cohort.start_date.split('-')
-              const t = cohort.start_time ? ` ${cohort.start_time.slice(0, 5)}` : ''
-              cohortPart = ` · ${d}/${m}/${y.slice(2)}${t}${cohort.label ? ' · ' + cohort.label : ''}`
-            }
-            return (
-              <p className="text-sm font-semibold text-sand-700 mt-0.5">
-                {workshopTitle}{cohortPart}
-              </p>
-            )
-          })()}
-          <p className="text-[13px] text-sand-400 mt-0.5">
-            {new Date(l.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-          </p>
-        </div>
-        {/* Task C: edit pencil sits next to the trash, both as small
-            icon buttons. Edit opens the full edit modal; delete
-            opens the shared ConfirmDialog (Task A). */}
-        <button
-          onClick={() => onEdit(l)}
-          className="p-1.5 text-sand-300 hover:text-mustard-600"
-          title="עריכה"
-        >
-          <Pencil className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onDelete(l.id)}
-          className="p-1.5 text-sand-300 hover:text-red-500"
-          title="מחיקה"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-xs">
-        <span className="inline-flex items-center rounded-lg bg-green-50 text-green-700 overflow-hidden">
-          <a
-            href={regWaLink(l.phone, l.name)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 hover:bg-green-100"
-          >
-            <MessageCircle className="w-3.5 h-3.5" />
-            {l.phone}
-          </a>
-          {/* Copy-one-phone button: sits right next to the number so
-              the admin can grab numbers one by one (the bulk copy in
-              the cohort header stays for whole groups). */}
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(l.phone).then(() => {
-                setPhoneCopied(true)
-                setTimeout(() => setPhoneCopied(false), 1500)
-              })
-            }}
-            className="px-2 py-1.5 border-r border-green-100 hover:bg-green-100 transition-colors"
-            title="העתקת המספר"
-            aria-label="העתקת המספר"
-          >
-            {phoneCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-          </button>
-        </span>
-        <a
-          href={`mailto:${l.email}`}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
-          dir="ltr"
-        >
-          <Mail className="w-3.5 h-3.5" />
-          {l.email}
-        </a>
-        {reminderHref && (
-          <a
-            href={reminderHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 font-semibold"
-            title={`תזכורת למילוי ${gapStatus?.form.title ?? 'השאלון'}`}
-          >
-            📲 שלחי תזכורת
-          </a>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 pt-1">
-        <label className="text-xs text-sand-500">סטטוס:</label>
-        <select
-          value={l.status}
-          onChange={e => onUpdateStatus(l.id, e.target.value as RegistrationLead['status'])}
-          className="px-2 py-1 rounded-lg border border-sand-200 bg-white text-xs focus:outline-none focus:border-mustard-400"
-        >
-          <option value="pending">ממתינה לתשלום</option>
-          <option value="paid">שילמה</option>
-          <option value="handled">מומש</option>
-        </select>
-      </div>
-
-      {!hideCohortRow && (
-        <CohortPickerRow
-          lead={l}
-          workshops={workshops}
-          cohorts={cohorts}
-          onChange={onUpdateCohort}
-          onAddCohort={onAddCohort}
-        />
-      )}
-    </div>
-  )
+function regInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0].slice(0, 2)
+  return parts[0][0] + parts[1][0]
 }
 
-// ─── RegistrationRowControls (README-IA PR10) ───────────────────────
-// Bottom controls row of an expanded slim row: status + cohort selects,
-// contact actions, reminder, edit, delete — all reusing the handlers
-// that previously lived directly on the card.
-function RegistrationRowControls({
-  lead: l,
-  workshops,
-  cohorts,
-  onUpdateStatus,
-  onUpdateCohort,
-  onAddCohort,
-  onEdit,
-  onDelete,
-  gapStatus,
-}: {
+function RegistrationRow52({ lead: l, eff, gap, navOrder, navIndex, selected, onToggleSelect }: {
   lead: RegistrationLead
-  workshops: Workshop[]
-  cohorts: WorkshopCohort[]
-  onUpdateStatus: (id: string, status: RegistrationLead['status']) => void
-  onUpdateCohort: (id: string, cohortId: string | null) => void
-  onAddCohort: (w: Workshop) => void
-  onEdit: (lead: RegistrationLead) => void
-  onDelete: (id: string) => void
-  gapStatus: GapStatusType | null
+  eff: RegistrationLead['status']
+  gap: GapStatusType | null
+  navOrder: RegistrationLead[]
+  navIndex: number
+  selected: boolean
+  onToggleSelect: (id: string) => void
 }) {
-  const [phoneCopied, setPhoneCopied] = useState(false)
-  const reminderHref = regReminderHref(l, cohorts, workshops, gapStatus)
-  const selStyle = { border: '1.5px solid #DCD4C8', borderRadius: 12, padding: '9px 12px', fontWeight: 600, fontSize: 14, background: '#fff', color: '#443327' } as const
-  const wsCohorts = cohorts.filter(c => c.workshop_id === l.selected_workshop_id)
+  const openCustomer = useOpenCustomer()
+  const st = REG_ROW_STATUS[eff]
   return (
     <div
-      className="flex flex-wrap items-center gap-x-4 gap-y-3"
-      style={{ background: '#fff', padding: '14px 20px 20px', borderTop: '1px solid #F0EBE3' }}
-      onClick={e => e.stopPropagation()}
+      className="flex items-center"
+      style={{ height: 52, padding: '0 14px', gap: 12, background: selected ? '#FBF4E4' : undefined }}
     >
-      <select
-        value={l.status}
-        onChange={e => onUpdateStatus(l.id, e.target.value as RegistrationLead['status'])}
-        className="focus:outline-none"
-        style={selStyle}
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={() => onToggleSelect(l.id)}
+        aria-label={`בחירת ${l.name}`}
+        className="w-[18px] h-[18px] accent-mustard-500 flex-shrink-0 cursor-pointer"
+      />
+      <button
+        type="button"
+        onClick={() => openCustomer(
+          { phone: l.phone, email: l.email, leadId: l.id },
+          { list: navOrder.map(x => ({ phone: x.phone, email: x.email, leadId: x.id })), index: Math.max(0, navIndex) },
+        )}
+        className="flex-1 min-w-0 flex items-center text-right"
+        style={{ gap: 12, height: '100%' }}
+        title="פתיחת ההרשמה"
       >
-        <option value="pending">ממתינה לתשלום</option>
-        <option value="paid">שילמה</option>
-        <option value="handled">מומש</option>
-      </select>
-      {l.selected_workshop_id && (wsCohorts.length > 0 ? (
-        <select
-          value={l.cohort_id ?? ''}
-          onChange={e => onUpdateCohort(l.id, e.target.value || null)}
-          className="focus:outline-none"
-          style={selStyle}
+        <span
+          className="flex-shrink-0 rounded-full flex items-center justify-center font-bold"
+          style={{ width: 30, height: 30, background: '#F1EBE1', color: '#6E5836', fontSize: 12 }}
+          aria-hidden="true"
         >
-          <option value="">ללא מחזור</option>
-          {wsCohorts.map(c => (
-            <option key={c.id} value={c.id}>
-              {cohortDateTimeLabel(c, { shortYear: true })}{c.label ? ` · ${c.label}` : ''}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <button
-          onClick={() => { const w = workshops.find(x => x.id === l.selected_workshop_id); if (w) onAddCohort(w) }}
-          style={{ fontWeight: 700, fontSize: 14, color: '#7B604C' }}
-        >
-          + הוסיפי מחזור
-        </button>
-      ))}
-      <span className="inline-flex items-center gap-1.5">
-        <a
-          href={regWaLink(l.phone, l.name)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 hover:underline"
-          style={{ fontWeight: 700, fontSize: 14, color: '#434434' }}
-          dir="ltr"
-        >
-          <MessageCircle className="w-4 h-4" style={{ color: '#818267' }} />
+          {regInitials(l.name)}
+        </span>
+        <span className="truncate flex-shrink-0" style={{ width: 118, fontWeight: 700, fontSize: 14.5, color: '#443327' }}>
+          {l.name}
+        </span>
+        <span className="flex-shrink-0 whitespace-nowrap" style={{ fontWeight: 800, fontSize: 12.5, color: st.color }}>
+          {st.label}
+        </span>
+        {gap && (
+          <span className="flex-shrink-0 whitespace-nowrap" style={{ fontWeight: 800, fontSize: 12.5, color: gap.isFilled ? '#A2937D' : '#8B4A30' }}>
+            {gap.isFilled ? 'שאלון מולא' : 'שאלון חסר'}
+          </span>
+        )}
+        {/* Phone + timestamp yield on narrow screens — the mobile row
+            keeps name/status/questionnaire and the panel has the rest. */}
+        <span className="flex-1 min-w-0 truncate hidden sm:block" dir="ltr" style={{ fontWeight: 600, fontSize: 13, color: '#A2937D', textAlign: 'right' }}>
           {l.phone}
-        </a>
-        <button
-          type="button"
-          onClick={() => {
-            navigator.clipboard.writeText(l.phone).then(() => {
-              setPhoneCopied(true)
-              setTimeout(() => setPhoneCopied(false), 1500)
-            })
-          }}
-          className="p-1"
-          title="העתקת המספר"
-          aria-label="העתקת המספר"
-          style={{ color: '#7B604C' }}
-        >
-          {phoneCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-        </button>
-      </span>
-      <a
-        href={`mailto:${l.email}`}
-        className="inline-flex items-center gap-1.5 hover:underline"
-        style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}
-        dir="ltr"
-      >
-        <Mail className="w-4 h-4" />
-        {l.email}
-      </a>
-      {reminderHref && (
-        <a
-          href={reminderHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D' }}
-          title={`תזכורת למילוי ${gapStatus?.form.title ?? 'השאלון'}`}
-        >
-          שלחי תזכורת
-        </a>
-      )}
-      <button onClick={() => onEdit(l)} style={{ fontWeight: 700, fontSize: 14, color: '#7B604C' }}>
-        עריכה
-      </button>
-      <button onClick={() => onDelete(l.id)} style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D', marginInlineStart: 'auto' }}>
-        מחיקה
+        </span>
+        <span className="flex-1 sm:hidden" />
+        <span className="flex-shrink-0 whitespace-nowrap hidden sm:block" style={{ fontWeight: 600, fontSize: 12, color: '#A2937D' }}>
+          {new Date(l.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+        </span>
       </button>
     </div>
   )
 }
 
-// ─── RegistrationsGroupedView (Stage 2) ─────────────────────────────
-// Buckets the already-filtered registrations by cohort, with three
-// sections:
-//   1. ללא מחזור  — registrations with cohort_id=null (triage queue),
-//                   pinned to the top and always expanded by default.
-//   2. Upcoming    — cohorts with start_date >= today, soonest first,
-//                   expanded by default.
-//   3. Past        — start_date < today, most recent first, collapsed
-//                   by default.
-// Empty cohorts (no registrations) are hidden — CohortsModal stays
-// the source of truth for "what cohorts exist".
-type GroupedViewProps = {
-  leads: RegistrationLead[]
-  workshops: Workshop[]
-  cohorts: WorkshopCohort[]
-  onUpdateStatus: (id: string, status: RegistrationLead['status']) => void
-  onUpdateCohort: (id: string, cohortId: string | null) => void
-  onDelete: (id: string) => void
-  // Task C: pass-through to each CohortGroup → RegistrationCard.
-  onEdit: (lead: RegistrationLead) => void
-  onAddCohort: (w: Workshop) => void
-  // Phase 5 / A3: selection plumbing.
-  selected: Set<string>
-  onToggleSelect: (id: string) => void
-  onToggleSelectGroup: (groupLeads: RegistrationLead[]) => void
-  // Phase 5 / A2 Stage 3: gap-report status per lead.
-  gapByLeadId: Map<string, GapStatusType | null>
-  // Polish #8: opens the cohort-scoped responses modal. Called from
-  // each CohortGroup header button (only rendered when the cohort's
-  // workshop has a linked form). Wired to RegistrationsTab's
-  // openCohortResponses callback.
-  onOpenResponses: (cohort: WorkshopCohort) => void
-}
-
+// ─── Screen A: grouped-by-cohort list ───────────────────────────────
+// The ONLY list rendering. Buckets the filtered registrations by
+// cohort: ללא מחזור pinned first (expanded), upcoming cohorts next
+// (expanded), past cohorts last (collapsed). A cohort with no rows
+// matching the current filter renders nothing at all (A5).
 function todayLocalIso(): string {
   const d = new Date()
   const y = d.getFullYear()
@@ -8084,38 +7162,42 @@ function todayLocalIso(): string {
   return `${y}-${m}-${day}`
 }
 
+type GroupedViewProps = {
+  leads: RegistrationLead[]        // filtered — what renders
+  allLeads: RegistrationLead[]     // everything — real cohort totals
+  workshops: Workshop[]
+  cohorts: WorkshopCohort[]
+  selected: Set<string>
+  onToggleSelect: (id: string) => void
+  onToggleSelectGroup: (groupLeads: RegistrationLead[]) => void
+  gapByLeadId: Map<string, GapStatusType | null>
+  cohortById: Map<string, WorkshopCohort>
+  onOpenResponses: (cohort: WorkshopCohort) => void
+}
+
 function RegistrationsGroupedView({
   leads,
+  allLeads,
   workshops,
-  cohorts,
-  onUpdateStatus,
-  onUpdateCohort,
-  onDelete,
-  onEdit,
-  onAddCohort,
+  cohorts: _cohorts,
   selected,
   onToggleSelect,
   onToggleSelectGroup,
   gapByLeadId,
+  cohortById,
   onOpenResponses,
 }: GroupedViewProps) {
-  const cohortById = useMemo(() => {
-    const m = new Map<string, WorkshopCohort>()
-    for (const c of cohorts) m.set(c.id, c)
-    return m
-  }, [cohorts])
   const workshopById = useMemo(() => {
     const m = new Map<string, Workshop>()
     for (const w of workshops) m.set(w.id, w)
     return m
   }, [workshops])
 
-  // Bucket leads + classify cohorts as upcoming vs past.
   const groups = useMemo(() => {
     const NULL_KEY = '__none__'
     const buckets = new Map<string, RegistrationLead[]>()
     for (const l of leads) {
-      const k = l.cohort_id ?? NULL_KEY
+      const k = l.cohort_id && cohortById.has(l.cohort_id) ? l.cohort_id : NULL_KEY
       let list = buckets.get(k)
       if (!list) { list = []; buckets.set(k, list) }
       list.push(l)
@@ -8136,8 +7218,6 @@ function RegistrationsGroupedView({
       if (c.start_date >= today) upcoming.push({ cohort: c, leads: list })
       else past.push({ cohort: c, leads: list })
     }
-    // Sort: upcoming ascending (soonest first), past descending
-    // (most recent first). Compare on (date, time NULLS LAST).
     function cmp(a: G, b: G) {
       const dc = a.cohort.start_date.localeCompare(b.cohort.start_date)
       if (dc !== 0) return dc
@@ -8150,6 +7230,35 @@ function RegistrationsGroupedView({
     return { noCohort, upcoming, past }
   }, [leads, cohortById])
 
+  // A3: the panel's ‹ › arrows walk the list in display order.
+  const navOrder = useMemo(() => [
+    ...groups.noCohort,
+    ...groups.upcoming.flatMap(g => g.leads),
+    ...groups.past.flatMap(g => g.leads),
+  ], [groups])
+  const navIndexById = useMemo(() => {
+    const m = new Map<string, number>()
+    navOrder.forEach((l, i) => m.set(l.id, i))
+    return m
+  }, [navOrder])
+
+  // Real (unfiltered) totals + questionnaire fill per cohort — the
+  // header's `N מתוך M נרשמו` states real fullness even when a chip
+  // hides some rows (B6: numbers must reconcile, so the denominator
+  // is the cohort itself, not the filter).
+  const cohortTotals = useMemo(() => {
+    const m = new Map<string, { total: number; hasForm: boolean; filled: number }>()
+    for (const l of allLeads) {
+      if (!l.cohort_id) continue
+      let t = m.get(l.cohort_id)
+      if (!t) { t = { total: 0, hasForm: false, filled: 0 }; m.set(l.cohort_id, t) }
+      t.total++
+      const g = gapByLeadId.get(l.id)
+      if (g) { t.hasForm = true; if (g.isFilled) t.filled++ }
+    }
+    return m
+  }, [allLeads, gapByLeadId])
+
   // Per-group expand state. Defaults: noCohort + upcoming expanded,
   // past collapsed. User taps flip via overrides map.
   const [overrides, setOverrides] = useState<Record<string, boolean>>({})
@@ -8160,142 +7269,97 @@ function RegistrationsGroupedView({
     setOverrides(o => ({ ...o, [key]: !isExpanded(key, defaultExpanded) }))
   }
 
-  // Per-row copy-phones feedback.
-  const [copiedKey, setCopiedKey] = useState<string | null>(null)
-  function copyPhones(key: string, list: RegistrationLead[]) {
-    // Digits only, one per line, no country code prefix — exactly
-    // what's needed to paste into a new WhatsApp group.
-    const phones = list
-      .map(l => l.phone.replace(/\D/g, ''))
-      .filter(Boolean)
-      .join('\n')
-    if (!phones) return
-    navigator.clipboard.writeText(phones).then(() => {
-      setCopiedKey(key)
-      setTimeout(() => setCopiedKey(p => (p === key ? null : p)), 1500)
-    })
-  }
-
-  const handlers = { onUpdateStatus, onUpdateCohort, onDelete, onEdit, onAddCohort, selected, onToggleSelect, onToggleSelectGroup, gapByLeadId }
+  const shared = { selected, onToggleSelect, onToggleSelectGroup, gapByLeadId, navOrder, navIndexById }
 
   return (
     <>
       {groups.noCohort.length > 0 && (
         <CohortGroup
-          headerKind="no-cohort"
           headerLabel="ללא מחזור"
-          subLabel="הרשמות שעוד לא משויכות למחזור"
+          subLabel=""
+          totals={{ total: groups.noCohort.length, hasForm: false, filled: 0 }}
+          capacity={null}
           leads={groups.noCohort}
-          cohort={null}
+          effectiveOf={l => l.status}
           expanded={isExpanded('no-cohort', true)}
           onToggle={() => toggle('no-cohort', true)}
-          onCopyPhones={() => copyPhones('no-cohort', groups.noCohort)}
-          copied={copiedKey === 'no-cohort'}
-          workshops={workshops}
-          cohorts={cohorts}
-          {...handlers}
+          {...shared}
         />
       )}
-      {groups.upcoming.map(({ cohort, leads: gl }) => {
-        const sub = `${cohortDateTimeLabel(cohort)}${cohort.label ? ' · ' + cohort.label : ''}`
-        return (
-          <CohortGroup
-            key={cohort.id}
-            headerKind="upcoming"
-            headerLabel={workshopById.get(cohort.workshop_id)?.title ?? '—'}
-            subLabel={sub}
-            capacity={cohort.capacity ?? workshopById.get(cohort.workshop_id)?.stock_quantity ?? null}
-            leads={gl}
-            cohort={cohort}
-            expanded={isExpanded(cohort.id, true)}
-            onToggle={() => toggle(cohort.id, true)}
-            onCopyPhones={() => copyPhones(cohort.id, gl)}
-            copied={copiedKey === cohort.id}
-            workshops={workshops}
-            cohorts={cohorts}
-            onOpenResponses={() => onOpenResponses(cohort)}
-            {...handlers}
-          />
-        )
-      })}
-      {groups.past.map(({ cohort, leads: gl }) => {
-        const sub = `${cohortDateTimeLabel(cohort)}${cohort.label ? ' · ' + cohort.label : ''}`
-        return (
-          <CohortGroup
-            key={cohort.id}
-            headerKind="past"
-            headerLabel={workshopById.get(cohort.workshop_id)?.title ?? '—'}
-            subLabel={sub}
-            capacity={cohort.capacity ?? workshopById.get(cohort.workshop_id)?.stock_quantity ?? null}
-            leads={gl}
-            cohort={cohort}
-            expanded={isExpanded(cohort.id, false)}
-            onToggle={() => toggle(cohort.id, false)}
-            onCopyPhones={() => copyPhones(cohort.id, gl)}
-            copied={copiedKey === cohort.id}
-            workshops={workshops}
-            cohorts={cohorts}
-            onOpenResponses={() => onOpenResponses(cohort)}
-            {...handlers}
-          />
-        )
-      })}
+      {groups.upcoming.map(({ cohort, leads: gl }) => (
+        <CohortGroup
+          key={cohort.id}
+          headerLabel={workshopById.get(cohort.workshop_id)?.title ?? '—'}
+          subLabel={`${cohortDateTimeLabel(cohort)}${cohort.label ? ' · ' + cohort.label : ''}`}
+          totals={cohortTotals.get(cohort.id) ?? { total: gl.length, hasForm: false, filled: 0 }}
+          capacity={cohort.capacity ?? workshopById.get(cohort.workshop_id)?.stock_quantity ?? null}
+          leads={gl}
+          effectiveOf={l => (l.status === 'paid' && isCohortPast(cohort)) ? 'handled' : l.status}
+          expanded={isExpanded(cohort.id, true)}
+          onToggle={() => toggle(cohort.id, true)}
+          onOpenResponses={() => onOpenResponses(cohort)}
+          {...shared}
+        />
+      ))}
+      {groups.past.map(({ cohort, leads: gl }) => (
+        <CohortGroup
+          key={cohort.id}
+          past
+          headerLabel={workshopById.get(cohort.workshop_id)?.title ?? '—'}
+          subLabel={`${cohortDateTimeLabel(cohort)}${cohort.label ? ' · ' + cohort.label : ''}`}
+          totals={cohortTotals.get(cohort.id) ?? { total: gl.length, hasForm: false, filled: 0 }}
+          capacity={cohort.capacity ?? workshopById.get(cohort.workshop_id)?.stock_quantity ?? null}
+          leads={gl}
+          effectiveOf={l => (l.status === 'paid' && isCohortPast(cohort)) ? 'handled' : l.status}
+          expanded={isExpanded(cohort.id, false)}
+          onToggle={() => toggle(cohort.id, false)}
+          onOpenResponses={() => onOpenResponses(cohort)}
+          {...shared}
+        />
+      ))}
     </>
   )
 }
 
 // ─── CohortGroup ────────────────────────────────────────────────────
-// One collapsible cohort section. Header click toggles expand; the
-// copy-phones button stops propagation so it doesn't also toggle.
-type CohortGroupProps = {
-  headerKind: 'no-cohort' | 'upcoming' | 'past'
-  headerLabel: string
-  subLabel: string
-  capacity?: number | null
-  leads: RegistrationLead[]
-  cohort: WorkshopCohort | null
-  expanded: boolean
-  onToggle: () => void
-  onCopyPhones: () => void
-  copied: boolean
-  workshops: Workshop[]
-  cohorts: WorkshopCohort[]
-  onUpdateStatus: (id: string, status: RegistrationLead['status']) => void
-  onUpdateCohort: (id: string, cohortId: string | null) => void
-  onDelete: (id: string) => void
-  onEdit: (lead: RegistrationLead) => void
-  onAddCohort: (w: Workshop) => void
-  selected: Set<string>
-  onToggleSelect: (id: string) => void
-  onToggleSelectGroup: (groupLeads: RegistrationLead[]) => void
-  gapByLeadId: Map<string, GapStatusType | null>
-  onOpenResponses?: () => void
-}
-
+// A1-2: the header shows exactly two things — `N מתוך M נרשמו` and
+// one questionnaire line. The checkbox selects the whole group; the
+// questionnaire line doubles as the door to the cohort's answers.
 function CohortGroup({
-  headerKind,
   headerLabel,
   subLabel,
+  totals,
   capacity,
   leads,
-  cohort,
+  effectiveOf,
   expanded,
   onToggle,
-  onCopyPhones,
-  copied,
-  workshops,
-  cohorts,
-  onUpdateStatus,
-  onUpdateCohort,
-  onDelete,
-  onEdit,
-  onAddCohort,
+  past,
   selected,
   onToggleSelect,
   onToggleSelectGroup,
   gapByLeadId,
+  navOrder,
+  navIndexById,
   onOpenResponses,
-}: CohortGroupProps) {
+}: {
+  headerLabel: string
+  subLabel: string
+  totals: { total: number; hasForm: boolean; filled: number }
+  capacity: number | null
+  leads: RegistrationLead[]
+  effectiveOf: (l: RegistrationLead) => RegistrationLead['status']
+  expanded: boolean
+  onToggle: () => void
+  past?: boolean
+  selected: Set<string>
+  onToggleSelect: (id: string) => void
+  onToggleSelectGroup: (groupLeads: RegistrationLead[]) => void
+  gapByLeadId: Map<string, GapStatusType | null>
+  navOrder: RegistrationLead[]
+  navIndexById: Map<string, number>
+  onOpenResponses?: () => void
+}) {
   let selectedInGroup = 0
   for (const l of leads) if (selected.has(l.id)) selectedInGroup++
   const allSelected = leads.length > 0 && selectedInGroup === leads.length
@@ -8303,130 +7367,78 @@ function CohortGroup({
   const checkboxRef = (el: HTMLInputElement | null) => {
     if (el) el.indeterminate = someSelected
   }
-  const past = cohort ? isCohortPast(cohort) : false
-  function effOf(l: RegistrationLead): RegistrationLead['status'] {
-    if (l.status === 'paid' && past) return 'handled'
-    return l.status
-  }
-  let pending = 0, paid = 0, handled = 0
-  for (const l of leads) {
-    const s = effOf(l)
-    if (s === 'pending') pending++
-    else if (s === 'paid') paid++
-    else if (s === 'handled') handled++
-  }
-  const count = leads.length
-  const cap = capacity ?? null
-  const overCap = cap != null && count > cap
-  const nearCap = cap != null && !overCap && count >= Math.ceil(cap * 0.9)
-  const countText = cap != null ? `${count}/${cap}` : `${count}`
-  const countClass = overCap
-    ? 'text-red-600 bg-red-50'
-    : nearCap
-      ? 'text-amber-700 bg-amber-50'
-      : 'text-mustard-700 bg-mustard-50'
 
-  const breakdownParts: string[] = []
-  if (pending > 0) breakdownParts.push(`⏳ ${pending} ממתינות`)
-  if (paid > 0) breakdownParts.push(`✅ ${paid} שילמו`)
-  if (handled > 0) breakdownParts.push(`🎓 ${handled} מומשו`)
+  const countText = capacity != null
+    ? `${totals.total} מתוך ${capacity} נרשמו`
+    : totals.total === 1 ? 'נרשמת אחת' : `${totals.total} נרשמו`
 
-  let gapCounter: { filled: number; total: number } | null = null
-  if (headerKind !== 'no-cohort' && leads.length > 0) {
-    let hasLinkedForm = false
-    let filledCount = 0
-    for (const l of leads) {
-      const g = gapByLeadId.get(l.id)
-      if (g) {
-        hasLinkedForm = true
-        if (g.isFilled) filledCount++
-      }
-    }
-    if (hasLinkedForm) gapCounter = { filled: filledCount, total: leads.length }
-  }
+  const qLine = totals.hasForm
+    ? totals.filled === 0
+      ? { text: 'אף אחת לא מילאה שאלון', color: '#8B4A30' }
+      : totals.filled >= totals.total
+        ? { text: 'כולן מילאו את השאלון', color: '#4F5040' }
+        : { text: `${totals.filled} מתוך ${totals.total} מילאו`, color: '#7A5C1F' }
+    : null
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div className={`bg-white rounded-2xl shadow-sm overflow-hidden${past ? ' opacity-75' : ''}`}>
       <div
         role="button"
         tabIndex={0}
         onClick={onToggle}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
-        className="w-full px-4 py-3 flex items-start justify-between gap-2 text-right cursor-pointer hover:bg-sand-50/40 transition-colors"
+        className="w-full px-4 py-3 flex items-center justify-between gap-3 text-right cursor-pointer hover:bg-sand-50/40 transition-colors"
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="checkbox"
-              ref={checkboxRef}
-              checked={allSelected}
-              onChange={() => onToggleSelectGroup(leads)}
-              onClick={e => e.stopPropagation()}
-              aria-label={`בחירת כל ההרשמות בקבוצה ${headerLabel}`}
-              className="w-5 h-5 accent-mustard-500 flex-shrink-0 cursor-pointer"
-            />
-            {expanded
-              ? <ChevronDown className="w-4 h-4 text-sand-400 flex-shrink-0" />
-              : <ChevronUp className="w-4 h-4 text-sand-400 flex-shrink-0 rotate-180" />}
-            <span className="font-bold text-sand-800 text-sm truncate">
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <input
+            type="checkbox"
+            ref={checkboxRef}
+            checked={allSelected}
+            onChange={() => onToggleSelectGroup(leads)}
+            onClick={e => e.stopPropagation()}
+            aria-label={`בחירת כל ההרשמות בקבוצה ${headerLabel}`}
+            className="w-[18px] h-[18px] accent-mustard-500 flex-shrink-0 cursor-pointer"
+          />
+          <ChevronDown className={`w-4 h-4 text-sand-400 flex-shrink-0 transition-transform ${expanded ? '' : 'rotate-90'}`} />
+          <div className="flex-1 min-w-0">
+            <p className="truncate" style={{ fontWeight: 700, fontSize: 14.5, color: '#443327' }}>
               {headerLabel}{subLabel ? ` · ${subLabel}` : ''}
-            </span>
-            <span className={`text-[13px] font-bold px-2 py-0.5 rounded-full ${countClass}`}>{countText}</span>
-            {headerKind === 'past' && (
-              <span className="text-[13px] font-semibold text-sand-500 bg-sand-100 px-1.5 py-0.5 rounded-full">עבר</span>
+            </p>
+            {qLine && (
+              onOpenResponses && totals.filled > 0 ? (
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); onOpenResponses() }}
+                  className="hover:underline"
+                  style={{ fontWeight: 700, fontSize: 12.5, color: qLine.color }}
+                  title="צפייה בתשובות לשאלון של המחזור"
+                >
+                  {qLine.text}
+                </button>
+              ) : (
+                <p style={{ fontWeight: 700, fontSize: 12.5, color: qLine.color }}>{qLine.text}</p>
+              )
             )}
           </div>
-          {breakdownParts.length > 0 && (
-            <p className="text-[13px] text-sand-600 mt-1">{breakdownParts.join(' · ')}</p>
-          )}
-          {gapCounter && (
-            <p className={`text-[13px] mt-1 font-semibold ${gapCounter.filled === gapCounter.total ? 'text-green-700' : 'text-amber-700'}`}>
-              📋 {gapCounter.filled} מתוך {gapCounter.total} מילאו את השאלון
-            </p>
-          )}
         </div>
-        <div className="flex-shrink-0 flex items-center gap-1.5">
-          {gapCounter && onOpenResponses && (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onOpenResponses() }}
-              className="text-[13px] px-2 py-1 rounded-lg bg-[#F6ECD8] text-[#6E5836] hover:bg-[#EFDFC2] transition-colors"
-              title="צפי בתשובות לשאלון של אמהות במחזור הזה — פרטי + מצטבר"
-            >
-              📊 תשובות לשאלון
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onCopyPhones() }}
-            className="text-[13px] px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-            title="העתקת כל הטלפונים של המחזור — מוכן להדבקה בקבוצת WhatsApp"
-          >
-            {copied ? '✓ הועתק' : '📋 העתק טלפונים'}
-          </button>
-        </div>
+        <span className="flex-shrink-0 whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: '#8A7A63' }}>
+          {countText}
+        </span>
       </div>
       {expanded && leads.length > 0 && (
-        <div className="px-3 pb-3 space-y-2">
-          {leads.map(l => (
-            <RegistrationCard
-              key={l.id}
-              lead={l}
-              navLeads={leads}
-              workshops={workshops}
-              cohorts={cohorts}
-              onUpdateStatus={onUpdateStatus}
-              onUpdateCohort={onUpdateCohort}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onAddCohort={onAddCohort}
-              hideWorkshopMeta={headerKind !== 'no-cohort'}
-              hideCohortRow={headerKind !== 'no-cohort'}
-              selected={selected.has(l.id)}
-              onToggleSelect={onToggleSelect}
-              effectiveStatus={effOf(l)}
-              gapStatus={gapByLeadId.get(l.id) ?? null}
-            />
+        <div className="border-t border-[#F1EBE1]">
+          {leads.map((l, i) => (
+            <div key={l.id} className={i > 0 ? 'border-t border-[#F6F1E9]' : undefined}>
+              <RegistrationRow52
+                lead={l}
+                eff={effectiveOf(l)}
+                gap={gapByLeadId.get(l.id) ?? null}
+                navOrder={navOrder}
+                navIndex={navIndexById.get(l.id) ?? 0}
+                selected={selected.has(l.id)}
+                onToggleSelect={onToggleSelect}
+              />
+            </div>
           ))}
         </div>
       )}
@@ -8434,137 +7446,66 @@ function CohortGroup({
   )
 }
 
+// ─── Screen A / A4: the bulk bar ────────────────────────────────────
+// Dark bar directly above the list, shown when ≥1 VISIBLE row is
+// selected. Actions act on visible-selected only (the visible-only
+// contract) — selections hidden by the current filter are never
+// touched.
 function BulkActionBar({
   visibleCount,
-  totalSelected,
+  reminderTargets,
   onClear,
   onMarkPaid,
-  onMarkHandled,
-  onMarkPending,
-  onCopyPhones,
 }: {
   visibleCount: number
-  totalSelected: number
+  reminderTargets: { href: string; phone: string }[]
   onClear: () => void
   onMarkPaid: () => void
-  onMarkHandled: () => void
-  onMarkPending: () => void
-  onCopyPhones: () => void
 }) {
-  const [copiedFlash, setCopiedFlash] = useState(false)
+  const [flash, setFlash] = useState<string | null>(null)
   if (visibleCount === 0) return null
-  const hiddenSelected = totalSelected - visibleCount
-  const countLabel = hiddenSelected > 0
-    ? `${visibleCount} מתוך ${totalSelected} נבחרו`
-    : `${visibleCount} נבחרו`
-  function handleCopy() {
-    onCopyPhones()
-    setCopiedFlash(true)
-    setTimeout(() => setCopiedFlash(false), 1500)
+  const label = visibleCount === 1 ? 'נרשמת אחת סומנה' : `${visibleCount} נרשמות סומנו`
+  function handleReminders() {
+    if (reminderTargets.length === 0) return
+    if (reminderTargets.length === 1) {
+      window.open(reminderTargets[0].href, '_blank', 'noopener')
+      return
+    }
+    // Several targets: popup blockers kill a wa.me tab per row, so
+    // copy the phones of everyone missing a questionnaire instead.
+    const phones = reminderTargets.map(t => t.phone.replace(/\D/g, '')).filter(Boolean).join('\n')
+    navigator.clipboard.writeText(phones).then(() => {
+      setFlash(`הועתקו ${reminderTargets.length} טלפונים`)
+      setTimeout(() => setFlash(null), 2500)
+    })
   }
   return (
     <div
-      className="fixed bottom-[88px] lg:bottom-0 left-0 right-0 z-40 bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.08)] border-t border-sand-200"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       dir="rtl"
+      className="flex items-center gap-x-4 gap-y-2 flex-wrap"
+      style={{ background: '#443327', borderRadius: 13, padding: '11px 16px' }}
     >
-      <div className="max-w-2xl mx-auto px-3 py-2.5 flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            onClick={onClear}
-            className="p-1.5 rounded-lg hover:bg-sand-100 text-sand-500"
-            aria-label="בטלי בחירה"
-            title="בטלי בחירה"
-          >
-            <X className="w-4 h-4" />
-          </button>
-          <span className="text-xs font-semibold text-sand-700">{countLabel}</span>
-        </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            onClick={onMarkPending}
-            className="px-2 py-1.5 rounded-lg text-[13px] font-semibold bg-sand-100 text-sand-600 hover:bg-sand-200 transition-colors"
-            title="החזרה לסטטוס ממתינה — לשחזור מתיוג שגוי"
-          >
-            ⏳ ממתינה
-          </button>
-          <button
-            onClick={onMarkPaid}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-          >
-            ✅ שילמה
-          </button>
-          <button
-            onClick={onMarkHandled}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-          >
-            🎓 מומש
-          </button>
-          <button
-            onClick={handleCopy}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-mustard-50 text-mustard-700 hover:bg-mustard-100 transition-colors"
-            title="העתקת טלפונים — מוכן להדבקה בקבוצת WhatsApp"
-          >
-            {copiedFlash ? '✓ הועתק' : '📋 טלפונים'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function CohortPickerRow({
-  lead,
-  workshops,
-  cohorts,
-  onChange,
-  onAddCohort,
-  inline,
-}: {
-  lead: RegistrationLead
-  workshops: Workshop[]
-  cohorts: WorkshopCohort[]
-  onChange: (id: string, cohortId: string | null) => void
-  onAddCohort: (w: Workshop) => void
-  inline?: boolean
-}) {
-  const workshop = workshops.find(w => w.id === lead.selected_workshop_id) ?? null
-  const matching = lead.selected_workshop_id
-    ? cohorts.filter(c => c.workshop_id === lead.selected_workshop_id)
-    : []
-
-  const wrapClass = inline
-    ? 'flex items-center gap-2'
-    : 'flex items-center gap-2 pt-1'
-
-  return (
-    <div className={wrapClass}>
-      <label className="text-xs text-sand-500">מחזור:</label>
-      {!workshop ? (
-        <span className="text-xs text-sand-400">← בחרי סדנה קודם</span>
-      ) : matching.length === 0 ? (
-        <button
-          type="button"
-          onClick={() => onAddCohort(workshop)}
-          className="text-xs text-mustard-600 hover:text-mustard-700 underline underline-offset-2"
-        >
-          + הוסיפי מחזור
-        </button>
-      ) : (
-        <select
-          value={lead.cohort_id ?? ''}
-          onChange={e => onChange(lead.id, e.target.value || null)}
-          className="px-2 py-1 rounded-lg border border-sand-200 bg-white text-xs focus:outline-none focus:border-mustard-400 max-w-[60vw] truncate"
-        >
-          <option value="">ללא מחזור</option>
-          {matching.map(c => {
-            const [y, m, d] = c.start_date.split('-')
-            const timePart = c.start_time ? ` ${c.start_time.slice(0, 5)}` : ''
-            const label = `${d}/${m}/${y.slice(2)}${timePart}${c.label ? ' · ' + c.label : ''}${!c.is_active ? ' (לא פעיל)' : ''}`
-            return <option key={c.id} value={c.id}>{label}</option>
-          })}
-        </select>
-      )}
+      <span style={{ fontWeight: 700, fontSize: 14, color: '#F6F3ED' }}>{label}</span>
+      <span className="flex-1" />
+      <button
+        onClick={handleReminders}
+        disabled={reminderTargets.length === 0}
+        className="font-bold hover:underline disabled:opacity-40 disabled:no-underline whitespace-nowrap"
+        style={{ fontSize: 14, color: '#E7C78A' }}
+        title={reminderTargets.length === 0
+          ? 'אין שאלונים חסרים בבחירה'
+          : reminderTargets.length === 1
+            ? 'פתיחת תזכורת בוואטסאפ'
+            : 'העתקת הטלפונים של מי שחסר לה שאלון'}
+      >
+        {flash ?? `שליחת תזכורת${reminderTargets.length > 0 ? ` (${reminderTargets.length})` : ''}`}
+      </button>
+      <button onClick={onMarkPaid} className="font-bold hover:underline whitespace-nowrap" style={{ fontSize: 14, color: '#F6F3ED' }}>
+        סימון כשילמה
+      </button>
+      <button onClick={onClear} className="font-semibold hover:underline whitespace-nowrap" style={{ fontSize: 14, color: '#C9BCA8' }}>
+        ניקוי
+      </button>
     </div>
   )
 }
