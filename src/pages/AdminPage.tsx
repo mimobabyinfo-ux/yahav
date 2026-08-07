@@ -26,6 +26,7 @@ import CategoryManagerModal from '../components/admin/CategoryManagerModal'
 import { useWorkshopCategories } from '../hooks/useWorkshopCategories'
 import MimoDuck from '../components/MimoDuck'
 import AdminHome from '../components/admin/AdminHome'
+import ProductPage from '../components/admin/ProductPage'
 import type { AdminOverview } from '../components/admin/useAdminOverview'
 import type { AdminTask } from '../components/admin/adminTasks'
 import { ChevronRight as CtxBack } from 'lucide-react'
@@ -73,15 +74,37 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 
 export default function AdminPage({ defaultSection, unreadForms = 0, onFormsViewed, unreadRegistrations = 0, onRegistrationsViewed, overview }: { defaultSection?: AdminSection; unreadForms?: number; onFormsViewed?: () => void; unreadRegistrations?: number; onRegistrationsViewed?: () => void; overview?: AdminOverview }) {
   const { profile } = useAuth()
-  const [tab, setTab] = useState<Tab>(defaultSection ? SECTION_TAB[defaultSection] : 'home')
+  const [tab, setTab] = useState<Tab>(() => {
+    // Product deep-link (?admin=product&id=) wins the opening tab.
+    if (new URLSearchParams(window.location.search).get('admin') === 'product') return 'workshops'
+    return defaultSection ? SECTION_TAB[defaultSection] : 'home'
+  })
+  // Skip the first defaultSection sync when a deep link chose the tab.
+  const skipFirstSectionSync = useRef(new URLSearchParams(window.location.search).get('admin') === 'product')
 
   // Phase 3 (handoff §4): a task click carries its context to the
   // destination — label for the context bar, exact lead ids to
   // filter+pre-select, or the object to open.
   const [taskContext, setTaskContext] = useState<{ label: string; section: Tab; targetId?: string; leadIds?: string[] } | null>(null)
 
+  // Phase 4 (handoff §5.2): a product opens as a PAGE, deep-linkable via
+  // ?admin=product&id=<id> (read once on mount, kept in sync best-effort).
+  const [productPageId, setProductPageId] = useState<string | null>(() => {
+    const p = new URLSearchParams(window.location.search)
+    return p.get('admin') === 'product' ? p.get('id') : null
+  })
+
+  function openProductPage(id: string | null) {
+    setProductPageId(id)
+    const url = new URL(window.location.href)
+    if (id) { url.searchParams.set('admin', 'product'); url.searchParams.set('id', id) }
+    else { url.searchParams.delete('admin'); url.searchParams.delete('id') }
+    window.history.replaceState({}, '', url.toString())
+  }
+
   function openTask(t: AdminTask) {
     setTaskContext({ label: t.title, section: t.section, targetId: t.targetId, leadIds: t.targetLeadIds })
+    if (t.section === 'workshops' && t.targetId) openProductPage(t.targetId)
     setTab(t.section)
   }
 
@@ -90,8 +113,15 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
     if (taskContext && tab !== taskContext.section) setTaskContext(null)
   }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Leaving the workshops tab closes the product page.
+  useEffect(() => {
+    if (productPageId && tab !== 'workshops') openProductPage(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab])
+
   // Sync when parent nav changes the section
   useEffect(() => {
+    if (skipFirstSectionSync.current) { skipFirstSectionSync.current = false; return }
     if (defaultSection) setTab(SECTION_TAB[defaultSection])
   }, [defaultSection])
 
@@ -191,7 +221,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <TipsTab />}
         {tab === 'videos'     && <VideosTab />}
-        {tab === 'workshops'  && <WorkshopsTab openEditId={taskContext?.section === 'workshops' ? taskContext.targetId : undefined} />}
+        {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <WorkshopsTab onOpenProduct={openProductPage} />)}
         {tab === 'events'     && <EventsAdminPanel openEditId={taskContext?.section === 'events' ? taskContext.targetId : undefined} />}
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
@@ -207,7 +237,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTabDesktop />}
         {tab === 'leads'      && <LeadsTabDesktop />}
-        {tab === 'workshops'  && <WorkshopsTabDesktop openEditId={taskContext?.section === 'workshops' ? taskContext.targetId : undefined} />}
+        {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <WorkshopsTabDesktop onOpenProduct={openProductPage} />)}
         {tab === 'events'     && <EventsAdminPanel openEditId={taskContext?.section === 'events' ? taskContext.targetId : undefined} />}
         {tab === 'forms'      && <FormsTabDesktop />}
         {tab === 'insights'   && <InsightsTab />}
@@ -1048,7 +1078,7 @@ function LeadsTabDesktop() {
 // ─── Workshops Desktop Table ──────────────────────────────────────────────────
 const EMPTY_WORKSHOP_FORM = { title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '' }
 
-function WorkshopsTabDesktop({ openEditId }: { openEditId?: string } = {}) {
+function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) => void } = {}) {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   // Phase 5 / A1: cohort manager modal. User-facing label "מחזורים".
@@ -1123,14 +1153,6 @@ function WorkshopsTabDesktop({ openEditId }: { openEditId?: string } = {}) {
     setOffersByWorkshop(byWs)
   }, [])
   useEffect(() => { load() }, [load])
-
-  // Phase 3: a task click opens the product it points at, once.
-  const openedFromTask = useRef<string | null>(null)
-  useEffect(() => {
-    if (!openEditId || workshops.length === 0 || openedFromTask.current === openEditId) return
-    const w = workshops.find(x => x.id === openEditId)
-    if (w) { openedFromTask.current = openEditId; openEdit(w) }
-  }, [openEditId, workshops])
 
   async function toggle(w: Workshop) {
     await supabase.from('workshops').update({ is_active: !w.is_active }).eq('id', w.id); load()
@@ -1300,7 +1322,7 @@ function WorkshopsTabDesktop({ openEditId }: { openEditId?: string } = {}) {
                                 : <div className="w-9 h-9 rounded-xl bg-[#E4EBEF] flex items-center justify-center"><GraduationCap className="w-5 h-5" style={{ color: '#3E5966' }} /></div>
                               }
                               <div>
-                                <p className="font-semibold text-gray-800">{w.title}</p>
+                                <button onClick={() => onOpenProduct?.(w.id)} className="font-semibold text-gray-800 hover:underline text-right" title="פתיחת עמוד המוצר">{w.title}</button>
                                 {w.description && <p className="text-xs text-gray-400 truncate max-w-xs">{w.description}</p>}
                               </div>
                             </div>
@@ -3601,7 +3623,7 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
 }
 
 // ─── Workshops Tab ────────────────────────────────────────────────────────────
-function WorkshopsTab({ openEditId }: { openEditId?: string } = {}) {
+function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void } = {}) {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Workshop | null>(null)
@@ -3691,17 +3713,6 @@ function WorkshopsTab({ openEditId }: { openEditId?: string } = {}) {
   }, [])
   useEffect(() => { load() }, [load])
 
-  // Phase 3: a task click opens the product it points at, once.
-  const openedFromTask = useRef<string | null>(null)
-  useEffect(() => {
-    if (!openEditId || workshops.length === 0 || openedFromTask.current === openEditId) return
-    const w = workshops.find(x => x.id === openEditId)
-    if (!w) return
-    openedFromTask.current = openEditId
-    setEditing(w)
-    setForm({ title: w.title, description: w.description ?? '', summary: w.summary ?? '', price: w.price?.toString() ?? '', payment_link: w.payment_link ?? '', image_url: w.image_url ?? '', video_url: w.video_url ?? '', stock_quantity: (w as unknown as { stock_quantity?: number }).stock_quantity?.toString() ?? '', whatsapp_number: (w as unknown as { whatsapp_number?: string }).whatsapp_number ?? '', next_workshop_id: w.next_workshop_id ?? '', workshop_type: w.workshop_type ?? '', public_registration: (w as unknown as { public_registration?: boolean }).public_registration ?? false, linked_form_id: w.linked_form_id ?? '', feedback_form_id: w.feedback_form_id ?? '', age_from: w.age_range_start_months?.toString() ?? '', age_to: w.age_range_end_months?.toString() ?? '' })
-    setShowForm(false)
-  }, [openEditId, workshops])
 
   async function save() {
     if (!form.title.trim()) return
@@ -3917,7 +3928,7 @@ function WorkshopsTab({ openEditId }: { openEditId?: string } = {}) {
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       {dragHandle}
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sand-800 text-sm truncate">{w.title}</p>
+                        <button onClick={() => onOpenProduct?.(w.id)} className="font-semibold text-sand-800 text-sm truncate text-right block w-full" title="פתיחת עמוד המוצר">{w.title}</button>
                         {w.price != null && <p className="text-xs text-mustard-600">₪{w.price}</p>}
                       </div>
                     </div>
