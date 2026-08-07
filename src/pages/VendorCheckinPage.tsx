@@ -118,8 +118,13 @@ export default function VendorCheckinPage({ token }: { token: string }) {
           <p className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: '#7B604C' }}>
             <CalendarDays className="w-4 h-4 flex-shrink-0" />
             {hebDate(ev.event_date)}
-            {ev.start_time && ` · ${ev.start_time.slice(0, 5)}`}
-            {ev.end_time && `–${ev.end_time.slice(0, 5)}`}
+            {ev.start_time && (
+              <>
+                {' · '}
+                {/* dir=ltr keeps the time range from flipping under RTL */}
+                <span dir="ltr">{ev.start_time.slice(0, 5)}{ev.end_time && `–${ev.end_time.slice(0, 5)}`}</span>
+              </>
+            )}
           </p>
           {ev.location && (
             <p className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: '#7B604C' }}>
