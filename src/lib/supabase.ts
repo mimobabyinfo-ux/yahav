@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+﻿import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -18,14 +18,6 @@ export type UserProfile = {
   is_admin: boolean
   display_name: string | null
   lead_status: 'new_lead' | 'active_workshop' | 'post_service' | null
-  // Screen B / B3: the pipeline column. lead_status (above) stays the
-  // signup lifecycle — do not repurpose it; AuthContext + Onboarding
-  // write 'new_lead' to it. lead_stage carries the CRM pipeline with a
-  // terminal negative state, and losses must carry a reason (B4).
-  lead_stage: 'new_lead' | 'contacted' | 'registered' | 'paid' | 'lost' | null
-  lost_reason: 'no_response' | 'price' | 'timing' | 'chose_other' | 'not_relevant' | 'other' | null
-  lost_reason_note: string | null
-  lead_stage_changed_at: string | null
   staff_notes: string | null
   last_active: string | null
   family_id: string | null

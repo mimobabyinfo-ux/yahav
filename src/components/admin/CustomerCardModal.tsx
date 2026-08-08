@@ -58,8 +58,6 @@ type PanelTab = 'reg' | 'form' | 'history'
 
 type WorkshopLite = { id: string; title: string; price: number | null; linked_form_id: string | null }
 
-type LeadStage = 'new_lead' | 'contacted' | 'registered' | 'paid' | 'lost'
-
 type Draft = {
   status: 'pending' | 'paid' | 'handled'
   phone: string
@@ -67,30 +65,13 @@ type Draft = {
   workshopId: string
   cohortId: string
   notes: string
-  // Screen B / B4: the CRM pipeline stage lives on the person
-  // (user_profiles.lead_stage), edited here in the panel. Empty string
-  // = no user profile, section hidden.
-  leadStage: LeadStage | ''
-  lostReason: string
-  lostReasonNote: string
 }
 
-export const LEAD_STAGE_LABELS: Record<LeadStage, string> = {
-  new_lead: 'ליד חדש',
-  contacted: 'נוצר קשר',
-  registered: 'נרשמה',
-  paid: 'שילמה',
-  lost: 'אבדה',
-}
-
-const LOST_REASONS: { value: string; label: string }[] = [
-  { value: 'no_response', label: 'לא ענתה' },
-  { value: 'price', label: 'המחיר גבוה' },
-  { value: 'timing', label: 'התזמון לא התאים' },
-  { value: 'chose_other', label: 'בחרה מקום אחר' },
-  { value: 'not_relevant', label: 'לא רלוונטי' },
-  { value: 'other', label: 'אחר' },
-]
+// Note: there is deliberately no lead-stage picker here. The lead
+// lifecycle (and its lost reasons) lives in the CRM, where leads
+// arrive from Facebook forms and landing pages long before anyone
+// reaches this panel — the app would only be a second, emptier copy.
+// The תובנות tab reads the CRM mirror instead.
 
 function formatCohortDate(date: string, time: string | null): string {
   const [y, m, d] = date.split('-')
@@ -174,12 +155,7 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
   const [savedFlash, setSavedFlash] = useState(false)
   useEffect(() => {
     if (!profile) { setDraft(null); return }
-    const personFields = {
-      notes: profile.user?.staff_notes ?? '',
-      leadStage: (profile.user ? (profile.user.lead_stage ?? 'new_lead') : '') as Draft['leadStage'],
-      lostReason: profile.user?.lost_reason ?? '',
-      lostReasonNote: profile.user?.lost_reason_note ?? '',
-    }
+    const personFields = { notes: profile.user?.staff_notes ?? '' }
     if (!focused) {
       setDraft(profile.user ? {
         status: 'pending', phone: '', email: '', workshopId: '', cohortId: '',
@@ -201,11 +177,6 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
   const personDirty = useMemo(() => {
     if (!draft || !profile?.user) return false
     return draft.notes !== (profile.user.staff_notes ?? '')
-      || draft.leadStage !== (profile.user.lead_stage ?? 'new_lead')
-      || (draft.leadStage === 'lost' && (
-        draft.lostReason !== (profile.user.lost_reason ?? '')
-        || draft.lostReasonNote !== (profile.user.lost_reason_note ?? '')
-      ))
   }, [draft, profile])
 
   const dirty = useMemo(() => {
@@ -219,12 +190,8 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
       || draft.cohortId !== (focused.cohort_id ?? '')
   }, [draft, focused, profile, personDirty])
 
-  // B4: capture the reason at the moment of loss — save is BLOCKED
-  // until a reason is chosen. Not optional, not a later field.
-  const lostNeedsReason = !!draft && draft.leadStage === 'lost' && !draft.lostReason
-
   async function save() {
-    if (!draft || saving || !dirty || lostNeedsReason) return
+    if (!draft || saving || !dirty) return
     setSaving(true)
     let ok = true
     if (focused) {
@@ -240,12 +207,7 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
     if (ok && profile?.user && personDirty) {
       const { error } = await supabase
         .from('user_profiles')
-        .update({
-          staff_notes: draft.notes || null,
-          lead_stage: draft.leadStage || 'new_lead',
-          lost_reason: draft.leadStage === 'lost' ? (draft.lostReason || null) : null,
-          lost_reason_note: draft.leadStage === 'lost' ? (draft.lostReasonNote.trim() || null) : null,
-        })
+        .update({ staff_notes: draft.notes || null })
         .eq('id', profile.user.id)
       if (error) ok = false
     }
@@ -490,12 +452,11 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
           <div className="px-5 pt-3 pb-[96px] lg:pb-3 border-t flex-shrink-0 flex items-center gap-2" style={{ borderColor: '#E9E2D6', background: '#fff' }}>
             <button
               onClick={save}
-              disabled={!dirty || saving || lostNeedsReason}
+              disabled={!dirty || saving}
               className="flex-1 py-2.5 rounded-xl font-bold transition-all disabled:opacity-40"
               style={{ background: '#C8A460', color: '#33281B', fontSize: 15 }}
-              title={lostNeedsReason ? 'בחרי סיבת אובדן כדי לשמור' : undefined}
             >
-              {saving ? 'שומרת...' : savedFlash ? '✓ נשמר' : lostNeedsReason ? 'בחרי סיבת אובדן' : 'שמירה'}
+              {saving ? 'שומרת...' : savedFlash ? '✓ נשמר' : 'שמירה'}
             </button>
             <button
               onClick={onClose}
@@ -604,7 +565,6 @@ function RegistrationTabView({
           <p className="text-sm text-sand-500">אין הרשמות ללקוחה הזו.</p>
           <AddRegistrationButton profile={profile} onSaved={onProfileChanged} />
         </div>
-        <LeadStageSection draft={draft} setDraft={setDraft} />
         <NotesField profile={profile} draft={draft} setDraft={setDraft} />
       </div>
     )
@@ -705,8 +665,6 @@ function RegistrationTabView({
         </Field>
       )}
 
-      <LeadStageSection draft={draft} setDraft={setDraft} />
-
       <NotesField profile={profile} draft={draft} setDraft={setDraft} />
 
       <p style={{ fontSize: 12.5, fontWeight: 600, color: '#A2937D' }}>
@@ -733,77 +691,6 @@ function RegistrationTabView({
         )}
       </div>
     </div>
-  )
-}
-
-// ─── B4: lead stage + the inline lost-reason picker ─────────────────
-// The stage lives on the person (user_profiles.lead_stage). Choosing
-// "אבדה" reveals the reason picker IMMEDIATELY, inline — six fixed
-// options plus optional free text — and the panel's save button stays
-// blocked until a reason is chosen. Reasons are a fixed enum so the
-// insights breakdown can group them; free text goes to
-// lost_reason_note alongside, never instead.
-function LeadStageSection({ draft, setDraft }: {
-  draft: Draft
-  setDraft: React.Dispatch<React.SetStateAction<Draft | null>>
-}) {
-  if (!draft.leadStage) return null
-  return (
-    <Field label="שלב ליד">
-      <div className="flex flex-wrap gap-1.5">
-        {(Object.keys(LEAD_STAGE_LABELS) as LeadStage[]).map(s => {
-          const active = draft.leadStage === s
-          const isLost = s === 'lost'
-          return (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setDraft(d => d ? { ...d, leadStage: s } : d)}
-              className="rounded-full font-bold transition-all"
-              style={active
-                ? isLost
-                  ? { background: '#F7EBE4', color: '#8B4A30', border: '1.5px solid #E0BFA9', padding: '7px 14px', fontSize: 13 }
-                  : { background: '#F6ECD8', color: '#4A3A28', border: '1.5px solid #E7C78A', padding: '7px 14px', fontSize: 13 }
-                : { background: '#fff', color: '#7B604C', border: '1px solid #E9E2D6', padding: '7px 14px', fontSize: 13 }}
-            >
-              {LEAD_STAGE_LABELS[s]}
-            </button>
-          )
-        })}
-      </div>
-      {draft.leadStage === 'lost' && (
-        <div className="space-y-2" style={{ background: '#F7EBE4', border: '1px solid #EDD9CD', borderRadius: 14, padding: '12px 14px', marginTop: 8 }}>
-          <p style={{ fontWeight: 700, fontSize: 12.5, color: '#8B4A30' }}>
-            {draft.lostReason ? 'למה היא לא נסגרה?' : 'למה היא לא נסגרה? בחרי סיבה כדי לשמור'}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {LOST_REASONS.map(r => {
-              const active = draft.lostReason === r.value
-              return (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => setDraft(d => d ? { ...d, lostReason: r.value } : d)}
-                  className="rounded-full font-bold transition-all"
-                  style={active
-                    ? { background: '#8B4A30', color: '#F7EBE4', border: '1.5px solid #8B4A30', padding: '6px 12px', fontSize: 12.5 }
-                    : { background: '#fff', color: '#8B4A30', border: '1px solid #E0BFA9', padding: '6px 12px', fontSize: 12.5 }}
-                >
-                  {r.label}
-                </button>
-              )
-            })}
-          </div>
-          <input
-            value={draft.lostReasonNote}
-            onChange={e => setDraft(d => d ? { ...d, lostReasonNote: e.target.value } : d)}
-            placeholder="פירוט חופשי (לא חובה)"
-            className="w-full px-3 py-2 rounded-xl text-sm focus:outline-none"
-            style={{ border: '1px solid #E0BFA9', color: '#443327', background: '#fff' }}
-          />
-        </div>
-      )}
-    </Field>
   )
 }
 

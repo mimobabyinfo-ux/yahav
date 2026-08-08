@@ -2450,7 +2450,12 @@ type RetentionRow = { cohort_week: string; total_users: number; day1: number; da
 type FunnelRow = { store_views: number; forms_filled: number; registered: number; paid: number; attended: number }
 type CohortFillRow = { cohort_id: string; workshop_title: string; capacity: number | null; registered: number }
 type EventAttRow = { past_registered: number; past_attended: number; past_no_show: number; events_this_month: number; events_no_vendor: number; events_no_checkin: number }
-type LeadOutRow = { total_leads: number; stage_new: number; stage_contacted: number; stage_registered: number; stage_paid: number; stage_lost: number; open_unanswered_48h: number; avg_days_to_close: number | null }
+// The lead lifecycle lives in the CRM (GHL), not here — the app owns
+// registrations and payments. These mirror v_crm_* which the hourly
+// sync-crm-leads function refreshes.
+type LeadOutRow = { total_leads: number; open_leads: number; won_leads: number; lost_leads: number; open_unanswered_48h: number; avg_days_to_close: number | null; new_this_month: number }
+type CrmPipelineRow = { stage_id: string; stage_name: string; pipeline_name: string | null; leads: number }
+type CrmLostRow = { lost_reason_id: string | null; label: string | null; leads: number }
 type InsightsLeadRow = { id: string; status: 'pending' | 'paid' | 'handled'; created_at: string; selected_workshop_id: string | null }
 type InsightsUserRow = { id: string; created_at: string; last_active: string | null; lead_stage: string | null; lost_reason: string | null; is_admin: boolean | null }
 
@@ -2459,15 +2464,6 @@ function rateColor(p: number): string {
   if (p >= 70) return '#4F5040'
   if (p >= 40) return '#7A5C1F'
   return '#8B4A30'
-}
-
-export const LOST_REASON_LABELS: Record<string, string> = {
-  no_response: 'לא ענתה',
-  price: 'המחיר גבוה',
-  timing: 'התזמון לא התאים',
-  chose_other: 'בחרה מקום אחר',
-  not_relevant: 'לא רלוונטי',
-  other: 'אחר',
 }
 
 function KpiCard({ label, value, sub, subColor, ratePct }: {
@@ -2510,6 +2506,8 @@ function InsightsTab() {
   const [cohortFill, setCohortFill] = useState<CohortFillRow[]>([])
   const [eventAtt, setEventAtt] = useState<EventAttRow | null>(null)
   const [leadOut, setLeadOut] = useState<LeadOutRow | null>(null)
+  const [crmPipeline, setCrmPipeline] = useState<CrmPipelineRow[]>([])
+  const [crmLost, setCrmLost] = useState<CrmLostRow[]>([])
   const [videoPerf, setVideoPerf] = useState<VideoPerf[]>([])
   const [retention, setRetention] = useState<RetentionRow[]>([])
   const [regLeads, setRegLeads] = useState<InsightsLeadRow[]>([])
@@ -2523,7 +2521,9 @@ function InsightsTab() {
       supabase.from('v_registration_funnel').select('*').limit(1),
       supabase.from('v_cohort_fill').select('*'),
       supabase.from('v_event_attendance').select('*').limit(1),
-      supabase.from('v_lead_outcomes').select('*').limit(1),
+      supabase.from('v_crm_lead_outcomes').select('*').limit(1),
+      supabase.from('v_crm_pipeline').select('*'),
+      supabase.from('v_crm_lost_reasons').select('*'),
       supabase.from('v_video_performance').select('*').limit(10),
       supabase.from('v_retention_cohort').select('*').limit(8),
       supabase.from('registration_leads').select('id, status, created_at, selected_workshop_id'),
@@ -2531,11 +2531,13 @@ function InsightsTab() {
       supabase.from('partner_leads').select('created_at'),
       supabase.from('user_profiles').select('id, created_at, last_active, lead_stage, lost_reason, is_admin'),
       supabase.from('daily_log_entries').select('id', { count: 'exact', head: true }),
-    ]).then(([f, cf, ea, lo, vids, ret, rl, ws, pl, up, logs]) => {
+    ]).then(([f, cf, ea, lo, cp, cl, vids, ret, rl, ws, pl, up, logs]) => {
       setFunnel((f.data?.[0] ?? null) as FunnelRow | null)
       setCohortFill((cf.data ?? []) as CohortFillRow[])
       setEventAtt((ea.data?.[0] ?? null) as EventAttRow | null)
       setLeadOut((lo.data?.[0] ?? null) as LeadOutRow | null)
+      setCrmPipeline((cp.data ?? []) as CrmPipelineRow[])
+      setCrmLost((cl.data ?? []) as CrmLostRow[])
       setVideoPerf(((vids.data ?? []) as VideoPerf[]).map(v => ({ ...v, title: v.title.slice(0, 20) })))
       setRetention((ret.data ?? []) as RetentionRow[])
       setRegLeads((rl.data ?? []) as InsightsLeadRow[])
@@ -2587,28 +2589,14 @@ function InsightsTab() {
     return { attendance, partnerTotal: partnerLeadDates.length, partnerLast30: last30, newestAgeDays: newest }
   }, [eventAtt, partnerLeadDates])
 
-  // ── לידים וסגירה (B6: the denominator is DECIDED leads only) ───────
+  // ── לידים וסגירה — straight from the CRM mirror. The denominator is
+  //    DECIDED opportunities only (won + lost); the label says so.
   const leadsKpi = useMemo(() => {
     if (!leadOut) return null
-    const decided = leadOut.stage_paid + leadOut.stage_lost
-    const closeRate = decided > 0 ? Math.round((leadOut.stage_paid / decided) * 100) : null
-    const open = leadOut.stage_new + leadOut.stage_contacted + leadOut.stage_registered
-    return { ...leadOut, decided, closeRate, open }
+    const decided = leadOut.won_leads + leadOut.lost_leads
+    const closeRate = decided > 0 ? Math.round((leadOut.won_leads / decided) * 100) : null
+    return { ...leadOut, decided, closeRate }
   }, [leadOut])
-
-  // ── B5-3: lost reasons — same source as the לידים שאבדו KPI, so the
-  //    bars sum to it exactly ──────────────────────────────────────────
-  const lostReasons = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const u of users) {
-      if (u.is_admin || u.lead_stage !== 'lost') continue
-      const key = u.lost_reason ?? 'none'
-      counts.set(key, (counts.get(key) ?? 0) + 1)
-    }
-    return Array.from(counts.entries())
-      .map(([reason, count]) => ({ reason, count }))
-      .sort((a, b) => b.count - a.count)
-  }, [users])
 
   // ── שימוש באפליקציה ────────────────────────────────────────────────
   const usage = useMemo(() => {
@@ -2697,17 +2685,17 @@ function InsightsTab() {
           value={leadsKpi?.closeRate != null ? `${leadsKpi.closeRate}%` : '—'}
           ratePct={leadsKpi?.closeRate ?? null}
           sub={leadsKpi && leadsKpi.decided > 0
-            ? `${leadsKpi.stage_paid} מתוך ${leadsKpi.decided} לידים שהוכרעו`
-            : 'אין עדיין לידים שהוכרעו (שולם / אבד)'}
+            ? `${leadsKpi.won_leads} מתוך ${leadsKpi.decided} לידים שהוכרעו`
+            : 'אין עדיין לידים שהוכרעו'}
         />
         <KpiCard
           label="זמן ממוצע לסגירה"
           value={leadsKpi?.avg_days_to_close != null ? `${leadsKpi.avg_days_to_close} ימים` : '—'}
-          sub={leadsKpi?.avg_days_to_close != null ? 'מליד חדש עד תשלום' : 'ימדד מהסגירה הראשונה'}
+          sub={leadsKpi?.avg_days_to_close != null ? 'מפתיחת הליד ועד סגירה' : 'ימדד מהסגירה הראשונה'}
         />
         <KpiCard
           label="לידים שאבדו"
-          value={String(leadsKpi?.stage_lost ?? 0)}
+          value={String(leadsKpi?.lost_leads ?? 0)}
           sub={leadsKpi && leadsKpi.total_leads > 0 ? `מתוך ${leadsKpi.total_leads} לידים` : null}
         />
         <KpiCard
@@ -2721,11 +2709,15 @@ function InsightsTab() {
       {/* ── B5-1: המסע לסדנה ── */}
       {funnel && <FunnelBlock funnel={funnel} />}
 
-      {/* ── B5-2: צנרת הלידים ── */}
-      {leadsKpi && <PipelineBlock leads={leadsKpi} />}
+      {/* ── B5-2: צנרת הלידים — the CRM's own open stages ── */}
+      {leadsKpi && <PipelineBlock leads={leadsKpi} stages={crmPipeline} />}
 
       {/* ── B5-3: למה לידים לא נסגרו ── */}
-      <LostReasonsBlock reasons={lostReasons} totalLost={leadsKpi?.stage_lost ?? 0} />
+      <LostReasonsBlock
+        rows={crmLost}
+        totalLost={leadsKpi?.lost_leads ?? 0}
+        onLabelled={(id, label) => setCrmLost(prev => prev.map(r => r.lost_reason_id === id ? { ...r, label } : r))}
+      />
 
       {/* ── B1-4: שימוש באפליקציה (existing — demoted to last) ── */}
       <KpiGroup title="שימוש באפליקציה">
@@ -2830,63 +2822,114 @@ function FunnelBlock({ funnel }: { funnel: FunnelRow }) {
   )
 }
 
-// ─── B5-2: the pipeline — B6: the header states the full breakdown ──
-function PipelineBlock({ leads }: { leads: LeadOutRow & { decided: number; closeRate: number | null; open: number } }) {
-  const boxes = [
-    { label: 'חדשות', value: leads.stage_new },
-    { label: 'נוצר קשר', value: leads.stage_contacted },
-    { label: 'נרשמו', value: leads.stage_registered },
-    { label: 'שילמו', value: leads.stage_paid },
-  ]
+// ─── B5-2: the pipeline — the CRM's own open stages, in his words ───
+// B6: the header states the full breakdown so no two numbers on screen
+// can be mistaken for the same quantity.
+function PipelineBlock({ leads, stages }: {
+  leads: LeadOutRow & { decided: number; closeRate: number | null }
+  stages: CrmPipelineRow[]
+}) {
+  const ordered = [...stages].sort((a, b) => b.leads - a.leads)
   return (
     <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: 18 }}>
       <div className="flex items-baseline gap-3 flex-wrap">
         <h3 className="font-display" style={{ fontSize: 16, color: '#443327' }}>צנרת הלידים</h3>
         <span style={{ fontWeight: 600, fontSize: 12.5, color: '#8A7A63' }}>
-          {leads.total_leads === 1 ? 'ליד אחד' : `${leads.total_leads} לידים`} · {leads.open} פעילים · {leads.stage_lost} אבדו
+          {leads.total_leads === 1 ? 'ליד אחד' : `${leads.total_leads} לידים`} · {leads.open_leads} פתוחים · {leads.won_leads} נסגרו · {leads.lost_leads} אבדו
         </span>
+        <span style={{ fontWeight: 600, fontSize: 12, color: '#A2937D', marginInlineStart: 'auto' }}>מתוך ה-CRM</span>
       </div>
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginTop: 14 }}>
-        {boxes.map(b => (
-          <div key={b.label} className="text-center" style={{ background: '#FBF9F5', border: '1px solid #F1EBE1', borderRadius: 14, padding: '14px 10px' }}>
-            <p className="font-display" style={{ fontSize: 24, color: '#443327' }}>{b.value}</p>
-            <p style={{ fontWeight: 700, fontSize: 12.5, color: '#8A7A63', marginTop: 2 }}>{b.label}</p>
-          </div>
-        ))}
-      </div>
+      {ordered.length === 0 ? (
+        <p style={{ fontWeight: 600, fontSize: 13.5, color: '#A2937D', marginTop: 10 }}>אין לידים פתוחים כרגע.</p>
+      ) : (
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginTop: 14 }}>
+          {ordered.map(s => (
+            <div key={s.stage_id ?? s.stage_name} className="text-center" style={{ background: '#FBF9F5', border: '1px solid #F1EBE1', borderRadius: 14, padding: '14px 10px' }}>
+              <p className="font-display" style={{ fontSize: 24, color: '#443327' }}>{s.leads}</p>
+              <p className="truncate" style={{ fontWeight: 700, fontSize: 12.5, color: '#8A7A63', marginTop: 2 }}>{s.stage_name}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-// ─── B5-3: lost reasons, with the remedy beside the top two ─────────
+// ─── B5-3: why leads didn't close ───────────────────────────────────
+// The reasons come from the CRM, where Yahav picks one when he marks
+// an opportunity lost. GHL exposes only the reason's id (its labels
+// aren't in the public API), so each id is named ONCE here and stored
+// in crm_lost_reasons; ids that show up later appear unnamed rather
+// than quietly folding into another bar.
 const LOST_REASON_REMEDIES: Record<string, string> = {
-  no_response: 'תזכורת אוטומטית אחרי 48 שעות',
-  price: 'קישור הצעה בהנחה מעמוד המוצר',
+  'לא ענתה': 'תזכורת אוטומטית אחרי 48 שעות',
+  'אין מענה': 'תזכורת אוטומטית אחרי 48 שעות',
+  'מחיר': 'קישור הצעה בהנחה מעמוד המוצר',
+  'המחיר גבוה': 'קישור הצעה בהנחה מעמוד המוצר',
+  'יקר': 'קישור הצעה בהנחה מעמוד המוצר',
 }
 
-function LostReasonsBlock({ reasons, totalLost }: { reasons: { reason: string; count: number }[]; totalLost: number }) {
-  const max = Math.max(1, ...reasons.map(r => r.count))
+function LostReasonsBlock({ rows, totalLost, onLabelled }: {
+  rows: CrmLostRow[]
+  totalLost: number
+  onLabelled: (id: string, label: string) => void
+}) {
+  const [naming, setNaming] = useState(false)
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [savingId, setSavingId] = useState<string | null>(null)
+
+  const named = rows.filter(r => r.label).sort((a, b) => b.leads - a.leads)
+  const unnamed = rows.filter(r => !r.label && r.lost_reason_id).sort((a, b) => b.leads - a.leads)
+  const noReason = rows.find(r => !r.lost_reason_id) ?? null
+  // The bars must sum to the לידים שאבדו KPI exactly, so unnamed ids
+  // render as their own bars rather than being dropped.
+  const bars = [
+    ...named.map(r => ({ key: r.lost_reason_id ?? 'x', label: r.label!, leads: r.leads, kind: 'named' as const })),
+    ...unnamed.map(r => ({ key: r.lost_reason_id!, label: 'סיבה ללא שם', leads: r.leads, kind: 'unnamed' as const })),
+    ...(noReason ? [{ key: '__none__', label: 'ללא סיבה מתועדת', leads: noReason.leads, kind: 'none' as const }] : []),
+  ]
+  const max = Math.max(1, ...bars.map(b => b.leads))
+
+  async function saveLabel(id: string) {
+    const label = (drafts[id] ?? '').trim()
+    if (!label) return
+    setSavingId(id)
+    const { error } = await supabase.from('crm_lost_reasons').update({ label }).eq('id', id)
+    setSavingId(null)
+    if (!error) onLabelled(id, label)
+  }
+
   return (
     <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: 18 }}>
-      <h3 className="font-display" style={{ fontSize: 16, color: '#443327' }}>למה לידים לא נסגרו</h3>
+      <div className="flex items-baseline gap-3 flex-wrap">
+        <h3 className="font-display" style={{ fontSize: 16, color: '#443327' }}>למה לידים לא נסגרו</h3>
+        <span style={{ fontWeight: 600, fontSize: 12, color: '#A2937D' }}>מתוך ה-CRM</span>
+        {unnamed.length > 0 && (
+          <button
+            onClick={() => setNaming(v => !v)}
+            className="hover:underline"
+            style={{ fontWeight: 700, fontSize: 12.5, color: '#A35C3D', marginInlineStart: 'auto' }}
+          >
+            {naming ? 'סגירה' : `${unnamed.length === 1 ? 'סיבה אחת חסרה שם' : `${unnamed.length} סיבות חסרות שם`} — למתן שמות`}
+          </button>
+        )}
+      </div>
+
       {totalLost === 0 ? (
-        <p style={{ fontWeight: 600, fontSize: 13.5, color: '#A2937D', marginTop: 10 }}>
-          אין עדיין לידים שאבדו. כשליד יסומן "אבדה" בכרטיס הלקוחה, הסיבה תיאסף ותופיע כאן.
-        </p>
+        <p style={{ fontWeight: 600, fontSize: 13.5, color: '#A2937D', marginTop: 10 }}>אין עדיין לידים שאבדו.</p>
       ) : (
         <div className="space-y-2.5" style={{ marginTop: 14 }}>
-          {reasons.map((r, i) => {
-            const noReason = r.reason === 'none'
-            const label = noReason ? 'ללא סיבה מתועדת' : (LOST_REASON_LABELS[r.reason] ?? r.reason)
-            const pct = totalLost > 0 ? Math.round((r.count / totalLost) * 100) : 0
-            const remedy = !noReason && i < 2 ? LOST_REASON_REMEDIES[r.reason] : null
+          {bars.map((b, i) => {
+            const pct = totalLost > 0 ? Math.round((b.leads / totalLost) * 100) : 0
+            const muted = b.kind !== 'named'
+            const remedy = b.kind === 'named' && i < 2 ? LOST_REASON_REMEDIES[b.label] : null
             return (
-              <div key={r.reason} className="flex items-center gap-3">
-                <span className="flex-shrink-0 truncate" style={{ width: 130, fontWeight: 700, fontSize: 13.5, color: noReason ? '#A2937D' : '#5E4938' }}>{label}</span>
+              <div key={b.key} className="flex items-center gap-3">
+                <span className="flex-shrink-0 truncate" style={{ width: 150, fontWeight: 700, fontSize: 13.5, color: muted ? '#A2937D' : '#5E4938' }}>{b.label}</span>
                 <div className="flex-1" style={{ height: 22, background: '#F1EBE1', borderRadius: 8, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${(r.count / max) * 100}%`, background: noReason ? '#D9CFBC' : '#8B4A30', borderRadius: 8, minWidth: 4 }} />
+                  <div style={{ height: '100%', width: `${(b.leads / max) * 100}%`, background: muted ? '#D9CFBC' : '#8B4A30', borderRadius: 8, minWidth: 4 }} />
                 </div>
-                <span className="font-display flex-shrink-0" style={{ width: 60, fontSize: 14, color: '#443327' }}>{r.count} · {pct}%</span>
+                <span className="font-display flex-shrink-0" style={{ width: 62, fontSize: 14, color: '#443327' }}>{b.leads} · {pct}%</span>
                 {remedy && (
                   <span className="flex-shrink-0 hidden lg:block" style={{ width: 220, fontWeight: 600, fontSize: 12, color: '#35505C' }}>
                     ← {remedy}
@@ -2895,6 +2938,37 @@ function LostReasonsBlock({ reasons, totalLost }: { reasons: { reason: string; c
               </div>
             )
           })}
+        </div>
+      )}
+
+      {naming && unnamed.length > 0 && (
+        <div className="space-y-2" style={{ background: '#FBF9F5', border: '1px solid #F1EBE1', borderRadius: 14, padding: 14, marginTop: 14 }}>
+          <p style={{ fontWeight: 600, fontSize: 12.5, color: '#8A7A63', lineHeight: 1.6 }}>
+            ה-CRM שולח מזהה של הסיבה ולא את השם שלה. כתבי כאן איך הסיבה נקראת אצלך ב-CRM — פעם אחת, ומכאן היא תופיע בגרף.
+          </p>
+          {unnamed.map(r => (
+            <div key={r.lost_reason_id} className="flex items-center gap-2 flex-wrap">
+              <span className="flex-shrink-0" style={{ fontWeight: 700, fontSize: 13, color: '#443327', width: 62 }}>
+                {r.leads} לידים
+              </span>
+              <input
+                value={drafts[r.lost_reason_id!] ?? ''}
+                onChange={e => setDrafts(d => ({ ...d, [r.lost_reason_id!]: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') saveLabel(r.lost_reason_id!) }}
+                placeholder="שם הסיבה"
+                className="flex-1 min-w-[160px] px-3 py-2 rounded-xl text-sm focus:outline-none"
+                style={{ border: '1px solid #E9E2D6', color: '#443327', background: '#fff' }}
+              />
+              <button
+                onClick={() => saveLabel(r.lost_reason_id!)}
+                disabled={savingId === r.lost_reason_id || !(drafts[r.lost_reason_id!] ?? '').trim()}
+                className="rounded-xl font-bold disabled:opacity-40 flex-shrink-0"
+                style={{ background: '#C8A460', color: '#33281B', fontSize: 13, padding: '8px 14px' }}
+              >
+                {savingId === r.lost_reason_id ? '...' : 'שמירה'}
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

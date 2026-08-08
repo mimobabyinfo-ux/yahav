@@ -373,6 +373,25 @@ Code that's fully built and tested but intentionally not exposed in the UI yet. 
 
 ---
 
+## CRM boundary — read this before building anything lead-shaped
+
+The business runs a GoHighLevel CRM ("MoreThan CRM", location `zcdg19h82AGIAbya6T0r`). **The CRM owns the lead lifecycle; the app owns registrations, payments, cohorts and attendance.** Leads arrive in the CRM from Facebook forms and landing pages long before anyone reaches the app — by the time a person appears in `registration_leads` the lead is already won.
+
+Do NOT add lead stages, lost reasons, or a pipeline to app tables. That was tried (Aug 2026, `user_profiles.lead_stage`) and removed within a day: it was a second, emptier copy of a board with 358 real opportunities that nobody would maintain by hand.
+
+Sync direction, all via Edge Functions on pg_cron with the `GHL_API_KEY` secret:
+
+| Function | Direction | What |
+|---|---|---|
+| `sync-paid-to-crm` | app → CRM | tags a contact when a registration is paid |
+| `sync-cohort-to-crm` | app → CRM | cohort membership |
+| `sync-community-to-crm` | app → CRM | community signups |
+| `sync-crm-leads` | **CRM → app** | mirrors the opportunity board into `crm_opportunities` hourly |
+
+The admin תובנות tab reads `v_crm_lead_outcomes` / `v_crm_pipeline` / `v_crm_lost_reasons` — never `user_profiles` — for anything lead-related.
+
+**Lost reasons:** GHL returns only `lostReasonId` on an opportunity and does not expose the labels through the public API (every candidate endpoint returns 404/401). Ids are registered in `crm_lost_reasons` and named once by the admin inside the תובנות tab. Unnamed ids render as their own "סיבה ללא שם" bar so the breakdown always sums to the לידים שאבדו KPI.
+
 ## Deferred Decisions
 
 ### WhatsApp notification on form submission (April 2026)
