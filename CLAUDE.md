@@ -373,24 +373,23 @@ Code that's fully built and tested but intentionally not exposed in the UI yet. 
 
 ---
 
-## CRM boundary — read this before building anything lead-shaped
+## CRM boundary — two dashboards, and which question belongs to which
 
-The business runs a GoHighLevel CRM ("MoreThan CRM", location `zcdg19h82AGIAbya6T0r`). **The CRM owns the lead lifecycle; the app owns registrations, payments, cohorts and attendance.** Leads arrive in the CRM from Facebook forms and landing pages long before anyone reaches the app — by the time a person appears in `registration_leads` the lead is already won.
+The business runs a GoHighLevel CRM ("MoreThan CRM", location `zcdg19h82AGIAbya6T0r`). It is, in the owner's words, "כל עולמה של הלידים" — where leads arrive (Facebook forms, landing pages), get worked, and are won or lost. **It has its own dashboard, and lead questions are answered there.**
 
-Do NOT add lead stages, lost reasons, or a pipeline to app tables. That was tried (Aug 2026, `user_profiles.lead_stage`) and removed within a day: it was a second, emptier copy of a board with 358 real opportunities that nobody would maintain by hand.
+This app is customer management, registrations, events, vendors and the journal. **Its תובנות tab answers only those questions** — money and registrations, community and events, the workshop funnel, app usage. By the time a person appears in `registration_leads` the lead is already won, so a lead metric here would be measuring someone else's job.
 
-Sync direction, all via Edge Functions on pg_cron with the `GHL_API_KEY` secret:
+Do NOT add to this app: lead stages, close rate, pipeline, lost reasons, or a lead mirror. Both were built and removed within two days (Aug 2026) — first `user_profiles.lead_stage` (a hand-maintained copy nobody would keep current), then `crm_opportunities` + `sync-crm-leads` (a faithful hourly mirror of 358 opportunities that still showed the wrong dashboard's numbers). The migrations that removed them are `crm_opportunities_pull` and `drop_crm_lead_mirror`.
 
-| Function | Direction | What |
-|---|---|---|
-| `sync-paid-to-crm` | app → CRM | tags a contact when a registration is paid |
-| `sync-cohort-to-crm` | app → CRM | cohort membership |
-| `sync-community-to-crm` | app → CRM | community signups |
-| `sync-crm-leads` | **CRM → app** | mirrors the opportunity board into `crm_opportunities` hourly |
+Sync is **one-way, app → CRM**, via Edge Functions on pg_cron with the `GHL_API_KEY` secret:
 
-The admin תובנות tab reads `v_crm_lead_outcomes` / `v_crm_pipeline` / `v_crm_lost_reasons` — never `user_profiles` — for anything lead-related.
+| Function | What |
+|---|---|
+| `sync-paid-to-crm` | tags a contact when a registration is paid |
+| `sync-cohort-to-crm` | cohort membership |
+| `sync-community-to-crm` | community signups |
 
-**Lost reasons:** GHL returns only `lostReasonId` on an opportunity and does not expose the labels through the public API (every candidate endpoint returns 404/401). Ids are registered in `crm_lost_reasons` and named once by the admin inside the תובנות tab. Unnamed ids render as their own "סיבה ללא שם" bar so the breakdown always sums to the לידים שאבדו KPI.
+If a future need genuinely requires CRM data in the app, note what the public API can and cannot do: opportunities, pipelines and stages come through fine, but **lost-reason labels do not** — GHL returns only `lostReasonId` and every settings endpoint returns 404 or is out of token scope.
 
 ## Deferred Decisions
 

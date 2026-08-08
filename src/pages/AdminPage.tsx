@@ -3,7 +3,7 @@ import { Home as HomeIcon, Plus, Pencil, Trash2, GraduationCap, CreditCard, Cale
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
 import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent, type WorkshopCohort, type VendorAdminInfo } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { BUYING_SUBCATEGORIES } from '../data/buyingSubcategories'
@@ -2438,24 +2438,19 @@ function FormsTabDesktop() {
 }
 
 // ─── Insights Tab ─────────────────────────────────────────────────────────────
-// Screen B: the tab measures the app as it is NOW — commerce (registrations,
-// payments, cohort fill), community (real attendance, measurable since vendor
-// check-in shipped), the lead pipeline (lead_stage + lost reasons), and only
-// then app usage. Reader-of-views: v_registration_funnel / v_cohort_fill /
-// v_event_attendance / v_lead_outcomes + the existing v_video_performance /
-// v_retention_cohort.
+// Screen B: the tab measures what THIS app is — customers, registrations
+// and payments, community events and vendors, and app usage. It does NOT
+// measure leads: the CRM is "כל עולמה של הלידים" (Yahav) and has its own
+// dashboard for close rate, pipeline and lost reasons. Two dashboards, one
+// boundary — see the CRM section in CLAUDE.md before adding a lead metric
+// here.
+// Reader-of-views: v_registration_funnel / v_cohort_fill /
+// v_event_attendance / v_retention_cohort.
 
-type VideoPerf = { title: string; total_views: number; completions: number; completion_pct: number }
 type RetentionRow = { cohort_week: string; total_users: number; day1: number; day3: number; day7: number }
 type FunnelRow = { store_views: number; forms_filled: number; registered: number; paid: number; attended: number }
 type CohortFillRow = { cohort_id: string; workshop_title: string; capacity: number | null; registered: number }
 type EventAttRow = { past_registered: number; past_attended: number; past_no_show: number; events_this_month: number; events_no_vendor: number; events_no_checkin: number }
-// The lead lifecycle lives in the CRM (GHL), not here — the app owns
-// registrations and payments. These mirror v_crm_* which the hourly
-// sync-crm-leads function refreshes.
-type LeadOutRow = { total_leads: number; open_leads: number; won_leads: number; lost_leads: number; open_unanswered_48h: number; avg_days_to_close: number | null; new_this_month: number }
-type CrmPipelineRow = { stage_id: string; stage_name: string; pipeline_name: string | null; leads: number }
-type CrmLostRow = { lost_reason_id: string | null; label: string | null; leads: number }
 type InsightsLeadRow = { id: string; status: 'pending' | 'paid' | 'handled'; created_at: string; selected_workshop_id: string | null }
 type InsightsUserRow = { id: string; created_at: string; last_active: string | null; lead_stage: string | null; lost_reason: string | null; is_admin: boolean | null }
 
@@ -2505,10 +2500,6 @@ function InsightsTab() {
   const [funnel, setFunnel] = useState<FunnelRow | null>(null)
   const [cohortFill, setCohortFill] = useState<CohortFillRow[]>([])
   const [eventAtt, setEventAtt] = useState<EventAttRow | null>(null)
-  const [leadOut, setLeadOut] = useState<LeadOutRow | null>(null)
-  const [crmPipeline, setCrmPipeline] = useState<CrmPipelineRow[]>([])
-  const [crmLost, setCrmLost] = useState<CrmLostRow[]>([])
-  const [videoPerf, setVideoPerf] = useState<VideoPerf[]>([])
   const [retention, setRetention] = useState<RetentionRow[]>([])
   const [regLeads, setRegLeads] = useState<InsightsLeadRow[]>([])
   const [workshopPrices, setWorkshopPrices] = useState<Map<string, number>>(new Map())
@@ -2521,24 +2512,16 @@ function InsightsTab() {
       supabase.from('v_registration_funnel').select('*').limit(1),
       supabase.from('v_cohort_fill').select('*'),
       supabase.from('v_event_attendance').select('*').limit(1),
-      supabase.from('v_crm_lead_outcomes').select('*').limit(1),
-      supabase.from('v_crm_pipeline').select('*'),
-      supabase.from('v_crm_lost_reasons').select('*'),
-      supabase.from('v_video_performance').select('*').limit(10),
       supabase.from('v_retention_cohort').select('*').limit(8),
       supabase.from('registration_leads').select('id, status, created_at, selected_workshop_id'),
       supabase.from('workshops').select('id, price'),
       supabase.from('partner_leads').select('created_at'),
       supabase.from('user_profiles').select('id, created_at, last_active, lead_stage, lost_reason, is_admin'),
       supabase.from('daily_log_entries').select('id', { count: 'exact', head: true }),
-    ]).then(([f, cf, ea, lo, cp, cl, vids, ret, rl, ws, pl, up, logs]) => {
+    ]).then(([f, cf, ea, ret, rl, ws, pl, up, logs]) => {
       setFunnel((f.data?.[0] ?? null) as FunnelRow | null)
       setCohortFill((cf.data ?? []) as CohortFillRow[])
       setEventAtt((ea.data?.[0] ?? null) as EventAttRow | null)
-      setLeadOut((lo.data?.[0] ?? null) as LeadOutRow | null)
-      setCrmPipeline((cp.data ?? []) as CrmPipelineRow[])
-      setCrmLost((cl.data ?? []) as CrmLostRow[])
-      setVideoPerf(((vids.data ?? []) as VideoPerf[]).map(v => ({ ...v, title: v.title.slice(0, 20) })))
       setRetention((ret.data ?? []) as RetentionRow[])
       setRegLeads((rl.data ?? []) as InsightsLeadRow[])
       setWorkshopPrices(new Map(((ws.data ?? []) as { id: string; price: number | null }[]).map(w => [w.id, w.price ?? 0])))
@@ -2588,15 +2571,6 @@ function InsightsTab() {
       : null
     return { attendance, partnerTotal: partnerLeadDates.length, partnerLast30: last30, newestAgeDays: newest }
   }, [eventAtt, partnerLeadDates])
-
-  // ── לידים וסגירה — straight from the CRM mirror. The denominator is
-  //    DECIDED opportunities only (won + lost); the label says so.
-  const leadsKpi = useMemo(() => {
-    if (!leadOut) return null
-    const decided = leadOut.won_leads + leadOut.lost_leads
-    const closeRate = decided > 0 ? Math.round((leadOut.won_leads / decided) * 100) : null
-    return { ...leadOut, decided, closeRate }
-  }, [leadOut])
 
   // ── שימוש באפליקציה ────────────────────────────────────────────────
   const usage = useMemo(() => {
@@ -2678,48 +2652,10 @@ function InsightsTab() {
         />
       </KpiGroup>
 
-      {/* ── B1-3: לידים וסגירה ── */}
-      <KpiGroup title="לידים וסגירה">
-        <KpiCard
-          label="אחוז סגירה"
-          value={leadsKpi?.closeRate != null ? `${leadsKpi.closeRate}%` : '—'}
-          ratePct={leadsKpi?.closeRate ?? null}
-          sub={leadsKpi && leadsKpi.decided > 0
-            ? `${leadsKpi.won_leads} מתוך ${leadsKpi.decided} לידים שהוכרעו`
-            : 'אין עדיין לידים שהוכרעו'}
-        />
-        <KpiCard
-          label="זמן ממוצע לסגירה"
-          value={leadsKpi?.avg_days_to_close != null ? `${leadsKpi.avg_days_to_close} ימים` : '—'}
-          sub={leadsKpi?.avg_days_to_close != null ? 'מפתיחת הליד ועד סגירה' : 'ימדד מהסגירה הראשונה'}
-        />
-        <KpiCard
-          label="לידים שאבדו"
-          value={String(leadsKpi?.lost_leads ?? 0)}
-          sub={leadsKpi && leadsKpi.total_leads > 0 ? `מתוך ${leadsKpi.total_leads} לידים` : null}
-        />
-        <KpiCard
-          label="פתוחים ללא מענה 48 שעות"
-          value={String(leadsKpi?.open_unanswered_48h ?? 0)}
-          sub={leadsKpi && leadsKpi.open_unanswered_48h > 0 ? 'שוות פנייה היום' : 'אין לידים שמחכים'}
-          subColor={leadsKpi && leadsKpi.open_unanswered_48h > 0 ? '#8B4A30' : '#4F5040'}
-        />
-      </KpiGroup>
-
-      {/* ── B5-1: המסע לסדנה ── */}
+      {/* ── המסע לסדנה — one funnel across the app's own screens ── */}
       {funnel && <FunnelBlock funnel={funnel} />}
 
-      {/* ── B5-2: צנרת הלידים — the CRM's own open stages ── */}
-      {leadsKpi && <PipelineBlock leads={leadsKpi} stages={crmPipeline} />}
-
-      {/* ── B5-3: למה לידים לא נסגרו ── */}
-      <LostReasonsBlock
-        rows={crmLost}
-        totalLost={leadsKpi?.lost_leads ?? 0}
-        onLabelled={(id, label) => setCrmLost(prev => prev.map(r => r.lost_reason_id === id ? { ...r, label } : r))}
-      />
-
-      {/* ── B1-4: שימוש באפליקציה (existing — demoted to last) ── */}
+      {/* ── שימוש באפליקציה ── */}
       <KpiGroup title="שימוש באפליקציה">
         <KpiCard
           label="משתמשות פעילות (7 ימים)"
@@ -2759,21 +2695,6 @@ function InsightsTab() {
         </div>
       )}
 
-      {videoPerf.length > 0 && (
-        <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: 18 }}>
-          <h3 className="font-display" style={{ fontSize: 16, color: '#443327', marginBottom: 12 }}>ביצועי סרטונים</h3>
-          <ResponsiveContainer width="100%" height={Math.max(160, videoPerf.length * 34)}>
-            <BarChart data={videoPerf} layout="vertical">
-              <XAxis type="number" tick={{ fontSize: 10, fill: '#8A7A63' }} />
-              <YAxis dataKey="title" type="category" width={110} tick={{ fontSize: 10, fill: '#5E4938' }} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="total_views" name="צפיות" fill="#C8A460" radius={[0, 4, 4, 0]} />
-              <Bar dataKey="completions" name="השלמות" fill="#35505C" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
     </div>
   )
 }
@@ -2818,159 +2739,6 @@ function FunnelBlock({ funnel }: { funnel: FunnelRow }) {
           )
         })}
       </div>
-    </div>
-  )
-}
-
-// ─── B5-2: the pipeline — the CRM's own open stages, in his words ───
-// B6: the header states the full breakdown so no two numbers on screen
-// can be mistaken for the same quantity.
-function PipelineBlock({ leads, stages }: {
-  leads: LeadOutRow & { decided: number; closeRate: number | null }
-  stages: CrmPipelineRow[]
-}) {
-  const ordered = [...stages].sort((a, b) => b.leads - a.leads)
-  return (
-    <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: 18 }}>
-      <div className="flex items-baseline gap-3 flex-wrap">
-        <h3 className="font-display" style={{ fontSize: 16, color: '#443327' }}>צנרת הלידים</h3>
-        <span style={{ fontWeight: 600, fontSize: 12.5, color: '#8A7A63' }}>
-          {leads.total_leads === 1 ? 'ליד אחד' : `${leads.total_leads} לידים`} · {leads.open_leads} פתוחים · {leads.won_leads} נסגרו · {leads.lost_leads} אבדו
-        </span>
-        <span style={{ fontWeight: 600, fontSize: 12, color: '#A2937D', marginInlineStart: 'auto' }}>מתוך ה-CRM</span>
-      </div>
-      {ordered.length === 0 ? (
-        <p style={{ fontWeight: 600, fontSize: 13.5, color: '#A2937D', marginTop: 10 }}>אין לידים פתוחים כרגע.</p>
-      ) : (
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginTop: 14 }}>
-          {ordered.map(s => (
-            <div key={s.stage_id ?? s.stage_name} className="text-center" style={{ background: '#FBF9F5', border: '1px solid #F1EBE1', borderRadius: 14, padding: '14px 10px' }}>
-              <p className="font-display" style={{ fontSize: 24, color: '#443327' }}>{s.leads}</p>
-              <p className="truncate" style={{ fontWeight: 700, fontSize: 12.5, color: '#8A7A63', marginTop: 2 }}>{s.stage_name}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── B5-3: why leads didn't close ───────────────────────────────────
-// The reasons come from the CRM, where Yahav picks one when he marks
-// an opportunity lost. GHL exposes only the reason's id (its labels
-// aren't in the public API), so each id is named ONCE here and stored
-// in crm_lost_reasons; ids that show up later appear unnamed rather
-// than quietly folding into another bar.
-const LOST_REASON_REMEDIES: Record<string, string> = {
-  'לא ענתה': 'תזכורת אוטומטית אחרי 48 שעות',
-  'אין מענה': 'תזכורת אוטומטית אחרי 48 שעות',
-  'מחיר': 'קישור הצעה בהנחה מעמוד המוצר',
-  'המחיר גבוה': 'קישור הצעה בהנחה מעמוד המוצר',
-  'יקר': 'קישור הצעה בהנחה מעמוד המוצר',
-}
-
-function LostReasonsBlock({ rows, totalLost, onLabelled }: {
-  rows: CrmLostRow[]
-  totalLost: number
-  onLabelled: (id: string, label: string) => void
-}) {
-  const [naming, setNaming] = useState(false)
-  const [drafts, setDrafts] = useState<Record<string, string>>({})
-  const [savingId, setSavingId] = useState<string | null>(null)
-
-  const named = rows.filter(r => r.label).sort((a, b) => b.leads - a.leads)
-  const unnamed = rows.filter(r => !r.label && r.lost_reason_id).sort((a, b) => b.leads - a.leads)
-  const noReason = rows.find(r => !r.lost_reason_id) ?? null
-  // The bars must sum to the לידים שאבדו KPI exactly, so unnamed ids
-  // render as their own bars rather than being dropped.
-  const bars = [
-    ...named.map(r => ({ key: r.lost_reason_id ?? 'x', label: r.label!, leads: r.leads, kind: 'named' as const })),
-    ...unnamed.map(r => ({ key: r.lost_reason_id!, label: 'סיבה ללא שם', leads: r.leads, kind: 'unnamed' as const })),
-    ...(noReason ? [{ key: '__none__', label: 'ללא סיבה מתועדת', leads: noReason.leads, kind: 'none' as const }] : []),
-  ]
-  const max = Math.max(1, ...bars.map(b => b.leads))
-
-  async function saveLabel(id: string) {
-    const label = (drafts[id] ?? '').trim()
-    if (!label) return
-    setSavingId(id)
-    const { error } = await supabase.from('crm_lost_reasons').update({ label }).eq('id', id)
-    setSavingId(null)
-    if (!error) onLabelled(id, label)
-  }
-
-  return (
-    <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: 18 }}>
-      <div className="flex items-baseline gap-3 flex-wrap">
-        <h3 className="font-display" style={{ fontSize: 16, color: '#443327' }}>למה לידים לא נסגרו</h3>
-        <span style={{ fontWeight: 600, fontSize: 12, color: '#A2937D' }}>מתוך ה-CRM</span>
-        {unnamed.length > 0 && (
-          <button
-            onClick={() => setNaming(v => !v)}
-            className="hover:underline"
-            style={{ fontWeight: 700, fontSize: 12.5, color: '#A35C3D', marginInlineStart: 'auto' }}
-          >
-            {naming ? 'סגירה' : `${unnamed.length === 1 ? 'סיבה אחת חסרה שם' : `${unnamed.length} סיבות חסרות שם`} — למתן שמות`}
-          </button>
-        )}
-      </div>
-
-      {totalLost === 0 ? (
-        <p style={{ fontWeight: 600, fontSize: 13.5, color: '#A2937D', marginTop: 10 }}>אין עדיין לידים שאבדו.</p>
-      ) : (
-        <div className="space-y-2.5" style={{ marginTop: 14 }}>
-          {bars.map((b, i) => {
-            const pct = totalLost > 0 ? Math.round((b.leads / totalLost) * 100) : 0
-            const muted = b.kind !== 'named'
-            const remedy = b.kind === 'named' && i < 2 ? LOST_REASON_REMEDIES[b.label] : null
-            return (
-              <div key={b.key} className="flex items-center gap-3">
-                <span className="flex-shrink-0 truncate" style={{ width: 150, fontWeight: 700, fontSize: 13.5, color: muted ? '#A2937D' : '#5E4938' }}>{b.label}</span>
-                <div className="flex-1" style={{ height: 22, background: '#F1EBE1', borderRadius: 8, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${(b.leads / max) * 100}%`, background: muted ? '#D9CFBC' : '#8B4A30', borderRadius: 8, minWidth: 4 }} />
-                </div>
-                <span className="font-display flex-shrink-0" style={{ width: 62, fontSize: 14, color: '#443327' }}>{b.leads} · {pct}%</span>
-                {remedy && (
-                  <span className="flex-shrink-0 hidden lg:block" style={{ width: 220, fontWeight: 600, fontSize: 12, color: '#35505C' }}>
-                    ← {remedy}
-                  </span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {naming && unnamed.length > 0 && (
-        <div className="space-y-2" style={{ background: '#FBF9F5', border: '1px solid #F1EBE1', borderRadius: 14, padding: 14, marginTop: 14 }}>
-          <p style={{ fontWeight: 600, fontSize: 12.5, color: '#8A7A63', lineHeight: 1.6 }}>
-            ה-CRM שולח מזהה של הסיבה ולא את השם שלה. כתבי כאן איך הסיבה נקראת אצלך ב-CRM — פעם אחת, ומכאן היא תופיע בגרף.
-          </p>
-          {unnamed.map(r => (
-            <div key={r.lost_reason_id} className="flex items-center gap-2 flex-wrap">
-              <span className="flex-shrink-0" style={{ fontWeight: 700, fontSize: 13, color: '#443327', width: 62 }}>
-                {r.leads} לידים
-              </span>
-              <input
-                value={drafts[r.lost_reason_id!] ?? ''}
-                onChange={e => setDrafts(d => ({ ...d, [r.lost_reason_id!]: e.target.value }))}
-                onKeyDown={e => { if (e.key === 'Enter') saveLabel(r.lost_reason_id!) }}
-                placeholder="שם הסיבה"
-                className="flex-1 min-w-[160px] px-3 py-2 rounded-xl text-sm focus:outline-none"
-                style={{ border: '1px solid #E9E2D6', color: '#443327', background: '#fff' }}
-              />
-              <button
-                onClick={() => saveLabel(r.lost_reason_id!)}
-                disabled={savingId === r.lost_reason_id || !(drafts[r.lost_reason_id!] ?? '').trim()}
-                className="rounded-xl font-bold disabled:opacity-40 flex-shrink-0"
-                style={{ background: '#C8A460', color: '#33281B', fontSize: 13, padding: '8px 14px' }}
-              >
-                {savingId === r.lost_reason_id ? '...' : 'שמירה'}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
