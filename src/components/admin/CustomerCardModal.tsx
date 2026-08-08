@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { X, MessageCircle, Mail, Phone, ChevronDown, ChevronUp, Loader2, ChevronLeft, ChevronRight, Plus, Maximize2, Minimize2 } from 'lucide-react'
+import { X, MessageCircle, Mail, Phone, Copy, Check, ChevronDown, ChevronUp, Loader2, ChevronLeft, ChevronRight, Plus, Maximize2, Minimize2 } from 'lucide-react'
 import { supabase, type WorkshopCohort } from '../../lib/supabase'
 import AddRegistrationModal from './AddRegistrationModal'
 import {
@@ -117,6 +117,7 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
   const [activeKey, setActiveKey] = useState<CustomerKey>(initialKey)
   const [wide, setWide] = useState(false)
   const [tab, setTab] = useState<PanelTab>('reg')
+  const [phoneCopied, setPhoneCopied] = useState(false)
 
   // ‹ › navigation swaps initialKey from the provider — re-seed.
   useEffect(() => { setActiveKey(initialKey) }, [initialKey])
@@ -383,7 +384,26 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
               </a>
             )}
             {contactPhone && (
-              <span className="font-semibold" dir="ltr" style={{ fontSize: 13, color: '#8A7A63' }}>{contactPhone}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const digits = contactPhone.replace(/\D/g, '')
+                  if (!digits) return
+                  navigator.clipboard.writeText(digits).then(() => {
+                    setPhoneCopied(true)
+                    setTimeout(() => setPhoneCopied(false), 1500)
+                  })
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg transition-colors hover:bg-[#EDE6DA]"
+                style={{ padding: '4px 8px', fontWeight: 600, fontSize: 13, color: phoneCopied ? '#4F5040' : '#8A7A63' }}
+                title="העתקת המספר"
+                aria-label="העתקת מספר הטלפון"
+              >
+                <span dir="ltr">{contactPhone}</span>
+                {phoneCopied
+                  ? <Check style={{ width: 13, height: 13 }} />
+                  : <Copy style={{ width: 13, height: 13 }} />}
+              </button>
             )}
           </div>
         )}

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Home as HomeIcon, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
+import { Home as HomeIcon, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -7141,6 +7141,19 @@ function RegistrationRow52({ lead: l, eff, gap, navOrder, navIndex, selected, on
 }) {
   const openCustomer = useOpenCustomer()
   const st = REG_ROW_STATUS[eff]
+  // Yahav: the phone in the row must be copyable. It sits OUTSIDE the
+  // panel-opening button (nested buttons are invalid) — tapping the
+  // number copies it and flashes a ✓; the rest of the row still opens
+  // the registrant panel.
+  const [copied, setCopied] = useState(false)
+  function copyPhone() {
+    const digits = (l.phone ?? '').replace(/\D/g, '')
+    if (!digits) return
+    navigator.clipboard.writeText(digits).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
   return (
     <div
       className="flex items-center"
@@ -7181,16 +7194,27 @@ function RegistrationRow52({ lead: l, eff, gap, navOrder, navIndex, selected, on
             {gap.isFilled ? 'שאלון מולא' : 'שאלון חסר'}
           </span>
         )}
-        {/* Phone + timestamp yield on narrow screens — the mobile row
-            keeps name/status/questionnaire and the panel has the rest. */}
-        <span className="flex-1 min-w-0 truncate hidden sm:block" dir="ltr" style={{ fontWeight: 600, fontSize: 13, color: '#A2937D', textAlign: 'right' }}>
-          {l.phone}
-        </span>
-        <span className="flex-1 sm:hidden" />
-        <span className="flex-shrink-0 whitespace-nowrap hidden sm:block" style={{ fontWeight: 600, fontSize: 12, color: '#A2937D' }}>
-          {new Date(l.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-        </span>
+        <span className="flex-1" />
       </button>
+      {/* Copy phone — its own button, muted until hovered/copied. */}
+      {l.phone && (
+        <button
+          type="button"
+          onClick={copyPhone}
+          className="flex-shrink-0 items-center gap-1.5 rounded-lg hidden sm:inline-flex transition-colors hover:bg-[#F1EBE1]"
+          style={{ padding: '4px 8px', fontWeight: 600, fontSize: 13, color: copied ? '#4F5040' : '#A2937D' }}
+          title="העתקת המספר"
+          aria-label={`העתקת הטלפון של ${l.name}`}
+        >
+          <span dir="ltr">{l.phone}</span>
+          {copied
+            ? <Check className="flex-shrink-0" style={{ width: 13, height: 13 }} />
+            : <Copy className="flex-shrink-0" style={{ width: 13, height: 13 }} />}
+        </button>
+      )}
+      <span className="flex-shrink-0 whitespace-nowrap hidden sm:block" style={{ fontWeight: 600, fontSize: 12, color: '#A2937D' }}>
+        {new Date(l.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+      </span>
     </div>
   )
 }
