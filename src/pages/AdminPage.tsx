@@ -2451,8 +2451,8 @@ type RetentionRow = { cohort_week: string; total_users: number; day1: number; da
 type FunnelRow = { store_views: number; forms_filled: number; registered: number; paid: number; attended: number }
 type CohortFillRow = { cohort_id: string; workshop_title: string; capacity: number | null; registered: number }
 type EventAttRow = { past_registered: number; past_attended: number; past_no_show: number; events_this_month: number; events_no_vendor: number; events_no_checkin: number }
-type InsightsLeadRow = { id: string; status: 'pending' | 'paid' | 'handled'; created_at: string; selected_workshop_id: string | null }
-type InsightsUserRow = { id: string; created_at: string; last_active: string | null; lead_stage: string | null; lost_reason: string | null; is_admin: boolean | null }
+type InsightsLeadRow = { id: string; status: 'pending' | 'paid' | 'handled'; created_at: string; selected_workshop_id: string | null; normalized_phone: string | null; email: string | null }
+type InsightsUserRow = { id: string; created_at: string; last_active: string | null; is_admin: boolean | null; normalized_phone: string | null; email: string | null }
 
 // B2: rates get a colour + a 5px fill track; plain counts do not.
 function rateColor(p: number): string {
@@ -2513,10 +2513,10 @@ function InsightsTab() {
       supabase.from('v_cohort_fill').select('*'),
       supabase.from('v_event_attendance').select('*').limit(1),
       supabase.from('v_retention_cohort').select('*').limit(8),
-      supabase.from('registration_leads').select('id, status, created_at, selected_workshop_id'),
+      supabase.from('registration_leads').select('id, status, created_at, selected_workshop_id, normalized_phone, email'),
       supabase.from('workshops').select('id, price'),
       supabase.from('partner_leads').select('created_at'),
-      supabase.from('user_profiles').select('id, created_at, last_active, lead_stage, lost_reason, is_admin'),
+      supabase.from('user_profiles').select('id, created_at, last_active, is_admin, normalized_phone, email'),
       supabase.from('daily_log_entries').select('id', { count: 'exact', head: true }),
     ]).then(([f, cf, ea, ret, rl, ws, pl, up, logs]) => {
       setFunnel((f.data?.[0] ?? null) as FunnelRow | null)
@@ -2549,15 +2549,41 @@ function InsightsTab() {
         regsLast++
       }
     }
-    const total = regLeads.length
-    const paid = regLeads.filter(l => l.status === 'paid' || l.status === 'handled').length
-    const conversion = total > 0 ? Math.round((paid / total) * 100) : null
+    // "המרה לתשלום" used to live here and was pinned at ~99%: a row only
+    // exists once someone registered, and almost every one is marked paid,
+    // so it measured the bookkeeping rather than the business. Replaced by
+    // the two numbers that actually move — how many paying mothers opened
+    // an app account (the stated goal: 50 active users), and how many came
+    // back for a second product.
+    // One mother = one normalized phone, falling back to lowercased email,
+    // so the same person registering twice is counted once.
+    const identityOf = (r: { normalized_phone: string | null; email: string | null }) =>
+      r.normalized_phone || r.email?.toLowerCase().trim() || null
+    const payingRegsByMother = new Map<string, number>()
+    for (const l of regLeads) {
+      if (l.status !== 'paid' && l.status !== 'handled') continue
+      const k = identityOf(l)
+      if (!k) continue
+      payingRegsByMother.set(k, (payingRegsByMother.get(k) ?? 0) + 1)
+    }
+    const payingMothers = payingRegsByMother.size
+    const repeatMothers = Array.from(payingRegsByMother.values()).filter(n => n > 1).length
+    const repeatPct = payingMothers > 0 ? Math.round((repeatMothers / payingMothers) * 100) : null
+    const accountIdentities = new Set<string>()
+    for (const u of users) {
+      if (u.is_admin) continue
+      const k = identityOf(u)
+      if (k) accountIdentities.add(k)
+    }
+    let withAccount = 0
+    for (const k of payingRegsByMother.keys()) if (accountIdentities.has(k)) withAccount++
+    const activationPct = payingMothers > 0 ? Math.round((withAccount / payingMothers) * 100) : null
     const withCap = cohortFill.filter(c => c.capacity != null)
     const capSum = withCap.reduce((s, c) => s + (c.capacity ?? 0), 0)
     const regSum = withCap.reduce((s, c) => s + c.registered, 0)
     const occupancy = capSum > 0 ? Math.round((regSum / capSum) * 100) : null
-    return { regsThis, regsLast, revenueThis, total, paid, conversion, capSum, regSum, occupancy, openCohorts: cohortFill.length }
-  }, [regLeads, workshopPrices, cohortFill])
+    return { regsThis, regsLast, revenueThis, payingMothers, withAccount, activationPct, repeatMothers, repeatPct, capSum, regSum, occupancy, openCohorts: cohortFill.length }
+  }, [regLeads, workshopPrices, cohortFill, users])
 
   // ── קהילה ואירועים ─────────────────────────────────────────────────
   const community = useMemo(() => {
@@ -2603,10 +2629,19 @@ function InsightsTab() {
           subColor={money.regsThis > money.regsLast ? '#4F5040' : money.regsThis < money.regsLast ? '#8B4A30' : '#A2937D'}
         />
         <KpiCard
-          label="המרה לתשלום"
-          value={money.conversion != null ? `${money.conversion}%` : '—'}
-          ratePct={money.conversion}
-          sub={money.total > 0 ? `${money.paid} מתוך ${money.total} הרשמות` : 'אין עדיין הרשמות'}
+          label="אמהות שפתחו חשבון"
+          value={money.activationPct != null ? `${money.activationPct}%` : '—'}
+          ratePct={money.activationPct}
+          sub={money.payingMothers > 0
+            ? `${money.withAccount} מתוך ${money.payingMothers} אמהות ששילמו`
+            : 'אין עדיין אמהות ששילמו'}
+        />
+        <KpiCard
+          label="לקוחות חוזרות"
+          value={String(money.repeatMothers)}
+          sub={money.payingMothers > 0
+            ? `${money.repeatPct}% מתוך ${money.payingMothers} אמהות ששילמו`
+            : null}
         />
         <KpiCard
           label="הכנסה משוערת החודש"
