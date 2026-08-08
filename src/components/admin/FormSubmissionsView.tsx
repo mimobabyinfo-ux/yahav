@@ -47,12 +47,16 @@ type Props = {
    *  reload the form (fields_json changed) so the resolver re-runs. */
   onFormSaved: () => void
   /** Polish #9: when provided, a submission for which this returns
-   *  true is tagged with a "✨ חדש" pill inline. Caller decides what
-   *  "new" means (typically: created_at > last-seen timestamp). */
+   *  true is tagged with a "חדש" pill inline. Caller decides what
+   *  "new" means (forms screen: read_at IS NULL). */
   isNewSubmission?: (s: Submission) => boolean
+  /** Forms screen §4: fired the first time a row is expanded. The
+   *  caller marks it read, which decrements the form's חדשות count.
+   *  The inline pill stays for the current visit. */
+  onSubmissionOpened?: (s: Submission) => void
 }
 
-export default function FormSubmissionsView({ form, submissions, onDeleteSubmission, onFormSaved, isNewSubmission }: Props) {
+export default function FormSubmissionsView({ form, submissions, onDeleteSubmission, onFormSaved, isNewSubmission, onSubmissionOpened }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [showFieldRoles, setShowFieldRoles] = useState(false)
   // Cache of every registration_leads row's identity for the
@@ -69,10 +73,17 @@ export default function FormSubmissionsView({ form, submissions, onDeleteSubmiss
       .then(({ data }) => setLeads((data ?? []) as LeadMatch[]))
   }, [])
 
-  function toggle(id: string) {
+  function toggle(s: Submission) {
     setExpanded(prev => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
+      if (next.has(s.id)) {
+        next.delete(s.id)
+      } else {
+        next.add(s.id)
+        // Opening a response marks it read (§4). Fired on expand only,
+        // so scrolling past a row never clears its unread state.
+        onSubmissionOpened?.(s)
+      }
       return next
     })
   }
@@ -112,7 +123,7 @@ export default function FormSubmissionsView({ form, submissions, onDeleteSubmiss
           submission={s}
           leads={leads}
           expanded={expanded.has(s.id)}
-          onToggle={() => toggle(s.id)}
+          onToggle={() => toggle(s)}
           onDelete={() => setPendingDelete(s)}
           isNew={isNewSubmission?.(s) ?? false}
         />
@@ -213,19 +224,20 @@ function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete, 
               ) : (
                 <span className="text-sm font-bold text-sand-800 truncate">{displayName}</span>
               )}
-              {/* Polish #9: inline "new since you last opened this form" pill. */}
+              {/* Inline "not opened yet" pill — clay, like every other
+                  unread marker on the forms screen. */}
               {isNew && (
-                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                  ✨ חדש
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap" style={{ color: '#8B4A30', background: '#F7EBE4' }}>
+                  חדש
                 </span>
               )}
               {resolved.source === 'responses' && (
-                <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md whitespace-nowrap" style={{ color: '#8A7A63', background: '#F5F2EA' }}>
                   מקור: טופס
                 </span>
               )}
               {resolved.source === 'none' && (
-                <span className="text-[10px] font-semibold text-sand-500 bg-sand-100 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md whitespace-nowrap" style={{ color: '#8A7A63', background: '#F5F2EA' }}>
                   אנונימי
                 </span>
               )}
@@ -233,10 +245,11 @@ function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete, 
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); openCardFor() }}
-                  className="text-[10px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded-md whitespace-nowrap transition-colors"
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md whitespace-nowrap transition-colors hover:brightness-95"
+                  style={{ color: '#35505C', background: '#EEF2F4' }}
                   title="פתיחת כרטיס לקוחה"
                 >
-                  🔗 רשומה גם בהרשמות
+                  רשומה גם בהרשמות
                 </button>
               )}
             </div>
@@ -283,7 +296,8 @@ function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete, 
             <button
               type="button"
               onClick={onDelete}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:brightness-95"
+              style={{ color: '#8B4A30' }}
             >
               <Trash2 className="w-3.5 h-3.5" />
               מחיקה
@@ -294,7 +308,8 @@ function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete, 
                   href={waHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 text-xs font-semibold"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:brightness-95"
+                  style={{ color: '#4F5040', background: '#EDEDE6' }}
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                   WhatsApp
@@ -303,7 +318,8 @@ function SubmissionRow({ form, submission, leads, expanded, onToggle, onDelete, 
               {resolved.email && (
                 <a
                   href={`mailto:${resolved.email}`}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-semibold"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:brightness-95"
+                  style={{ color: '#35505C', background: '#EEF2F4' }}
                   dir="ltr"
                 >
                   <Mail className="w-3.5 h-3.5" />
@@ -414,8 +430,8 @@ function FieldRolesPanel({
         type="button"
         onClick={save}
         disabled={saving}
-        className="w-full py-2 rounded-xl text-white text-xs font-bold disabled:opacity-50"
-        style={{ background: '#E7C78A' }}
+        className="w-full py-2 rounded-xl text-xs font-bold disabled:opacity-50"
+        style={{ background: '#C8A460', color: '#33281B' }}
       >
         {saving ? 'שומרת...' : 'שמירה'}
       </button>

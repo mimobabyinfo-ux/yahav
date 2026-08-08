@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Home as HomeIcon, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, SlidersHorizontal, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
+import { Home as HomeIcon, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -1640,6 +1640,9 @@ type FormsPageSubmission = {
   user_id: string | null
   responses_json: Record<string, unknown>
   created_at: string
+  // Forms screen §2: NULL = the admin hasn't opened this response yet,
+  // which is what the "חדשות" pill on each form row counts.
+  read_at: string | null
   user_profiles?: { mother_name: string | null; email: string | null } | null
 }
 
@@ -1811,8 +1814,8 @@ function FormAggregatePanel({ form, submissions, filterQuestion, setFilterQuesti
                   return (
                     <div key={n} className="flex items-center gap-2">
                       <span className="text-xs w-4 text-center font-semibold text-sand-700">{n}</span>
-                      <div className="flex-1 h-2.5 bg-sand-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: answers.length ? `${(count/answers.length)*100}%` : '0%', background: '#E7C78A' }} />
+                      <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ background: '#F1EBE1' }}>
+                        <div className="h-full rounded-full" style={{ width: answers.length ? `${(count/answers.length)*100}%` : '0%', background: '#C8A460' }} />
                       </div>
                       <span className="text-xs text-sand-600 w-6 text-left font-semibold">{count}</span>
                     </div>
@@ -1835,8 +1838,8 @@ function FormAggregatePanel({ form, submissions, filterQuestion, setFilterQuesti
                       <span className="text-xs text-sand-700 truncate max-w-[75%]">{opt}</span>
                       <span className="text-xs font-bold text-sand-600">{count}</span>
                     </div>
-                    <div className="w-full h-2 bg-sand-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: answers.length ? `${(count/answers.length)*100}%` : '0%', background: '#E7C78A' }} />
+                    <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: '#F1EBE1' }}>
+                      <div className="h-full rounded-full" style={{ width: answers.length ? `${(count/answers.length)*100}%` : '0%', background: '#C8A460' }} />
                     </div>
                   </div>
                 ))}
@@ -1876,6 +1879,11 @@ function FormAggregatePanel({ form, submissions, filterQuestion, setFilterQuesti
 }
 
 // ─── Forms Desktop Layout ─────────────────────────────────────────────────────
+// Forms screen redesign: the response count IS the point of the screen.
+// One folder-grouped list; clicking a form's count drills into its
+// responses in place (breadcrumb, no top tabs). "חדשות" is DB-backed:
+// form_submissions.read_at — a response is new until opened in the
+// responses view.
 function FormsTabDesktop() {
   const [forms, setForms] = useState<FormRecord[]>([])
   const [selected, setSelected] = useState<FormRecord | null>(null)
@@ -1884,15 +1892,11 @@ function FormsTabDesktop() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [editingForm, setEditingForm] = useState<FormRecord | null>(null)
   const [assignForm, setAssignForm] = useState<FormRecord | null>(null)
-  // Task A: form-row trash → pendingDeleteForm; dialog at end of return.
   const [pendingDeleteForm, setPendingDeleteForm] = useState<FormRecord | null>(null)
   const [deletingFormBusy, setDeletingFormBusy] = useState(false)
-  // Polish follow-up: subsView state moved into FormSubmissionsModal —
-  // each form opens fresh on 'list', remounted via key=form.id.
   const [filterQuestion, setFilterQuestion] = useState<string | null>(null)
-  // Polish #5: desktop folder grouping — mirror the mobile pattern so
-  // forms with the same folder are visually grouped under a collapsible
-  // header. Default-open: every folder (and the "no folder" bucket).
+  // Drill-down view tab: פרטי (rows) / מצטבר (distribution).
+  const [subsTab, setSubsTab] = useState<'list' | 'aggregate'>('list')
   const [closedFolders, setClosedFolders] = useState<Set<string>>(new Set())
   function toggleFolder(f: string) {
     setClosedFolders(prev => {
@@ -1909,116 +1913,59 @@ function FormsTabDesktop() {
   const [showCreate, setShowCreate] = useState(false)
   const [triggerType, setTriggerType] = useState('after_video_views')
   const [triggerCount, setTriggerCount] = useState('3')
-  // Phase 5 / A4: per-form { count, lastAt } so the list shows
-  // response volume without having to open each form.
-  const [submissionStats, setSubmissionStats] = useState<Map<string, { count: number; lastAt: string }>>(new Map())
-  // Polish #9: full submission rows (slim shape) for the page-level
-  // "what's new" strip + per-form "N חדשים" badges + in-modal pill.
+  // Slim projection of every submission — counts, last-response dates
+  // and the unread tally all derive from this one array.
   const [allSubmissions, setAllSubmissions] = useState<FormsPageSubmission[]>([])
-  // Bumping any seen key only writes to localStorage — to force the
-  // derived UI to refresh, we increment this counter from every
-  // mutation site.
-  const [seenBumpTick, setSeenBumpTick] = useState(0)
-  // Snapshot of the per-form effective seen timestamp at the moment
-  // loadSubmissions opened the modal. Used as the cutoff for the
-  // in-modal "✨ חדש" pill — otherwise the just-bumped seen key would
-  // immediately hide every pill the admin came in to see.
-  const [modalSeenCutoff, setModalSeenCutoff] = useState<string>(EPOCH)
+  // Form linkage (§3): which product sends this form automatically.
+  // linked_form_id = registration questionnaire; feedback_form_id =
+  // anonymous feedback. A form in neither silently collects nothing —
+  // that fault renders in clay on the row.
+  const [linkage, setLinkage] = useState<Map<string, { kind: 'linked' | 'feedback'; title: string }>>(new Map())
 
   const load = useCallback(async () => {
-    const [{ data: formsData }, { data: subsData }] = await Promise.all([
+    const [{ data: formsData }, { data: subsData }, { data: wsData }] = await Promise.all([
       supabase.from('forms').select('*').order('created_at', { ascending: false }),
-      // Polish #9: extended select — id + responses + user_profiles
-      // join so the strip can resolve the mother name without
-      // a second query. Admin scale, payload still small.
       supabase
         .from('form_submissions')
-        .select('id, form_id, user_id, responses_json, created_at, user_profiles(mother_name, email)'),
+        .select('id, form_id, user_id, responses_json, created_at, read_at, user_profiles(mother_name, email)'),
+      supabase.from('workshops').select('id, title, linked_form_id, feedback_form_id'),
     ])
     setForms((formsData ?? []) as FormRecord[])
-    const subs = (subsData ?? []) as unknown as FormsPageSubmission[]
-    setAllSubmissions(subs)
+    setAllSubmissions((subsData ?? []) as unknown as FormsPageSubmission[])
+    const link = new Map<string, { kind: 'linked' | 'feedback'; title: string }>()
+    type WsLink = { id: string; title: string; linked_form_id: string | null; feedback_form_id: string | null }
+    for (const w of (wsData ?? []) as WsLink[]) {
+      if (w.feedback_form_id) link.set(w.feedback_form_id, { kind: 'feedback', title: w.title })
+    }
+    for (const w of (wsData ?? []) as WsLink[]) {
+      if (w.linked_form_id) link.set(w.linked_form_id, { kind: 'linked', title: w.title })
+    }
+    setLinkage(link)
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const submissionStats = useMemo(() => {
     const stats = new Map<string, { count: number; lastAt: string }>()
-    for (const s of subs) {
+    for (const s of allSubmissions) {
       const cur = stats.get(s.form_id) ?? { count: 0, lastAt: '' }
       cur.count++
       if (s.created_at > cur.lastAt) cur.lastAt = s.created_at
       stats.set(s.form_id, cur)
     }
-    setSubmissionStats(stats)
-  }, [])
-  useEffect(() => { load() }, [load])
+    return stats
+  }, [allSubmissions])
 
-  // Polish #9: derived "what's new" data. Recomputes whenever the
-  // forms list, the full submissions list, or the seen-bump tick
-  // changes (the latter triggers re-derivation after bumpFormSeen /
-  // bumpAllFormsSeen mutate localStorage).
+  // §2: a response is new until opened — read_at IS NULL.
   const newCountByFormId = useMemo(() => {
     const m = new Map<string, number>()
     for (const s of allSubmissions) {
-      if (s.created_at > getEffectiveFormSeen(s.form_id)) {
-        m.set(s.form_id, (m.get(s.form_id) ?? 0) + 1)
-      }
+      if (!s.read_at) m.set(s.form_id, (m.get(s.form_id) ?? 0) + 1)
     }
     return m
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- seenBumpTick is a re-derive trigger
-  }, [allSubmissions, seenBumpTick])
-
-  // README-IA PR11: answers-first split. 'answers' = the submissions
-  // stream (default landing); 'builder' = the untouched forms builder.
-  const [formsView, setFormsView] = useState<'answers' | 'builder'>('answers')
-  const [streamFilter, setStreamFilter] = useState<'new' | 'all'>('new')
-  const [streamFormFilter, setStreamFormFilter] = useState<string>('all')
-  const [expandedSubId, setExpandedSubId] = useState<string | null>(null)
-
-  // The stream — newest-first submissions resolved once per derive
-  // (admin scale). 'חדשות' rides the same per-form localStorage seen
-  // keys that powered the old מה חדש strip.
-  const streamRows = useMemo(() => {
-    const formById = new Map(forms.map(f => [f.id, f]))
-    const rows: { sub: FormsPageSubmission; form: FormRecord; name: string | null; phone: string | null; isNew: boolean; preview: string }[] = []
-    for (const sub of allSubmissions) {
-      const form = formById.get(sub.form_id)
-      if (!form) continue
-      if (streamFormFilter !== 'all' && form.id !== streamFormFilter) continue
-      const isNew = sub.created_at > getEffectiveFormSeen(form.id)
-      if (streamFilter === 'new' && !isNew) continue
-      const r = resolveSubmitter(
-        { fields_json: form.fields_json },
-        { responses_json: sub.responses_json, user_profiles: sub.user_profiles ?? null },
-      )
-      // Preview: first open-ended (>80 chars) answer, else the first
-      // non-empty one — same heuristic as the questionnaire panel.
-      let preview = ''
-      let firstNonEmpty = ''
-      for (const f of form.fields_json) {
-        if (f.type === 'info' || f.type === 'link') continue
-        const v = formatAnswerValue(sub.responses_json[f.label])
-        if (!v) continue
-        if (!firstNonEmpty) firstNonEmpty = v
-        if (v.length > 80) { preview = v; break }
-      }
-      if (!preview) preview = firstNonEmpty
-      rows.push({ sub, form, name: r.name ?? sub.user_profiles?.mother_name ?? null, phone: r.phone, isNew, preview })
-    }
-    rows.sort((a, b) => b.sub.created_at.localeCompare(a.sub.created_at))
-    return rows
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- seenBumpTick re-derives seen state
-  }, [allSubmissions, forms, streamFilter, streamFormFilter, seenBumpTick])
-  const streamNewCount = useMemo(() => {
-    let n = 0
-    for (const v of newCountByFormId.values()) n += v
-    return n
-  }, [newCountByFormId])
+  }, [allSubmissions])
 
   async function loadSubmissions(form: FormRecord) {
-    setSelected(form); setLoadingSubs(true); setFilterQuestion(null)
-    // Polish #9: snapshot the pre-bump cutoff for the in-modal pill,
-    // then bump per-form seen so the page-level chip + strip drop
-    // this form's new items.
-    setModalSeenCutoff(getEffectiveFormSeen(form.id))
-    bumpFormSeen(form.id)
-    setSeenBumpTick(t => t + 1)
+    setSelected(form); setSubsTab('list'); setLoadingSubs(true); setFilterQuestion(null)
     const { data } = await supabase.from('form_submissions')
       .select('*, user_profiles(mother_name, email)').eq('form_id', form.id)
       .order('created_at', { ascending: false })
@@ -2026,9 +1973,16 @@ function FormsTabDesktop() {
     setLoadingSubs(false)
   }
 
-  // Phase 5 / A4: re-pull the form after the admin saves field-role
-  // overrides so the resolver picks up the new fields_json. Also
-  // refresh the list view's counts.
+  // §4: opening a response marks it read and decrements the form row's
+  // חדשות count. The in-view "חדש" pill stays for the current visit
+  // (submissions keeps the load-time read_at); the .is-null guard
+  // keeps the first-read timestamp from being overwritten.
+  const markSubmissionRead = useCallback(async (id: string) => {
+    const now = new Date().toISOString()
+    setAllSubmissions(prev => prev.map(s => (s.id === id && !s.read_at) ? { ...s, read_at: now } : s))
+    await supabase.from('form_submissions').update({ read_at: now }).eq('id', id).is('read_at', null)
+  }, [])
+
   const refreshSelectedForm = useCallback(async () => {
     if (!selected) return
     const { data } = await supabase.from('forms').select('*').eq('id', selected.id).maybeSingle()
@@ -2045,7 +1999,6 @@ function FormsTabDesktop() {
     await supabase.from('forms').update({ is_active: !form.is_active }).eq('id', form.id); load()
   }
 
-  // Task A: form-row trash button stages the form; dialog confirms.
   function requestDeleteForm(form: FormRecord) {
     setPendingDeleteForm(form)
   }
@@ -2054,16 +2007,16 @@ function FormsTabDesktop() {
     setDeletingFormBusy(true)
     await supabase.from('forms').delete().eq('id', pendingDeleteForm.id)
     if (selected?.id === pendingDeleteForm.id) setSelected(null)
+    if (editingForm?.id === pendingDeleteForm.id) { setEditingForm(null); setTitle(''); setDescription(''); setFolder(''); setFields([]) }
     setDeletingFormBusy(false)
     setPendingDeleteForm(null)
     load()
   }
 
-  // Submission delete: confirmation lives inside FormSubmissionsView
-  // (one row → one dialog). Caller just runs the supabase delete.
   async function deleteSubmission(id: string) {
     await supabase.from('form_submissions').delete().eq('id', id)
     setSubmissions(s => s.filter(x => x.id !== id))
+    setAllSubmissions(s => s.filter(x => x.id !== id))
   }
 
   function startEdit(form: FormRecord) {
@@ -2151,389 +2104,327 @@ function FormsTabDesktop() {
     { value: 'info', label: '📋 בלוק טקסט' }, { value: 'link', label: '🔗 לינק' },
   ]
 
-  return (
-    <div className="space-y-4" dir="rtl">
-      {/* README-IA PR11: two-tab split — תשובות (stream, default) / הטפסים (builder). */}
-      <div className="inline-flex items-center" style={{ background: '#F0EBE3', borderRadius: 14, padding: 3 }}>
-        {([['answers', 'תשובות'], ['builder', 'הטפסים']] as ['answers' | 'builder', string][]).map(([v, label]) => (
-          <button
-            key={v}
-            onClick={() => setFormsView(v)}
-            style={formsView === v
-              ? { background: '#FFF', color: '#4A3A28', fontWeight: 700, fontSize: 15, borderRadius: 11, boxShadow: '0 1px 2px rgba(0,0,0,.06)', padding: '8px 20px' }
-              : { color: '#7B604C', fontWeight: 600, fontSize: 15, padding: '8px 20px' }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+  // §3: the linkage line that replaces the description preview.
+  function LinkageLine({ form }: { form: FormRecord }) {
+    const link = linkage.get(form.id)
+    if (link?.kind === 'linked') {
+      return <p className="truncate" style={{ fontWeight: 600, fontSize: 12.5, color: '#A2937D' }}>מקושר · {link.title}</p>
+    }
+    if (link?.kind === 'feedback') {
+      return <p className="truncate" style={{ fontWeight: 600, fontSize: 12.5, color: '#A2937D' }}>משוב אנונימי · {link.title}</p>
+    }
+    return <p style={{ fontWeight: 800, fontSize: 12.5, color: '#8B4A30' }}>לא מקושר למוצר</p>
+  }
 
-      {formsView === 'answers' && (
-        <>
-          {/* Filter chips row */}
-          <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
-            {([['new', 'חדשות', streamNewCount], ['all', 'הכל', allSubmissions.length]] as ['new' | 'all', string, number][]).map(([v, label, n]) => (
-              <button
-                key={v}
-                onClick={() => setStreamFilter(v)}
-                className="rounded-full whitespace-nowrap transition-all"
-                style={streamFilter === v
-                  ? { background: '#F6ECD8', border: '1px solid #E7C78A', color: '#4A3A28', fontWeight: 700, fontSize: 14, padding: '9px 18px' }
-                  : { background: 'transparent', border: '1px solid #E4DAD0', color: '#A79E90', fontWeight: 600, fontSize: 14, padding: '9px 18px' }}
-              >
-                {label} <span style={{ fontWeight: 600 }}>{n}</span>
-              </button>
-            ))}
-            <span className="inline-flex items-center gap-1.5 rounded-full" style={{ border: '1px solid #E4DAD0', padding: '8px 14px', marginInlineStart: 'auto' }}>
-              <SlidersHorizontal className="flex-shrink-0" style={{ width: 15, height: 15, color: '#7B604C' }} />
-              <select
-                value={streamFormFilter}
-                onChange={e => setStreamFormFilter(e.target.value)}
-                className="bg-transparent focus:outline-none max-w-[180px]"
-                style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}
-              >
-                <option value="all">כל הטפסים</option>
-                {forms.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
-              </select>
-            </span>
+  // ── §4: drill-down — the form's responses in place, with breadcrumb ─
+  if (selected) {
+    const stat = submissionStats.get(selected.id)
+    return (
+      <div className="space-y-4" dir="rtl">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => { setSelected(null); setSubmissions([]) }}
+            className="hover:underline whitespace-nowrap"
+            style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D' }}
+            aria-label="חזרה לרשימת הטפסים"
+          >
+            שאלונים וטפסים
+          </button>
+          <span style={{ color: '#A2937D' }}>›</span>
+          <div className="min-w-0">
+            <h2 className="truncate" style={{ fontWeight: 700, fontSize: 16, color: '#3D2E20' }}>{selected.title}</h2>
+            <LinkageLine form={selected} />
+          </div>
+          <div className="flex items-center gap-2 flex-wrap" style={{ marginInlineStart: 'auto' }}>
+            <div className="inline-flex items-center" style={{ background: '#F1EBE1', borderRadius: 12, padding: 3 }}>
+              {([['list', 'פרטי'], ['aggregate', 'מצטבר']] as ['list' | 'aggregate', string][]).map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setSubsTab(v)}
+                  style={subsTab === v
+                    ? { background: '#FFF', color: '#3D2E20', fontWeight: 700, fontSize: 13.5, borderRadius: 9, boxShadow: '0 1px 2px rgba(0,0,0,.06)', padding: '6px 16px' }
+                    : { color: '#8A7A63', fontWeight: 600, fontSize: 13.5, padding: '6px 16px' }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <button
-              onClick={() => { bumpAllFormsSeen(forms.map(f => f.id)); setSeenBumpTick(t => t + 1) }}
-              className="hover:underline whitespace-nowrap"
-              style={{ fontWeight: 700, fontSize: 13, color: '#7B604C' }}
+              onClick={() => exportCSV(selected, submissions, filterQuestion)}
+              className="rounded-xl whitespace-nowrap transition-colors hover:bg-[#EDE6DA]"
+              style={{ background: '#F5F2EA', color: '#5E4938', fontWeight: 700, fontSize: 12.5, padding: '8px 14px' }}
             >
-              סמני הכל כנקרא
+              ייצוא CSV
             </button>
           </div>
-
-          {/* The stream */}
-          {streamRows.length === 0 ? (
-            <div className="bg-white text-center" style={{ border: '1px solid #E4DAD0', borderRadius: 20, padding: 40 }}>
-              <p style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>
-                {streamFilter === 'new' ? 'אין תשובות חדשות — הכל נקרא' : 'אין תשובות עדיין'}
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white" style={{ border: '1px solid #E4DAD0', borderRadius: 20, overflow: 'hidden' }}>
-              {streamRows.map(row => {
-                const expanded = expandedSubId === row.sub.id
-                const isAnon = !row.name
-                const initial = (row.name ?? row.form.title).trim().charAt(0)
-                const waHref = (() => {
-                  if (!row.phone) return null
-                  const d = row.phone.replace(/\D/g, '')
-                  const p = d.startsWith('0') ? '972' + d.slice(1) : d
-                  return p ? `https://wa.me/${p}` : null
-                })()
-                return (
-                  <div key={row.sub.id} className="border-b border-[#F0EBE3] last:border-b-0">
-                    <div
-                      className="flex items-center cursor-pointer hover:bg-[#FBF8F3] transition-colors"
-                      style={{ padding: '16px 20px', gap: 16 }}
-                      onClick={() => setExpandedSubId(prev => (prev === row.sub.id ? null : row.sub.id))}
-                    >
-                      <div className="flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44, borderRadius: 9999, background: isAnon ? '#E6E6E0' : '#E4EBEF', color: isAnon ? '#434434' : '#3E5966', fontWeight: 700, fontSize: 19 }}>
-                        {initial}
-                      </div>
-                      <div className="min-w-0" style={{ flex: 1, minWidth: 170 }}>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="truncate" style={{ fontWeight: 700, fontSize: 17, color: '#443327' }}>{row.name ?? row.form.title}</span>
-                          {row.isNew && (
-                            <span className="whitespace-nowrap" style={{ fontWeight: 700, fontSize: 12, color: '#4A3A28', background: '#F6ECD8', padding: '3px 9px', borderRadius: 9999 }}>חדש</span>
-                          )}
-                        </div>
-                        <p className="truncate" style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>
-                          {row.name ? `${row.form.title} · ` : ''}{timeAgoHebrew(row.sub.created_at)}
-                        </p>
-                      </div>
-                      <p className="truncate hidden md:block" style={{ flex: 2, minWidth: 200, fontWeight: 400, fontSize: 15, lineHeight: 1.5, color: '#5E4938' }}>
-                        {row.preview ? `"${row.preview}"` : ''}
-                      </p>
-                      <ChevronDown className={`flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} style={{ width: 18, height: 18, color: '#A79E90' }} />
-                    </div>
-                    {expanded && (
-                      <div style={{ padding: '0 20px 20px' }}>
-                        <div style={{ border: '1.5px solid #E7C78A', borderRadius: 18, overflow: 'hidden' }}>
-                          <div className="flex items-center justify-between gap-3" style={{ background: '#F6ECD8', padding: '10px 16px' }}>
-                            <span className="truncate" style={{ fontWeight: 700, fontSize: 14, color: '#6E5836' }}>
-                              {row.form.title} · {timeAgoHebrew(row.sub.created_at)}
-                            </span>
-                            {waHref && !isAnon && (
-                              <a
-                                href={waHref}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={e => e.stopPropagation()}
-                                className="inline-flex items-center gap-1.5 flex-shrink-0"
-                                style={{ fontWeight: 700, fontSize: 14, color: '#8B4A30' }}
-                              >
-                                <MessageCircle className="w-4 h-4" /> WhatsApp
-                              </a>
-                            )}
-                          </div>
-                          <RegistrationQuestionnairePanel match={{ form: { fields_json: row.form.fields_json }, sub: { responses_json: row.sub.responses_json } }} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </>
-      )}
-
-      {formsView === 'builder' && (
-      <div className="flex gap-6">
-      {/* Left: form list */}
-      <div className="flex-1 min-w-0 space-y-4">
-        <button
-          onClick={() => { setShowCreate(!showCreate); setEditingForm(null) }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold"
-          style={{ background: '#E7C78A' }}
-        >
-          <Plus className="w-4 h-4" /> טופס חדש
-        </button>
-
-        {/* Create / Edit form panel */}
-        {(showCreate || editingForm) && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-            {/* Sticky save header */}
-            <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-5 py-3 flex items-center justify-between rounded-t-2xl shadow-sm">
-              <p className="text-xs font-bold text-gray-500 truncate max-w-[200px]">
-                {editingForm ? <><Pencil className="w-4 h-4 inline-block ml-1" />{editingForm.title}</> : '➕ טופס חדש'}
-              </p>
-              <div className="flex gap-2 items-center flex-shrink-0">
-                {isDirty && <span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" title="שינויים לא שמורים" />}
-                <button
-                  onClick={saveForm}
-                  disabled={saving || !title.trim() || fields.length === 0}
-                  className="px-3 py-1.5 rounded-lg text-white text-xs font-bold disabled:opacity-50 transition-all"
-                  style={{ background: isDirty ? '#E7C78A' : '#9CA3AF' }}
-                  title="Ctrl/Cmd+S"
-                >
-                  {saving ? '...' : 'שמור'}
-                </button>
-                <button onClick={() => { setShowCreate(false); setEditingForm(null); setTitle(''); setDescription(''); setFields([]) }} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs">ביטול</button>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div className="p-5 space-y-3">
-              <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
-              <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400 resize-none leading-relaxed" />
-              <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="📁 תיקייה" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
-              {!editingForm && (
-                <div className="flex gap-2">
-                  <select value={triggerType} onChange={e => setTriggerType(e.target.value)} className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none">
-                    <option value="after_video_views">אחרי X צפיות</option>
-                    <option value="after_days">אחרי X ימים</option>
-                    <option value="manual">ידני</option>
-                  </select>
-                  <input type="number" value={triggerCount} onChange={e => setTriggerCount(e.target.value)} className="w-16 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none" min="1" />
-                </div>
-              )}
-              {/* Fields */}
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                  <div>
-                    {fields.map((field, idx) => (
-                      <SortableRow key={field.id} id={field.id}>
-                        {(dragHandle) => (
-                          <div>
-                            {/* Insert-above divider (hover to reveal) */}
-                            <button onClick={() => insertFieldAt(idx)} className="group w-full flex items-center gap-2 py-1 mb-1 opacity-30 hover:opacity-100 transition-opacity">
-                              <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
-                              <span className="text-[13px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
-                              <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
-                            </button>
-
-                            <div className="border border-gray-200 rounded-xl p-3 space-y-2 mb-0">
-                              <div className="flex gap-2 items-center">
-                                <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
-                                  {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                </select>
-                                {dragHandle}
-                                <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-gray-400 disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-gray-400 disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => removeField(field.id)} className="p-1 text-red-400"><X className="w-3.5 h-3.5" /></button>
-                              </div>
-                              {field.type !== 'link' && (
-                                <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" rows={2} className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none resize-none leading-relaxed" />
-                              )}
-                              {field.type === 'select' && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
-                              {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
-                              {!['info', 'link'].includes(field.type) && (
-                                <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
-                                  <input type="checkbox" checked={field.required ?? false} onChange={e => updateField(field.id, { required: e.target.checked })} />
-                                  חובה
-                                </label>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </SortableRow>
-                    ))}
-                    {/* Insert-after-last divider */}
-                    {fields.length > 0 && (
-                      <button onClick={() => insertFieldAt(fields.length)} className="group w-full flex items-center gap-2 py-1 my-1 opacity-30 hover:opacity-100 transition-opacity">
-                        <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
-                        <span className="text-[13px] font-bold text-gray-400 group-hover:text-yellow-600 transition-colors px-1">+ הוסף כאן</span>
-                        <div className="flex-1 h-px bg-gray-200 group-hover:bg-yellow-400 transition-colors" />
-                      </button>
-                    )}
-                    <button onClick={addField} className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-yellow-400 hover:text-yellow-600 transition-colors mt-1">
-                      + הוסף שאלה
-                    </button>
-                  </div>
-                </SortableContext>
-              </DndContext>
-              {/* Bottom save — convenience duplicate */}
-              <div className="flex gap-2 pt-1">
-                <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: '#E7C78A' }}>
-                  {saving ? '...' : 'שמור טופס'}
-                </button>
-                <button onClick={() => { setShowCreate(false); setEditingForm(null); setTitle(''); setDescription(''); setFields([]) }} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm">ביטול</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Forms table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
-                <th className="px-6 py-3">שם</th>
-                <th className="px-4 py-3">תיקייה</th>
-                <th className="px-4 py-3">תשובות</th>
-                <th className="px-4 py-3">סטטוס</th>
-                <th className="px-4 py-3">פעולות</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Polish #5: group by folder (mirrors the mobile pattern).
-                  Each folder is a clickable header row spanning all 5
-                  columns; forms beneath only render when the folder is
-                  open. ללא תיקייה bucket goes last. */}
-              {(() => {
-                const folderMap = new Map<string, FormRecord[]>()
-                forms.forEach(f => {
-                  const key = f.folder ?? ''
-                  if (!folderMap.has(key)) folderMap.set(key, [])
-                  folderMap.get(key)!.push(f)
-                })
-                const folders = Array.from(folderMap.entries()).sort(([a], [b]) => {
-                  if (a === '') return 1
-                  if (b === '') return -1
-                  return a.localeCompare(b, 'he')
-                })
-                return folders.flatMap(([folderName, folderForms]) => {
-                  const isOpen = !closedFolders.has(folderName)
-                  const rows: React.ReactNode[] = [
-                    <tr
-                      key={`__folder_${folderName || '__none__'}`}
-                      onClick={() => toggleFolder(folderName)}
-                      className="bg-gray-100 border-b border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors"
-                    >
-                      <td colSpan={5} className="px-6 py-2.5 text-xs font-bold text-gray-700">
-                        {folderName ? `📁 ${folderName}` : '📋 ללא תיקייה'}
-                        <span className="text-gray-400 font-normal mr-2">({folderForms.length})</span>
-                        <span className="text-gray-400 float-left">{isOpen ? '▼' : '◀'}</span>
-                      </td>
-                    </tr>,
-                  ]
-                  if (!isOpen) return rows
-                  folderForms.forEach(f => {
-                    const stat = submissionStats.get(f.id)
-                    rows.push(
-                <tr key={f.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors group cursor-pointer ${selected?.id === f.id ? 'bg-yellow-50' : ''}`} onClick={() => loadSubmissions(f)}>
-                  <td className="px-6 py-3">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-gray-800">{f.title}</p>
-                      {/* Polish #9: per-form unread chip. Cleared by
-                          loadSubmissions(f) which bumps the per-form
-                          seen key. */}
-                      {(newCountByFormId.get(f.id) ?? 0) > 0 && (
-                        <span className="text-[13px] px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 font-bold whitespace-nowrap">
-                          {newCountByFormId.get(f.id)} חדשים
-                        </span>
-                      )}
-                    </div>
-                    {f.description && <p className="text-xs text-gray-400 truncate max-w-xs">{f.description}</p>}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{f.folder ?? '—'}</td>
-                  <td className="px-4 py-3 text-xs">
-                    {stat && stat.count > 0 ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F6ECD8] text-[#6E5836] font-semibold">
-                        {stat.count} תשובות
-                        <span className="text-[#7B604C] font-normal">· {new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
-                      </span>
-                    ) : (
-                      <span className="text-gray-300">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button onClick={e => { e.stopPropagation(); toggleForm(f) }} className={`text-xs px-2.5 py-1 rounded-lg font-semibold ${f.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {f.is_active ? 'פעיל' : 'כבוי'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button onClick={e => { e.stopPropagation(); setAssignForm(f) }} className="px-2 py-1 rounded-lg text-xs bg-[#F6ECD8] text-[#6E5836] hover:bg-[#EFDFC2] flex-shrink-0">👥 שייך</button>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => copyFormLink(f.id)} className="px-2 py-1 rounded-lg text-xs bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600">{copiedId === f.id ? '✓' : '🔗'}</button>
-                        <button onClick={() => startEdit(f)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => requestDeleteForm(f)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-                    )
-                  })
-                  return rows
-                })
-              })()}
-            </tbody>
-          </table>
-          {forms.length === 0 && <p className="text-center text-gray-400 text-sm py-12">אין טפסים</p>}
         </div>
-      </div>
-      </div>
-      )}
 
-      {assignForm && <AssignFormModal form={assignForm} onClose={() => setAssignForm(null)} />}
-
-      {/* Polish follow-up: centered responses modal — same shell as
-          CustomerCardModal. Replaces the right-side <aside>. The forms
-          table now takes its natural width. key=form.id remounts the
-          modal on each form open so the tab state resets to "פרטי". */}
-      {selected && (
-        <FormSubmissionsModal
-          key={selected.id}
-          formTitle={selected.title}
-          count={submissions.length}
-          loading={loadingSubs}
-          listContent={
+        <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 18, padding: 18 }}>
+          {loadingSubs ? (
+            <p className="text-center py-10" style={{ fontWeight: 600, fontSize: 14, color: '#A2937D' }}>טוענת תשובות...</p>
+          ) : subsTab === 'list' ? (
             <FormSubmissionsView
               form={selected}
               submissions={submissions}
               onDeleteSubmission={deleteSubmission}
               onFormSaved={refreshSelectedForm}
-              isNewSubmission={s => s.created_at > modalSeenCutoff}
+              isNewSubmission={s => !(s as Submission & { read_at?: string | null }).read_at}
+              onSubmissionOpened={s => markSubmissionRead(s.id)}
             />
-          }
-          aggregateContent={
+          ) : (
             <FormAggregatePanel
               form={selected}
               submissions={submissions}
               filterQuestion={filterQuestion}
               setFilterQuestion={setFilterQuestion}
             />
-          }
-          onExportCsv={() => exportCSV(selected, submissions, filterQuestion)}
-          onClose={() => setSelected(null)}
+          )}
+          {!loadingSubs && stat && stat.count > 0 && subsTab === 'list' && (
+            <p className="pt-3" style={{ fontWeight: 600, fontSize: 12.5, color: '#A2937D' }}>
+              {stat.count === 1 ? 'תשובה אחת' : `${stat.count} תשובות`} · אחרונה {new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}
+            </p>
+          )}
+        </div>
+
+        {assignForm && <AssignFormModal form={assignForm} onClose={() => setAssignForm(null)} />}
+        <ConfirmDialog
+          open={!!pendingDeleteForm}
+          itemName={pendingDeleteForm?.title ?? 'הטופס'}
+          title="מחיקת טופס"
+          busy={deletingFormBusy}
+          onConfirm={performDeleteForm}
+          onClose={() => setPendingDeleteForm(null)}
         />
+      </div>
+    )
+  }
+
+  // ── The list — folders › rows, the count as the main element ──
+  return (
+    <div className="space-y-4" dir="rtl">
+      <button
+        onClick={() => { setShowCreate(!showCreate); setEditingForm(null) }}
+        className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all hover:shadow-sm"
+        style={{ background: '#C8A460', color: '#33281B', fontSize: 14 }}
+      >
+        <Plus className="w-4 h-4" /> טופס חדש
+      </button>
+
+      {/* Create / Edit form panel (the builder — logic untouched) */}
+      {(showCreate || editingForm) && (
+        <div className="bg-white rounded-2xl shadow-sm" style={{ border: '1px solid #E9E2D6' }}>
+          <div className="sticky top-0 z-10 bg-white px-5 py-3 flex items-center justify-between rounded-t-2xl shadow-sm" style={{ borderBottom: '1px solid #F1EBE1' }}>
+            <p className="text-xs font-bold truncate max-w-[240px]" style={{ color: '#8A7A63' }}>
+              {editingForm ? <><Pencil className="w-4 h-4 inline-block ml-1" />{editingForm.title}</> : 'טופס חדש'}
+            </p>
+            <div className="flex gap-2 items-center flex-shrink-0">
+              {editingForm && (
+                <button
+                  onClick={() => requestDeleteForm(editingForm)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold hover:underline"
+                  style={{ color: '#8B4A30' }}
+                >
+                  מחיקת הטופס
+                </button>
+              )}
+              {isDirty && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#C8A460' }} title="שינויים לא שמורים" />}
+              <button
+                onClick={saveForm}
+                disabled={saving || !title.trim() || fields.length === 0}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 transition-all"
+                style={{ background: isDirty ? '#C8A460' : '#F1EBE1', color: isDirty ? '#33281B' : '#8A7A63' }}
+                title="Ctrl/Cmd+S"
+              >
+                {saving ? '...' : 'שמור'}
+              </button>
+              <button onClick={() => { setShowCreate(false); setEditingForm(null); setTitle(''); setDescription(''); setFolder(''); setFields([]) }} className="px-3 py-1.5 rounded-lg text-xs" style={{ background: '#F5F2EA', color: '#5E4938' }}>ביטול</button>
+            </div>
+          </div>
+
+          <div className="p-5 space-y-3">
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" rows={3} className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 resize-none leading-relaxed" />
+            <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="📁 תיקייה" className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+            {!editingForm && (
+              <div className="flex gap-2">
+                <select value={triggerType} onChange={e => setTriggerType(e.target.value)} className="flex-1 px-3 py-2 border border-sand-200 rounded-xl text-sm bg-white focus:outline-none">
+                  <option value="after_video_views">אחרי X צפיות</option>
+                  <option value="after_days">אחרי X ימים</option>
+                  <option value="manual">ידני</option>
+                </select>
+                <input type="number" value={triggerCount} onChange={e => setTriggerCount(e.target.value)} className="w-16 px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none" min="1" />
+              </div>
+            )}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                <div>
+                  {fields.map((field, idx) => (
+                    <SortableRow key={field.id} id={field.id}>
+                      {(dragHandle) => (
+                        <div>
+                          <button onClick={() => insertFieldAt(idx)} className="group w-full flex items-center gap-2 py-1 mb-1 opacity-30 hover:opacity-100 transition-opacity">
+                            <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                            <span className="text-[13px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
+                            <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                          </button>
+
+                          <div className="border border-sand-200 rounded-xl p-3 space-y-2 mb-0">
+                            <div className="flex gap-2 items-center">
+                              <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="flex-1 px-3 py-1.5 border border-sand-200 rounded-lg text-xs bg-white focus:outline-none">
+                                {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                              </select>
+                              {dragHandle}
+                              <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-sand-400 disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-sand-400 disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => removeField(field.id)} className="p-1" style={{ color: '#8B4A30' }}><X className="w-3.5 h-3.5" /></button>
+                            </div>
+                            {field.type !== 'link' && (
+                              <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" rows={2} className="w-full px-3 py-1.5 border border-sand-200 rounded-lg text-xs focus:outline-none resize-none leading-relaxed" />
+                            )}
+                            {field.type === 'select' && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
+                            {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-sand-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
+                            {!['info', 'link'].includes(field.type) && (
+                              <label className="flex items-center gap-2 text-xs text-sand-500 cursor-pointer">
+                                <input type="checkbox" checked={field.required ?? false} onChange={e => updateField(field.id, { required: e.target.checked })} />
+                                חובה
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </SortableRow>
+                  ))}
+                  {fields.length > 0 && (
+                    <button onClick={() => insertFieldAt(fields.length)} className="group w-full flex items-center gap-2 py-1 my-1 opacity-30 hover:opacity-100 transition-opacity">
+                      <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                      <span className="text-[13px] font-bold text-sand-400 group-hover:text-mustard-600 transition-colors px-1">+ הוסף כאן</span>
+                      <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
+                    </button>
+                  )}
+                  <button onClick={addField} className="w-full py-2 border-2 border-dashed border-sand-200 rounded-xl text-xs text-sand-400 hover:border-mustard-400 hover:text-mustard-600 transition-colors mt-1">
+                    + הוסף שאלה
+                  </button>
+                </div>
+              </SortableContext>
+            </DndContext>
+            <div className="flex gap-2 pt-1">
+              <button onClick={saveForm} disabled={saving || !title.trim() || fields.length === 0} className="flex-1 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50" style={{ background: '#C8A460', color: '#33281B' }}>
+                {saving ? '...' : 'שמור טופס'}
+              </button>
+              <button onClick={() => { setShowCreate(false); setEditingForm(null); setTitle(''); setDescription(''); setFolder(''); setFields([]) }} className="px-4 py-2.5 rounded-xl text-sm" style={{ background: '#F5F2EA', color: '#5E4938' }}>ביטול</button>
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* The folder-grouped list. Row (§3):
+          [title + linkage, flex] [count button] [last, 96px] [state, 52px] [actions] */}
+      <div className="bg-white overflow-hidden" style={{ border: '1px solid #E9E2D6', borderRadius: 18 }}>
+        {(() => {
+          const folderMap = new Map<string, FormRecord[]>()
+          forms.forEach(f => {
+            const key = f.folder ?? ''
+            if (!folderMap.has(key)) folderMap.set(key, [])
+            folderMap.get(key)!.push(f)
+          })
+          const folders = Array.from(folderMap.entries())
+            .filter(([, ff]) => ff.length > 0)
+            .sort(([a], [b]) => {
+              if (a === '') return 1
+              if (b === '') return -1
+              return a.localeCompare(b, 'he')
+            })
+          return folders.map(([folderName, folderForms]) => {
+            const isOpen = !closedFolders.has(folderName)
+            return (
+              <div key={folderName || '__none__'}>
+                <button
+                  onClick={() => toggleFolder(folderName)}
+                  className="w-full flex items-baseline gap-2 text-right"
+                  style={{ background: '#FBF9F5', borderBottom: '1px solid #F1EBE1', padding: '9px 18px' }}
+                >
+                  <span style={{ fontWeight: 700, fontSize: 13, color: '#5E4938' }}>{folderName || 'ללא תיקייה'}</span>
+                  <span style={{ fontWeight: 600, fontSize: 12.5, color: '#A2937D' }}>
+                    {folderForms.length === 1 ? 'טופס אחד' : `${folderForms.length} טפסים`}
+                  </span>
+                </button>
+                {isOpen && folderForms.map(f => {
+                  const stat = submissionStats.get(f.id)
+                  const count = stat?.count ?? 0
+                  const newCount = newCountByFormId.get(f.id) ?? 0
+                  return (
+                    <div key={f.id} className="flex items-center" style={{ padding: '13px 18px', gap: 18, borderBottom: '1px solid #F4EEE4' }}>
+                      {/* Title + linkage */}
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate" style={{ fontWeight: 700, fontSize: 14.5, color: f.is_active ? '#3D2E20' : '#8A7A63' }}>{f.title}</p>
+                        <LinkageLine form={f} />
+                      </div>
+                      {/* §2: the count is the point — largest element, the click target */}
+                      <button
+                        onClick={() => count > 0 && loadSubmissions(f)}
+                        disabled={count === 0}
+                        className={`flex items-center gap-1.5 flex-shrink-0 ${count > 0 ? 'hover:underline cursor-pointer' : 'cursor-default'}`}
+                        title={count > 0 ? 'פתיחת התשובות' : undefined}
+                      >
+                        <span className="font-display" style={{ fontSize: 21, color: count > 0 ? '#443327' : '#B6A891', lineHeight: 1 }}>{count}</span>
+                        <span style={{ fontWeight: 600, fontSize: 12.5, color: '#8A7A63' }}>{count === 1 ? 'תשובה' : 'תשובות'}</span>
+                        {newCount > 0 && (
+                          <span className="whitespace-nowrap" style={{ fontWeight: 700, fontSize: 12, color: '#8B4A30', background: '#F7EBE4', padding: '3px 9px', borderRadius: 9999 }}>
+                            {newCount === 1 ? 'אחת חדשה' : `${newCount} חדשות`}
+                          </span>
+                        )}
+                      </button>
+                      {/* Last response */}
+                      <span className="flex-shrink-0 whitespace-nowrap hidden sm:block" style={{ width: 96, fontWeight: 600, fontSize: 12.5, color: '#A2937D' }}>
+                        {stat && stat.count > 0
+                          ? `אחרונה ${new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}`
+                          : 'אין תשובות'}
+                      </span>
+                      {/* State — text, not a pill */}
+                      <button
+                        onClick={() => toggleForm(f)}
+                        className="flex-shrink-0 hover:underline"
+                        style={{ width: 52, fontWeight: 700, fontSize: 12.5, color: f.is_active ? '#4F5040' : '#A2937D', textAlign: 'right' }}
+                        title={f.is_active ? 'לחיצה מכבה את הטופס' : 'לחיצה מפעילה את הטופס'}
+                      >
+                        {f.is_active ? 'פעיל' : 'כבוי'}
+                      </button>
+                      {/* Actions — always visible, never hover-gated */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={() => startEdit(f)}
+                          className="rounded-lg whitespace-nowrap transition-colors hover:bg-[#EDE6DA]"
+                          style={{ background: '#F5F2EA', color: '#5E4938', fontWeight: 700, fontSize: 12.5, padding: '6px 12px' }}
+                        >
+                          עריכה
+                        </button>
+                        <button
+                          onClick={() => copyFormLink(f.id)}
+                          className="rounded-lg whitespace-nowrap transition-colors hover:bg-[#E2E9EC]"
+                          style={{ background: '#EEF2F4', color: '#35505C', fontWeight: 700, fontSize: 12.5, padding: '6px 12px' }}
+                          title="העתקת הקישור הציבורי"
+                        >
+                          {copiedId === f.id ? '✓ הועתק' : 'קישור'}
+                        </button>
+                        <button
+                          onClick={() => setAssignForm(f)}
+                          className="rounded-lg whitespace-nowrap transition-colors hover:bg-[#EDE6DA]"
+                          style={{ background: '#F5F2EA', color: '#5E4938', fontWeight: 700, fontSize: 12.5, padding: '6px 12px' }}
+                        >
+                          שיוך
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })
+        })()}
+        {forms.length === 0 && <p className="text-center py-12" style={{ fontWeight: 600, fontSize: 14, color: '#A2937D' }}>אין טפסים</p>}
+      </div>
+
+      {assignForm && <AssignFormModal form={assignForm} onClose={() => setAssignForm(null)} />}
       <ConfirmDialog
         open={!!pendingDeleteForm}
         itemName={pendingDeleteForm?.title ?? 'הטופס'}
@@ -6352,59 +6243,6 @@ function effectiveStatus(
   const c = cohortById.get(lead.cohort_id)
   if (!c) return lead.status
   return isCohortPast(c) ? 'handled' : 'paid'
-}
-
-// ─── UX handoff: inline questionnaire panel under a registration row ─
-// Formats a raw responses_json value into display text. Arrays and
-// objects flatten to comma-joined strings; booleans become כן/לא.
-function formatAnswerValue(v: unknown): string {
-  if (v == null) return ''
-  if (Array.isArray(v)) return v.map(formatAnswerValue).filter(Boolean).join(', ')
-  if (typeof v === 'boolean') return v ? 'כן' : 'לא'
-  if (typeof v === 'object') return Object.values(v as Record<string, unknown>).map(formatAnswerValue).filter(Boolean).join(', ')
-  return String(v).trim()
-}
-
-function RegistrationQuestionnairePanel({ match }: {
-  match: {
-    form: { fields_json: { id: string; type: string; label: string }[] }
-    sub: { responses_json: Record<string, unknown> }
-  } | null
-}) {
-  const answers = match
-    ? match.form.fields_json
-        .filter(f => f.type !== 'info' && f.type !== 'link')
-        .map(f => ({ key: f.id, label: f.label, text: formatAnswerValue(match.sub.responses_json[f.label]) }))
-        .filter(a => a.text)
-    : []
-  // Structured vs open answer split by length — form field types aren't
-  // reliably distinguishable here, so >80 chars renders as an open card.
-  const short = answers.filter(a => a.text.length <= 80)
-  const long = answers.filter(a => a.text.length > 80)
-  return (
-    <div style={{ background: '#fff', padding: 20 }} onClick={e => e.stopPropagation()}>
-      <p style={{ fontWeight: 700, fontSize: 13, color: '#6E5836', marginBottom: answers.length > 0 ? 12 : 6 }}>מהשאלון</p>
-      {answers.length === 0 && (
-        <p style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>אין שאלון מקושר</p>
-      )}
-      {short.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14 }}>
-          {short.map(a => (
-            <div key={a.key}>
-              <p style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>{a.label}</p>
-              <p style={{ fontWeight: 700, fontSize: 16, color: '#443327' }}>{a.text}</p>
-            </div>
-          ))}
-        </div>
-      )}
-      {long.map(a => (
-        <div key={a.key} style={{ background: '#F5EEEF', border: '1px solid #EADBDD', borderRadius: 16, padding: '14px 16px', marginTop: 14 }}>
-          <p style={{ fontWeight: 600, fontSize: 13, color: '#85555E', marginBottom: 4 }}>{a.label}</p>
-          <p style={{ fontWeight: 400, fontSize: 16, lineHeight: 1.6, color: '#443327', whiteSpace: 'pre-wrap' }}>{a.text}</p>
-        </div>
-      ))}
-    </div>
-  )
 }
 
 function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
