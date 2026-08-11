@@ -190,6 +190,11 @@ export type Workshop = {
   // Recommended baby age window in MONTHS (decimals allowed, e.g. 3.5).
   // Powers the age-matched recommendation card on the home dashboard.
   // Both NULL = no age targeting; end NULL = open-ended.
+  // Which thank-you template this product shows after payment.
+  // NULL = auto-detect (physical → product, has cohorts → group,
+  // otherwise → private). Set explicitly for a cohort-based product
+  // that has NO dedicated WhatsApp group (מפגש אבות, בוקר של מימו).
+  thanks_template: 'group' | 'meetup' | 'private' | 'product' | null
   age_range_start_months: number | null
   age_range_end_months: number | null
 }

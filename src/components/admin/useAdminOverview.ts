@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, type Workshop, type WorkshopCohort, type CommunityEvent, type HomeAnnouncement } from '../../lib/supabase'
 import { deriveAdminTasks, applyDismissals, type AdminTask, type ManualTask, type TaskLead, type LinkedFormDef, type LinkedSubmission } from './adminTasks'
+import { deriveMegalimCandidates, type MegalimCandidatesResult, type ProfileDob } from './megalimCandidates'
 
 // One shared fetch for the admin home screen + sidebar badges — called
 // once at App level when admin mode is on, passed down so AdminHome and
@@ -28,6 +29,8 @@ export type AdminOverview = {
   manualTasks: ManualTask[]
   counters: { pendingPayment: number; monthRevenue: number; activeRegistrations: number }
   capacity: CapacityRow[]
+  /** עטופים graduates whose baby just reached the מגלים age window. */
+  megalim: MegalimCandidatesResult
   announcements: HomeAnnouncement[]
   storeProducts: Workshop[]        // active store products sorted by display_order
   upcomingEvents: CommunityEvent[]
@@ -48,6 +51,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
   const [formDefs, setFormDefs] = useState<Map<string, LinkedFormDef>>(new Map())
   const [formSubs, setFormSubs] = useState<LinkedSubmission[]>([])
   const [announcements, setAnnouncements] = useState<HomeAnnouncement[]>([])
+  const [profileDobs, setProfileDobs] = useState<ProfileDob[]>([])
   const [recentPartnerLeads, setRecentPartnerLeads] = useState(0)
   // Phase 2: manual tasks + dismissal timestamps (task_key → dismissed_at).
   const [manualTasks, setManualTasks] = useState<ManualTask[]>([])
@@ -55,7 +59,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
 
   const load = useCallback(async () => {
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-    const [ws, cs, evs, toks, lds, evRegs, anns, pls, mts, dms] = await Promise.all([
+    const [ws, cs, evs, toks, lds, evRegs, anns, pls, mts, dms, dobs] = await Promise.all([
       supabase.from('workshops').select('*').order('display_order'),
       supabase.from('workshop_cohorts').select('*').order('start_date'),
       supabase.from('community_events').select('*').order('event_date'),
@@ -66,6 +70,9 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
       supabase.from('partner_leads').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
       supabase.from('admin_tasks').select('*').eq('status', 'open').order('created_at', { ascending: false }),
       supabase.from('admin_task_dismissals').select('*'),
+      // Second source for a baby's age, behind the questionnaire: app
+      // users who filled their profile.
+      supabase.from('user_profiles').select('normalized_phone, baby_name, baby_dob').not('baby_dob', 'is', null),
     ])
     const wsList = (ws.data ?? []) as Workshop[]
     setWorkshops(wsList)
@@ -83,6 +90,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     }
     setEventRegCounts(evCount)
     setAnnouncements((anns.data ?? []) as HomeAnnouncement[])
+    setProfileDobs((dobs.data ?? []) as ProfileDob[])
     setRecentPartnerLeads(pls.count ?? 0)
     setManualTasks((mts.data ?? []) as ManualTask[])
     setDismissals(new Map(((dms.data ?? []) as { task_key: string; dismissed_at: string }[]).map(d => [d.task_key, d.dismissed_at])))
@@ -179,6 +187,22 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     return rows.sort((a, b) => a.date === b.date ? (a.time ?? '').localeCompare(b.time ?? '') : a.date.localeCompare(b.date))
   }, [cohorts, events, workshops, leadCohortIds, eventRegCounts])
 
+  // מועמדות למגלים — age-based, unlike the CRM's fixed +14d follow-up.
+  const megalim = useMemo<MegalimCandidatesResult>(() => {
+    if (loading) {
+      return { candidates: [], unknownDobCount: 0, targetTitle: null, fromMonths: 2.5, toMonths: 6 }
+    }
+    return deriveMegalimCandidates({
+      workshops,
+      cohorts,
+      leads: leads.map(l => ({ ...l, cohort_id: leadCohortIds.get(l.id) ?? null })),
+      formDefs,
+      submissions: formSubs,
+      profiles: profileDobs,
+      today: todayIsrael(),
+    })
+  }, [loading, workshops, cohorts, leads, leadCohortIds, formDefs, formSubs, profileDobs])
+
   const storeProducts = useMemo(
     () => workshops.filter(w => w.is_active && w.workshop_type != null),
     [workshops],
@@ -194,5 +218,5 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     [upcomingEvents],
   )
 
-  return { loading, tasks, manualTasks, counters, capacity, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload: load }
+  return { loading, tasks, manualTasks, counters, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload: load }
 }

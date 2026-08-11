@@ -34,8 +34,77 @@ export type CustomerRegistration = {
   selected_workshop_id: string | null
   source: string | null
   created_at: string
-  workshop: { id: string; title: string; linked_form_id: string | null } | null
+  workshop: { id: string; title: string; linked_form_id: string | null; price: number | null } | null
   cohort: WorkshopCohort | null
+  /** The offer she registered through, when there was one — the paid
+   *  amount is the product price only until a discount enters. */
+  offer: RegistrationOffer | null
+}
+
+export type RegistrationOffer = {
+  id: string
+  workshop_id: string
+  label: string | null
+  discount_type: 'fixed' | 'percent'
+  discount_value: number
+}
+
+// ─── Money ──────────────────────────────────────────────────────────
+// registration_leads stores NO amount (handoff §7.1) — what she paid is
+// derived: the product's list price, minus the offer she came through.
+// Same semantics as PublicRegisterPage.computeOfferPrice, which is what
+// she was actually charged: `fixed` IS the special price, `percent`
+// takes that share off the list price.
+
+export function offerPrice(offer: RegistrationOffer, listPrice: number | null): number | null {
+  if (offer.discount_type === 'fixed') return offer.discount_value
+  if (offer.discount_type === 'percent' && listPrice != null) {
+    return Math.round(listPrice * (1 - offer.discount_value / 100))
+  }
+  return null
+}
+
+/** What this one registration is worth. null = no product / no price. */
+export function registrationAmount(reg: {
+  workshop: { id: string; price: number | null } | null
+  offer: RegistrationOffer | null
+}): number | null {
+  const list = reg.workshop?.price ?? null
+  // An offer only applies to the product it belongs to — the admin may
+  // have since switched the registration to a different workshop.
+  if (reg.offer && reg.workshop && reg.offer.workshop_id === reg.workshop.id) {
+    const discounted = offerPrice(reg.offer, list)
+    if (discounted != null) return discounted
+  }
+  return list
+}
+
+/** Lifetime value split by whether the money actually arrived.
+ *  מומש (handled) counts as paid — it's a workshop she already used. */
+export function customerTotals(registrations: CustomerRegistration[]): {
+  paid: number
+  pending: number
+  /** Registrations we couldn't price (no product, or product with no price). */
+  unpricedPaid: number
+} {
+  let paid = 0
+  let pending = 0
+  let unpricedPaid = 0
+  for (const r of registrations) {
+    const amount = registrationAmount(r)
+    const counted = r.status === 'paid' || r.status === 'handled'
+    if (amount == null) {
+      if (counted) unpricedPaid++
+      continue
+    }
+    if (counted) paid += amount
+    else pending += amount
+  }
+  return { paid, pending, unpricedPaid }
+}
+
+export function formatIls(n: number): string {
+  return `₪${n.toLocaleString('he-IL')}`
 }
 
 export type CustomerFormSubmission = {
@@ -133,14 +202,15 @@ export async function lookupCustomer(key: CustomerKey): Promise<LookupResult> {
     supabase.from('user_profiles').select('*').or(orQuery),
     supabase
       .from('registration_leads')
-      .select('*, workshops:selected_workshop_id(id, title, linked_form_id)')
+      .select('*, workshops:selected_workshop_id(id, title, linked_form_id, price)')
       .or(orQuery),
   ])
 
   type ProfileRow = UserProfile & { normalized_phone: string | null }
   type LeadRow = CustomerRegistration & {
     normalized_phone: string | null
-    workshops?: { id: string; title: string; linked_form_id: string | null } | null
+    offer_id: string | null
+    workshops?: { id: string; title: string; linked_form_id: string | null; price: number | null } | null
   }
 
   const profileRows = (profiles ?? []) as ProfileRow[]
@@ -214,7 +284,8 @@ function clusterToCandidate(c: { profiles: UserProfile[]; leads: CustomerRegistr
 async function assembleProfile(cluster: {
   profiles: UserProfile[]
   leads: (CustomerRegistration & {
-    workshops?: { id: string; title: string; linked_form_id: string | null } | null
+    offer_id?: string | null
+    workshops?: { id: string; title: string; linked_form_id: string | null; price: number | null } | null
   })[]
   normalizedPhone: string | null
   email: string | null
@@ -249,6 +320,20 @@ async function assembleProfile(cluster: {
     cohortMap = new Map(((cohorts ?? []) as WorkshopCohort[]).map(c => [c.id, c]))
   }
 
+  // The offers behind these registrations — what she was actually
+  // charged, not the sticker price.
+  const offerIds = Array.from(
+    new Set(sortedLeads.map(l => l.offer_id).filter((x): x is string => !!x)),
+  )
+  let offerMap = new Map<string, RegistrationOffer>()
+  if (offerIds.length > 0) {
+    const { data: offers } = await supabase
+      .from('workshop_offers')
+      .select('id, workshop_id, label, discount_type, discount_value')
+      .in('id', offerIds)
+    offerMap = new Map(((offers ?? []) as RegistrationOffer[]).map(o => [o.id, o]))
+  }
+
   const registrations: CustomerRegistration[] = sortedLeads.map(l => ({
     id: l.id,
     name: l.name,
@@ -261,6 +346,7 @@ async function assembleProfile(cluster: {
     created_at: l.created_at,
     workshop: l.workshops ?? null,
     cohort: l.cohort_id ? cohortMap.get(l.cohort_id) ?? null : null,
+    offer: l.offer_id ? offerMap.get(l.offer_id) ?? null : null,
   }))
 
   // Form submissions: gather the unique linked_form_ids she might

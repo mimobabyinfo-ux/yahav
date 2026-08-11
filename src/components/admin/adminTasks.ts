@@ -40,6 +40,7 @@ export type TaskLead = {
   status: 'pending' | 'paid' | 'handled'
   created_at: string
   selected_workshop_id: string | null
+  cohort_id: string | null
 }
 
 export type LinkedFormDef = {
@@ -57,7 +58,7 @@ export type LinkedSubmission = {
 
 export type AdminTaskInput = {
   workshops: Workshop[]
-  cohorts: Pick<WorkshopCohort, 'id' | 'workshop_id' | 'is_active'>[]
+  cohorts: Pick<WorkshopCohort, 'id' | 'workshop_id' | 'is_active' | 'start_date' | 'start_time'>[]
   events: Pick<CommunityEvent, 'id' | 'title' | 'event_date' | 'is_active' | 'price' | 'payment_link' | 'vendor_id' | 'vendor_name' | 'updated_at'>[]
   checkinEventIds: Set<string>
   leads: TaskLead[]
@@ -78,6 +79,39 @@ function addDays(iso: string, days: number): string {
 function ddmm(iso: string): string {
   const [, m, d] = iso.split('-')
   return `${d}/${m}`
+}
+
+/** Has this cohort's first meeting already happened? Mirrors
+ *  RegistrationsTab.isCohortPast — same-day counts as past only once
+ *  start_time has passed (NULL time = not yet). */
+export function cohortStarted(
+  c: { start_date: string; start_time: string | null },
+  today: string,
+  nowMs: number,
+): boolean {
+  if (c.start_date < today) return true
+  if (c.start_date > today) return false
+  if (!c.start_time) return false
+  const nowHm = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(new Date(nowMs))
+  return nowHm >= c.start_time.slice(0, 5)
+}
+
+/** The status the ADMIN sees. A paid registration whose cohort has
+ *  already started reads as מומש — the workshop happened. This is the
+ *  same derivation RegistrationsTab uses; both screens must agree or
+ *  the home count and the page count drift apart. */
+export function effectiveLeadStatus(
+  lead: TaskLead,
+  cohortById: Map<string, { start_date: string; start_time: string | null }>,
+  today: string,
+  nowMs: number,
+): 'pending' | 'paid' | 'handled' {
+  if (lead.status !== 'paid' || !lead.cohort_id) return lead.status
+  const c = cohortById.get(lead.cohort_id)
+  if (!c) return lead.status
+  return cohortStarted(c, today, nowMs) ? 'handled' : 'paid'
 }
 
 // Same identity resolution the RegistrationsTab gap report uses
@@ -155,10 +189,17 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
   }
 
   // 4 · Opening questionnaire not filled — one line per linked form.
+  //
+  // Counted over EFFECTIVE status, exactly like the registrations
+  // page's "מחכה לך" inbox: only a paid registration whose cohort
+  // hasn't started yet is still worth chasing. Before this, the home
+  // screen counted by raw status and showed 9 where the page showed 7
+  // — the two extra had already sat through the workshop.
+  const cohortDates = new Map(cohorts.map(c => [c.id, c]))
   const filledIndex = buildFilledIndex(linkedFormDefs, linkedSubmissions)
-  const unfilledByForm = new Map<string, { title: string; count: number; latest: string | null }>()
+  const unfilledByForm = new Map<string, { title: string; count: number; latest: string | null; leadIds: string[] }>()
   for (const lead of leads) {
-    if (lead.status === 'handled') continue
+    if (effectiveLeadStatus(lead, cohortDates, today, nowMs) !== 'paid') continue
     const w = lead.selected_workshop_id ? workshops.find(x => x.id === lead.selected_workshop_id) : null
     if (!w?.linked_form_id) continue
     const form = linkedFormDefs.get(w.linked_form_id)
@@ -168,8 +209,9 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
     const isFilled = (!!phone && filledIndex.has(`${form.id}|p|${phone}`))
       || (!!emailL && filledIndex.has(`${form.id}|e|${emailL}`))
     if (!isFilled) {
-      const cur = unfilledByForm.get(form.id) ?? { title: form.title, count: 0, latest: null as string | null }
+      const cur = unfilledByForm.get(form.id) ?? { title: form.title, count: 0, latest: null as string | null, leadIds: [] as string[] }
       cur.count += 1
+      cur.leadIds.push(lead.id)
       if (cur.latest == null || lead.created_at > cur.latest) cur.latest = lead.created_at
       unfilledByForm.set(form.id, cur)
     }
@@ -180,10 +222,13 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
       title: `${info.count} לא מילאו את "${info.title}"`,
       facts: ['שאלון פתיחה'],
       severity: 'mid',
-      section: 'forms',
-      actionLabel: 'לשאלון',
+      // The answer to "who are they?" is the registrations list, not
+      // the form itself — the form has nothing to act on.
+      section: 'registrations',
+      actionLabel: 'להרשמות',
       sourceUpdatedAt: info.latest,
       targetId: formId,
+      targetLeadIds: info.leadIds,
     })
   }
 
