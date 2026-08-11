@@ -14,7 +14,7 @@ import DailyTipCard from '../components/dashboard/DailyTipCard'
 import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard'
 import RecommendedWorkshopCard from '../components/dashboard/RecommendedWorkshopCard'
 import HomeAnnouncementsBanner from '../components/dashboard/HomeAnnouncementsBanner'
-import MimoDuck from '../components/MimoDuck'
+import MimoLeaf from '../components/MimoLeaf'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import type { Page } from '../App'
 
@@ -200,7 +200,7 @@ export default function DashboardPage({ onNavigate }: Props) {
 
           {/* Reassurance strip */}
           <div className="flex items-center" style={{ background: '#2B2823', borderRadius: 22, padding: '16px 18px', gap: 14 }}>
-            <MimoDuck variant="chick" size={40} className="flex-shrink-0" style={{ opacity: 0.85 }} />
+            <MimoLeaf variant="sky-1" size={38} rotate={12} className="flex-shrink-0" />
             <p style={{ fontSize: 15, lineHeight: 1.55, color: '#A8A088' }}>
               גם באמצע הלילה — את לא לבד. רישום קצר וחזרה לישון 🤍
             </p>

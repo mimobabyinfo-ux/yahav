@@ -8,7 +8,7 @@ import LogEntryModal from '../components/LogEntryModal'
 import ChildSwitcher from '../components/ChildSwitcher'
 import ShareBabyModal from '../components/ShareBabyModal'
 import ActivityTimers from '../components/ActivityTimers'
-import MimoDuck from '../components/MimoDuck'
+import MimoLeaf from '../components/MimoLeaf'
 import JournalTabs, { JournalTab } from '../components/journal/JournalTabs'
 import DayView from '../components/journal/DayView'
 import WeekView from '../components/journal/WeekView'
@@ -187,7 +187,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   return (
     <div className="min-h-screen p-4 pb-28 relative" dir="rtl">
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
-        <MimoDuck size={300} withDuckling={false} className="opacity-[0.06]" />
+        <MimoLeaf variant="sand-1" size={300} rotate={-18} className="opacity-[0.08]" />
       </div>
 
       <div className="relative z-10 max-w-sm mx-auto space-y-4">

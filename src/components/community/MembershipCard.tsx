@@ -2,7 +2,7 @@
 import { X, Ticket, Gift } from 'lucide-react'
 import { supabase, type PartnerPerk } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import MimoDuck from '../MimoDuck'
+import MimoLeaf from '../MimoLeaf'
 
 // Digital membership card — shown by a mom at partner businesses to
 // claim community perks, and as an entry ticket at limited-capacity
@@ -74,7 +74,7 @@ export default function MembershipCard({ onClose, event }: Props) {
                   <p className="font-semibold mt-1" style={{ fontSize: 13, color: '#8A6A2F' }}>חברה מאז {memberSince}</p>
                 )}
               </div>
-              <MimoDuck variant="mama" size={64} className="duck-bob flex-shrink-0" />
+              <MimoLeaf variant="sand-1" size={56} rotate={-12} className="flex-shrink-0" />
             </div>
 
             {event ? (

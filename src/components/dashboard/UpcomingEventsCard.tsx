@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { supabase, type CommunityEventRow } from '../../lib/supabase'
 import type { Page } from '../../App'
-import MimoDuck from '../MimoDuck'
+import MimoLeaf from '../MimoLeaf'
 
 // Community card for the home dashboard. Tier-2 content card: white
 // surface, soft single-elevation shadow, date blocks instead of emoji
@@ -39,7 +39,7 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
     <div className="bg-white" style={{ borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
       {/* Header */}
       <div className="flex items-center" style={{ gap: 12 }}>
-        <MimoDuck variant="mama" size={54} className="duck-bob flex-shrink-0" />
+        <MimoLeaf variant="sand-1" size={48} rotate={-12} className="flex-shrink-0" />
         <div className="min-w-0">
           <h2 className="font-display" style={{ fontSize: 24, lineHeight: 1.05, fontWeight: 400, color: '#5E4938' }}>הקהילה של מימו</h2>
           <p className="font-semibold mt-1" style={{ fontSize: 13, color: '#957860' }}>{subtitle}</p>
@@ -55,7 +55,7 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
           </>
         ) : events.length === 0 ? (
           <div className="flex items-center gap-3 rounded-2xl p-4" style={{ background: '#FAF7F1' }}>
-            <MimoDuck variant="chick" size={40} className="flex-shrink-0" />
+            <MimoLeaf variant="sky-1" size={38} rotate={10} className="flex-shrink-0" />
             <div>
               <p className="font-semibold" style={{ fontSize: 15, color: '#443327' }}>לוח האירועים הבא בדרך</p>
               <p style={{ fontSize: 13, color: '#957860' }}>יוגה, הרצאות, קפה ביחד ועוד — ממש בקרוב</p>

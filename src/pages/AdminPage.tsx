@@ -24,7 +24,7 @@ import EventsAdminPanel from '../components/admin/EventsAdminPanel'
 import HomeAnnouncementsPanel from '../components/admin/HomeAnnouncementsPanel'
 import CategoryManagerModal from '../components/admin/CategoryManagerModal'
 import { useWorkshopCategories } from '../hooks/useWorkshopCategories'
-import MimoDuck from '../components/MimoDuck'
+import MimoLeaf from '../components/MimoLeaf'
 import AdminHome from '../components/admin/AdminHome'
 import ProductPage from '../components/admin/ProductPage'
 import type { AdminOverview } from '../components/admin/useAdminOverview'
@@ -6829,7 +6829,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
           {inboxGroups.total === 0 ? (
             <>
               <div className="bg-white flex flex-col items-center text-center" style={{ border: '1px solid #E4DAD0', borderRadius: 20, padding: 40 }}>
-                <MimoDuck variant="chick" size={64} />
+                <MimoLeaf variant="sand-2" size={64} rotate={-8} />
                 <p className="font-display" style={{ fontSize: 26, color: '#5E4938', marginTop: 10 }}>הכל מטופל</p>
                 <p style={{ fontWeight: 400, fontSize: 16, color: '#7B604C', marginTop: 4 }}>אין הרשמות שמחכות לך הבוקר</p>
               </div>
@@ -6975,7 +6975,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
       {/* ── Screen A / A5: one global empty state ── */}
       {!pickerMode && filtered.length === 0 && (
         <div className="bg-white rounded-2xl shadow-sm flex flex-col items-center text-center" style={{ padding: 40 }}>
-          <MimoDuck variant="chick" size={64} />
+          <MimoLeaf variant="sand-2" size={64} rotate={-8} />
           <p className="font-display" style={{ fontSize: 24, color: '#5E4938', marginTop: 10 }}>
             {leads.length === 0 ? 'אין הרשמות עדיין' : 'אין נרשמות שתואמות לסינון'}
           </p>

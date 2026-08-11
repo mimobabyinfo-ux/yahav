@@ -3,7 +3,7 @@ import { MapPin, Clock, Users, ExternalLink, Check, X, CalendarHeart, CalendarDa
 import { supabase, type CommunityEventRow, type EventAttendee, type MyWaitlist } from '../../lib/supabase'
 import { getBabyAge } from '../../utils/dateUtils'
 import CommunityMemberSheet from './CommunityMemberSheet'
-import MimoDuck from '../MimoDuck'
+import { MimoLeafPair } from '../MimoLeaf'
 import MembershipCard from './MembershipCard'
 
 // "הקהילה של מימו" — user-facing community events. Two views:
@@ -334,7 +334,7 @@ export default function EventsTab() {
   if (events.length === 0) {
     return (
       <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-3 animate-rise">
-        <div className="flex justify-center"><MimoDuck size={110} className="duck-bob" /></div>
+        <div className="flex justify-center"><MimoLeafPair size={72} /></div>
         <p className="font-semibold text-sand-700 text-sm">אירועי הקהילה הבאים בדרך 🎉</p>
         <p className="text-xs text-sand-600">ברגע שנפרסם את לוח האירועים החודשי — הוא יופיע כאן</p>
       </div>

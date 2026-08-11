@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { BarChart2, Users, LogOut, Eye, Video, Lightbulb, Gift, Settings, ClipboardList, FileText, Sparkles, Link2, GraduationCap, Phone, MapPin, Home, ChevronDown } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import MimoDuck from './MimoDuck'
+import MimoLeaf from './MimoLeaf'
 import type { AdminSection } from '../App'
 
 type Props = {
@@ -102,7 +102,7 @@ export default function AdminSidebar({ section, onSection, viewAsUser, onToggleU
       {/* Logo */}
       <div className="px-5 py-5 border-b" style={{ borderColor: '#45423636' }}>
         <div className="flex items-center gap-3">
-          <MimoDuck variant="mama" size={34} className="flex-shrink-0" />
+          <MimoLeaf variant="sand-1" size={30} rotate={-12} className="flex-shrink-0" />
           <div>
             <p className="font-display leading-tight" style={{ fontSize: 20, color: '#EFE8DC' }}>מימו</p>
             <p className="leading-tight font-semibold" style={{ fontSize: 12, color: '#A8A088' }}>ניהול</p>

@@ -4,7 +4,7 @@ import type { DailyLogEntryWithDetails } from '../../lib/supabase'
 import { formatDate, formatDisplayDate } from '../../utils/dateUtils'
 import { hebrewDateHeader } from '../../utils/hebrewDate'
 import HorizontalCalendar from '../HorizontalCalendar'
-import MimoDuck from '../MimoDuck'
+import MimoLeaf from '../MimoLeaf'
 import DailySummary from '../DailySummary'
 import DailyTimeline from '../DailyTimeline'
 import DayTimelineChart from './DayTimelineChart'
@@ -201,7 +201,7 @@ export default function DayView({
 
           {todayEntries.length === 0 ? (
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-[#F0EAE0] text-center space-y-2">
-              <MimoDuck variant="chick" size={64} className="mx-auto duck-bob" />
+              <MimoLeaf variant="sand-2" size={64} rotate={-8} className="mx-auto" />
               <p className="text-sm text-sand-500">{isToday ? 'עוד לא נרשמו פעולות היום' : `אין רשומות מ${formatDisplayDate(selectedDate)}`}</p>
             </div>
           ) : (

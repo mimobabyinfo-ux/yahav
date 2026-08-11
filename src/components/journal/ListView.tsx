@@ -4,7 +4,7 @@ import type { DailyLogEntryWithDetails } from '../../lib/supabase'
 import { formatDate } from '../../utils/dateUtils'
 import { hebrewDateHeader } from '../../utils/hebrewDate'
 import DailyTimeline from '../DailyTimeline'
-import MimoDuck from '../MimoDuck'
+import MimoLeaf from '../MimoLeaf'
 
 // Phase 3 / C5: ListView — chronological list of the selected week's
 // entries, date-grouped, with filter chips (by entry_type) and a
@@ -153,7 +153,7 @@ export default function ListView({
         </div>
       ) : groups.length === 0 ? (
         <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] p-8 text-center space-y-2">
-          <MimoDuck variant="chick" size={56} className="mx-auto duck-bob" />
+          <MimoLeaf variant="sand-2" size={60} rotate={-8} className="mx-auto" />
           <p className="text-sm text-sand-500">
             {filter === 'all' ? 'אין רשומות בשבוע זה' : 'אין רשומות מסוג זה השבוע'}
           </p>

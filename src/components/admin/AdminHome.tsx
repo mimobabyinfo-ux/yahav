@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { AdminOverview } from './useAdminOverview'
 import type { AdminTask, AdminTaskSection } from './adminTasks'
-import MimoDuck from '../MimoDuck'
+import MimoLeaf from '../MimoLeaf'
 
 // Admin home ("בית") — answers "what needs me today" (design handoff §3).
 // Three blocks: greeting strip with counters, the derived task list
@@ -161,7 +161,7 @@ export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
           {/* Greeting strip */}
           <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
             <div className="flex items-center gap-3">
-              <MimoDuck variant="mama" size={44} className="flex-shrink-0" />
+              <MimoLeaf variant="sand-1" size={40} rotate={-12} className="flex-shrink-0" />
               <div className="min-w-0">
                 <h1 className="font-display" style={{ fontSize: 22, color: '#443327' }}>
                   {greetingByHour()} {firstName}
