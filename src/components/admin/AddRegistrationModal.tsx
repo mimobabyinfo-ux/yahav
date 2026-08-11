@@ -134,7 +134,7 @@ export default function AddRegistrationModal({ mode, prefill, onClose, onSaved }
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
           {mode === 'existing-mother' && (
             <p className="text-xs text-sand-500 bg-sand-50 border border-sand-200 rounded-2xl px-3 py-2 leading-relaxed">
-              אם הטלפון השתנה — עדכני כאן.
+              אם הטלפון השתנה, עדכני כאן.
             </p>
           )}
 
@@ -175,7 +175,7 @@ export default function AddRegistrationModal({ mode, prefill, onClose, onSaved }
               onChange={e => { setWorkshopId(e.target.value); setCohortId('') }}
               className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
             >
-              <option value="">— בחרי סדנה —</option>
+              <option value="">בחרי סדנה</option>
               {workshops.map(w => (
                 <option key={w.id} value={w.id}>{w.title}</option>
               ))}

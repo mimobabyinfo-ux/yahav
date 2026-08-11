@@ -79,7 +79,7 @@ export default function EventRemindersCard() {
       <div className="flex items-start gap-2 rounded-2xl px-4 py-3" style={{ background: '#F5F1EB' }}>
         <BellOff className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#8A7A63' }} />
         <p style={{ fontSize: 12.5, color: '#7B604C', lineHeight: 1.6 }}>
-          התראות חסומות עבור מימו בדפדפן. אפשר להחזיר אותן בהגדרות האתר{isIos() ? '' : ' (האייקון ליד כתובת האתר)'} — או פשוט להוסיף כל מפגש ליומן.
+          התראות חסומות עבור מימו בדפדפן. אפשר להחזיר אותן בהגדרות האתר{isIos() ? '' : ' (האייקון ליד כתובת האתר)'}, או פשוט להוסיף כל מפגש ליומן.
         </p>
       </div>
     )

@@ -421,7 +421,7 @@ function FieldRolesPanel({
               <option value="name">שם</option>
               <option value="phone">טלפון</option>
               <option value="email">אימייל</option>
-              <option value="none">— לא לזהות</option>
+              <option value="none">לא לזהות</option>
             </select>
           </div>
         ))}

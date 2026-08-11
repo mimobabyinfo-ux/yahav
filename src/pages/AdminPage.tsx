@@ -761,7 +761,7 @@ function UsersTabDesktop() {
                   <td className="px-4 py-3"><LeadBadge status={u.lead_status} /></td>
                   <td className="px-4 py-3 text-sm text-gray-600 text-center">{u.childCount || '—'}</td>
                   <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
-                    {u.created_at ? new Date(u.created_at).toLocaleDateString('he-IL') : '—'}
+                    {u.created_at ? new Date(u.created_at).toLocaleDateString('he-IL') : 'ללא'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1036,7 +1036,7 @@ function LeadsTabDesktop() {
                       </select>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
-                      {u.created_at ? new Date(u.created_at).toLocaleDateString('he-IL') : '—'}
+                      {u.created_at ? new Date(u.created_at).toLocaleDateString('he-IL') : 'ללא'}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1065,7 +1065,7 @@ function LeadsTabDesktop() {
               <p className="text-xs text-gray-500">{drawer.email}</p>
               <LeadBadge status={drawer.lead_status} />
               {drawer.staff_notes && <div className="bg-gray-50 rounded-xl p-3"><p className="text-xs text-gray-600">{drawer.staff_notes}</p></div>}
-              <p className="text-xs text-gray-400">הצטרפה: {drawer.created_at ? new Date(drawer.created_at).toLocaleDateString('he-IL') : '—'}</p>
+              <p className="text-xs text-gray-400">הצטרפה: {drawer.created_at ? new Date(drawer.created_at).toLocaleDateString('he-IL') : 'ללא'}</p>
             </aside>
           )}
         </div>
@@ -1262,7 +1262,7 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
               <AlertCircle style={{ width: 19, height: 19, color: '#8B4A30' }} />
             </div>
             <p style={{ fontWeight: 600, fontSize: 15, color: '#713924' }}>
-              למוצר "{missingPaymentLink[0].title}" (₪{missingPaymentLink[0].price}) אין קישור תשלום — לא ניתן לשלם עליו.
+              למוצר "{missingPaymentLink[0].title}" (₪{missingPaymentLink[0].price}) אין קישור תשלום, ולא ניתן לשלם עליו.
               {missingPaymentLink.length > 1 ? ` ועוד ${missingPaymentLink.length - 1} מוצרים נוספים ללא קישור.` : ''}
             </p>
           </div>
@@ -1335,14 +1335,14 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
                                 title="פתיחת עמוד המוצר להוספת קישור תשלום"
                               >
                                 <span style={{ width: 9, height: 9, borderRadius: 9999, background: '#A35C3D', display: 'inline-block' }} />
-                                <span style={{ color: '#8B4A30', fontWeight: 700, fontSize: 14 }}>חסר — הוספה</span>
+                                <span style={{ color: '#8B4A30', fontWeight: 700, fontSize: 14 }}>חסר, להוספה</span>
                               </button>
                             )}
                             {(offersByWorkshop[w.id]?.length ?? 0) > 0 && (
                               <button
                                 onClick={() => onOpenProduct?.(w.id)}
                                 className="mt-1 block text-right hover:underline"
-                                title={`לינקים מוזלים: ${offersByWorkshop[w.id].join(', ')} — לחיצה פותחת את עמוד המוצר`}
+                                title={`לינקים מוזלים: ${offersByWorkshop[w.id].join(', ')}. לחיצה פותחת את עמוד המוצר`}
                               >
                                 <span className="inline-flex items-center rounded-full" style={{ background: '#E4EBEF', color: '#3E5966', fontWeight: 700, fontSize: 12, padding: '3px 10px', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {offersByWorkshop[w.id].length === 1
@@ -1424,7 +1424,7 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
           {/* Age targeting — drives the age-matched recommendation on the
               user home screen. Months, decimals allowed (e.g. 3.5). */}
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">טווח גיל מומלץ (חודשים) — להמלצה אוטומטית בדף הבית לפי גיל התינוק</label>
+            <label className="text-xs text-gray-500 mb-1 block">טווח גיל מומלץ (חודשים), להמלצה אוטומטית בדף הבית לפי גיל התינוק</label>
             <div className="grid grid-cols-2 gap-2">
               <input value={form.age_from} onChange={e => setForm(f => ({ ...f, age_from: e.target.value }))} placeholder="מגיל (למשל 3)" type="number" step="0.5" min="0" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
               <input value={form.age_to} onChange={e => setForm(f => ({ ...f, age_to: e.target.value }))} placeholder="עד גיל (למשל 6)" type="number" step="0.5" min="0" className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
@@ -1455,7 +1455,7 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
           <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} placeholder="קישור סרטון (URL)" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" dir="ltr" />
           <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} placeholder="WhatsApp" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" dir="ltr" />
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">קטגוריה — מוצרים בחנות <span className="text-[#7B604C]">(ללא קטגוריה = סדנה דיגיטלית בלבד)</span></label>
+            <label className="text-xs text-gray-500 mb-1 block">קטגוריה של מוצרים בחנות <span className="text-[#7B604C]">(ללא קטגוריה = סדנה דיגיטלית בלבד)</span></label>
             <select value={form.workshop_type} onChange={e => setForm(f => ({ ...f, workshop_type: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white">
               <option value="">סדנה דיגיטלית (לא מוצגת בחנות)</option>
               {form.workshop_type && !categories.some(c => c.name === form.workshop_type) && (
@@ -2760,7 +2760,7 @@ function FunnelBlock({ funnel }: { funnel: FunnelRow }) {
             dropText = lossPct === 0 ? 'ללא נשירה' : `‎-${lossPct}%`
             if (lossPct >= 50) dropColor = '#8B4A30'
           } else if (prev != null && s.value > prev) {
-            dropText = 'מעל הצעד הקודם — מדידת החנות התחילה מאוחר'
+            dropText = 'מעל הצעד הקודם. מדידת החנות התחילה מאוחר'
           }
           return (
             <div key={s.key} className="flex items-center gap-3">
@@ -3803,14 +3803,14 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
           {/* Age targeting — drives the age-matched recommendation on the
               user home screen. Months, decimals allowed (e.g. 3.5). */}
           <div>
-            <label className="text-xs text-sand-500 mb-1 block">טווח גיל מומלץ (חודשים) — להמלצה בדף הבית לפי גיל התינוק</label>
+            <label className="text-xs text-sand-500 mb-1 block">טווח גיל מומלץ (חודשים), להמלצה בדף הבית לפי גיל התינוק</label>
             <div className="flex gap-2">
               <input value={form.age_from} onChange={e => setForm(f => ({ ...f, age_from: e.target.value }))} placeholder="מגיל (למשל 3)" type="number" step="0.5" min="0" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
               <input value={form.age_to} onChange={e => setForm(f => ({ ...f, age_to: e.target.value }))} placeholder="עד גיל (למשל 6)" type="number" step="0.5" min="0" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
             </div>
           </div>
           <div>
-            <label className="text-xs text-sand-500 mb-1 block">קטגוריה — מוצרים בחנות <span className="text-mustard-600">(ללא = סדנה דיגיטלית בלבד)</span></label>
+            <label className="text-xs text-sand-500 mb-1 block">קטגוריה של מוצרים בחנות <span className="text-mustard-600">(ללא = סדנה דיגיטלית בלבד)</span></label>
             <select value={form.workshop_type} onChange={e => setForm(f => ({ ...f, workshop_type: e.target.value }))} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm bg-white">
               <option value="">סדנה דיגיטלית (לא מוצגת בחנות)</option>
               {form.workshop_type && !categories.some(c => c.name === form.workshop_type) && (
@@ -3922,7 +3922,7 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
                     <button
                       onClick={() => setCohortsWorkshop(w)}
                       className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-                      title="ניהול מחזורים — תאריכי התחלה למוצר הזה"
+                      title="ניהול מחזורים, תאריכי התחלה למוצר הזה"
                     >
                       📅 מחזורים
                     </button>
@@ -5020,11 +5020,11 @@ function OwnerSettingsSection() {
 type ThanksKind = 'group' | 'meetup' | 'private' | 'product' | 'simple'
 
 const THANKS_KINDS: { key: ThanksKind; label: string; hint: string; titleKey: string; bodyKey: string }[] = [
-  { key: 'group',   label: 'סדנה קבוצתית', hint: 'סדנה עם מחזורים שיש לה קבוצת ווטסאפ — עטופים, מגלים, עיסוי', titleKey: 'thank_you_title',         bodyKey: 'thank_you_body' },
-  { key: 'meetup',  label: 'מפגש חד-פעמי', hint: 'מפגש בלי קבוצה ייעודית — מפגש אבות, בוקר של מימו',           titleKey: 'thank_you_title_meetup',  bodyKey: 'thank_you_body_meetup' },
-  { key: 'private', label: 'פרטני',        hint: 'מוצר בלי מחזורים — ליווי פרטני, תהליך ליווי',                titleKey: 'thank_you_title_private', bodyKey: 'thank_you_body_private' },
-  { key: 'product', label: 'מוצר משלים',   hint: 'מוצר פיזי לאיסוף — פוף, רעשן, תיק חיתולים',                  titleKey: 'thank_you_title_product', bodyKey: 'thank_you_body_product' },
-  { key: 'simple',  label: 'תודה פשוטה',   hint: 'כל השאר — דמי רצינות לאירוע קהילה וכדומה. בלי קישור לקהילה.',  titleKey: 'thank_you_title_simple',  bodyKey: 'thank_you_body_simple' },
+  { key: 'group',   label: 'סדנה קבוצתית', hint: 'סדנה עם מחזורים שיש לה קבוצת ווטסאפ: עטופים, מגלים, עיסוי', titleKey: 'thank_you_title',         bodyKey: 'thank_you_body' },
+  { key: 'meetup',  label: 'מפגש חד-פעמי', hint: 'מפגש בלי קבוצה ייעודית: מפגש אבות, בוקר של מימו',           titleKey: 'thank_you_title_meetup',  bodyKey: 'thank_you_body_meetup' },
+  { key: 'private', label: 'פרטני',        hint: 'מוצר בלי מחזורים: ליווי פרטני, תהליך ליווי',                titleKey: 'thank_you_title_private', bodyKey: 'thank_you_body_private' },
+  { key: 'product', label: 'מוצר משלים',   hint: 'מוצר פיזי לאיסוף: פוף, רעשן, תיק חיתולים',                  titleKey: 'thank_you_title_product', bodyKey: 'thank_you_body_product' },
+  { key: 'simple',  label: 'תודה פשוטה',   hint: 'כל השאר: דמי רצינות לאירוע קהילה וכדומה. בלי קישור לקהילה.',  titleKey: 'thank_you_title_simple',  bodyKey: 'thank_you_body_simple' },
 ]
 
 function ThankYouSettingsSection() {
@@ -5051,11 +5051,11 @@ function ThankYouSettingsSection() {
         m.thank_you_title_meetup = m.thank_you_title_meetup || 'נרשמת, מחכה לך 🐣'
         m.thank_you_body_meetup = m.thank_you_body_meetup || `כל הפרטים לקראת המפגש יישלחו אלייך בוואטסאפ.\nאני כאן לכל שאלה עד אז 🤍${sign}`
         m.thank_you_title_private = m.thank_you_title_private || 'התשלום התקבל, תודה 🤍'
-        m.thank_you_body_private = m.thank_you_body_private || `אני אחזור אלייך בוואטסאפ לתיאום המועד שמתאים לך ולבייבי.\nאם יש משהו שחשוב שאדע לפני שניפגש — פשוט כתבי לי.${sign}`
+        m.thank_you_body_private = m.thank_you_body_private || `אני אחזור אלייך בוואטסאפ לתיאום המועד שמתאים לך ולבייבי.\nאם יש משהו שחשוב שאדע לפני שניפגש, פשוט כתבי לי.${sign}`
         m.thank_you_title_simple = m.thank_you_title_simple || 'איזה כיף! 🐣'
         m.thank_you_body_simple = m.thank_you_body_simple || `קיבלנו את ההרשמה שלך.\nנשמח לראות אותך 🤍${sign}`
         m.thank_you_title_product = m.thank_you_title_product || 'תודה על הרכישה 🤍'
-        m.thank_you_body_product = m.thank_you_body_product || `המוצר מחכה לך.\nנתאם יחד איסוף — כתבי לי בוואטסאפ ונסגור מתי נוח לך.${sign}`
+        m.thank_you_body_product = m.thank_you_body_product || `המוצר מחכה לך.\nנתאם יחד איסוף. כתבי לי בוואטסאפ ונסגור מתי נוח לך.${sign}`
         setVals(m)
       })
     supabase.from('workshops').select('*').order('display_order')
@@ -5068,8 +5068,8 @@ function ThankYouSettingsSection() {
     setSaving(true)
     await supabase.from('global_settings').upsert([
       ...THANKS_KINDS.flatMap(k => ([
-        { setting_key: k.titleKey, setting_value: vals[k.titleKey] ?? '', setting_type: 'text', category: 'thanks', description: `כותרת בעמוד התודה — ${k.label}` },
-        { setting_key: k.bodyKey,  setting_value: vals[k.bodyKey] ?? '',  setting_type: 'text', category: 'thanks', description: `גוף הטקסט בעמוד התודה — ${k.label}` },
+        { setting_key: k.titleKey, setting_value: vals[k.titleKey] ?? '', setting_type: 'text', category: 'thanks', description: `כותרת בעמוד התודה, ${k.label}` },
+        { setting_key: k.bodyKey,  setting_value: vals[k.bodyKey] ?? '',  setting_type: 'text', category: 'thanks', description: `גוף הטקסט בעמוד התודה, ${k.label}` },
       ])),
       { setting_key: 'whatsapp_community_link', setting_value: vals.whatsapp_community_link ?? '', setting_type: 'url', category: 'thanks', description: 'קישור לקהילת WhatsApp של מימו' },
       { setting_key: 'instagram_link', setting_value: vals.instagram_link ?? '', setting_type: 'url', category: 'thanks', description: 'קישור לאינסטגרם של מימו' },
@@ -5125,14 +5125,14 @@ function ThankYouSettingsSection() {
         </div>
         <p className="text-xs text-sand-400">
           {kind === 'group'
-            ? 'מתחת לטקסט מוצג כפתור לקבוצת הוואטסאפ, ואם ידוע המחזור — גם תאריך המפגש הראשון.'
+            ? 'מתחת לטקסט מוצג כפתור לקבוצת הוואטסאפ, ואם ידוע המחזור, גם תאריך המפגש הראשון.'
             : kind === 'product'
-              ? 'מתחת לטקסט מוצג כפתור וואטסאפ ישיר אלייך לתיאום איסוף — לא קבוצה.'
+              ? 'מתחת לטקסט מוצג כפתור וואטסאפ ישיר אלייך לתיאום איסוף, לא קבוצה.'
               : kind === 'meetup'
-                ? 'בלי הבטחה לקבוצה. כפתור וואטסאפ ישיר אלייך, ואם ידוע המחזור — גם תאריך המפגש.'
+                ? 'בלי הבטחה לקבוצה. כפתור וואטסאפ ישיר אלייך, ואם ידוע המחזור, גם תאריך המפגש.'
                 : kind === 'simple'
-                  ? 'רק הטקסט ואינסטגרם — בלי קבוצה ובלי וואטסאפ. הכתובת אליה: /?thanks=simple'
-                  : 'מתחת לטקסט מוצג כפתור וואטסאפ ישיר אלייך — לא קבוצה.'}
+                  ? 'רק הטקסט ואינסטגרם, בלי קבוצה ובלי וואטסאפ. הכתובת אליה: /?thanks=simple'
+                  : 'מתחת לטקסט מוצג כפתור וואטסאפ ישיר אלייך, לא קבוצה.'}
         </p>
         <div>
           <label className="text-xs font-semibold text-sand-500 mb-1 block">קישור לקהילת WhatsApp <span className="text-sand-400 font-normal">(סדנאות קבוצתיות בלבד)</span></label>
@@ -5153,7 +5153,7 @@ function ThankYouSettingsSection() {
           <p className="text-xs font-bold text-sand-700">כתובת חזרה להדביק במורנינג</p>
           <p className="text-xs text-sand-400 leading-relaxed">
             בכל לינק תשלום במורנינג, בשדה של הכתובת לחזרה אחרי תשלום, הדביקי את הכתובת של אותו מוצר.
-            כך עמוד התודה יודע מה נקנה — וההרשמה נפתחת אצלך אוטומטית כ"שילמה".
+            כך עמוד התודה יודע מה נקנה, וההרשמה נפתחת אצלך אוטומטית כ"שילמה".
           </p>
           {products.map(w => (
             <div key={w.id} className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: '#F6F3ED' }}>
@@ -5875,7 +5875,7 @@ function PartnersTab() {
               <option value="motherhood">אמהות</option>
             </select>
             <input value={form.subcategory} onChange={e => setForm(f => ({ ...f, subcategory: e.target.value }))}
-              list="partner-subcats" placeholder="נושא / תיקייה — למשל: מאמנות כושר"
+              list="partner-subcats" placeholder="נושא / תיקייה, למשל: מאמנות כושר"
               className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400" />
             <datalist id="partner-subcats">
               {[...new Set([...partners.map(p => subcatLabel(p.subcategory)), ...SUBCAT_PRESETS])].filter(s => s !== 'ללא נושא').map(s => <option key={s} value={s} />)}
@@ -5890,13 +5890,13 @@ function PartnersTab() {
           {/* Admin-only cost block — stored in vendor_admin_info (admin
               RLS), never shown to users anywhere in the app */}
           <div className="rounded-2xl p-3 space-y-2" style={{ background: '#F8F4EC', border: '1px dashed #C6BDA0' }}>
-            <p className="text-xs font-bold text-sand-600">💰 עלות — לעיניים שלך בלבד (לא מוצג לאמהות)</p>
+            <p className="text-xs font-bold text-sand-600">💰 עלות, לעיניים שלך בלבד (לא מוצג לאמהות)</p>
             <div className="flex gap-2">
               <input value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))}
                 placeholder="עלות לאירוע (₪)" type="number" min="0"
                 className="w-36 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400" />
               <input value={form.cost_notes} onChange={e => setForm(f => ({ ...f, cost_notes: e.target.value }))}
-                placeholder="הערות — מה כלול, תנאים, התרשמות..."
+                placeholder="הערות: מה כלול, תנאים, התרשמות..."
                 className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400" />
             </div>
           </div>
@@ -6682,7 +6682,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
           className="w-full flex items-center justify-between text-right"
           style={{ fontWeight: 600, fontSize: 14, color: '#7B604C', padding: '12px 20px' }}
         >
-          <span>עוד {inboxGroups.q1quiet.length} שאלונים לא מולאו — יש עוד זמן</span>
+          <span>עוד {inboxGroups.q1quiet.length} שאלונים לא מולאו, יש עוד זמן</span>
           <ChevronDown className={`flex-shrink-0 transition-transform ${inboxOpen.quiet ? 'rotate-180' : ''}`} style={{ width: 16, height: 16 }} />
         </button>
         {inboxOpen.quiet && inboxGroups.q1quiet.map(l => {
@@ -6745,7 +6745,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 whitespace-nowrap hover:underline"
           style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D' }}
-          title="עמוד ההרשמה הציבורי — מה שהאמהות רואות"
+          title="עמוד ההרשמה הציבורי, מה שהאמהות רואות"
         >
           עמוד ההרשמה
           <ExternalLink style={{ width: 14, height: 14 }} />

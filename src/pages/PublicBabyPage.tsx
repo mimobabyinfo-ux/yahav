@@ -102,7 +102,7 @@ export default function PublicBabyPage({ token }: Props) {
         <div className="text-center space-y-4">
           <p className="text-5xl">🔍</p>
           <p className="font-bold text-sand-800">קישור לא תקין</p>
-          <p className="text-sand-400 text-sm">לא נמצא פרופיל תינוק — בקשי קישור מעודכן מההורה</p>
+          <p className="text-sand-400 text-sm">לא נמצא פרופיל תינוק. בקשי קישור מעודכן מההורה</p>
         </div>
       </div>
     )

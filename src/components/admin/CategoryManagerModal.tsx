@@ -155,7 +155,7 @@ export default function CategoryManagerModal({ onClose, onChanged }: Props) {
                   {confirmDeleteId === c.id ? (
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px] text-red-500 font-semibold">
-                        {(counts[c.name] ?? 0) > 0 ? `${counts[c.name]} מוצרים יישארו ללא קטגוריה —` : ''} למחוק?
+                        {(counts[c.name] ?? 0) > 0 ? `${counts[c.name]} מוצרים יישארו ללא קטגוריה.` : ''} למחוק?
                       </span>
                       <button onClick={() => remove(c)} disabled={busy} className="px-2.5 py-1.5 rounded-xl bg-red-50 text-red-600 text-xs font-bold">כן</button>
                       <button onClick={() => setConfirmDeleteId(null)} className="px-2.5 py-1.5 rounded-xl bg-sand-50 text-sand-500 text-xs font-bold">לא</button>
@@ -170,7 +170,7 @@ export default function CategoryManagerModal({ onClose, onChanged }: Props) {
               )}
             </div>
           ))}
-          {cats.length === 0 && <p className="text-center text-sand-400 text-sm py-6">אין קטגוריות — הוסיפי את הראשונה למעלה</p>}
+          {cats.length === 0 && <p className="text-center text-sand-400 text-sm py-6">אין קטגוריות. הוסיפי את הראשונה למעלה</p>}
 
           <p className="text-[11px] text-sand-400 leading-relaxed">
             💡 שינוי שם מעדכן אוטומטית את כל המוצרים בקטגוריה. מחיקה מעבירה את המוצרים שלה ל"סדנה דיגיטלית" (לא מוצגים בחנות עד שתבחרי להם קטגוריה חדשה).

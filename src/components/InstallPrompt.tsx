@@ -68,7 +68,7 @@ export default function InstallPrompt() {
             <img src="/mimo_logo.png" alt="Mimo" className="w-10 h-10 rounded-2xl object-cover" />
             <div>
               <p className="font-bold text-sand-800 text-sm">הוסיפי Mimo למסך הבית</p>
-              <p className="text-xs text-sand-400">גישה מהירה — כמו אפליקציה אמיתית</p>
+              <p className="text-xs text-sand-400">גישה מהירה, כמו אפליקציה אמיתית</p>
             </div>
           </div>
           <button onClick={dismiss} className="p-1.5 text-sand-300 hover:text-sand-500 flex-shrink-0">
@@ -100,7 +100,7 @@ export default function InstallPrompt() {
             </div>
             <div className="flex items-start gap-3">
               <span className="text-xl flex-shrink-0">3️⃣</span>
-              <p className="text-sm text-sand-700">לחצי <span className="font-bold">"הוסף"</span> — וזהו! 🎉</p>
+              <p className="text-sm text-sand-700">לחצי <span className="font-bold">"הוסף"</span> וזהו! 🎉</p>
             </div>
             <button onClick={dismiss} className="w-full py-2.5 rounded-2xl bg-sand-50 text-sand-500 text-sm font-semibold mt-1">
               הבנתי, תודה

@@ -14,19 +14,19 @@ const HOW_IT_WORKS = [
   {
     step: '1',
     title: 'הצטרפי לרשימת השירותים המומלצים',
-    desc: 'אנחנו מוסיפים את העסק שלך לקטגוריה המתאימה באפליקציה — עם תיאור, תמונה ואפשרות יצירת קשר.',
+    desc: 'אנחנו מוסיפים את העסק שלך לקטגוריה המתאימה באפליקציה, עם תיאור, תמונה ואפשרות יצירת קשר.',
     emoji: '📋',
   },
   {
     step: '2',
     title: 'משתמשות מגלות אותך בדיוק ברגע הנכון',
-    desc: 'אמהות ונשים בהריון שמחפשות את השירות שלך — מוצאות אותך בתוך האפליקציה שהן כבר משתמשות בה כל יום.',
+    desc: 'אמהות ונשים בהריון שמחפשות את השירות שלך מוצאות אותך בתוך האפליקציה שהן כבר משתמשות בה כל יום.',
     emoji: '🔍',
   },
   {
     step: '3',
     title: 'לידים חמים ישירות אליך',
-    desc: 'כל פנייה — WhatsApp או בקשת התקשרות — מגיעה ישירות למספר שלך. בלי פילטרים, בלי אמצע.',
+    desc: 'כל פנייה, בוואטסאפ או בבקשת התקשרות, מגיעה ישירות למספר שלך. בלי פילטרים, בלי אמצע.',
     emoji: '📲',
   },
 ]
@@ -77,7 +77,7 @@ export default function PublicPartnerPage() {
             </h1>
             <p className="text-sand-500 mt-3 text-base leading-relaxed">
               Mimo היא אפליקציית המשפחה המובילה לאמהות ונשים בהריון.<br />
-              אנחנו מחברות עסקים מומלצים עם לקוחות חמות — ישירות.
+              אנחנו מחברות עסקים מומלצים עם לקוחות חמות, ישירות.
             </p>
           </div>
           <a
@@ -110,8 +110,8 @@ export default function PublicPartnerPage() {
           <h2 className="text-xl font-black text-sand-800 text-center">מי המשתמשות שלנו?</h2>
           <div className="space-y-3">
             {[
-              { emoji: '👩‍🍼', title: 'אמהות טריות', desc: 'בחודשים הראשונים אחרי הלידה — מחפשות ייעוץ, שירותים ותמיכה.' },
-              { emoji: '🤰', title: 'נשים בהריון', desc: 'מתכננות את הלידה ומה שאחרי — קונות, שואלות, מחפשות מקצוענים.' },
+              { emoji: '👩‍🍼', title: 'אמהות טריות', desc: 'בחודשים הראשונים אחרי הלידה, מחפשות ייעוץ, שירותים ותמיכה.' },
+              { emoji: '🤰', title: 'נשים בהריון', desc: 'מתכננות את הלידה ומה שאחרי: קונות, שואלות, מחפשות מקצוענים.' },
               { emoji: '📱', title: 'משתמשות יומיומיות', desc: 'נכנסות לאפליקציה מספר פעמים ביום לרישומי האכלה, שינה ועוד.' },
             ].map(u => (
               <div key={u.title} className="flex items-start gap-3">
@@ -150,7 +150,7 @@ export default function PublicPartnerPage() {
       <div className="max-w-lg mx-auto px-6 pb-10">
         <div className="bg-[#F5F1EB] rounded-3xl p-6 shadow-sm space-y-4">
           <h2 className="text-xl font-black text-sand-800 text-center">כך נראית פנייה שמגיעה אליך</h2>
-          <p className="text-xs text-sand-400 text-center">בכל פעם שמשתמשת לוחצת "WhatsApp" — הודעה נשלחת ישירות אליך</p>
+          <p className="text-xs text-sand-400 text-center">בכל פעם שמשתמשת לוחצת "WhatsApp", הודעה נשלחת ישירות אליך</p>
 
           {/* WA mockup */}
           <div className="rounded-2xl overflow-hidden border border-gray-100">
@@ -187,7 +187,7 @@ export default function PublicPartnerPage() {
             </div>
           ))}
         </div>
-        <p className="text-center text-xs text-sand-400">ולא רשומה כאן? דברי איתנו — אנחנו פתוחות לכל תחום רלוונטי</p>
+        <p className="text-center text-xs text-sand-400">ולא רשומה כאן? דברי איתנו, אנחנו פתוחות לכל תחום רלוונטי</p>
       </div>
 
       {/* ── Testimonials ── */}
@@ -216,11 +216,11 @@ export default function PublicPartnerPage() {
           <div className="space-y-3">
             {[
               { emoji: '🌿', text: 'דף שירות מעוצב עם תיאור, תמונה וקישור יצירת קשר' },
-              { emoji: '📲', text: 'לידים ישירים — WhatsApp ובקשות התקשרות' },
+              { emoji: '📲', text: 'לידים ישירים בוואטסאפ ובבקשות התקשרות' },
               { emoji: '🎁', text: 'אפשרות להצגת קוד הנחה בלעדי למשתמשות Mimo' },
               { emoji: '📊', text: 'עדכון שוטף על מספר הפניות שקיבלת' },
               { emoji: '💬', text: 'הופעה בוואטסאפ אוטומטי עם ההודעה שלך' },
-              { emoji: '0₪', text: 'ללא עלות כניסה — אנחנו שותפות לצמיחה שלך' },
+              { emoji: '0₪', text: 'ללא עלות כניסה. אנחנו שותפות לצמיחה שלך' },
             ].map(item => (
               <div key={item.text} className="flex items-start gap-3">
                 <span className="text-lg flex-shrink-0">{item.emoji}</span>

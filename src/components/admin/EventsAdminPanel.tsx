@@ -228,7 +228,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
       : supabase.from('community_events').insert(payload)
     const { error: err } = await q
     setSaving(false)
-    if (err) { setError('שגיאה בשמירה — נסי שוב'); return }
+    if (err) { setError('שגיאה בשמירה. נסי שוב'); return }
     setShowForm(false)
     load()
   }
@@ -514,7 +514,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
         <>
           {upcoming.length === 0 && (
             <div className="bg-white rounded-2xl border border-sand-100 p-8 text-center text-sand-400 text-sm">
-              אין אירועים קרובים — צרי את אירוע הקהילה הראשון
+              אין אירועים קרובים. צרי את אירוע הקהילה הראשון
             </div>
           )}
 
@@ -612,7 +612,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
                 </div>
                 <div className="flex-1">
                   <label className={labelCls}>כותרת האירוע *</label>
-                  <input value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} placeholder="למשל: הרצאה — שינה של תינוקות" className={inputCls} />
+                  <input value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} placeholder="למשל: הרצאה על שינה של תינוקות" className={inputCls} />
                 </div>
               </div>
 
@@ -661,7 +661,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
               <div>
                 <label className={labelCls}>ספק / מנחה (מרשימת השירותים)</label>
                 <select value={draft.vendor_id} onChange={e => setDraft(d => ({ ...d, vendor_id: e.target.value }))} className={inputCls}>
-                  <option value="">— ללא —</option>
+                  <option value="">ללא</option>
                   {vendors.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
                 </select>
               </div>
@@ -802,7 +802,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
                     <p className="text-sm font-bold text-sand-700">⏳ רשימת המתנה ({regsWaitlist.length})</p>
                     {hasFreeSpot && (
                       <p className="text-[13px] font-bold rounded-xl px-3 py-2" style={{ background: '#F9EDE7', color: '#8B4A30' }}>
-                        🔔 יש מקום פנוי — שלחי הודעה לראשונה בתור או הוסיפי אותה ישירות
+                        🔔 יש מקום פנוי. שלחי הודעה לראשונה בתור או הוסיפי אותה ישירות
                       </p>
                     )}
                     {regsWaitlist.map((w, idx) => {
@@ -936,8 +936,8 @@ function CheckinShareModal({ ev, vendors, onClose }: { ev: CommunityEvent; vendo
         </div>
 
         <p className="text-[13px] leading-relaxed text-sand-500">
-          מי שמקבל את הקישור רואה את רשימת השמות הפרטיים בלבד ומסמן מי הגיעה — בלי חשבון ובלי סיסמה.
-          הקישור פעיל מיום לפני האירוע ועד יום אחריו. מי שלא תסומן — תיסגר אוטומטית כ"לא הגיעה" למחרת.
+          מי שמקבל את הקישור רואה את רשימת השמות הפרטיים בלבד ומסמן מי הגיעה, בלי חשבון ובלי סיסמה.
+          הקישור פעיל מיום לפני האירוע ועד יום אחריו. מי שלא תסומן תיסגר אוטומטית כ"לא הגיעה" למחרת.
         </p>
 
         {token === null ? (
@@ -974,7 +974,7 @@ function CheckinShareModal({ ev, vendors, onClose }: { ev: CommunityEvent; vendo
               </a>
             </div>
             {!vendorPhone && ev.vendor_id && (
-              <p className="text-xs text-amber-700">לספק אין מספר וואטסאפ בכרטיס הספק — השיתוף ייפתח לבחירת איש קשר.</p>
+              <p className="text-xs text-amber-700">לספק אין מספר וואטסאפ בכרטיס הספק, אז השיתוף ייפתח לבחירת איש קשר.</p>
             )}
 
             <button

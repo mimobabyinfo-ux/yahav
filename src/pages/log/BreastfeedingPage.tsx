@@ -474,7 +474,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
       {/* Empty-state hint when no session yet */}
       {!isActiveSession && (
         <p className="text-center text-xs text-sand-400 mt-6 max-w-xs mx-auto">
-          לחצי על הצד שמתחילה ממנו. ניתן לעבור בין הצדדים בכל רגע — המעבר מפסיק
+          לחצי על הצד שמתחילה ממנו. ניתן לעבור בין הצדדים בכל רגע. המעבר מפסיק
           את הצד הפעיל ומפעיל את השני.
         </p>
       )}

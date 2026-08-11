@@ -654,7 +654,7 @@ function RegistrationTabView({
             </select>
           ) : (
             <p className="py-2.5" style={{ fontSize: 13.5, fontWeight: 600, color: '#8A7A63' }}>
-              {draft.workshopId ? 'למוצר הזה אין מחזורים' : '—'}
+              {draft.workshopId ? 'למוצר הזה אין מחזורים' : 'ללא'}
             </p>
           )}
         </Field>

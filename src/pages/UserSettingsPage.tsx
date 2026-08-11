@@ -59,7 +59,7 @@ export default function UserSettingsPage() {
     setSavingDueDate(true)
     const { error } = await supabase.from('user_profiles').update({ due_date: newDueDate }).eq('id', user.id)
     setSavingDueDate(false)
-    if (error) { setDueDateError('שגיאה בשמירה — נסי שוב'); return }
+    if (error) { setDueDateError('שגיאה בשמירה. נסי שוב'); return }
     await refreshProfile()
     setEditingDueDate(false)
   }
@@ -71,7 +71,7 @@ export default function UserSettingsPage() {
     setSavingName(true)
     const { error } = await supabase.from('user_profiles').update({ mother_name: newMotherName.trim() }).eq('id', user.id)
     setSavingName(false)
-    if (error) { setNameError('שגיאה בשמירה — נסי שוב'); return }
+    if (error) { setNameError('שגיאה בשמירה. נסי שוב'); return }
     await refreshProfile()
     setEditingName(false)
   }
@@ -83,7 +83,7 @@ export default function UserSettingsPage() {
     setSavingPhone(true)
     const { error } = await supabase.from('user_profiles').update({ phone_number: newPhone.trim() }).eq('id', user.id)
     setSavingPhone(false)
-    if (error) { setPhoneError('שגיאה בשמירה — נסי שוב'); return }
+    if (error) { setPhoneError('שגיאה בשמירה. נסי שוב'); return }
     await refreshProfile()
     setEditingPhone(false)
   }
@@ -122,7 +122,7 @@ export default function UserSettingsPage() {
       ? await supabase.from('children').update(payload).eq('id', editingChildId)
       : await supabase.from('children').insert({ user_id: user.id, ...payload })
     setSaving(false)
-    if (error) { setSaveError('שגיאה בשמירה — נסי שוב'); return }
+    if (error) { setSaveError('שגיאה בשמירה. נסי שוב'); return }
     await refreshChildren()
     setNewName(''); setNewDob(''); setNewGender('girl')
     setShowAdd(false)

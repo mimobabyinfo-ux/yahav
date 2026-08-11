@@ -279,7 +279,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
     ) {
       tasks.push({
         key: `low_stock:${w.id}`,
-        title: `"${w.title}" — נשארו ${w.stock_quantity} במלאי`,
+        title: `"${w.title}": נשארו ${w.stock_quantity} במלאי`,
         facts: ['מוצר פיזי'],
         severity: 'mid',
         section: 'workshops',

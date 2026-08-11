@@ -447,7 +447,7 @@ export default function ProAreaPage() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-sand-800">היי! לא ראינו אותך בסדנה זמן מה</p>
               <p className="text-xs text-sand-500 mt-0.5 leading-relaxed">
-                {retentionWorkshop.workshop?.title} מחכה לך — גם 10 דקות יכולות לשנות הרבה 💛
+                {retentionWorkshop.workshop?.title} מחכה לך. גם 10 דקות יכולות לשנות הרבה 💛
               </p>
               <button onClick={() => openWorkshop(retentionWorkshop)}
                 className="mt-2 text-xs font-bold text-mustard-700 underline underline-offset-2">

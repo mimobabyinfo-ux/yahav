@@ -143,7 +143,7 @@ export default function CommunityPage() {
       })
       .eq('id', user.id)
     setSavingProfile(false)
-    if (error) { setSaveError('שגיאה בשמירה — נסי שוב'); return }
+    if (error) { setSaveError('שגיאה בשמירה. נסי שוב'); return }
     setRegisteredInSession(true)
     setEditMode(false)
     refreshProfile()
@@ -424,8 +424,8 @@ export default function CommunityPage() {
                   : pregnancyFilter === 'area' && !myArea
                   ? 'הזיני עיר / אזור בפרופיל שלך כדי לחפש'
                   : tagFilter
-                  ? 'אין בנות בהריון עם התגית הזו — נסי "הכל" או תגית אחרת'
-                  : 'לא נמצאו בנות בהריון בסינון זה — נסי "כולן"'}
+                  ? 'אין בנות בהריון עם התגית הזו. נסי "הכל" או תגית אחרת'
+                  : 'לא נמצאו בנות בהריון בסינון זה. נסי "כולן"'}
               </p>
             </div>
           ) : (
@@ -514,8 +514,8 @@ export default function CommunityPage() {
                   : filterMode === 'age' && myMonths == null
                   ? 'הוסיפי תאריך לידה לתינוק/ת כדי לסנן לפי גיל'
                   : tagFilter
-                  ? 'אין אמהות עם התגית הזו — נסי "הכל" או תגית אחרת'
-                  : 'לא נמצאו אמהות בסינון זה — נסי "כולן"'}
+                  ? 'אין אמהות עם התגית הזו. נסי "הכל" או תגית אחרת'
+                  : 'לא נמצאו אמהות בסינון זה. נסי "כולן"'}
               </p>
             </div>
           ) : (

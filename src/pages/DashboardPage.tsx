@@ -202,7 +202,7 @@ export default function DashboardPage({ onNavigate }: Props) {
           <div className="flex items-center" style={{ background: '#2B2823', borderRadius: 22, padding: '16px 18px', gap: 14 }}>
             <MimoLeaf variant="sky-1" size={38} rotate={12} className="flex-shrink-0" />
             <p style={{ fontSize: 15, lineHeight: 1.55, color: '#A8A088' }}>
-              גם באמצע הלילה — את לא לבד. רישום קצר וחזרה לישון 🤍
+              גם באמצע הלילה, את לא לבד. רישום קצר וחזרה לישון 🤍
             </p>
           </div>
 

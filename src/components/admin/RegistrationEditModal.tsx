@@ -112,7 +112,7 @@ export default function RegistrationEditModal({ lead, workshops, cohorts, onSave
       await onSave(lead.id, patch)
       onClose()
     } catch {
-      setErrors({ submit: 'שגיאה בשמירה — נסי שוב' })
+      setErrors({ submit: 'שגיאה בשמירה. נסי שוב' })
       setSaving(false)
     }
   }
@@ -186,7 +186,7 @@ export default function RegistrationEditModal({ lead, workshops, cohorts, onSave
             onChange={e => onWorkshopChange(e.target.value)}
             className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-500 bg-white"
           >
-            <option value="">— ללא מוצר —</option>
+            <option value="">ללא מוצר</option>
             {sortedWorkshops.map(w => (
               <option key={w.id} value={w.id}>{w.title}</option>
             ))}
@@ -201,7 +201,7 @@ export default function RegistrationEditModal({ lead, workshops, cohorts, onSave
             disabled={!workshopId}
             className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-500 bg-white disabled:opacity-50"
           >
-            <option value="">— ללא מחזור —</option>
+            <option value="">ללא מחזור</option>
             {cohortsForWorkshop.map(c => {
               const [y, m, d] = c.start_date.split('-')
               const t = c.start_time ? ` ${c.start_time.slice(0, 5)}` : ''

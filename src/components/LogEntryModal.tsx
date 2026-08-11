@@ -263,12 +263,12 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
     if (!file) return
     const isVideo = file.type.startsWith('video/')
     if (isVideo) {
-      if (file.size > 50 * 1024 * 1024) { setSaveError('הסרטון גדול מדי — מקסימום 50MB'); return }
+      if (file.size > 50 * 1024 * 1024) { setSaveError('הסרטון גדול מדי. מקסימום 50MB'); return }
       setMilestoneMedia(file)
       setMilestoneMediaPreview(URL.createObjectURL(file))
       setMilestoneIsVideo(true)
     } else {
-      if (file.size > 5 * 1024 * 1024) { setSaveError('התמונה גדולה מדי — מקסימום 5MB'); return }
+      if (file.size > 5 * 1024 * 1024) { setSaveError('התמונה גדולה מדי. מקסימום 5MB'); return }
       const compressed = await compressImage(file)
       setMilestoneMedia(compressed)
       setMilestoneMediaPreview(URL.createObjectURL(compressed))
@@ -312,7 +312,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
     if (effectiveEntryType !== 'tummy_time') return notes || null
     if (!tummyDuration) return notes || null
     return notes
-      ? `משך: ${tummyDuration} דקות — ${notes}`
+      ? `משך: ${tummyDuration} דקות, ${notes}`
       : `משך: ${tummyDuration} דקות`
   }
 
@@ -493,7 +493,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
       setSaving(false)
       savingRef.current = false
       if (saveButtonRef.current) saveButtonRef.current.disabled = false
-      const msg = err instanceof Error ? err.message : 'שגיאה בשמירה — נסי שנית'
+      const msg = err instanceof Error ? err.message : 'שגיאה בשמירה. נסי שנית'
       setSaveError(msg)
     }
   }
@@ -786,7 +786,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           {/* Tummy time fields */}
           {effectiveEntryType === 'tummy_time' && (
             <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות) — אופציונלי</label>
+              <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות), אופציונלי</label>
               <input
                 type="number"
                 min="0"

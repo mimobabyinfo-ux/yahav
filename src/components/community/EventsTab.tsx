@@ -99,7 +99,7 @@ export default function EventsTab() {
     setBusyId(ev.id)
     const { data, error } = await supabase.rpc('register_for_event', { p_event_id: ev.id })
     setBusyId(null)
-    if (error) { showToast('שגיאה — נסי שוב'); return }
+    if (error) { showToast('שגיאה. נסי שוב'); return }
     if (data === 'full') { showToast('האירוע התמלא בדיוק עכשיו 😢'); load(); return }
     if (data === 'registered' || data === 'already') {
       showToast(ev.price > 0 ? 'שמרנו לך מקום! נשאר רק להשלים תשלום 💛' : 'נתראה שם! 💛')
@@ -115,8 +115,8 @@ export default function EventsTab() {
     setBusyId(ev.id)
     const { error } = await supabase.rpc('cancel_event_registration', { p_event_id: ev.id })
     setBusyId(null)
-    if (error) { showToast('שגיאה — נסי שוב'); return }
-    showToast('ההרשמה בוטלה — המקום התפנה למישהי אחרת')
+    if (error) { showToast('שגיאה. נסי שוב'); return }
+    showToast('ההרשמה בוטלה. המקום התפנה למישהי אחרת')
     load()
     if (attendees[ev.id]) loadAttendees(ev.id)
   }
@@ -125,11 +125,11 @@ export default function EventsTab() {
     setBusyId(ev.id)
     const { data, error } = await supabase.rpc('join_event_waitlist', { p_event_id: ev.id })
     setBusyId(null)
-    if (error) { showToast('שגיאה — נסי שוב'); return }
-    if (data === 'not_full') { showToast('התפנה מקום — אפשר להירשם! 💛'); load(); return }
+    if (error) { showToast('שגיאה. נסי שוב'); return }
+    if (data === 'not_full') { showToast('התפנה מקום! אפשר להירשם 💛'); load(); return }
     if (data === 'already_registered') { showToast('את כבר רשומה לאירוע 💛'); load(); return }
     if (data === 'ok') {
-      showToast('נכנסת לרשימת ההמתנה — נעדכן אותך אם יתפנה מקום 🤍')
+      showToast('נכנסת לרשימת ההמתנה. נעדכן אותך אם יתפנה מקום 🤍')
       load()
     }
   }
@@ -291,7 +291,7 @@ export default function EventsTab() {
                 className="w-full py-2.5 rounded-2xl text-sm font-bold disabled:opacity-40 transition-all"
                 style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
               >
-                {busyId === ev.id ? 'רגע...' : 'האירוע מלא — שמרי לי מקום בהמתנה 🤍'}
+                {busyId === ev.id ? 'רגע...' : 'האירוע מלא. שמרי לי מקום בהמתנה 🤍'}
               </button>
             )
           ) : (
@@ -336,7 +336,7 @@ export default function EventsTab() {
       <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-3 animate-rise">
         <div className="flex justify-center"><MimoLeafPair size={72} /></div>
         <p className="font-semibold text-sand-700 text-sm">אירועי הקהילה הבאים בדרך 🎉</p>
-        <p className="text-xs text-sand-600">ברגע שנפרסם את לוח האירועים החודשי — הוא יופיע כאן</p>
+        <p className="text-xs text-sand-600">ברגע שנפרסם את לוח האירועים החודשי, הוא יופיע כאן</p>
       </div>
     )
   }
@@ -488,7 +488,7 @@ export default function EventsTab() {
             member={a}
             avatarEmoji={genderEmoji(a.child_gender)}
             secondaryLine={secondary}
-            whatsappGreeting={`היי ${firstName}! ראיתי שאת רשומה ל"${openAttendee.eventTitle}" — גם אני מגיעה! 🎉`}
+            whatsappGreeting={`היי ${firstName}! ראיתי שאת רשומה ל"${openAttendee.eventTitle}" וגם אני מגיעה! 🎉`}
             fallbackGreeting={`היי! רציתי להתחבר עם אמא שנרשמה ל"${openAttendee.eventTitle}" 🎉`}
             onClose={() => setOpenAttendee(null)}
           />

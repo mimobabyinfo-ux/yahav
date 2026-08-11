@@ -33,7 +33,7 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
   const subtitle =
     events.length >= 2 ? `${events.length} מפגשים קרובים` :
     events.length === 1 ? 'מפגש אחד קרוב' :
-    'מפגשים, הרצאות ואימונים — ביחד'
+    'מפגשים, הרצאות ואימונים, ביחד'
 
   return (
     <div className="bg-white" style={{ borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
@@ -58,7 +58,7 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
             <MimoLeaf variant="sky-1" size={38} rotate={10} className="flex-shrink-0" />
             <div>
               <p className="font-semibold" style={{ fontSize: 15, color: '#443327' }}>לוח האירועים הבא בדרך</p>
-              <p style={{ fontSize: 13, color: '#957860' }}>יוגה, הרצאות, קפה ביחד ועוד — ממש בקרוב</p>
+              <p style={{ fontSize: 13, color: '#957860' }}>יוגה, הרצאות, קפה ביחד ועוד, ממש בקרוב</p>
             </div>
           </div>
         ) : (

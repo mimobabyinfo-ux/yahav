@@ -99,7 +99,7 @@ export default function VendorCheckinPage({ token }: { token: string }) {
           <h1 className="font-bold text-lg" style={{ color: '#5E4938' }}>הקישור אינו פעיל</h1>
           <p className="text-sm leading-relaxed" style={{ color: '#7B604C' }}>
             דף הצ'ק-אין נפתח מיום לפני האירוע ועד יום אחריו.
-            אם האירוע מתקיים עכשיו והקישור לא עובד — דברו עם ברנדה 🤍
+            אם האירוע מתקיים עכשיו והקישור לא עובד, דברו עם ברנדה 🤍
           </p>
         </div>
       </div>

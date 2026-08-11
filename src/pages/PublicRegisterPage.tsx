@@ -267,13 +267,13 @@ export default function PublicRegisterPage() {
       if (claimError) {
         console.error('[offer-submit] claim_workshop_offer RPC error:', claimError)
         setSubmitting(false)
-        setErrors({ submit: 'שגיאה בתקשורת עם השרת — נסי שוב' })
+        setErrors({ submit: 'שגיאה בתקשורת עם השרת. נסי שוב' })
         return
       }
       if (!claimed) {
         console.warn('[offer-submit] claim returned null — offer no longer claimable')
         setSubmitting(false)
-        setErrors({ submit: 'ההצעה הסתיימה כרגע — אם זו הייתה הצעה מוגבלת בכמות, מספר השימושים מולא.' })
+        setErrors({ submit: 'ההצעה הסתיימה כרגע. ייתכן שהמספר המוגבל של השימושים מולא.' })
         return
       }
       const leadId = crypto.randomUUID()
@@ -291,7 +291,7 @@ export default function PublicRegisterPage() {
       if (error) {
         console.error('[offer-submit] registration_leads insert error:', error)
         setSubmitting(false)
-        setErrors({ submit: 'שגיאה בשמירה — נסי שוב או צרי קשר ישירות' })
+        setErrors({ submit: 'שגיאה בשמירה. נסי שוב או צרי קשר ישירות' })
         return
       }
       const url = offer.payment_link ?? offerWorkshop.payment_link
@@ -326,7 +326,7 @@ export default function PublicRegisterPage() {
     })
     if (error) {
       setSubmitting(false)
-      setErrors({ submit: 'שגיאה בשמירה — נסי שוב או צרי קשר ישירות' })
+      setErrors({ submit: 'שגיאה בשמירה. נסי שוב או צרי קשר ישירות' })
       return
     }
     if (workshop?.payment_link) {
@@ -364,7 +364,7 @@ export default function PublicRegisterPage() {
             <p className="text-3xl">💝</p>
             <h2 className="text-lg font-bold text-sand-800">ההצעה הסתיימה</h2>
             <p className="text-sm text-sand-600 leading-relaxed">
-              לינק ההצעה המיוחדת שקיבלת כבר לא תקף — ייתכן שהמספר המוגבל מולא או שההצעה פגה.
+              לינק ההצעה המיוחדת שקיבלת כבר לא תקף. ייתכן שהמספר המוגבל מולא או שההצעה פגה.
             </p>
             <a
               href={fallback}

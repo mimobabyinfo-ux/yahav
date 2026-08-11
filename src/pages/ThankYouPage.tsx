@@ -74,7 +74,7 @@ const COPY: Record<ThanksKind, { title: string; body: (owner: string) => string 
     title: 'התשלום התקבל, תודה 🤍',
     body: owner =>
       'אני אחזור אלייך בוואטסאפ לתיאום המועד שמתאים לך ולבייבי.\n' +
-      'אם יש משהו שחשוב שאדע לפני שניפגש — פשוט כתבי לי.' +
+      'אם יש משהו שחשוב שאדע לפני שניפגש, פשוט כתבי לי.' +
       (owner ? `\nבאהבה, ${owner}` : ''),
   },
   simple: {
@@ -88,7 +88,7 @@ const COPY: Record<ThanksKind, { title: string; body: (owner: string) => string 
     title: 'תודה על הרכישה 🤍',
     body: owner =>
       'המוצר מחכה לך.\n' +
-      'נתאם יחד איסוף — כתבי לי בוואטסאפ ונסגור מתי נוח לך.' +
+      'נתאם יחד איסוף. כתבי לי בוואטסאפ ונסגור מתי נוח לך.' +
       (owner ? `\nבאהבה, ${owner}` : ''),
   },
 }
@@ -123,7 +123,7 @@ export default function ThankYouPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { document.title = 'תודה — Mimo' }, [])
+  useEffect(() => { document.title = 'תודה מ-Mimo' }, [])
 
   useEffect(() => {
     let leadId: string | null = null

@@ -116,7 +116,7 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
     }
     const link = draft.payment_link.trim()
     if (value > 0 && !link) {
-      setFormError('כאשר יש הנחה (>0) חובה להזין לינק תשלום עם המחיר המוזל — אחרת הלקוחה תחויב במחיר המלא')
+      setFormError('כאשר יש הנחה (>0) חובה להזין לינק תשלום עם המחיר המוזל, אחרת הלקוחה תחויב במחיר המלא')
       return
     }
     const maxUses = draft.max_uses.trim() ? parseInt(draft.max_uses, 10) : null
@@ -151,7 +151,7 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
         .single()
       setSaving(false)
       if (error || !data) {
-        setFormError('שגיאה בשמירת ההצעה — נסי שוב')
+        setFormError('שגיאה בשמירת ההצעה. נסי שוב')
         return
       }
       setOffers(prev => prev.map(o => o.id === editingId ? (data as WorkshopOffer) : o))
@@ -163,7 +163,7 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
         .single()
       setSaving(false)
       if (error || !data) {
-        setFormError('שגיאה ביצירת ההצעה — נסי שוב')
+        setFormError('שגיאה ביצירת ההצעה. נסי שוב')
         return
       }
       setOffers(prev => [data as WorkshopOffer, ...prev])
@@ -218,7 +218,7 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
         <div>
           <p className="text-sm font-bold text-sand-800">💝 הצעות מיוחדות / לינקים ייעודיים</p>
           <p className="text-[11px] text-sand-500 mt-0.5 leading-relaxed">
-            לינק מיוחד שמראה מחיר מוזל. לא מופיע בעמוד ההרשמה הרגיל — נשלח רק למי שרוצים לתת לה את ההנחה.
+            לינק מיוחד שמראה מחיר מוזל. לא מופיע בעמוד ההרשמה הרגיל, ונשלח רק למי שרוצים לתת לה את ההנחה.
           </p>
         </div>
         {!showForm && (
@@ -374,7 +374,7 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
                   )}
                 </div>
                 {expiredButActive && (
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#8B4A30' }}>פג תוקף — עדיין פעילה</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#8B4A30' }}>פג תוקף, עדיין פעילה</p>
                 )}
                 <div className="flex items-center gap-1.5">
                   <button

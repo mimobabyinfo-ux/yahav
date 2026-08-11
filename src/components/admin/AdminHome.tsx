@@ -166,8 +166,8 @@ export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
                 <h1 className="font-display" style={{ fontSize: 22, color: '#443327' }}>
                   {greetingByHour()} {firstName}
                   {totalOpen > 0
-                    ? ` — ${totalOpen === 1 ? 'דבר אחד מחכה' : `${totalOpen} דברים מחכים`} לך`
-                    : ' — הכול נקי ✨'}
+                    ? `, ${totalOpen === 1 ? 'דבר אחד מחכה' : `${totalOpen} דברים מחכים`} לך`
+                    : ', הכול נקי ✨'}
                 </h1>
               </div>
             </div>
@@ -249,7 +249,7 @@ export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
             {totalOpen === 0 ? (
               <div className="flex items-center gap-3 rounded-2xl px-4 py-4" style={{ background: '#EDEDE6' }}>
                 <CheckCircle2 className="w-5 h-5 flex-shrink-0" style={{ color: '#4F5040' }} />
-                <p className="font-semibold" style={{ fontSize: 14, color: '#4F5040' }}>אין משימות פתוחות — הכול מטופל</p>
+                <p className="font-semibold" style={{ fontSize: 14, color: '#4F5040' }}>אין משימות פתוחות. הכול מטופל</p>
               </div>
             ) : (
               <div className="space-y-1.5">
@@ -308,7 +308,7 @@ export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
                       disabled={busyToggle === t.key}
                       className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95 disabled:opacity-40"
                       style={{ fontSize: 13, padding: '6px 12px', background: '#EDEDE6', color: '#4F5040' }}
-                      title="טופל — יחזור אם משהו ישתנה במקור"
+                      title="טופל. יחזור אם משהו ישתנה במקור"
                     >
                       <Check className="w-3.5 h-3.5" /> טופל
                     </button>
@@ -381,7 +381,7 @@ export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
 
             {megalim.unknownDobCount > 0 && (
               <p className="mt-2.5 px-1" style={{ fontSize: 12, color: '#A2937D' }}>
-                ל-{megalim.unknownDobCount} בוגרות נוספות אין תאריך לידה של התינוק/ת בשאלון — הן לא נספרות כאן
+                ל-{megalim.unknownDobCount} בוגרות נוספות אין תאריך לידה של התינוק/ת בשאלון, והן לא נספרות כאן
               </p>
             )}
           </div>
@@ -454,7 +454,7 @@ export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
                         dir="ltr"
                         className="flex-shrink-0 disabled:opacity-50"
                         style={{ width: 34, height: 20, borderRadius: 9999, background: a.is_active ? '#818267' : '#DCD4C8', padding: 2, display: 'flex', alignItems: 'center', justifyContent: a.is_active ? 'flex-end' : 'flex-start', transition: 'background .15s' }}
-                        title={a.is_active ? 'מוצג — לחצי לכיבוי' : 'כבוי'}
+                        title={a.is_active ? 'מוצג. לחצי לכיבוי' : 'כבוי'}
                       >
                         <span style={{ width: 16, height: 16, borderRadius: 9999, background: '#fff', display: 'block' }} />
                       </button>
@@ -478,7 +478,7 @@ export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
               ) : (
                 <button onClick={() => onSection('workshops')} className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-right transition-colors hover:brightness-95" style={{ background: '#F6F3ED' }}>
                   <span className="flex-1 min-w-0 truncate font-bold" style={{ fontSize: 13, color: '#443327' }}>{storeProducts[0].title}</span>
-                  <span className="flex-shrink-0 font-semibold" style={{ fontSize: 12, color: '#8A7A63' }}>לשינוי — גרירה במוצרים</span>
+                  <span className="flex-shrink-0 font-semibold" style={{ fontSize: 12, color: '#8A7A63' }}>לשינוי, גרירה במוצרים</span>
                 </button>
               )}
             </div>
@@ -500,7 +500,7 @@ export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
                         dir="ltr"
                         className="flex-shrink-0 disabled:opacity-50"
                         style={{ width: 34, height: 20, borderRadius: 9999, background: ev.is_active ? '#818267' : '#DCD4C8', padding: 2, display: 'flex', alignItems: 'center', justifyContent: ev.is_active ? 'flex-end' : 'flex-start', transition: 'background .15s' }}
-                        title={ev.is_active ? 'מוצג — לחצי לכיבוי' : 'טיוטה'}
+                        title={ev.is_active ? 'מוצג. לחצי לכיבוי' : 'טיוטה'}
                       >
                         <span style={{ width: 16, height: 16, borderRadius: 9999, background: '#fff', display: 'block' }} />
                       </button>

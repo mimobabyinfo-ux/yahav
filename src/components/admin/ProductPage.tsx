@@ -167,7 +167,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
         <div className="flex items-center gap-3" style={{ background: '#F7EBE4', border: '1px solid #E8C3B2', borderRadius: 18, padding: '14px 18px' }}>
           <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: '#8B4A30' }} />
           <p style={{ fontWeight: 700, fontSize: 14, color: '#713924' }}>
-            המוצר פעיל בתשלום (₪{workshop.price}) בלי קישור תשלום — אי אפשר לשלם עליו. הוסיפי קישור בשדה למטה ושמרי.
+            המוצר פעיל בתשלום (₪{workshop.price}) בלי קישור תשלום, ואי אפשר לשלם עליו. הוסיפי קישור בשדה למטה ושמרי.
           </p>
         </div>
       )}
@@ -236,7 +236,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
                 {form.workshop_type && !categories.some(c => c.name === form.workshop_type) && <option value={form.workshop_type}>{form.workshop_type}</option>}
                 {categories.map(c => <option key={c.id} value={c.name}>{c.icon ? `${c.icon} ${c.name}` : c.name}</option>)}
               </select></div>
-            <div><label className={labelCls} style={labelStyle}>טווח גיל מומלץ (חודשים) — להמלצה בדף הבית</label>
+            <div><label className={labelCls} style={labelStyle}>טווח גיל מומלץ (חודשים), להמלצה בדף הבית</label>
               <div className="grid grid-cols-2 gap-2">
                 <input value={form.age_from} onChange={e => setForm(f => ({ ...f, age_from: e.target.value }))} placeholder="מגיל" type="number" step="0.5" min="0" className={inputCls} style={inputStyle} />
                 <input value={form.age_to} onChange={e => setForm(f => ({ ...f, age_to: e.target.value }))} placeholder="עד גיל" type="number" step="0.5" min="0" className={inputCls} style={inputStyle} />
@@ -296,7 +296,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
             </button>
           </div>
           {cohorts.length === 0 ? (
-            <p className="text-sm py-2 text-center" style={{ color: '#A2937D' }}>אין מחזורים עדיין — "ניהול מחזורים" ליצירת הראשון</p>
+            <p className="text-sm py-2 text-center" style={{ color: '#A2937D' }}>אין מחזורים עדיין. "ניהול מחזורים" ליצירת הראשון</p>
           ) : (
             <div className="space-y-1.5">
               {cohorts.map(c => {
@@ -324,7 +324,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
                     <span className="flex-shrink-0 text-left" style={{ minWidth: 70 }}>
                       <span className="block font-display" style={{ fontSize: 15, color: '#443327' }}>{count}{cap != null && `/${cap}`}</span>
                       <span className="block font-semibold" style={{ fontSize: 12, color: tight ? '#8B4A30' : '#8A7A63' }}>
-                        {past ? '—' : cap == null ? 'ללא הגבלה' : left === 0 ? 'מלא' : `נותרו ${left}`}
+                        {past ? 'הסתיים' : cap == null ? 'ללא הגבלה' : left === 0 ? 'מלא' : `נותרו ${left}`}
                       </span>
                     </span>
                   </div>

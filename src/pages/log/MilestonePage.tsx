@@ -49,7 +49,7 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
     const video = file.type.startsWith('video/')
     if (video) {
       if (file.size > MAX_VIDEO_BYTES) {
-        setSaveError('הסרטון גדול מדי — מקסימום 50MB')
+        setSaveError('הסרטון גדול מדי. מקסימום 50MB')
         return
       }
       setMedia(file)
@@ -57,7 +57,7 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
       setIsVideo(true)
     } else {
       if (file.size > MAX_PHOTO_BYTES) {
-        setSaveError('התמונה גדולה מדי — מקסימום 5MB')
+        setSaveError('התמונה גדולה מדי. מקסימום 5MB')
         return
       }
       const compressed = await compressImage(file)

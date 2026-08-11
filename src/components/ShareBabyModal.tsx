@@ -187,7 +187,7 @@ function MenuView({ babyName, liveLink, copiedLive, onOpenFamily, onShareLive, o
             <p className="text-xs font-semibold text-sand-700">שיתוף מהיר אנונימי</p>
           </div>
           <p className="text-[11px] text-sand-500 leading-relaxed">
-            לינק לצפייה בלבד — בלי חשבון, בלי הרשמה.
+            לינק לצפייה בלבד, בלי חשבון ובלי הרשמה.
           </p>
           <div className="flex gap-2">
             <button
@@ -239,7 +239,7 @@ function FamilyForm({ childId, hasFamily: _hasFamily, motherName: _motherName, o
     try {
       await onCreate(role, recipientName.trim())
     } catch {
-      setError('שגיאה ביצירת הלינק — נסי שנית')
+      setError('שגיאה ביצירת הלינק. נסי שנית')
     } finally {
       setSubmitting(false)
     }

@@ -63,7 +63,7 @@ export default function SharingManagementPanel() {
       .eq('id', id)
     setRevokingId(null)
     if (error) {
-      alert('שגיאה בביטול הגישה — נסי שנית')
+      alert('שגיאה בביטול הגישה. נסי שנית')
       return
     }
     setRows(prev => prev.filter(r => r.id !== id))

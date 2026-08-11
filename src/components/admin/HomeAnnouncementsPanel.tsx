@@ -129,7 +129,7 @@ export default function HomeAnnouncementsPanel() {
         </button>
       </div>
       <p className="text-xs text-sand-500 -mt-1">
-        באנרים בולטים שקופצים לאמהות בראש דף הבית — מבצע, הנחה, הודעה חשובה. אפשר להגביל בתאריכים ולכבות בכל רגע.
+        באנרים בולטים שקופצים לאמהות בראש דף הבית: מבצע, הנחה, הודעה חשובה. אפשר להגביל בתאריכים ולכבות בכל רגע.
       </p>
 
       {showForm && (
@@ -168,7 +168,7 @@ export default function HomeAnnouncementsPanel() {
       )}
 
       {items.length === 0 && !showForm ? (
-        <p className="text-xs text-sand-400 text-center py-2">אין הודעות עדיין — לחצי על "חדש" ליצירת המבצע הראשון</p>
+        <p className="text-xs text-sand-400 text-center py-2">אין הודעות עדיין. לחצי על "חדש" ליצירת המבצע הראשון</p>
       ) : (
         <div className="space-y-2">
           {items.map((a, idx) => (
@@ -185,7 +185,7 @@ export default function HomeAnnouncementsPanel() {
                   {dateLabel(a) && ` · ${dateLabel(a)}`}
                 </p>
               </div>
-              <button onClick={() => toggle(a)} className="flex-shrink-0" title={a.is_active ? 'פעיל — לחצי לכיבוי' : 'כבוי — לחצי להפעלה'}>
+              <button onClick={() => toggle(a)} className="flex-shrink-0" title={a.is_active ? 'פעיל. לחצי לכיבוי' : 'כבוי. לחצי להפעלה'}>
                 {a.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5 text-sand-300" />}
               </button>
               <button onClick={() => openEdit(a)} className="p-1 text-sand-400 hover:text-mustard-500 flex-shrink-0"><Pencil className="w-4 h-4" /></button>

@@ -125,7 +125,7 @@ export default function BenefitsPage() {
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <WalletCards className="w-4 h-4" style={{ color: '#3E5966' }} />
-                  <h2 className="font-bold" style={{ fontSize: 15, color: '#443327' }}>בבתי העסק — בהצגת הכרטיס</h2>
+                  <h2 className="font-bold" style={{ fontSize: 15, color: '#443327' }}>בבתי העסק, בהצגת הכרטיס</h2>
                 </div>
                 <div className="grid grid-cols-2 gap-3">{inPerson.map(perkCard)}</div>
               </div>
@@ -133,7 +133,7 @@ export default function BenefitsPage() {
             {online.length > 0 && (
               <div>
                 {inPerson.length > 0 && (
-                  <h2 className="font-bold mb-2" style={{ fontSize: 15, color: '#443327' }}>אונליין — קוד או קישור</h2>
+                  <h2 className="font-bold mb-2" style={{ fontSize: 15, color: '#443327' }}>אונליין, קוד או קישור</h2>
                 )}
                 <div className="grid grid-cols-2 gap-3">{online.map(perkCard)}</div>
               </div>

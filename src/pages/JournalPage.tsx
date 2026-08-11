@@ -24,7 +24,7 @@ type TimelineFilter = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time'
 const UPSELLS: Record<string, { emoji: string; text: string; cta: string; wa: string }> = {
   sleep:   { emoji: '😴', text: 'מתמודדת עם שינה קשה?',   cta: 'סדנת שינה לתינוקות',    wa: 'היי! אני מתמודדת עם שינה קשה ורוצה לשמוע על הסדנה' },
   diaper:  { emoji: '🍼', text: 'הרבה חיתולים מלוכלכים? נסי עיסוי בטן', cta: 'סדנת עיסוי תינוקות', wa: 'היי! אני מעוניינת לשמוע על סדנת עיסוי תינוקות' },
-  note:    { emoji: '💛', text: 'כתבת הערה — אנחנו כאן לכל שאלה',       cta: 'שאלי אותנו בוואטסאפ',  wa: 'היי! יש לי שאלה לגבי התינוק שלי' },
+  note:    { emoji: '💛', text: 'כתבת הערה. אנחנו כאן לכל שאלה',       cta: 'שאלי אותנו בוואטסאפ',  wa: 'היי! יש לי שאלה לגבי התינוק שלי' },
   feeding: { emoji: '🤱', text: 'רוצה תמיכה בהנקה?',     cta: 'להתייעצות עם מנחה',     wa: 'היי! אני מעוניינת בייעוץ הנקה' },
 }
 
@@ -208,8 +208,8 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
           const greeting = name
             ? `היי ${name}! זה היומן של ${selectedChild.name}`
             : def
-              ? `שלום ${def.label} — זה היומן של ${selectedChild.name}`
-              : `צופה ביומן של ${selectedChild.name} — הצטרפת כבן/בת משפחה`
+              ? `שלום ${def.label}, זה היומן של ${selectedChild.name}`
+              : `צופה ביומן של ${selectedChild.name}. הצטרפת כבן/בת משפחה`
           return (
             <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={{ background: 'linear-gradient(135deg, #FFF8E7, #FFF0CC)' }}>
               <span className="text-lg">{def?.emoji ?? '👁️'}</span>

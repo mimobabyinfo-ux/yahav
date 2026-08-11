@@ -171,7 +171,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
       ? await supabase.from('workshop_cohorts').update(payload).eq('id', editingId)
       : await supabase.from('workshop_cohorts').insert(payload)
     setSaving(false)
-    if (dbError) { setError('שגיאה בשמירה — נסי שוב'); return }
+    if (dbError) { setError('שגיאה בשמירה. נסי שוב'); return }
     cancelForm()
     await load()
   }
@@ -246,7 +246,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                   <>
                     {current.length === 0 && finished.length > 0 && !showForm && !showFinished && (
                       <p className="text-center text-sand-500 text-sm py-2">
-                        אין מחזורים קרובים — כל המחזורים הקיימים הסתיימו.
+                        אין מחזורים קרובים. כל המחזורים הקיימים הסתיימו.
                       </p>
                     )}
                     {visible.map(c => {
@@ -415,7 +415,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                       className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
                     />
                     <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
-                      אם משאירים ריק — המקסימום נלקח אוטומטית משדה המלאי של המוצר, וכל עדכון שם מתעדכן בכל המחזורים.
+                      אם משאירים ריק, המקסימום נלקח אוטומטית משדה המלאי של המוצר, וכל עדכון שם מתעדכן בכל המחזורים.
                     </p>
                   </div>
                   <div>

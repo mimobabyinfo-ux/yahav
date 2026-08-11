@@ -95,7 +95,7 @@ export default function MembershipCard({ onClose, event }: Props) {
               </div>
             ) : (
               <p className="mt-4 font-semibold" style={{ fontSize: 14, color: '#6E5836', lineHeight: 1.5 }}>
-                הכרטיס מקנה את הטבות הקהילה אצל בתי העסק השותפים — פשוט מראים אותו בקופה
+                הכרטיס מקנה את הטבות הקהילה אצל בתי העסק השותפים. פשוט מראים אותו בקופה
               </p>
             )}
           </div>
