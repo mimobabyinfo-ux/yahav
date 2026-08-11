@@ -28,11 +28,12 @@ import MimoLogo from '../components/MimoLogo'
 //      Morning link's success URL, which is the only signal available
 //      for a payment link she sent by hand over WhatsApp.
 //
-// In case 2 there is no registration in the app at all, so the page
-// asks for name + phone and opens one as שילמה (claim_thankyou_-
-// registration matches an existing lead for the same phone+product
-// before creating a new one, so registering on another device doesn't
-// produce a duplicate).
+// Every route into the app now records the registration BEFORE payment
+// — the public form does it, and the in-app store does it too since
+// 11.8 — so by the time she lands here we already know who she is. The
+// page therefore never asks for details. Someone who paid from a raw
+// WhatsApp link stays unknown to the app on purpose (Brenda, 11.8:
+// "להוריד לגמרי") and Brenda marks that payment by hand, as before.
 
 type ThanksKind = 'group' | 'meetup' | 'private' | 'product'
 
@@ -110,13 +111,6 @@ export default function ThankYouPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
-  // Claim form (only when we don't already know who she is).
-  const [claimName, setClaimName] = useState('')
-  const [claimPhone, setClaimPhone] = useState('')
-  const [claiming, setClaiming] = useState(false)
-  const [claimed, setClaimed] = useState(false)
-  const [claimError, setClaimError] = useState('')
-
   useEffect(() => { document.title = 'תודה — Mimo' }, [])
 
   useEffect(() => {
@@ -155,31 +149,6 @@ export default function ThankYouPage() {
     }
   }, [workshopKey])
 
-  async function submitClaim(ev: React.FormEvent) {
-    ev.preventDefault()
-    const phoneDigits = claimPhone.replace(/\D/g, '')
-    if (!/^0?5\d{8}$/.test(phoneDigits) && !/^9725\d{8}$/.test(phoneDigits)) {
-      setClaimError('מספר טלפון ישראלי לא תקין')
-      return
-    }
-    if (!ctx?.workshop_id) return
-    setClaimError('')
-    setClaiming(true)
-    const { error } = await supabase.rpc('claim_thankyou_registration', {
-      p_name: claimName.trim(),
-      p_phone: claimPhone,
-      p_workshop_id: ctx.workshop_id,
-      p_cohort_id: null,
-    })
-    setClaiming(false)
-    if (error) {
-      console.error('[thank-you] claim failed:', error)
-      setClaimError('משהו השתבש — אפשר פשוט לכתוב לי בוואטסאפ')
-      return
-    }
-    setClaimed(true)
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#FFFFFF' }}>
@@ -196,10 +165,6 @@ export default function ThankYouPage() {
   const body = settings[KEYS[kind].body] || COPY[kind].body(owner)
   const firstName = (ctx?.lead_name ?? '').trim().split(' ')[0]
   const meeting = (kind === 'group' || kind === 'meetup') ? cohortLine(ctx ?? { found: false }) : null
-
-  // Whether to ask who she is: we know the product but have no
-  // registration behind it — she came straight from a payment link.
-  const needsClaim = !!ctx?.found && !ctx.lead_found && !claimed
 
   const waProductText = ctx?.title
     ? `היי! רכשתי עכשיו ${ctx.title} ואשמח לתאם איסוף 🤍`
@@ -231,46 +196,6 @@ export default function ThankYouPage() {
             <p className="text-sm font-bold rounded-2xl py-2.5 px-3" style={{ background: '#F6ECD8', color: '#6E5836' }}>
               {meeting}
             </p>
-          )}
-
-          {claimed && (
-            <p className="text-sm font-bold rounded-2xl py-2.5 px-3" style={{ background: '#EDEDE6', color: '#4F5040' }}>
-              רשמנו אותך ✓ נתראה בקרוב
-            </p>
-          )}
-
-          {/* Payment links sent by hand carry no registration — ask, so
-              it lands in the system as שילמה like any other purchase. */}
-          {needsClaim && (
-            <form onSubmit={submitClaim} className="space-y-2 text-right rounded-2xl p-4" style={{ background: '#FFFFFF' }}>
-              <p className="text-sm font-bold text-sand-800">רק שנדע שזו את 🤍</p>
-              <p className="text-xs text-sand-500 leading-relaxed">
-                כדי שנשמור את הרכישה על השם שלך ולא נצטרך להטריד אותך אחר כך.
-              </p>
-              <input
-                value={claimName}
-                onChange={e => setClaimName(e.target.value)}
-                placeholder="השם שלך"
-                className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
-              />
-              <input
-                value={claimPhone}
-                onChange={e => setClaimPhone(e.target.value)}
-                placeholder="050-0000000"
-                dir="ltr"
-                inputMode="tel"
-                className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm text-right focus:outline-none focus:border-mustard-400"
-              />
-              {claimError && <p className="text-xs font-semibold" style={{ color: '#8B4A30' }}>{claimError}</p>}
-              <button
-                type="submit"
-                disabled={claiming || !claimName.trim() || !claimPhone.trim()}
-                className="w-full py-2.5 rounded-xl text-sm font-bold disabled:opacity-50"
-                style={{ background: '#C8A460', color: '#33281B' }}
-              >
-                {claiming ? '...' : 'סיימנו'}
-              </button>
-            </form>
           )}
 
           <div className="space-y-2 pt-2">

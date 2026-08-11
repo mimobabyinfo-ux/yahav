@@ -76,8 +76,41 @@ function CohortList({ list, selected, onSelect }: { list: PublicCohort[]; select
   )
 }
 
+// ── In-store purchase → a registration, before the payment page ───────────────
+// Products that don't go through the public registration page (physical
+// add-ons, and cohort products with public_registration off) used to link
+// straight to Morning: no lead, no cohort, nothing for Brenda to see, and
+// nothing for the thank-you page to flip to שילמה. She is logged in and we
+// already hold her details, so record the registration on the way out and
+// stash its id exactly like PublicRegisterPage does.
+//
+// Deliberately NOT awaited: awaiting before window.open would let the
+// popup blocker eat the payment tab. The insert lands while she is still
+// typing her card details.
+function recordStorePurchase(
+  ws: WorkshopExt,
+  profile: { id: string; mother_name: string | null; email: string | null; phone_number?: string | null } | null,
+  cohortId?: string | null,
+) {
+  if (!profile) return
+  const leadId = crypto.randomUUID()
+  try { localStorage.setItem('mimo_pending_lead_id', leadId) } catch { /* private mode */ }
+  void supabase.from('registration_leads').insert({
+    id: leadId,
+    name: profile.mother_name ?? 'לקוחה מהאפליקציה',
+    phone: profile.phone_number ?? '',
+    email: profile.email ?? '',
+    selected_workshop_id: ws.id,
+    cohort_id: cohortId || null,
+    source: 'store',
+  }).then(({ error }) => {
+    if (error) console.error('[store-purchase] lead insert failed:', error)
+  })
+}
+
 // ── Product detail modal ──────────────────────────────────────────────────────
 function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt; onClose: () => void; ownerWhatsapp: string; cohorts: PublicCohort[] }) {
+  const { profile } = useAuth()
   // Pre-select the first cohort that still has room, so the register
   // CTA works with zero extra taps.
   const [selectedCohort, setSelectedCohort] = useState<string>(() =>
@@ -174,6 +207,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt
             href={ws.payment_link}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => recordStorePurchase(ws, profile, selectedCohort)}
             className="flex-1 flex items-center justify-center gap-2 font-bold py-3.5 rounded-2xl text-sm transition-all"
             style={{ background: '#C8A460', color: '#33281B' }}
           >
@@ -402,6 +436,7 @@ export default function WorkshopsPage() {
                         </button>
                       ) : ws.payment_link && (
                         <a href={ws.payment_link} target="_blank" rel="noopener noreferrer"
+                          onClick={() => recordStorePurchase(ws, profile, null)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28]"
                           style={{ background: '#E7C78A' }}>
                           <CreditCard className="w-4 h-4" /> רכישה
