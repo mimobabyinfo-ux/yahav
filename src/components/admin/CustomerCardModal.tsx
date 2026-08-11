@@ -9,6 +9,10 @@ import {
   type CustomerCandidate,
   type CustomerRegistration,
   type CustomerFormSubmission,
+  registrationAmount,
+  customerTotals,
+  offerPrice,
+  formatIls,
 } from './customerLookup'
 
 // Screen A / A3: the registrant panel. One person opens as a side
@@ -656,14 +660,30 @@ function RegistrationTabView({
         </Field>
       </div>
 
-      {selectedWorkshop?.price != null && (
-        <Field label="סכום">
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#443327' }}>
-            ₪{selectedWorkshop.price}
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8A7A63' }}> · לפי מחיר המוצר</span>
-          </p>
-        </Field>
-      )}
+      {selectedWorkshop?.price != null && (() => {
+        // An offer only counts while the registration still points at
+        // the product that offer belongs to.
+        const offer = focused.offer && focused.offer.workshop_id === selectedWorkshop.id ? focused.offer : null
+        const list = selectedWorkshop.price as number
+        const discounted = offer ? offerPrice(offer, list) : null
+        const discounted2 = discounted != null && discounted !== list ? discounted : null
+        return (
+          <Field label="סכום">
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#443327' }}>
+              {formatIls(discounted2 ?? list)}
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8A7A63' }}>
+                {discounted2 != null ? (
+                  <>
+                    {' · '}
+                    <span style={{ textDecoration: 'line-through' }}>{formatIls(list)}</span>
+                    {` · ${offer?.label ?? 'הצעה'}`}
+                  </>
+                ) : ' · לפי מחיר המוצר'}
+              </span>
+            </p>
+          </Field>
+        )
+      })()}
 
       <NotesField profile={profile} draft={draft} setDraft={setDraft} />
 
@@ -822,6 +842,28 @@ function HistoryTabView({
   wide: boolean
   onProfileChanged: () => void
 }) {
+  // Lifetime value — every product she bought from us, at the price she
+  // actually paid (offers applied). מומש counts; ממתינה is shown apart.
+  const totals = customerTotals(profile.registrations)
+
+  // Two registrations for the SAME product are almost always a mistake
+  // — the same woman filled the form twice, or an offer link created a
+  // second row beside the original. Flag every row in such a group so
+  // Brenda can compare dates and amounts and delete the wrong one; the
+  // app never guesses which, because sometimes it IS a second purchase.
+  const duplicateIds = (() => {
+    const byProduct = new Map<string, string[]>()
+    for (const r of profile.registrations) {
+      const key = r.workshop?.id ?? r.selected_workshop_id ?? ''
+      if (!key) continue
+      byProduct.set(key, [...(byProduct.get(key) ?? []), r.id])
+    }
+    const ids = new Set<string>()
+    for (const group of byProduct.values()) {
+      if (group.length > 1) group.forEach(id => ids.add(id))
+    }
+    return ids
+  })()
   return (
     <div className="px-5 py-4 space-y-5">
       <div className="space-y-2.5">
@@ -829,12 +871,35 @@ function HistoryTabView({
           <h3 className="text-base font-bold text-sand-800">הרשמות ({profile.registrations.length})</h3>
           <AddRegistrationButton profile={profile} onSaved={onProfileChanged} />
         </div>
+
+        {profile.registrations.length > 0 && (
+          <div className="flex items-baseline gap-2 flex-wrap rounded-2xl px-4 py-3" style={{ background: '#F6ECD8' }}>
+            <span className="font-bold" style={{ fontSize: 13, color: '#6E5836' }}>סה"כ רכשה מאיתנו</span>
+            <span className="font-display" style={{ fontSize: 20, color: '#443327' }}>{formatIls(totals.paid)}</span>
+            {totals.pending > 0 && (
+              <span className="font-semibold" style={{ fontSize: 12.5, color: '#8B4A30' }}>
+                · ועוד {formatIls(totals.pending)} שממתין לתשלום
+              </span>
+            )}
+            {totals.unpricedPaid > 0 && (
+              <span className="font-semibold" style={{ fontSize: 12.5, color: '#A2937D' }}>
+                · {totals.unpricedPaid === 1 ? 'הרשמה אחת בלי מחיר' : `${totals.unpricedPaid} הרשמות בלי מחיר`}
+              </span>
+            )}
+          </div>
+        )}
         {profile.registrations.length === 0 ? (
           <p className="text-sm text-sand-500">אין הרשמות.</p>
         ) : (
           <div className={wide ? 'grid grid-cols-2 gap-2' : 'space-y-2'}>
             {profile.registrations.map(r => (
-              <RegistrationHistoryRow key={r.id} reg={r} profile={profile} />
+              <RegistrationHistoryRow
+                key={r.id}
+                reg={r}
+                profile={profile}
+                duplicate={duplicateIds.has(r.id)}
+                onDeleted={onProfileChanged}
+              />
             ))}
           </div>
         )}
@@ -906,11 +971,34 @@ function StatusBadge({ status }: { status: 'pending' | 'paid' | 'handled' }) {
 }
 
 // ─── Registration history row ──────────────────────────────────────
-function RegistrationHistoryRow({ reg, profile }: { reg: CustomerRegistration; profile: CustomerProfile }) {
+function RegistrationHistoryRow({
+  reg,
+  profile,
+  duplicate = false,
+  onDeleted,
+}: {
+  reg: CustomerRegistration
+  profile: CustomerProfile
+  duplicate?: boolean
+  onDeleted?: () => void
+}) {
   const linkedFormId = reg.workshop?.linked_form_id ?? null
   const sub = linkedFormId
     ? profile.formSubmissions.find(s => s.form_id === linkedFormId) ?? null
     : null
+  const amount = registrationAmount(reg)
+  const discounted = amount != null && reg.workshop?.price != null && amount !== reg.workshop.price
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  async function remove() {
+    setBusy(true)
+    const { error } = await supabase.from('registration_leads').delete().eq('id', reg.id)
+    setBusy(false)
+    if (error) { console.error('[customer-card] delete registration failed:', error); return }
+    onDeleted?.()
+  }
+
   return (
     <div className="rounded-2xl bg-[#F5F1EB] p-3.5 space-y-1.5">
       <div className="flex items-center gap-2 flex-wrap">
@@ -918,6 +1006,14 @@ function RegistrationHistoryRow({ reg, profile }: { reg: CustomerRegistration; p
         <span className="text-sm font-semibold text-sand-800 flex-1 min-w-0 truncate">
           {reg.workshop?.title ?? 'ללא סדנה'}
         </span>
+        {amount != null && (
+          <span className="text-sm font-bold flex-shrink-0" style={{ color: '#443327' }}>
+            {formatIls(amount)}
+            {discounted && (
+              <span className="font-semibold" style={{ fontSize: 11.5, color: '#8A7A63' }}> · בהצעה</span>
+            )}
+          </span>
+        )}
       </div>
       <p className="text-xs text-sand-500 flex flex-wrap items-center gap-x-2 gap-y-0.5">
         {reg.cohort
@@ -931,6 +1027,31 @@ function RegistrationHistoryRow({ reg, profile }: { reg: CustomerRegistration; p
           {sub ? `שאלון מולא (${new Date(sub.created_at).toLocaleDateString('he-IL')})` : 'שאלון חסר'}
         </p>
       )}
+
+      <div className="flex items-center gap-2 pt-0.5">
+        {duplicate && (
+          <span className="text-xs font-bold px-2 py-1 rounded-md" style={{ color: '#8B4A30', background: '#F7EBE4' }}>
+            הרשמה נוספת לאותו מוצר
+          </span>
+        )}
+        {confirming ? (
+          <span className="flex items-center gap-2 mr-auto">
+            <span className="text-xs font-bold" style={{ color: '#8B4A30' }}>למחוק?</span>
+            <button onClick={remove} disabled={busy} className="text-xs font-bold hover:underline disabled:opacity-40" style={{ color: '#8B4A30' }}>
+              {busy ? '...' : 'כן, מחקי'}
+            </button>
+            <button onClick={() => setConfirming(false)} className="text-xs font-semibold hover:underline" style={{ color: '#7B604C' }}>ביטול</button>
+          </span>
+        ) : (
+          <button
+            onClick={() => setConfirming(true)}
+            className="mr-auto text-xs font-bold hover:underline"
+            style={{ color: '#A2937D' }}
+          >
+            מחיקה
+          </button>
+        )}
+      </div>
     </div>
   )
 }

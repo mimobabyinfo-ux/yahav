@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, Plus, RotateCcw } from 'lucide-react'
+import { ChevronLeft, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, Plus, RotateCcw, MessageCircle, Baby } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { AdminOverview } from './useAdminOverview'
@@ -29,6 +29,28 @@ function weekdayHe(iso: string): string {
   return new Date(iso + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'long' })
 }
 
+// "3.5" → "3 וחצי", "4.0" → "4" — reads like a mother talks about her
+// baby's age, not like a number in a table.
+function ageHe(months: number): string {
+  const whole = Math.floor(months)
+  const half = months - whole >= 0.5
+  const num = half ? `${whole} וחצי` : String(whole)
+  return whole === 1 && !half ? 'חודש' : `${num} חודשים`
+}
+
+function agoHe(days: number): string {
+  if (days <= 0) return 'היום'
+  if (days === 1) return 'אתמול'
+  if (days < 14) return `לפני ${days} ימים`
+  if (days < 60) return `לפני ${Math.round(days / 7)} שבועות`
+  return `לפני ${Math.round(days / 30.44)} חודשים`
+}
+
+function waHref(phone: string, text: string): string {
+  const intl = phone.replace(/\D/g, '').replace(/^0/, '972')
+  return `https://wa.me/${intl}?text=${encodeURIComponent(text)}`
+}
+
 type Props = {
   overview: AdminOverview
   onSection: (section: AdminTaskSection | 'perks') => void
@@ -39,7 +61,8 @@ type Props = {
 
 export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
   const { profile } = useAuth()
-  const { loading, tasks, manualTasks, counters, capacity, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
+  const { loading, tasks, manualTasks, counters, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
+  const [showAllMegalim, setShowAllMegalim] = useState(false)
   const [busyToggle, setBusyToggle] = useState<string | null>(null)
 
   // ── טופל + undo (phase 2). One undo slot, visible ~10 seconds. ──
@@ -292,6 +315,74 @@ export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* מועמדות למגלים — graduates whose baby reached the right age.
+              The CRM's follow-up is calendar-based (+14 days after
+              עטופים); this list is AGE-based, so it catches the mothers
+              that message reached too early. */}
+          <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
+            <div className="flex items-baseline justify-between gap-2 mb-1">
+              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>
+                מועמדות ל{megalim.targetTitle?.includes('מגלים') ? 'מגלים' : (megalim.targetTitle ?? 'סדנת ההמשך')}
+                {megalim.candidates.length > 0 && (
+                  <span className="font-display" style={{ color: '#8A6A2F' }}> · {megalim.candidates.length}</span>
+                )}
+              </h2>
+              {megalim.candidates.length > 3 && (
+                <button onClick={() => setShowAllMegalim(s => !s)} className="flex-shrink-0 font-bold" style={{ fontSize: 12, color: '#8A6A2F' }}>
+                  {showAllMegalim ? 'הצגה מקוצרת' : `הצגת כולן (${megalim.candidates.length})`}
+                </button>
+              )}
+            </div>
+            <p className="mb-3" style={{ fontSize: 12, color: '#A2937D' }}>
+              סיימו עטופים, עוד לא נרשמו למגלים, והתינוק/ת הגיע/ה לגיל {ageHe(megalim.fromMonths)} ומעלה
+            </p>
+
+            {megalim.candidates.length === 0 ? (
+              <div className="flex items-center gap-3 rounded-2xl px-4 py-4" style={{ background: '#F6F3ED' }}>
+                <Baby className="w-5 h-5 flex-shrink-0" style={{ color: '#8A7A63' }} />
+                <p className="font-semibold" style={{ fontSize: 14, color: '#8A7A63' }}>
+                  אין כרגע בוגרות עטופים בטווח הגיל של מגלים
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {(showAllMegalim ? megalim.candidates : megalim.candidates.slice(0, 3)).map(c => (
+                  <div key={c.leadId} className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5 transition-colors hover:bg-[#FAF7F1]">
+                    <span className="flex flex-col items-center justify-center flex-shrink-0 rounded-xl" style={{ width: 52, padding: '5px 0', background: '#F6ECD8' }}>
+                      <span className="font-display" style={{ fontSize: 16, lineHeight: 1, color: '#6E5836' }}>{c.ageMonths}</span>
+                      <span className="font-semibold" style={{ fontSize: 11, color: '#8A7A63' }}>חודשים</span>
+                    </span>
+                    <p className="flex-1 min-w-0 truncate" style={{ fontSize: 14 }}>
+                      <span className="font-bold" style={{ color: '#443327' }}>{c.name}</span>
+                      {c.babyName && <span style={{ color: '#A2937D' }}> · {c.babyName}</span>}
+                      <span style={{ color: '#A2937D' }}> · סיימה עטופים {agoHe(c.daysSinceFinish)}</span>
+                    </p>
+                    <a
+                      href={waHref(c.phone, `היי ${c.name.split(' ')[0]}! 🐣`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95"
+                      style={{ fontSize: 13, padding: '6px 12px', background: '#E7F0E4', color: '#3F5B39' }}
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" /> וואטסאפ
+                    </a>
+                  </div>
+                ))}
+                {!showAllMegalim && megalim.candidates.length > 3 && (
+                  <button onClick={() => setShowAllMegalim(true)} className="w-full text-right font-bold px-3.5 pt-1" style={{ fontSize: 12, color: '#8A6A2F' }}>
+                    ועוד {megalim.candidates.length - 3} ←
+                  </button>
+                )}
+              </div>
+            )}
+
+            {megalim.unknownDobCount > 0 && (
+              <p className="mt-2.5 px-1" style={{ fontSize: 12, color: '#A2937D' }}>
+                ל-{megalim.unknownDobCount} בוגרות נוספות אין תאריך לידה של התינוק/ת בשאלון — הן לא נספרות כאן
+              </p>
             )}
           </div>
 

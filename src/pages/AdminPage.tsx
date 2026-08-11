@@ -228,7 +228,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'partners'   && <PartnersTab />}
         {tab === 'leads'      && <LeadsTab />}
         {tab === 'forms'      && <FormsTab />}
-        {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} />}
+        {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} onClearFocus={() => setTaskContext(null)} />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
 
@@ -246,7 +246,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'partners'   && <PartnersTab />}
-        {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} />}
+        {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} onClearFocus={() => setTaskContext(null)} />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
     </div>
@@ -5012,69 +5012,168 @@ function OwnerSettingsSection() {
 }
 
 // ─── Thank-You Page Settings (inside Settings) ────────────────────────────────
+// One template per KIND of product, not per product: a group workshop
+// promises a WhatsApp group, a 1:1 promises a call to set a time, a
+// physical product promises a pickup. Saying "פרטים יישלחו בקבוצת
+// ווטסאפ" to someone who just bought a rattle is what this replaces.
+// group keeps the ORIGINAL setting keys, so the live text stays live.
+type ThanksKind = 'group' | 'meetup' | 'private' | 'product'
+
+const THANKS_KINDS: { key: ThanksKind; label: string; hint: string; titleKey: string; bodyKey: string }[] = [
+  { key: 'group',   label: 'סדנה קבוצתית', hint: 'סדנה עם מחזורים שיש לה קבוצת ווטסאפ — עטופים, מגלים, עיסוי', titleKey: 'thank_you_title',         bodyKey: 'thank_you_body' },
+  { key: 'meetup',  label: 'מפגש חד-פעמי', hint: 'מפגש בלי קבוצה ייעודית — מפגש אבות, בוקר של מימו',           titleKey: 'thank_you_title_meetup',  bodyKey: 'thank_you_body_meetup' },
+  { key: 'private', label: 'פרטני',        hint: 'מוצר בלי מחזורים — ליווי פרטני, תהליך ליווי',                titleKey: 'thank_you_title_private', bodyKey: 'thank_you_body_private' },
+  { key: 'product', label: 'מוצר משלים',   hint: 'מוצר פיזי לאיסוף — פוף, רעשן, תיק חיתולים',                  titleKey: 'thank_you_title_product', bodyKey: 'thank_you_body_product' },
+]
+
 function ThankYouSettingsSection() {
-  const [title, setTitle] = useState('')
-  const [body, setBody] = useState('')
-  const [waLink, setWaLink] = useState('')
-  const [igLink, setIgLink] = useState('')
+  const [kind, setKind] = useState<ThanksKind>('group')
+  const [vals, setVals] = useState<Record<string, string>>({})
+  const [products, setProducts] = useState<Workshop[]>([])
+  const [copied, setCopied] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    supabase.from('global_settings')
-      .select('setting_key, setting_value')
-      .in('setting_key', ['thank_you_title', 'thank_you_body', 'whatsapp_community_link', 'instagram_link', 'owner_name'])
+    const keys = [
+      'whatsapp_community_link', 'instagram_link', 'owner_name',
+      ...THANKS_KINDS.flatMap(k => [k.titleKey, k.bodyKey]),
+    ]
+    supabase.from('global_settings').select('setting_key, setting_value').in('setting_key', keys)
       .then(({ data }) => {
-        const get = (k: string) => data?.find(r => r.setting_key === k)?.setting_value ?? ''
-        setTitle(get('thank_you_title') || 'ברוכה הבאה למימו 🐣')
-        const ownerName = get('owner_name')
-        const defaultBody = ownerName
-          ? `מחכה לפגוש אותך ואת הבייבי שלך.\nפרטים נוספים יישלחו בקבוצת ווטסאפ ייעודית לקראת מועד המפגש.\nאני כאן בשבילך לכל שאלה, התייעצות או כל דבר קטן 🤍\nבאהבה, ${ownerName}`
-          : `מחכה לפגוש אותך ואת הבייבי שלך.\nפרטים נוספים יישלחו בקבוצת ווטסאפ ייעודית לקראת מועד המפגש.\nאני כאן בשבילך לכל שאלה, התייעצות או כל דבר קטן 🤍`
-        setBody(get('thank_you_body') || defaultBody)
-        setWaLink(get('whatsapp_community_link'))
-        setIgLink(get('instagram_link'))
+        const m: Record<string, string> = {}
+        for (const r of data ?? []) m[r.setting_key] = r.setting_value ?? ''
+        const ownerName = m.owner_name ?? ''
+        const sign = ownerName ? `\nבאהבה, ${ownerName}` : ''
+        m.thank_you_title = m.thank_you_title || 'ברוכה הבאה למימו 🐣'
+        m.thank_you_body = m.thank_you_body || `מחכה לפגוש אותך ואת הבייבי שלך.\nפרטים נוספים יישלחו בקבוצת ווטסאפ ייעודית לקראת מועד המפגש.\nאני כאן בשבילך לכל שאלה, התייעצות או כל דבר קטן 🤍${sign}`
+        m.thank_you_title_meetup = m.thank_you_title_meetup || 'נרשמת, מחכה לך 🐣'
+        m.thank_you_body_meetup = m.thank_you_body_meetup || `כל הפרטים לקראת המפגש יישלחו אלייך בוואטסאפ.\nאני כאן לכל שאלה עד אז 🤍${sign}`
+        m.thank_you_title_private = m.thank_you_title_private || 'התשלום התקבל, תודה 🤍'
+        m.thank_you_body_private = m.thank_you_body_private || `אני אחזור אלייך בוואטסאפ לתיאום המועד שמתאים לך ולבייבי.\nאם יש משהו שחשוב שאדע לפני שניפגש — פשוט כתבי לי.${sign}`
+        m.thank_you_title_product = m.thank_you_title_product || 'תודה על הרכישה 🤍'
+        m.thank_you_body_product = m.thank_you_body_product || `המוצר מחכה לך.\nנתאם יחד איסוף — כתבי לי בוואטסאפ ונסגור מתי נוח לך.${sign}`
+        setVals(m)
       })
+    supabase.from('workshops').select('*').order('display_order')
+      .then(({ data }) => setProducts(((data ?? []) as Workshop[]).filter(w => !!w.payment_link)))
   }, [])
+
+  const set = (k: string, v: string) => setVals(prev => ({ ...prev, [k]: v }))
 
   async function save() {
     setSaving(true)
     await supabase.from('global_settings').upsert([
-      { setting_key: 'thank_you_title', setting_value: title, setting_type: 'text', category: 'thanks', description: 'כותרת בעמוד התודה אחרי תשלום' },
-      { setting_key: 'thank_you_body', setting_value: body, setting_type: 'text', category: 'thanks', description: 'גוף הטקסט בעמוד התודה אחרי תשלום' },
-      { setting_key: 'whatsapp_community_link', setting_value: waLink, setting_type: 'url', category: 'thanks', description: 'קישור לקהילת WhatsApp של מימו' },
-      { setting_key: 'instagram_link', setting_value: igLink, setting_type: 'url', category: 'thanks', description: 'קישור לאינסטגרם של מימו' },
+      ...THANKS_KINDS.flatMap(k => ([
+        { setting_key: k.titleKey, setting_value: vals[k.titleKey] ?? '', setting_type: 'text', category: 'thanks', description: `כותרת בעמוד התודה — ${k.label}` },
+        { setting_key: k.bodyKey,  setting_value: vals[k.bodyKey] ?? '',  setting_type: 'text', category: 'thanks', description: `גוף הטקסט בעמוד התודה — ${k.label}` },
+      ])),
+      { setting_key: 'whatsapp_community_link', setting_value: vals.whatsapp_community_link ?? '', setting_type: 'url', category: 'thanks', description: 'קישור לקהילת WhatsApp של מימו' },
+      { setting_key: 'instagram_link', setting_value: vals.instagram_link ?? '', setting_type: 'url', category: 'thanks', description: 'קישור לאינסטגרם של מימו' },
     ], { onConflict: 'setting_key' })
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  const active = THANKS_KINDS.find(k => k.key === kind)!
+  const thanksUrl = (w: Workshop) => `${window.location.origin}/?thanks=${w.id}`
+
+  // Auto-detection reads "has cohorts" as "has a WhatsApp group", which
+  // is wrong for מפגש אבות and בוקר של מימו. This is the manual answer.
+  async function setTemplate(id: string, value: string) {
+    const next = (value || null) as Workshop['thanks_template']
+    setProducts(prev => prev.map(w => w.id === id ? { ...w, thanks_template: next } : w))
+    const { error } = await supabase.from('workshops').update({ thanks_template: next }).eq('id', id)
+    if (error) console.error('[thanks-template] update failed:', error)
+  }
+
+  async function copy(text: string, id: string) {
+    try { await navigator.clipboard.writeText(text); setCopied(id); setTimeout(() => setCopied(null), 1500) } catch { /* clipboard blocked */ }
   }
 
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-sand-100">
         <h3 className="font-bold text-sand-800 text-sm">עמוד תודה אחרי תשלום <span className="text-sand-400 font-normal">(?thanks)</span></h3>
-        <p className="text-xs text-sand-400 mt-0.5">מוצג לאמא אחרי שמורנינג מפנה אותה חזרה לאפליקציה</p>
+        <p className="text-xs text-sand-400 mt-0.5">מוצג לאמא אחרי שמורנינג מפנה אותה חזרה. הטקסט משתנה לפי סוג המוצר שנקנה.</p>
       </div>
       <div className="p-4 space-y-3">
+        <div className="flex rounded-xl overflow-hidden border-2" style={{ borderColor: '#E9E2D6' }}>
+          {THANKS_KINDS.map(k => (
+            <button
+              key={k.key}
+              type="button"
+              onClick={() => setKind(k.key)}
+              className="flex-1 py-2 font-bold transition-colors"
+              style={kind === k.key ? { background: '#C8A460', color: '#33281B', fontSize: 13 } : { background: '#fff', color: '#7B604C', fontSize: 13 }}
+            >
+              {k.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-sand-400">{active.hint}</p>
         <div>
           <label className="text-xs font-semibold text-sand-500 mb-1 block">כותרת</label>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="ברוכה הבאה למימו 🐣" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+          <input value={vals[active.titleKey] ?? ''} onChange={e => set(active.titleKey, e.target.value)} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
         </div>
         <div>
           <label className="text-xs font-semibold text-sand-500 mb-1 block">גוף הטקסט</label>
-          <textarea value={body} onChange={e => setBody(e.target.value)} rows={5} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
+          <textarea value={vals[active.bodyKey] ?? ''} onChange={e => set(active.bodyKey, e.target.value)} rows={5} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
         </div>
+        <p className="text-xs text-sand-400">
+          {kind === 'group'
+            ? 'מתחת לטקסט מוצג כפתור לקבוצת הוואטסאפ, ואם ידוע המחזור — גם תאריך המפגש הראשון.'
+            : kind === 'product'
+              ? 'מתחת לטקסט מוצג כפתור וואטסאפ ישיר אלייך לתיאום איסוף — לא קבוצה.'
+              : kind === 'meetup'
+                ? 'בלי הבטחה לקבוצה. כפתור וואטסאפ ישיר אלייך, ואם ידוע המחזור — גם תאריך המפגש.'
+                : 'מתחת לטקסט מוצג כפתור וואטסאפ ישיר אלייך — לא קבוצה.'}
+        </p>
         <div>
-          <label className="text-xs font-semibold text-sand-500 mb-1 block">קישור לקהילת WhatsApp</label>
-          <input value={waLink} onChange={e => setWaLink(e.target.value)} dir="ltr" placeholder="https://chat.whatsapp.com/..." className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+          <label className="text-xs font-semibold text-sand-500 mb-1 block">קישור לקהילת WhatsApp <span className="text-sand-400 font-normal">(סדנאות קבוצתיות בלבד)</span></label>
+          <input value={vals.whatsapp_community_link ?? ''} onChange={e => set('whatsapp_community_link', e.target.value)} dir="ltr" placeholder="https://chat.whatsapp.com/..." className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
         </div>
         <div>
           <label className="text-xs font-semibold text-sand-500 mb-1 block">קישור לאינסטגרם</label>
-          <input value={igLink} onChange={e => setIgLink(e.target.value)} dir="ltr" placeholder="https://instagram.com/..." className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+          <input value={vals.instagram_link ?? ''} onChange={e => set('instagram_link', e.target.value)} dir="ltr" placeholder="https://instagram.com/..." className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
         </div>
         <button onClick={save} disabled={saving} className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: '#E7C78A' }}>
           {saved ? '✓ נשמר!' : saving ? '...' : 'שמור'}
         </button>
+
+        {/* The per-product success URL to paste into each Morning
+            payment link — that parameter is the only way the page can
+            tell what was bought when she wasn't sent through the site. */}
+        <div className="pt-3 border-t border-sand-100 space-y-2">
+          <p className="text-xs font-bold text-sand-700">כתובת חזרה להדביק במורנינג</p>
+          <p className="text-xs text-sand-400 leading-relaxed">
+            בכל לינק תשלום במורנינג, בשדה של הכתובת לחזרה אחרי תשלום, הדביקי את הכתובת של אותו מוצר.
+            כך עמוד התודה יודע מה נקנה — וההרשמה נפתחת אצלך אוטומטית כ"שילמה".
+          </p>
+          {products.map(w => (
+            <div key={w.id} className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: '#F6F3ED' }}>
+              <span className="flex-1 min-w-0 truncate text-xs font-bold text-sand-800">{w.title}</span>
+              <select
+                value={w.thanks_template ?? ''}
+                onChange={e => setTemplate(w.id, e.target.value)}
+                className="flex-shrink-0 text-xs font-semibold bg-white rounded-lg px-2 py-1.5 focus:outline-none"
+                style={{ border: '1px solid #E9E2D6', color: '#5E4938' }}
+                title="איזו תבנית עמוד תודה המוצר הזה מציג"
+              >
+                <option value="">תבנית אוטומטית</option>
+                {THANKS_KINDS.map(k => <option key={k.key} value={k.key}>{k.label}</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={() => copy(thanksUrl(w), w.id)}
+                className="flex-shrink-0 text-xs font-bold px-2.5 py-1.5 rounded-lg"
+                style={{ background: copied === w.id ? '#EDEDE6' : '#F6ECD8', color: copied === w.id ? '#4F5040' : '#6E5836' }}
+              >
+                {copied === w.id ? '✓ הועתק' : 'העתקת הכתובת'}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -6122,7 +6221,7 @@ function effectiveStatus(
   return isCohortPast(c) ? 'handled' : 'paid'
 }
 
-function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
+function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: string[]; onClearFocus?: () => void } = {}) {
   const [leads, setLeads] = useState<RegistrationLead[]>([])
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   // Phase 5 / A1: all cohorts loaded once and filtered client-side per
@@ -6188,7 +6287,12 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
       supabase.from('workshops').select('*').order('display_order'),
       supabase.from('workshop_cohorts').select('*').order('start_date', { ascending: false }),
     ])
-    setLeads((l ?? []) as RegistrationLead[])
+    // Brenda 11.8.26: a מומש registration with no cohort is an old
+    // row from before cohorts existed — it can never become current,
+    // so it stays out of the list AND out of every count on this page.
+    // (Still reachable through search and the customer card, where it
+    // keeps counting toward what she bought from us.)
+    setLeads(((l ?? []) as RegistrationLead[]).filter(x => !(x.status === 'handled' && !x.cohort_id)))
     const wsList = (w ?? []) as Workshop[]
     setWorkshops(wsList)
     setCohorts((c ?? []) as WorkshopCohort[])
@@ -6474,11 +6578,10 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
 
   const pickerMode = !focusLeadIds && workshopFilter === 'all' && !showPrivateSection && !search.trim() && !showAllAnyway
 
-  // Focus mode pre-selects the matching rows so the existing bulk bar
-  // (visible-only contract intact) appears ready for action.
-  useEffect(() => {
-    if (focusLeadIds && focusLeadIds.length > 0) setSelected(new Set(focusLeadIds))
-  }, [focusLeadIds])
+  // Focus mode used to pre-tick the matching rows for the bulk bar.
+  // Brenda 11.8.26: arriving from a home task should SHOW her who they
+  // are, not stage a bulk action she never asked for — she ticks the
+  // ones she wants herself.
 
   // Per-workshop registration counts for the picker cards.
   const pickerCards = (() => {
@@ -6506,6 +6609,10 @@ function RegistrationsTab({ focusLeadIds }: { focusLeadIds?: string[] } = {}) {
     setShowPrivateSection(false)
     setShowAllAnyway(false)
     setSearch('')
+    // Also leave the "arrived from a home task" filter — without this
+    // the button looked broken: pickerMode stays false while
+    // focusLeadIds is set, so nothing on screen changed.
+    onClearFocus?.()
   }
 
   // README-IA PR10: "מחכה לך" inbox groups — computed from data already
