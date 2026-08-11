@@ -3,6 +3,7 @@ import { CalendarPlus, MapPin, Clock, Ticket, CalendarDays, Download } from 'luc
 import { supabase, type CommunityEventRow } from '../../lib/supabase'
 import { downloadIcs, googleCalendarUrl, icsFilename, type CalendarEvent } from '../../utils/calendarIcs'
 import MembershipCard from './MembershipCard'
+import EventRemindersCard from './EventRemindersCard'
 
 // "ההזמנות שלי" — everything she signed up for, in one place.
 //
@@ -92,6 +93,8 @@ export default function MyBookingsTab() {
 
   return (
     <div className="space-y-5">
+      {upcoming.length > 0 && <EventRemindersCard />}
+
       {upcoming.length > 1 && (
         <button
           onClick={() => downloadIcs(upcoming.map(toCalendarEvent), 'המפגשים שלי במימו.ics')}

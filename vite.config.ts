@@ -26,6 +26,12 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Push + notificationclick handlers live in public/push-sw.js.
+        // importScripts is how you add behaviour to a Workbox-GENERATED
+        // service worker; writing them into the generated file would be
+        // overwritten on every build, and switching the whole PWA to
+        // injectManifest just for this is a much bigger change.
+        importScripts: ['/push-sw.js'],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
