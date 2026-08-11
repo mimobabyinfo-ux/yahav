@@ -31,14 +31,24 @@ function todayIso(): string {
 }
 
 function toCalendarEvent(ev: CommunityEventRow): CalendarEvent {
-  const parts = [ev.description, ev.vendor_name ? `עם ${ev.vendor_name}` : null, 'הקהילה של מימו 🐣']
+  // The calendar's location field gets the NAVIGATION LINK, not the
+  // venue name. A name like "קפה נדנדה" is something a calendar has to
+  // guess at and usually gets wrong; the maps link opens exactly the
+  // right pin. The name isn't lost — it moves to the top of the details,
+  // where it reads better anyway.
+  const parts = [
+    ev.location ? `📍 ${ev.location}` : null,
+    ev.vendor_name ? `עם ${ev.vendor_name}` : null,
+    ev.description,
+    'הקהילה של מימו 🐣',
+  ]
   return {
     uid: ev.id,
     title: `${ev.emoji ? `${ev.emoji} ` : ''}${ev.title}`,
     date: ev.event_date,
     startTime: ev.start_time,
     endTime: ev.end_time,
-    location: ev.location,
+    location: ev.location_link || ev.location,
     description: parts.filter(Boolean).join('\n'),
   }
 }
