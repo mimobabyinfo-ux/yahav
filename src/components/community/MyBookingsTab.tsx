@@ -95,17 +95,6 @@ export default function MyBookingsTab() {
     <div className="space-y-5">
       {upcoming.length > 0 && <EventRemindersCard />}
 
-      {upcoming.length > 1 && (
-        <button
-          onClick={() => downloadIcs(upcoming.map(toCalendarEvent), 'המפגשים שלי במימו.ics')}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold transition-all hover:brightness-95"
-          style={{ background: '#F6ECD8', color: '#6E5836' }}
-        >
-          <CalendarPlus className="w-4 h-4" />
-          הוספת כל {upcoming.length} המפגשים ליומן (קובץ)
-        </button>
-      )}
-
       {upcoming.map(ev => (
         <div key={ev.id} className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
           <div className="flex items-start gap-3">
