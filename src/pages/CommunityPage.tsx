@@ -10,6 +10,7 @@ import TagSelector from '../components/community/TagSelector'
 import CommunityTagFilter from '../components/community/CommunityTagFilter'
 import CommunityMemberSheet from '../components/community/CommunityMemberSheet'
 import EventsTab from '../components/community/EventsTab'
+import MyBookingsTab from '../components/community/MyBookingsTab'
 import MembershipCard from '../components/community/MembershipCard'
 
 type CommunityProfile = {
@@ -39,7 +40,7 @@ type PregnantProfile = {
 // Top-level page tabs: community events ("הקהילה של מימו") vs the
 // member directory. Events is the default tab; the dashboard teaser
 // deep-links here via sessionStorage('mimo_community_tab').
-type PageTab = 'events' | 'members'
+type PageTab = 'events' | 'bookings' | 'members'
 
 type FilterMode = 'age' | 'area' | 'all'
 type PregnancyFilter = 'all' | 'week' | 'area'
@@ -61,7 +62,7 @@ export default function CommunityPage() {
   const [pageTab, setPageTab] = useState<PageTab>(() => {
     const stored = sessionStorage.getItem('mimo_community_tab')
     sessionStorage.removeItem('mimo_community_tab')
-    return stored === 'members' ? 'members' : 'events'
+    return stored === 'members' ? 'members' : stored === 'bookings' ? 'bookings' : 'events'
   })
 
   // Mom-mode state
@@ -222,7 +223,7 @@ export default function CommunityPage() {
               style={{ background: '#F6ECD8', border: '1px solid #E7C78A', color: '#4A3A28' }}
             >
               <WalletCards className="w-4 h-4" />
-              הכרטיס שלי
+              כרטיס קהילה
             </button>
           </div>
         </div>
@@ -232,8 +233,9 @@ export default function CommunityPage() {
             the events (IA handoff §3). */}
         <div className="flex" style={{ gap: 26, borderBottom: '1px solid #E4DAD0' }}>
           {([
-            ['events',  'אירועים'],
-            ['members', 'חברות'],
+            ['events',   'אירועים'],
+            ['bookings', 'ההזמנות שלי'],
+            ['members',  'חברות'],
           ] as [PageTab, string][]).map(([v, label]) => (
             <button
               key={v}
@@ -250,6 +252,10 @@ export default function CommunityPage() {
 
         {/* ── Events tab ── */}
         {pageTab === 'events' && <EventsTab />}
+
+        {/* ── ההזמנות שלי — what she already signed up for, with the
+             calendar file. Same RPC as the events tab, filtered to her. */}
+        {pageTab === 'bookings' && <MyBookingsTab />}
 
         {pageTab === 'members' && (<>
         {/* Community profile form */}
