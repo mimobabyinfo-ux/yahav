@@ -5017,13 +5017,14 @@ function OwnerSettingsSection() {
 // physical product promises a pickup. Saying "פרטים יישלחו בקבוצת
 // ווטסאפ" to someone who just bought a rattle is what this replaces.
 // group keeps the ORIGINAL setting keys, so the live text stays live.
-type ThanksKind = 'group' | 'meetup' | 'private' | 'product'
+type ThanksKind = 'group' | 'meetup' | 'private' | 'product' | 'simple'
 
 const THANKS_KINDS: { key: ThanksKind; label: string; hint: string; titleKey: string; bodyKey: string }[] = [
   { key: 'group',   label: 'סדנה קבוצתית', hint: 'סדנה עם מחזורים שיש לה קבוצת ווטסאפ — עטופים, מגלים, עיסוי', titleKey: 'thank_you_title',         bodyKey: 'thank_you_body' },
   { key: 'meetup',  label: 'מפגש חד-פעמי', hint: 'מפגש בלי קבוצה ייעודית — מפגש אבות, בוקר של מימו',           titleKey: 'thank_you_title_meetup',  bodyKey: 'thank_you_body_meetup' },
   { key: 'private', label: 'פרטני',        hint: 'מוצר בלי מחזורים — ליווי פרטני, תהליך ליווי',                titleKey: 'thank_you_title_private', bodyKey: 'thank_you_body_private' },
   { key: 'product', label: 'מוצר משלים',   hint: 'מוצר פיזי לאיסוף — פוף, רעשן, תיק חיתולים',                  titleKey: 'thank_you_title_product', bodyKey: 'thank_you_body_product' },
+  { key: 'simple',  label: 'תודה פשוטה',   hint: 'כל השאר — דמי רצינות לאירוע קהילה וכדומה. בלי קישור לקהילה.',  titleKey: 'thank_you_title_simple',  bodyKey: 'thank_you_body_simple' },
 ]
 
 function ThankYouSettingsSection() {
@@ -5051,6 +5052,8 @@ function ThankYouSettingsSection() {
         m.thank_you_body_meetup = m.thank_you_body_meetup || `כל הפרטים לקראת המפגש יישלחו אלייך בוואטסאפ.\nאני כאן לכל שאלה עד אז 🤍${sign}`
         m.thank_you_title_private = m.thank_you_title_private || 'התשלום התקבל, תודה 🤍'
         m.thank_you_body_private = m.thank_you_body_private || `אני אחזור אלייך בוואטסאפ לתיאום המועד שמתאים לך ולבייבי.\nאם יש משהו שחשוב שאדע לפני שניפגש — פשוט כתבי לי.${sign}`
+        m.thank_you_title_simple = m.thank_you_title_simple || 'איזה כיף! 🐣'
+        m.thank_you_body_simple = m.thank_you_body_simple || `קיבלנו את ההרשמה שלך.\nנשמח לראות אותך 🤍${sign}`
         m.thank_you_title_product = m.thank_you_title_product || 'תודה על הרכישה 🤍'
         m.thank_you_body_product = m.thank_you_body_product || `המוצר מחכה לך.\nנתאם יחד איסוף — כתבי לי בוואטסאפ ונסגור מתי נוח לך.${sign}`
         setVals(m)
@@ -5127,7 +5130,9 @@ function ThankYouSettingsSection() {
               ? 'מתחת לטקסט מוצג כפתור וואטסאפ ישיר אלייך לתיאום איסוף — לא קבוצה.'
               : kind === 'meetup'
                 ? 'בלי הבטחה לקבוצה. כפתור וואטסאפ ישיר אלייך, ואם ידוע המחזור — גם תאריך המפגש.'
-                : 'מתחת לטקסט מוצג כפתור וואטסאפ ישיר אלייך — לא קבוצה.'}
+                : kind === 'simple'
+                  ? 'רק הטקסט ואינסטגרם — בלי קבוצה ובלי וואטסאפ. הכתובת אליה: /?thanks=simple'
+                  : 'מתחת לטקסט מוצג כפתור וואטסאפ ישיר אלייך — לא קבוצה.'}
         </p>
         <div>
           <label className="text-xs font-semibold text-sand-500 mb-1 block">קישור לקהילת WhatsApp <span className="text-sand-400 font-normal">(סדנאות קבוצתיות בלבד)</span></label>

@@ -8,7 +8,7 @@ import MimoLogo from '../components/MimoLogo'
 // ווטסאפ"), which is wrong for a 1:1 session (no group) and wrong for a
 // physical product (nothing to meet about — there's a pickup to
 // coordinate). So the page now resolves WHAT was bought and shows one
-// of four templates, all editable in הגדרות:
+// of five templates, all editable in הגדרות:
 //
 //   group   — a workshop that runs in cohorts → WhatsApp group
 //   meetup  — a one-off meeting (מפגש אבות, בוקר של מימו): it has
@@ -16,6 +16,10 @@ import MimoLogo from '../components/MimoLogo'
 //             personally, so promising a group would be a lie
 //   private — 1:1 / no cohorts → Brenda will be in touch to set a time
 //   product — a physical add-on → coordinate pickup with Brenda
+//   simple  — anything that is neither: the 30₪ דמי רצינות for a
+//             community event. Whoever pays it is already IN the
+//             community, so the community link would read as if nobody
+//             was paying attention. Just a thank-you.
 //
 // The kind is auto-detected, but workshops.thanks_template overrides it
 // per product — auto-detection can't tell a cohort with a group from a
@@ -35,7 +39,7 @@ import MimoLogo from '../components/MimoLogo'
 // WhatsApp link stays unknown to the app on purpose (Brenda, 11.8:
 // "להוריד לגמרי") and Brenda marks that payment by hand, as before.
 
-type ThanksKind = 'group' | 'meetup' | 'private' | 'product'
+type ThanksKind = 'group' | 'meetup' | 'private' | 'product' | 'simple'
 
 type ThanksContext = {
   found: boolean
@@ -73,6 +77,13 @@ const COPY: Record<ThanksKind, { title: string; body: (owner: string) => string 
       'אם יש משהו שחשוב שאדע לפני שניפגש — פשוט כתבי לי.' +
       (owner ? `\nבאהבה, ${owner}` : ''),
   },
+  simple: {
+    title: 'איזה כיף! 🐣',
+    body: owner =>
+      'קיבלנו את ההרשמה שלך.\n' +
+      'נשמח לראות אותך 🤍' +
+      (owner ? `\nבאהבה, ${owner}` : ''),
+  },
   product: {
     title: 'תודה על הרכישה 🤍',
     body: owner =>
@@ -89,6 +100,7 @@ const KEYS: Record<ThanksKind, { title: string; body: string }> = {
   meetup:  { title: 'thank_you_title_meetup',  body: 'thank_you_body_meetup' },
   private: { title: 'thank_you_title_private', body: 'thank_you_body_private' },
   product: { title: 'thank_you_title_product', body: 'thank_you_body_product' },
+  simple:  { title: 'thank_you_title_simple',  body: 'thank_you_body_simple' },
 }
 
 function waHref(number: string, text: string): string {
@@ -128,6 +140,7 @@ export default function ThankYouPage() {
         KEYS.meetup.title, KEYS.meetup.body,
         KEYS.private.title, KEYS.private.body,
         KEYS.product.title, KEYS.product.body,
+        KEYS.simple.title, KEYS.simple.body,
       ]),
     ]).then(([ctxRes, setRes]) => {
       setCtx((ctxRes.data as ThanksContext) ?? { found: false })
@@ -213,7 +226,7 @@ export default function ThankYouPage() {
                 💬 הצטרפי לקהילת מימו בוואטסאפ
               </a>
             )}
-            {kind !== 'group' && ownerWa && (
+            {kind !== 'group' && kind !== 'simple' && ownerWa && (
               <a
                 href={waHref(ownerWa, kind === 'product' ? waProductText : waPrivateText)}
                 target="_blank"

@@ -23,7 +23,7 @@ body {
 /* Brand typography: rounded display font for titles (Hebrew-friendly
    web stand-in for Gveret Levin / Audrey Kids). */
 h1, h2, .font-display {
-  font-family: 'Gveret Levin AlefAlefAlef', 'Varela Round', 'Nunito', system-ui, sans-serif;
+  font-family: 'Gveret Levin', 'Gveret Levin AlefAlefAlef', 'Varela Round', 'Nunito', system-ui, sans-serif;
 }
 
 /* Micro-interactions: every tap feels soft and responsive. */
