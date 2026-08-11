@@ -101,9 +101,13 @@ export default {
       },
       fontFamily: {
         sans: ['Assistant', 'Nunito', 'system-ui', '-apple-system', 'sans-serif'],
-        // Display — rounded & playful (web stand-in for Gveret Levin /
-        // Audrey Kids from the brand book; supports Hebrew).
-        display: ['"Gveret Levin"', '"Gveret Levin AlefAlefAlef"', '"Varela Round"', 'Nunito', 'system-ui', 'sans-serif'],
+        // Display — rounded & playful, and the same on every machine.
+        // The brand book's Hebrew headline face is FB Gorme Narrow
+        // (Fontbit, licensed — not on any free CDN). Until the webfont
+        // files are licensed and self-hosted here, Varela Round stands
+        // in. Do NOT add a font that only some machines have installed:
+        // it renders differently per computer and looks like a bug.
+        display: ['"Varela Round"', 'Nunito', 'system-ui', 'sans-serif'],
         // Editorial serif (brand: Coustard).
         serif: ['Coustard', 'Georgia', 'serif'],
       },
