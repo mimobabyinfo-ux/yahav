@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { CalendarPlus, MapPin, Clock, Ticket, CalendarDays } from 'lucide-react'
+import { CalendarPlus, MapPin, Clock, Ticket, CalendarDays, Download } from 'lucide-react'
 import { supabase, type CommunityEventRow } from '../../lib/supabase'
-import { downloadIcs, icsFilename, type CalendarEvent } from '../../utils/calendarIcs'
+import { downloadIcs, googleCalendarUrl, icsFilename, type CalendarEvent } from '../../utils/calendarIcs'
 import MembershipCard from './MembershipCard'
 
 // "ההזמנות שלי" — everything she signed up for, in one place.
@@ -89,7 +89,7 @@ export default function MyBookingsTab() {
           style={{ background: '#F6ECD8', color: '#6E5836' }}
         >
           <CalendarPlus className="w-4 h-4" />
-          הוספת כל {upcoming.length} המפגשים ליומן
+          הוספת כל {upcoming.length} המפגשים ליומן (קובץ)
         </button>
       )}
 
@@ -115,17 +115,32 @@ export default function MyBookingsTab() {
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => downloadIcs([toCalendarEvent(ev)], icsFilename(ev.title, ev.event_date))}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold transition-all hover:brightness-95"
-              style={{ background: '#F6ECD8', color: '#6E5836' }}
-            >
-              <CalendarPlus className="w-4 h-4" /> הוספה ליומן
-            </button>
+          {/* Two calendar routes, both visible: a Google link for the
+              Android/desktop half, a file for the iPhone half. Hiding
+              one behind a menu would just cost the other half a tap. */}
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <a
+                href={googleCalendarUrl(toCalendarEvent(ev))}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold transition-all hover:brightness-95"
+                style={{ background: '#F6ECD8', color: '#6E5836' }}
+              >
+                <CalendarPlus className="w-4 h-4" /> יומן גוגל
+              </a>
+              <button
+                onClick={() => downloadIcs([toCalendarEvent(ev)], icsFilename(ev.title, ev.event_date))}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold transition-all hover:brightness-95"
+                style={{ background: '#F1EBE1', color: '#6E5836' }}
+                title="קובץ שנפתח באייפון, אאוטלוק וכל יומן אחר"
+              >
+                <Download className="w-4 h-4" /> יומן אחר
+              </button>
+            </div>
             <button
               onClick={() => setTicketEvent(ev)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white transition-all hover:brightness-95"
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white transition-all hover:brightness-95"
               style={{ background: '#818267' }}
             >
               <Ticket className="w-4 h-4" /> כרטיס הכניסה
