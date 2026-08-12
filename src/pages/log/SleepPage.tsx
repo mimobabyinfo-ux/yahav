@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -42,8 +42,38 @@ export default function SleepPage({ onBack, onSaved }: Props) {
   const [refetchTick, setRefetchTick] = useState(0)
   const lastSleep = useLastEntry('sleep', refetchTick)
 
-  // Notes — local state only (resets on navigation), saved on Stop.
+  // Notes. Yahav 11.8.26: a note typed while the timer runs used to
+  // vanish the moment she left the page — and a mother writing a note
+  // mid-feed is exactly the person who gets interrupted. The note now
+  // rides along on the running timer row (active_timers.additional_data)
+  // and comes back when she returns.
   const [notes, setNotes] = useState('')
+  const [noteSaved, setNoteSaved] = useState(false)
+  const [noteSaving, setNoteSaving] = useState(false)
+  const notesLoadedFor = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!timer) { notesLoadedFor.current = null; return }
+    if (notesLoadedFor.current === timer.id) return
+    notesLoadedFor.current = timer.id
+    const saved = (timer.additional_data as { notes?: string } | null)?.notes
+    if (typeof saved === 'string' && saved && !notes) setNotes(saved)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timer])
+
+  async function saveNoteToTimer() {
+    if (!timer) return
+    setNoteSaving(true)
+    const merged = { ...(timer.additional_data ?? {}), notes: notes.trim() }
+    const { error } = await supabase
+      .from('active_timers')
+      .update({ additional_data: merged })
+      .eq('id', timer.id)
+    setNoteSaving(false)
+    if (error) { console.error('[sleep] saving the note failed:', error); return }
+    setNoteSaved(true)
+    setTimeout(() => setNoteSaved(false), 2000)
+  }
 
   // Manual entry modal state
   const [manualOpen, setManualOpen] = useState(false)
@@ -185,11 +215,22 @@ export default function SleepPage({ onBack, onSaved }: Props) {
       <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">הערות</label>
       <textarea
         value={notes}
-        onChange={e => setNotes(e.target.value)}
+        onChange={e => { setNotes(e.target.value); setNoteSaved(false) }}
         placeholder="כל מה שתרצי לזכור על השינה הזו…"
         rows={2}
         className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-right"
       />
+      {timer && (
+        <button
+          type="button"
+          onClick={saveNoteToTimer}
+          disabled={noteSaving || !notes.trim()}
+          className="mt-1.5 w-full py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40"
+          style={{ background: noteSaved ? '#EDEDE6' : '#F6ECD8', color: noteSaved ? '#4F5040' : '#6E5836' }}
+        >
+          {noteSaving ? 'שומרת…' : noteSaved ? '✓ ההערה נשמרה' : 'שמירת ההערה'}
+        </button>
+      )}
     </div>
   )
 

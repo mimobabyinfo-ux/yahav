@@ -102,7 +102,7 @@ export default function EventsTab() {
     if (error) { showToast('שגיאה. נסי שוב'); return }
     if (data === 'full') { showToast('האירוע התמלא בדיוק עכשיו 😢'); load(); return }
     if (data === 'registered' || data === 'already') {
-      showToast(ev.price > 0 ? 'שמרנו לך מקום! נשאר רק להשלים תשלום 💛' : 'נתראה שם! 💛')
+      showToast(ev.price > 0 ? 'שמרנו לך מקום! נשאר רק להשלים תשלום 🤎' : 'נתראה שם! 🤎')
       if (ev.price > 0 && ev.payment_link) {
         window.open(ev.payment_link, '_blank', 'noopener')
       }
@@ -126,8 +126,8 @@ export default function EventsTab() {
     const { data, error } = await supabase.rpc('join_event_waitlist', { p_event_id: ev.id })
     setBusyId(null)
     if (error) { showToast('שגיאה. נסי שוב'); return }
-    if (data === 'not_full') { showToast('התפנה מקום! אפשר להירשם 💛'); load(); return }
-    if (data === 'already_registered') { showToast('את כבר רשומה לאירוע 💛'); load(); return }
+    if (data === 'not_full') { showToast('התפנה מקום! אפשר להירשם 🤎'); load(); return }
+    if (data === 'already_registered') { showToast('את כבר רשומה לאירוע 🤎'); load(); return }
     if (data === 'ok') {
       showToast('נכנסת לרשימת ההמתנה. נעדכן אותך אם יתפנה מקום 🤍')
       load()
@@ -228,7 +228,7 @@ export default function EventsTab() {
               )}
               {names && names.length > 0 && (
                 <div>
-                  <p className="text-[13px] font-bold text-sand-500 mb-1">מי מגיעה? 💛 <span className="font-normal text-sand-600">(לחצי להכיר)</span></p>
+                  <p className="text-[13px] font-bold text-sand-500 mb-1">מי מגיעה? 🤎 <span className="font-normal text-sand-600">(לחצי להכיר)</span></p>
                   <div className="flex flex-wrap gap-1.5">
                     {names.map(a => (
                       <button
@@ -376,7 +376,7 @@ export default function EventsTab() {
             const now = new Date()
             const mk = `${MONTHS_HE[now.getMonth()]} ${now.getFullYear()}`
             const n = events.filter(ev => monthKey(ev.event_date) === mk).length
-            return n > 0 ? `${n === 1 ? 'מפגש אחד' : `${n} מפגשים`} החודש` : 'האירועים הקרובים'
+            return n > 0 ? 'האירועים הקרובים' : 'האירועים הקרובים'
           })()}
         </p>
         <div className="flex flex-none" style={{ background: '#F0EBE3', borderRadius: 12, padding: 3 }}>

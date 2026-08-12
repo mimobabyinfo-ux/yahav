@@ -808,7 +808,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
                     {regsWaitlist.map((w, idx) => {
                       const name = w.user_profiles?.mother_name ?? '—'
                       const phone = w.user_profiles?.phone_number
-                      const waText = `היי ${name.split(' ')[0]}! התפנה מקום ב"${regsEvent.title}" (${weekdayHe(regsEvent.event_date)} ${ddmm(regsEvent.event_date)}${regsEvent.start_time ? ` בשעה ${regsEvent.start_time.slice(0, 5)}` : ''}) ואת הבאה בתור 💛 אפשר להירשם עכשיו באפליקציה: https://mimo-baby.co.il`
+                      const waText = `היי ${name.split(' ')[0]}! התפנה מקום ב"${regsEvent.title}" (${weekdayHe(regsEvent.event_date)} ${ddmm(regsEvent.event_date)}${regsEvent.start_time ? ` בשעה ${regsEvent.start_time.slice(0, 5)}` : ''}) ואת הבאה בתור 🤎 אפשר להירשם עכשיו באפליקציה: https://mimo-baby.co.il`
                       return (
                         <div key={w.id} className="flex items-center gap-2 border border-sand-100 rounded-2xl p-3">
                           <span className="w-6 h-6 rounded-full flex items-center justify-center text-[13px] font-bold flex-shrink-0" style={{ background: '#F4EDE1', color: '#6E5836' }}>{idx + 1}</span>

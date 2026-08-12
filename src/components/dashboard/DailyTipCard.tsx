@@ -5,7 +5,7 @@ import { useDailyTip } from '../../hooks/useDailyTip'
 // Lucide Lightbulb instead of the emoji, readable type sizes.
 
 export default function DailyTipCard() {
-  const { loading, tip, label } = useDailyTip()
+  const { loading, tip } = useDailyTip()
   if (loading) return null
   if (!tip) return null
 
@@ -16,7 +16,7 @@ export default function DailyTipCard() {
       </span>
       <div className="flex-1 min-w-0 space-y-1.5">
         <p className="font-bold" style={{ fontSize: 13, color: '#85555E' }}>
-          טיפ ליום{label ? ` · ${label}` : ''}
+          טיפ ליום
         </p>
         {tip.title && (
           <p className="font-bold" style={{ fontSize: 16, lineHeight: 1.35, color: '#443327' }}>{tip.title}</p>

@@ -241,6 +241,17 @@ export default function WorkshopsPage() {
   const [purchases, setPurchases] = useState<PurchasedRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<WorkshopExt | null>(null)
+
+  // Deep link from the home screen's age-matched card: it stashes the
+  // product id, we open that product's sheet instead of dropping her
+  // into the whole store to find it again.
+  const [pendingProductId, setPendingProductId] = useState<string | null>(() => {
+    try {
+      const id = sessionStorage.getItem('mimo_open_product')
+      sessionStorage.removeItem('mimo_open_product')
+      return id
+    } catch { return null }
+  })
   const [category, setCategory] = useState(isPregnant ? 'הריון' : 'all')
   const [tab, setTab] = useState<'store' | 'purchases'>('store')
   // Upcoming cohorts for ALL displayed products (one RPC call).
@@ -264,6 +275,14 @@ export default function WorkshopsPage() {
         })
       })
   }, [])
+
+  // Once the products are loaded, open the one the home card asked for.
+  useEffect(() => {
+    if (!pendingProductId || workshops.length === 0) return
+    const ws = workshops.find(w => w.id === pendingProductId)
+    if (ws) setSelected(ws)
+    setPendingProductId(null)
+  }, [pendingProductId, workshops])
 
   const cohortsByWorkshop = useMemo(() => {
     const m = new Map<string, PublicCohort[]>()

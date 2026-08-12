@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Plus, Trash2, Check, ArrowRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLogo from '../components/MimoLogo'
 import { CITIES } from '../data/cities'
+import TagSelector from '../components/community/TagSelector'
 
 type Mode = 'mom' | 'pregnant'
 
@@ -31,6 +32,28 @@ export default function OnboardingPage() {
   const [area, setArea] = useState('')
   const [citySearch, setCitySearch] = useState('')
   const [showCities, setShowCities] = useState(false)
+  const [neighborhood, setNeighborhood] = useState('')
+  const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([])
+  // Yahav 11.8.26: ask at signup what she's looking for in the
+  // community, the same tags the members directory filters on. Asked
+  // here, the directory is useful to her from day one instead of after
+  // she finds the profile screen.
+  const [communityTags, setCommunityTags] = useState<string[]>([])
+
+  // Same ranking as the community page: the city she typed first.
+  const cityMatches = useMemo(() => {
+    const q = citySearch.trim()
+    if (!q) return CITIES
+    return CITIES.filter(c => c.includes(q))
+      .sort((a, b) => (a === q ? 0 : a.startsWith(q) ? 1 : 2) - (b === q ? 0 : b.startsWith(q) ? 1 : 2) || a.localeCompare(b, 'he'))
+  }, [citySearch])
+
+  useEffect(() => {
+    if (!area) { setNeighborhoodOptions([]); return }
+    supabase.rpc('get_neighborhood_suggestions', { p_area: area }).then(({ data }) => {
+      setNeighborhoodOptions(((data ?? []) as { neighborhood: string }[]).map(r => r.neighborhood))
+    })
+  }, [area])
   const [phone, setPhone] = useState('')
   const [showPhone, setShowPhone] = useState(false)
   const [dueDate, setDueDate] = useState('')
@@ -82,6 +105,8 @@ export default function OnboardingPage() {
         baby_gender: mode === 'mom' ? babies[0].gender : null,
         display_name: motherName,
         area: area || null,
+        neighborhood: neighborhood.trim() || null,
+        community_tags: communityTags,
         phone_number: phone.trim() || null,
         community_consent: showPhone,
         lead_status: 'new_lead',
@@ -187,18 +212,48 @@ export default function OnboardingPage() {
               />
               {showCities && (
                 <div className="absolute top-full right-0 left-0 z-50 bg-white border-2 border-mustard-200 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto">
-                  {CITIES.filter(c => !citySearch || c.includes(citySearch)).map(c => (
+                  {cityMatches.map(c => (
                     <button key={c} type="button"
                       onMouseDown={() => { setArea(c); setCitySearch(c); setShowCities(false) }}
                       className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-800 border-b border-sand-50 last:border-0 transition-colors">
                       {c}
                     </button>
                   ))}
-                  {CITIES.filter(c => !citySearch || c.includes(citySearch)).length === 0 && (
+                  {cityMatches.length === 0 && (
                     <p className="text-center text-sand-400 text-sm py-3">לא נמצאו תוצאות</p>
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Neighbourhood — optional, suggested from other mothers
+                in the same city. */}
+            {area && (
+              <div>
+                <label className="block text-xs font-semibold text-sand-600 mb-1.5">
+                  שכונה ב{area} <span className="text-sand-400 font-normal">(לא חובה)</span>
+                </label>
+                <input
+                  type="text"
+                  value={neighborhood}
+                  onChange={e => setNeighborhood(e.target.value)}
+                  list="onboarding-neighborhoods"
+                  placeholder="למשל: שכונת גפן"
+                  autoComplete="off"
+                  className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
+                />
+                <datalist id="onboarding-neighborhoods">
+                  {neighborhoodOptions.map(n => <option key={n} value={n} />)}
+                </datalist>
+              </div>
+            )}
+
+            {/* What she's looking for in the community */}
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">
+                מה את מחפשת בקהילה? <span className="text-sand-400 font-normal">(לא חובה)</span>
+              </label>
+              <TagSelector value={communityTags} onChange={setCommunityTags} />
             </div>
 
             {/* Phone — required */}

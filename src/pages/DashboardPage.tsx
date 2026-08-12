@@ -49,7 +49,7 @@ export function readNightPref(): NightModePref {
 
 export default function DashboardPage({ onNavigate }: Props) {
   const { profile, selectedChild, children, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
-  const { ownerName, ownerWhatsapp } = useOwnerSettings()
+  const { ownerWhatsapp } = useOwnerSettings()
   const [modalType, setModalType] = useState<EntryType | null>(null)
   const [presetFeedingType, setPresetFeedingType] = useState<'breast' | 'bottle' | 'solid' | undefined>(undefined)
   const [refetchKey, setRefetchKey] = useState(0)
@@ -273,7 +273,7 @@ export default function DashboardPage({ onNavigate }: Props) {
         {selectedChild && (
           <div className="flex flex-col" style={{ background: '#F6ECD8', borderRadius: 26, padding: '18px 16px 14px', gap: 14 }}>
             <div className="flex items-center justify-between">
-              <span className="font-bold" style={{ fontSize: 16, color: '#4A3A28' }}>רישום מהיר</span>
+              <span className="font-bold" style={{ fontSize: 16, color: '#4A3A28' }}>רישום מהיר ביומן</span>
               <span className="font-semibold" style={{ fontSize: 13, color: '#8A6A2F' }}>היום · {hebrewToday()}</span>
             </div>
             {children.length > 1 && <ChildSwitcher />}
@@ -351,20 +351,26 @@ export default function DashboardPage({ onNavigate }: Props) {
           </div>
         )}
 
-        {/* 5 · Contact — Tier 3, quiet footer row. No card, no fill. */}
-        <a
-          href={`https://wa.me/${ownerWhatsapp}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center"
-          style={{ gap: 12, padding: '10px 6px', minHeight: 44 }}
-        >
+        {/* 5 · Contact — Tier 3, quiet footer row. No card, no fill.
+             Yahav 11.8.26: the whole row used to be one link with a
+             "שלחי הודעה" on the far side, which read as two separate
+             links to the same place. The sentence is now plain text and
+             only the button opens WhatsApp. */}
+        <div className="flex items-center" style={{ gap: 12, padding: '10px 6px', minHeight: 44 }}>
           <MessageCircle style={{ width: 20, height: 20, color: '#818267' }} />
           <span className="font-semibold" style={{ fontSize: 14, color: '#7B604C' }}>
-            יש שאלה? {ownerName} כאן בוואטסאפ
+            יש לך שאלה? מוזמנת לפנות אלינו
           </span>
-          <span className="font-bold mr-auto" style={{ fontSize: 14, color: '#A35C3D' }}>שלחי הודעה</span>
-        </a>
+          <a
+            href={`https://wa.me/${ownerWhatsapp}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-bold mr-auto whitespace-nowrap"
+            style={{ fontSize: 14, color: '#A35C3D' }}
+          >
+            שלחי הודעה בוואטסאפ
+          </a>
+        </div>
       </div>
 
       {selectedPerk && (

@@ -1,26 +1,27 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Square, Pause } from 'lucide-react'
+import { Pause } from 'lucide-react'
 import { supabase, ActiveTimer } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatSeconds, timerElapsedSeconds, timerIsPaused } from '../hooks/useActiveTimer'
 import type { Page } from '../App'
 
-// App-level banner that surfaces any running timer no matter which page
-// the user is on. Tapping it navigates back to that timer's dedicated
-// action page so the user can stop / save / adjust.
+// Surfaces any running timer no matter which page the user is on.
+// Tapping it goes back to that timer's page to stop / save / adjust.
 //
-// Renders nothing when no timers are running. When at least one is, it
-// pins to the top and sets a `--banner-height` CSS variable on the
-// document root so layouts (BottomNav-aware pages, action pages) can
-// adjust their top padding.
+// Yahav 11.8.26: this used to be a full-width bar pinned to the top, in
+// a blue-to-terracotta gradient that is in no brand palette. It covered
+// the top of every screen and looked like an error state. It is now a
+// small floating pill in the bottom corner, out of the way of content,
+// in the brand's moss green.
+//
+// It no longer reserves layout space either: --banner-height stays 0, so
+// pages don't pad for something that now floats above them.
 
 type Props = {
   onNavigate: (page: Page) => void
   /** Bumps when a timer is stopped elsewhere, so we refetch. */
   refetchKey?: number
 }
-
-const BANNER_HEIGHT_PX = 36
 
 // Map timer_type → dedicated page. All three Phase-2 timer types are wired.
 const PAGE_FOR_TIMER: Record<string, Page | undefined> = {
@@ -58,39 +59,32 @@ export default function ActiveTimerBanner({ onNavigate, refetchKey = 0 }: Props)
   // Re-render once a second to update the elapsed display.
   useEffect(() => {
     if (timers.length === 0) return
-    const i = setInterval(() => setTick(t => t + 1), 1000)
-    return () => clearInterval(i)
+    const id = setInterval(() => setTick(t => t + 1), 1000)
+    return () => clearInterval(id)
   }, [timers.length])
 
-  // Refresh the banner state when the tab regains focus (e.g. user
-  // closes/reopens the app — their timer should still be there).
+  // Nothing is pinned to the top any more, so no page needs to pad for
+  // it. Kept (at 0) because layouts still read the variable.
   useEffect(() => {
-    function onFocus() { load() }
-    window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
-  }, [load])
-
-  // Expose banner height to the rest of the layout via CSS variable.
-  useEffect(() => {
-    if (timers.length > 0) {
-      document.documentElement.style.setProperty('--banner-height', `${BANNER_HEIGHT_PX}px`)
-    } else {
-      document.documentElement.style.removeProperty('--banner-height')
-    }
-    return () => {
-      document.documentElement.style.removeProperty('--banner-height')
-    }
+    document.documentElement.style.setProperty('--banner-height', '0px')
   }, [timers.length])
 
   if (timers.length === 0) return null
 
-  // For Phase 2 step 1, we show one banner row per running timer. Each is
-  // tappable to navigate to its page. Force a re-render reference via tick
-  // for the elapsed display (eslint won't complain since we use it).
   void tick
 
   return (
-    <div className="fixed top-0 right-0 left-0 z-[80] max-w-[480px] mx-auto" dir="rtl">
+    <div
+      className="fixed z-[80] flex flex-col items-end"
+      style={{
+        // Clear of the bottom nav and the iPhone home indicator, on the
+        // inline-end side so it never sits over the start of a heading.
+        insetInlineEnd: 12,
+        bottom: 'calc(78px + env(safe-area-inset-bottom, 0px))',
+        gap: 8,
+      }}
+      dir="rtl"
+    >
       {timers.map(t => {
         const meta = META[t.timer_type] ?? { emoji: '⏱️', label: t.timer_type }
         const targetPage = PAGE_FOR_TIMER[t.timer_type]
@@ -101,29 +95,37 @@ export default function ActiveTimerBanner({ onNavigate, refetchKey = 0 }: Props)
             key={t.id}
             onClick={() => { if (targetPage) onNavigate(targetPage) }}
             disabled={!clickable}
-            className="w-full flex items-center justify-between gap-3 px-4 text-white"
+            title={paused ? `${meta.label} בהפסקה` : `${meta.label} פעיל`}
+            className="flex items-center transition-all hover:brightness-95 active:scale-95"
             style={{
-              height: BANNER_HEIGHT_PX,
-              // Paused: muted slate. Running: brand gradient.
-              background: paused
-                ? 'linear-gradient(135deg, #7a7a92, #5a5a72)'
-                : 'linear-gradient(135deg, #5C7CB8, #A35C3D)',
+              gap: 7,
+              padding: '7px 12px 7px 10px',
+              borderRadius: 9999,
+              background: paused ? '#8A8A7A' : '#818267',
+              color: '#FFFFFF',
+              boxShadow: '0 4px 14px rgba(0,0,0,.18)',
               cursor: clickable ? 'pointer' : 'default',
             }}
           >
-            <span className="flex items-center gap-2 text-xs font-semibold">
-              <span className="text-base leading-none">{meta.emoji}</span>
-              <span>{paused ? `${meta.label} בהפסקה` : `${meta.label} פעיל`}</span>
-            </span>
-            <span className="flex items-center gap-1 text-xs font-mono font-bold tabular-nums">
-              {paused
-                ? <Pause className="w-2.5 h-2.5 fill-current" />
-                : <Square className="w-2.5 h-2.5 fill-current" />}
+            <span style={{ fontSize: 15, lineHeight: 1 }}>{meta.emoji}</span>
+            <span className="font-mono font-bold tabular-nums" style={{ fontSize: 13, lineHeight: 1 }}>
               {formatSeconds(timerElapsedSeconds(t))}
             </span>
+            {paused && <Pause className="w-3 h-3 fill-current" />}
+            {!paused && (
+              // A quiet pulse says "still running" without a second colour.
+              <span
+                style={{
+                  width: 6, height: 6, borderRadius: 9999,
+                  background: '#FFFFFF', opacity: .9,
+                  animation: 'mimoPulse 1.6s ease-in-out infinite',
+                }}
+              />
+            )}
           </button>
         )
       })}
+      <style>{`@keyframes mimoPulse { 0%,100% { opacity:.9 } 50% { opacity:.25 } }`}</style>
     </div>
   )
 }

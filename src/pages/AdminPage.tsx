@@ -5734,7 +5734,9 @@ function PartnersTab() {
   const [partners, setPartners] = useState<ServicePartner[]>([])
   const [editing, setEditing] = useState<ServicePartner | null>(null)
   const [adding, setAdding] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', category: 'pregnancy' as 'pregnancy' | 'motherhood', subcategory: '', whatsapp_number: '', logo_url: '', display_order: 0, cost: '', cost_notes: '' })
+  const [form, setForm] = useState({ title: '', description: '', category: 'pregnancy' as 'pregnancy' | 'motherhood' | 'both', subcategories: [] as string[], whatsapp_number: '', logo_url: '', display_order: 0, cost: '', cost_notes: '' })
+  // What's typed in the topic box before it becomes a chip.
+  const [topicDraft, setTopicDraft] = useState('')
   const [saving, setSaving] = useState(false)
   // Admin-only cost info per vendor (vendor_admin_info, admin RLS) —
   // lets Brenda/Yahav compare what vendors charge inside each topic
@@ -5782,14 +5784,19 @@ function PartnersTab() {
   useEffect(() => { load() }, [load])
 
   function openNew() {
-    setForm({ title: '', description: '', category: 'pregnancy', subcategory: '', whatsapp_number: '', logo_url: '', display_order: partners.length, cost: '', cost_notes: '' })
+    setForm({ title: '', description: '', category: 'pregnancy', subcategories: [], whatsapp_number: '', logo_url: '', display_order: partners.length, cost: '', cost_notes: '' })
+    setTopicDraft('')
     setEditing(null)
     setAdding(true)
   }
 
   function openEdit(p: ServicePartner) {
     const info = adminInfo[p.id]
-    setForm({ title: p.title, description: p.description ?? '', category: p.category, subcategory: subcatLabel(p.subcategory) === 'ללא נושא' ? '' : subcatLabel(p.subcategory), whatsapp_number: p.whatsapp_number ?? '', logo_url: p.logo_url ?? '', display_order: p.display_order, cost: info?.cost != null ? String(info.cost) : '', cost_notes: info?.cost_notes ?? '' })
+    const topics = (p.subcategories?.length ? p.subcategories : [p.subcategory])
+      .map(t => subcatLabel(t))
+      .filter(t => t !== 'ללא נושא')
+    setForm({ title: p.title, description: p.description ?? '', category: p.category, subcategories: Array.from(new Set(topics)), whatsapp_number: p.whatsapp_number ?? '', logo_url: p.logo_url ?? '', display_order: p.display_order, cost: info?.cost != null ? String(info.cost) : '', cost_notes: info?.cost_notes ?? '' })
+    setTopicDraft('')
     setEditing(p)
     setAdding(true)
   }
@@ -5798,7 +5805,10 @@ function PartnersTab() {
     if (!form.title.trim()) return
     setSaving(true)
     const { cost, cost_notes, ...partnerForm } = form
-    const payload = { ...partnerForm, subcategory: form.subcategory.trim() || null }
+    // subcategory keeps the first topic so anything still reading the
+    // old single column keeps working; subcategories is the real list.
+    const topics = Array.from(new Set(form.subcategories.map(t => t.trim()).filter(Boolean)))
+    const payload = { ...partnerForm, subcategories: topics, subcategory: topics[0] ?? null }
     let vendorId = editing?.id ?? null
     if (editing) {
       await supabase.from('service_partners').update(payload).eq('id', editing.id)
@@ -5849,7 +5859,7 @@ function PartnersTab() {
       {/* Topic filter chips — הכל / one per existing topic */}
       {partners.length > 0 && (
         <div className="flex gap-2 overflow-x-auto scroll-hide pb-1">
-          {[null, ...[...new Set(partners.map(p => subcatLabel(p.subcategory)))]].map(t => (
+          {[null, ...[...new Set(partners.flatMap(p => (p.subcategories?.length ? p.subcategories : [p.subcategory]).map(t => subcatLabel(t))))]].map(t => (
             <button key={t ?? 'all'} onClick={() => setTopicFilter(t)}
               className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all ${topicFilter === t ? 'text-white shadow-sm' : 'bg-white text-sand-500 border border-sand-200'}`}
               style={topicFilter === t ? { background: '#E7C78A' } : {}}>
@@ -5869,16 +5879,57 @@ function PartnersTab() {
             placeholder="תיאור קצר..." rows={2}
             className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
           <div className="flex gap-2">
-            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as 'pregnancy' | 'motherhood' }))}
+            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as 'pregnancy' | 'motherhood' | 'both' }))}
               className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400">
               <option value="pregnancy">הריון</option>
               <option value="motherhood">אמהות</option>
+              <option value="both">הריון ואמהות</option>
             </select>
-            <input value={form.subcategory} onChange={e => setForm(f => ({ ...f, subcategory: e.target.value }))}
-              list="partner-subcats" placeholder="נושא / תיקייה, למשל: מאמנות כושר"
-              className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400" />
+          </div>
+
+          {/* Topics as chips: a vendor can sit in several folders — a
+              trainer who is also a nutritionist belongs in both. Typing
+              a new one and pressing Enter creates it. */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-sand-500">נושאים / תיקיות</label>
+            {form.subcategories.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {form.subcategories.map(t => (
+                  <span key={t} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
+                    style={{ background: '#F6ECD8', color: '#6E5836' }}>
+                    {t}
+                    <button type="button" onClick={() => setForm(f => ({ ...f, subcategories: f.subcategories.filter(x => x !== t) }))}
+                      className="hover:opacity-60" title="הסרה">✕</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input value={topicDraft}
+                onChange={e => setTopicDraft(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key !== 'Enter') return
+                  e.preventDefault()
+                  const t = topicDraft.trim()
+                  if (!t) return
+                  setForm(f => f.subcategories.includes(t) ? f : { ...f, subcategories: [...f.subcategories, t] })
+                  setTopicDraft('')
+                }}
+                list="partner-subcats" placeholder="נושא, למשל: מאמנות כושר (Enter להוספה)"
+                className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400" />
+              <button type="button"
+                onClick={() => {
+                  const t = topicDraft.trim()
+                  if (!t) return
+                  setForm(f => f.subcategories.includes(t) ? f : { ...f, subcategories: [...f.subcategories, t] })
+                  setTopicDraft('')
+                }}
+                disabled={!topicDraft.trim()}
+                className="px-4 py-2.5 rounded-2xl text-sm font-bold disabled:opacity-40"
+                style={{ background: '#F6ECD8', color: '#6E5836' }}>הוספה</button>
+            </div>
             <datalist id="partner-subcats">
-              {[...new Set([...partners.map(p => subcatLabel(p.subcategory)), ...SUBCAT_PRESETS])].filter(s => s !== 'ללא נושא').map(s => <option key={s} value={s} />)}
+              {[...new Set([...partners.flatMap(p => (p.subcategories?.length ? p.subcategories : [p.subcategory]).map(t => subcatLabel(t))), ...SUBCAT_PRESETS])].filter(s => s !== 'ללא נושא').map(s => <option key={s} value={s} />)}
             </datalist>
           </div>
           <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))}
@@ -5916,11 +5967,16 @@ function PartnersTab() {
       {(() => {
         const groups: { name: string; items: ServicePartner[] }[] = []
         for (const p of partners) {
-          const name = subcatLabel(p.subcategory)
-          if (topicFilter && name !== topicFilter) continue
-          const g = groups.find(x => x.name === name)
-          if (g) g.items.push(p)
-          else groups.push({ name, items: [p] })
+          // One vendor, several folders (Yahav 11.8.26).
+          const names = Array.from(new Set(
+            (p.subcategories?.length ? p.subcategories : [p.subcategory]).map(t => subcatLabel(t)),
+          ))
+          for (const name of names) {
+            if (topicFilter && name !== topicFilter) continue
+            const g = groups.find(x => x.name === name)
+            if (g) g.items.push(p)
+            else groups.push({ name, items: [p] })
+          }
         }
         return groups.map(g => (
           <div key={g.name} className="space-y-2">
@@ -5962,7 +6018,7 @@ function PartnersTab() {
                       <div className="min-w-0">
                         <p className="truncate" style={{ fontWeight: 700, fontSize: 16, color: '#443327' }}>{p.title}</p>
                         <p className="truncate" style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
-                          {subcatLabel(p.subcategory)} · {p.category === 'pregnancy' ? 'הריון' : 'אמהות'}
+                          {(p.subcategories?.length ? p.subcategories : [p.subcategory]).map(t => subcatLabel(t)).join(' · ')} · {p.category === 'both' ? 'הריון ואמהות' : p.category === 'pregnancy' ? 'הריון' : 'אמהות'}
                         </p>
                         {/* Admin-only cost chip — from vendor_admin_info */}
                         {adminInfo[p.id]?.cost != null && (

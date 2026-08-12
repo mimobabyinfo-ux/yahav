@@ -22,6 +22,9 @@ export type UserProfile = {
   last_active: string | null
   family_id: string | null
   area: string | null
+  /** Optional neighbourhood inside `area`. Free text; suggestions come
+   *  from what other mothers in the same city typed. */
+  neighborhood: string | null
   phone_number: string | null
   community_consent: boolean
   community_bio: string | null
@@ -455,8 +458,14 @@ export type ServicePartner = {
   id: string
   title: string
   description: string | null
-  category: 'pregnancy' | 'motherhood'
+  // 'both' (Yahav 11.8.26): a vendor who serves pregnancy AND
+  // motherhood used to have to be entered twice.
+  category: 'pregnancy' | 'motherhood' | 'both'
+  /** First topic. Kept in sync with subcategories[0] for older readers. */
   subcategory: string | null
+  /** Every folder this vendor belongs to — a trainer who is also a
+   *  nutritionist appears in both. */
+  subcategories: string[] | null
   whatsapp_number: string | null
   logo_url: string | null
   display_order: number

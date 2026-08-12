@@ -1,36 +1,53 @@
 import { COMMUNITY_TAGS, type CommunityTagId } from '../../constants/communityTags'
 
-// Phase 4 / C2: horizontal scrollable chip strip rendered below the
-// existing age/area filter on CommunityPage. Single-select — picking a
-// tag narrows the list to moms whose community_tags contains it. "הכל"
-// (value === null) clears the tag filter.
+// Horizontal chip strip below the age/area filter on CommunityPage.
+//
+// Yahav 11.8.26: "לחפש לפי קפה ופארק ואימון ולא או או או" — the strip
+// was single-select, so looking for someone to have coffee AND walk in
+// the park with meant picking one and scanning. It is now multi-select
+// with AND semantics: every chip you add narrows the list further.
+//
+// AND rather than OR is the deliberate choice. Someone browsing the
+// community is looking for a person she'd actually meet, and each tag
+// she adds is another thing she wants in common — OR would widen the
+// list exactly when she is trying to narrow it.
 //
 // We overflow-x-auto rather than wrap so the strip stays one line at
-// 480px even with 9 chips. RTL is inherited from the page; chips read
-// right-to-left in their natural Hebrew flow.
+// 480px even with 9 chips.
 
 type Props = {
-  value: CommunityTagId | null
-  onChange: (next: CommunityTagId | null) => void
+  value: CommunityTagId[]
+  onChange: (next: CommunityTagId[]) => void
 }
 
 export default function CommunityTagFilter({ value, onChange }: Props) {
+  function toggle(id: CommunityTagId) {
+    onChange(value.includes(id) ? value.filter(v => v !== id) : [...value, id])
+  }
+
   return (
-    <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
-      <Chip
-        active={value === null}
-        onClick={() => onChange(null)}
-        label="הכל"
-      />
-      {COMMUNITY_TAGS.map(tag => (
+    <div className="space-y-1">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
         <Chip
-          key={tag.id}
-          active={value === tag.id}
-          onClick={() => onChange(tag.id)}
-          label={tag.label}
-          emoji={tag.emoji}
+          active={value.length === 0}
+          onClick={() => onChange([])}
+          label="הכל"
         />
-      ))}
+        {COMMUNITY_TAGS.map(tag => (
+          <Chip
+            key={tag.id}
+            active={value.includes(tag.id)}
+            onClick={() => toggle(tag.id)}
+            label={tag.label}
+            emoji={tag.emoji}
+          />
+        ))}
+      </div>
+      {value.length > 1 && (
+        <p className="text-[11px] font-semibold px-1" style={{ color: '#A2937D' }}>
+          מוצגות רק מי שמחפשות את כל {value.length} הדברים
+        </p>
+      )}
     </div>
   )
 }

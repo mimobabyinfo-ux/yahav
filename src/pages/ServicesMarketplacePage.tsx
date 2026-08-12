@@ -40,7 +40,7 @@ const SUBCATEGORY_EMOJI: Record<string, string> = {
   lactation:    '🤱',
   osteopath:    '🙌',
   physio:       '💪',
-  psychologist: '💛',
+  psychologist: '🤎',
   nutrition:    '🥗',
   other:        '⭐',
 }
@@ -95,14 +95,18 @@ export default function ServicesMarketplacePage() {
     setSent(null)
   }
 
-  const filtered = partners.filter(p => p.category === category)
+  const filtered = partners.filter(p => p.category === category || p.category === 'both')
 
-  // Group by subcategory
+  // Group by topic. A vendor can belong to several (a trainer who is
+  // also a nutritionist), so she appears under each of them — falling
+  // back to the single legacy subcategory for rows never re-saved.
   const grouped: Record<string, ServicePartner[]> = {}
   filtered.forEach(p => {
-    const key = p.subcategory ?? 'other'
-    if (!grouped[key]) grouped[key] = []
-    grouped[key].push(p)
+    const keys = p.subcategories?.length ? p.subcategories : [p.subcategory ?? 'other']
+    for (const key of keys) {
+      if (!grouped[key]) grouped[key] = []
+      grouped[key].push(p)
+    }
   })
 
   return (
@@ -173,7 +177,7 @@ export default function ServicesMarketplacePage() {
                     sent === partner.id ? (
                       <div className="flex items-center gap-2 py-3 px-4 rounded-2xl bg-green-50">
                         <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-                        <p className="text-sm font-semibold text-green-700">נשלח! ניצור איתך קשר בקרוב 💛</p>
+                        <p className="text-sm font-semibold text-green-700">נשלח! ניצור איתך קשר בקרוב 🤎</p>
                       </div>
                     ) : (
                       <div className="space-y-2">

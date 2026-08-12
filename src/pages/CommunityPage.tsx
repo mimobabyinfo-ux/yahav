@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback, useRef } from 'react'
+﻿import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft, Tag, WalletCards } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -45,6 +45,14 @@ type PageTab = 'events' | 'bookings' | 'members'
 type FilterMode = 'age' | 'area' | 'all'
 type PregnancyFilter = 'all' | 'week' | 'area'
 
+// City-match ranking: the city she typed, then cities that start with
+// it, then anything else containing it. 0 is best.
+function rankCity(city: string, query: string): number {
+  if (city === query) return 0
+  if (city.startsWith(query)) return 1
+  return 2
+}
+
 function ageMonths(dob: string): number {
   return Math.floor((Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
 }
@@ -79,6 +87,31 @@ export default function CommunityPage() {
   const initialized = useRef(false)
   const [areaInput, setAreaInput] = useState('')
   const [citySearch, setCitySearch] = useState('')
+  // Yahav 11.8.26: "אם רשמתי רמת גן אני רוצה לראות רק רמת גן".
+  // A plain substring match buried the city she typed under every other
+  // name containing it. Exact match first, then names that START with
+  // what she typed, then the rest.
+  const cityMatches = useMemo(() => {
+    const q = citySearch.trim()
+    if (!q) return CITIES
+    const hits = CITIES.filter(c => c.includes(q))
+    return hits.sort((a, b) => rankCity(a, q) - rankCity(b, q) || a.localeCompare(b, 'he'))
+  }, [citySearch])
+
+  // Neighbourhood inside the city — optional, free text, suggested from
+  // what other mothers in the SAME city already typed. No gazetteer of
+  // Israeli neighbourhoods is shipped: it would be wrong for half the
+  // country and stale within a year.
+  const [neighborhoodInput, setNeighborhoodInput] = useState('')
+  const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([])
+
+  useEffect(() => {
+    const city = areaInput.trim()
+    if (!city) { setNeighborhoodOptions([]); return }
+    supabase.rpc('get_neighborhood_suggestions', { p_area: city }).then(({ data }) => {
+      setNeighborhoodOptions(((data ?? []) as { neighborhood: string }[]).map(r => r.neighborhood))
+    })
+  }, [areaInput])
   const [showCities, setShowCities] = useState(false)
   const [phoneInput, setPhoneInput] = useState('')
   const [bioInput, setBioInput] = useState('')
@@ -89,7 +122,7 @@ export default function CommunityPage() {
 
   // Phase 4 / C2: single-select tag filter (independent of age/area
   // strip). null = "הכל" — no tag narrowing.
-  const [tagFilter, setTagFilter] = useState<CommunityTagId | null>(null)
+  const [tagFilters, setTagFilters] = useState<CommunityTagId[]>([])
   // Open member profile in a bottom sheet. Discriminated union over the
   // two view types so the sheet's caller knows whether to render mom
   // or pregnant copy.
@@ -104,6 +137,7 @@ export default function CommunityPage() {
       initialized.current = true
       setAreaInput(profile.area ?? '')
       setCitySearch(profile.area ?? '')
+      setNeighborhoodInput(profile.neighborhood ?? '')
       setPhoneInput(profile.phone_number ?? '')
       setBioInput(profile.community_bio ?? '')
       setTagsInput(profile.community_tags ?? [])
@@ -136,6 +170,7 @@ export default function CommunityPage() {
       .from('user_profiles')
       .update({
         area: areaInput.trim() || null,
+        neighborhood: neighborhoodInput.trim() || null,
         phone_number: phoneInput.trim() || null,
         community_bio: bioInput.trim() || null,
         community_tags: tagsInput,
@@ -158,12 +193,15 @@ export default function CommunityPage() {
   const myArea = (registeredInSession ? areaInput : (profile?.area ?? areaInput)).trim().toLowerCase()
   const myWeek = profile?.due_date ? pregnancyWeek(profile.due_date) : null
 
-  // Tag filter — applied AFTER the age/area chip. A null tagFilter
-  // means "no tag narrowing"; an untagged mom is hidden whenever a tag
-  // is selected (filter intent = "actively looking for X").
+  // Tag filter — applied AFTER the age/area chip. Empty means "no tag
+  // narrowing"; an untagged mom is hidden whenever a tag is selected
+  // (filter intent = "actively looking for X").
+  //
+  // Several tags are ANDed, not ORed (Yahav 11.8.26): each chip she
+  // adds is another thing she wants in common, so it should narrow.
   function matchesTag(tags: string[] | null): boolean {
-    if (tagFilter == null) return true
-    return !!tags?.includes(tagFilter)
+    if (tagFilters.length === 0) return true
+    return tagFilters.every(t => !!tags?.includes(t))
   }
 
   // Filter mom profiles
@@ -281,19 +319,42 @@ export default function CommunityPage() {
               />
               {showCities && (
                 <div className="absolute top-full right-0 left-0 z-50 bg-white border-2 border-mustard-200 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto">
-                  {CITIES.filter(c => !citySearch || c.includes(citySearch)).map(c => (
+                  {cityMatches.map(c => (
                     <button key={c} type="button"
                       onMouseDown={() => { setAreaInput(c); setCitySearch(c); setShowCities(false) }}
                       className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-800 border-b border-sand-50 last:border-0 transition-colors">
                       {c}
                     </button>
                   ))}
-                  {CITIES.filter(c => !citySearch || c.includes(citySearch)).length === 0 && (
+                  {cityMatches.length === 0 && (
                     <p className="text-center text-sand-600 text-sm py-3">לא נמצאו תוצאות</p>
                   )}
                 </div>
               )}
             </div>
+
+            {/* Neighbourhood — only once a city is chosen, and only ever
+                optional. In a big city "רמת גן" is not enough to find
+                someone you'd actually meet for coffee. */}
+            {areaInput.trim() && (
+              <div>
+                <label className="block text-xs font-semibold text-sand-600 mb-1.5">
+                  <MapPin className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
+                  שכונה ב{areaInput.trim()} <span className="text-sand-400 font-normal">(לא חובה)</span>
+                </label>
+                <input
+                  value={neighborhoodInput}
+                  onChange={e => setNeighborhoodInput(e.target.value)}
+                  list="mimo-neighborhoods"
+                  placeholder="למשל: שכונת גפן"
+                  autoComplete="off"
+                  className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400"
+                />
+                <datalist id="mimo-neighborhoods">
+                  {neighborhoodOptions.map(n => <option key={n} value={n} />)}
+                </datalist>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
@@ -411,7 +472,7 @@ export default function CommunityPage() {
 
         {/* Phase 4 / C2: tag filter — independent of age/area, single
             select. Overflows horizontally on narrow screens. */}
-        <CommunityTagFilter value={tagFilter} onChange={setTagFilter} />
+        <CommunityTagFilter value={tagFilters} onChange={setTagFilters} />
 
         {/* ── Pregnant community results ─────────────────────────────────────── */}
         {isPregnant && (
@@ -423,8 +484,10 @@ export default function CommunityPage() {
                   ? 'הוסיפי תאריך לידה משוער בפרופיל שלך כדי לסנן לפי שבוע'
                   : pregnancyFilter === 'area' && !myArea
                   ? 'הזיני עיר / אזור בפרופיל שלך כדי לחפש'
-                  : tagFilter
-                  ? 'אין בנות בהריון עם התגית הזו. נסי "הכל" או תגית אחרת'
+                  : tagFilters.length > 0
+                  ? (tagFilters.length === 1
+                      ? 'אין בנות בהריון עם התגית הזו. נסי "הכל" או תגית אחרת'
+                      : 'אין בנות בהריון שמחפשות את כל הדברים האלה. נסי להוריד תגית')
                   : 'לא נמצאו בנות בהריון בסינון זה. נסי "כולן"'}
               </p>
             </div>
@@ -513,8 +576,10 @@ export default function CommunityPage() {
                   ? 'הזיני עיר / אזור בפרופיל שלך כדי לחפש'
                   : filterMode === 'age' && myMonths == null
                   ? 'הוסיפי תאריך לידה לתינוק/ת כדי לסנן לפי גיל'
-                  : tagFilter
-                  ? 'אין אמהות עם התגית הזו. נסי "הכל" או תגית אחרת'
+                  : tagFilters.length > 0
+                  ? (tagFilters.length === 1
+                      ? 'אין אמהות עם התגית הזו. נסי "הכל" או תגית אחרת'
+                      : 'אין אמהות שמחפשות את כל הדברים האלה. נסי להוריד תגית')
                   : 'לא נמצאו אמהות בסינון זה. נסי "כולן"'}
               </p>
             </div>

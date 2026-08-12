@@ -39,7 +39,15 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
     <div className="bg-white" style={{ borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
       {/* Header */}
       <div className="flex items-center" style={{ gap: 12 }}>
-        <MimoLeaf variant="sand-1" size={48} rotate={-12} className="flex-shrink-0" />
+        {/* Yahav 11.8.26: the community gets its own colour on the home
+            feed — the brand's rosa polvo — so it reads as a place and not
+            as another card. */}
+        <span
+          className="rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ width: 54, height: 54, background: '#EADBDD' }}
+        >
+          <MimoLeaf variant="blush" size={34} rotate={-12} />
+        </span>
         <div className="min-w-0">
           <h2 className="font-display" style={{ fontSize: 24, lineHeight: 1.05, fontWeight: 400, color: '#5E4938' }}>הקהילה של מימו</h2>
           <p className="font-semibold mt-1" style={{ fontSize: 13, color: '#957860' }}>{subtitle}</p>
@@ -106,15 +114,15 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
       <div className="flex mt-3" style={{ gap: 10 }}>
         <button
           onClick={openEvents}
-          className="flex-1 text-center font-bold transition-all hover:brightness-95"
-          style={{ background: '#C8A460', color: '#33281B', borderRadius: 16, padding: 12, fontSize: 15 }}
+          className="flex-1 text-center font-bold transition-all hover:bg-sand-50"
+          style={{ border: '1.5px solid #DCD4C8', color: '#7B604C', borderRadius: 14, padding: '9px 12px', fontSize: 13.5 }}
         >
           לכל האירועים
         </button>
         <button
           onClick={openMembers}
           className="flex-1 text-center font-bold transition-all hover:bg-sand-50"
-          style={{ border: '1.5px solid #DCD4C8', color: '#7B604C', borderRadius: 16, padding: 12, fontSize: 15 }}
+          style={{ border: '1.5px solid #DCD4C8', color: '#7B604C', borderRadius: 14, padding: '9px 12px', fontSize: 13.5 }}
         >
           להכיר אמהות
         </button>
