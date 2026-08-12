@@ -125,7 +125,29 @@ export default function ThankYouPage() {
 
   useEffect(() => { document.title = 'תודה מ-Mimo' }, [])
 
+  // A community event she paid for from inside the app. Read once, on
+  // mount, before the effect below clears it.
+  const [eventPaid, setEventPaid] = useState(false)
+
   useEffect(() => {
+    let eventId: string | null = null
+    try {
+      const storedEvent = localStorage.getItem('mimo_pending_event_id')
+      if (storedEvent && /^[0-9a-f-]{36}$/.test(storedEvent)) eventId = storedEvent
+    } catch { /* private mode */ }
+
+    if (eventId) {
+      setEventPaid(true)
+      try { localStorage.removeItem('mimo_pending_event_id') } catch { /* ignore */ }
+      supabase.rpc('mark_event_paid', { p_event_id: eventId }).then(({ data, error }) => {
+        if (error) console.error('[thank-you] mark_event_paid failed:', error)
+        // 'over_capacity' means her hold ran out mid-checkout and the
+        // seat went to someone else. She is registered anyway: a woman
+        // who has already paid is never the one turned away.
+        if (data === 'over_capacity') console.warn('[thank-you] over capacity, Brenda should be told')
+      })
+    }
+
     let leadId: string | null = null
     try {
       const stored = localStorage.getItem('mimo_pending_lead_id')
@@ -173,7 +195,9 @@ export default function ThankYouPage() {
   const subtitle = settings.app_subtitle || 'בית עוטף ומלטף'
   const owner = settings.owner_name || ''
   const ownerWa = settings.owner_whatsapp || ''
-  const kind: ThanksKind = ctx?.kind ?? 'group'
+  // A community event is never a workshop, so it never gets the
+  // WhatsApp-group copy. She is already inside the community.
+  const kind: ThanksKind = eventPaid ? 'simple' : (ctx?.kind ?? 'group')
   const title = settings[KEYS[kind].title] || COPY[kind].title
   const body = settings[KEYS[kind].body] || COPY[kind].body(owner)
   const firstName = (ctx?.lead_name ?? '').trim().split(' ')[0]

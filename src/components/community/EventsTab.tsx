@@ -155,6 +155,20 @@ export default function EventsTab() {
       load()
       return
     }
+    if (data === 'pending') {
+      // Paid event: nothing is booked yet. The row holds the seat for
+      // ten minutes, which is the length of a checkout, and only the
+      // return from the thank-you page makes her registered. The id is
+      // left where the thank-you page will look for it.
+      try { localStorage.setItem('mimo_pending_event_id', ev.id) } catch { /* private mode */ }
+      const link = paymentLinkFor(ev, guests.length + 1)
+      if (link) window.open(link, '_blank', 'noopener')
+      showToast('המקום שמור לך ל-10 דקות. משלימות תשלום ואת בפנים 🤎')
+      setGuestDrafts(prev => { const n = { ...prev }; delete n[ev.id]; return n })
+      setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
+      load()
+      return
+    }
     if (data === 'registered' || data === 'already' || data === 'updated') {
       const seats = guests.length + 1
       showToast(
@@ -311,6 +325,8 @@ export default function EventsTab() {
     const spotsLeft = ev.capacity != null ? ev.capacity - ev.registered_count : null
     const isFull = spotsLeft != null && spotsLeft <= 0
     const isMine = ev.my_status === 'registered' || ev.my_status === 'attended'
+    // Started paying and has not come back. Not a registration.
+    const isHolding = ev.my_status === 'pending'
     const onWaitlist = waitlists[ev.id]
     const expanded = expandedId === ev.id
     const names = attendees[ev.id]
@@ -410,7 +426,33 @@ export default function EventsTab() {
 
         {/* Action row */}
         <div className="px-4 pb-4">
-          {isMine ? (
+          {isHolding ? (
+            <div className="space-y-2">
+              <p className="text-center text-[13px] font-bold" style={{ color: '#A35C3D' }}>
+                המקום עוד לא שלך. משלימות תשלום ונתראה שם
+              </p>
+              <div className="flex gap-2">
+                <a
+                  href={paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1) ?? '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => { try { localStorage.setItem('mimo_pending_event_id', ev.id) } catch { /* private mode */ } }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] transition-all hover:brightness-95"
+                  style={{ background: '#E7C78A' }}
+                >
+                  <ExternalLink className="w-4 h-4" /> להשלמת התשלום
+                </a>
+                <button
+                  onClick={() => cancel(ev)}
+                  disabled={busyId === ev.id}
+                  className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-semibold disabled:opacity-40"
+                  title="ביטול"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : isMine ? (
             <>
               <div className="flex gap-2">
               <button

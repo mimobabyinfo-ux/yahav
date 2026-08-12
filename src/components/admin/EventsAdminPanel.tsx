@@ -53,7 +53,7 @@ const EMPTY_DRAFT: Draft = {
 type RegistrantRow = {
   id: string
   user_id: string
-  status: 'registered' | 'cancelled' | 'attended' | 'no_show'
+  status: 'pending' | 'registered' | 'cancelled' | 'attended' | 'no_show'
   paid: boolean
   created_at: string
   user_profiles: {
@@ -102,6 +102,9 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
   const [pendingDelete, setPendingDelete] = useState<CommunityEvent | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
   // Registrants drill-down
+  // Which registration row is asking "sure?". Deleting a person off a
+  // list is not undoable, so it never happens on a single tap.
+  const [regToDelete, setRegToDelete] = useState<string | null>(null)
   const [regsEvent, setRegsEvent] = useState<CommunityEvent | null>(null)
   const [regs, setRegs] = useState<RegistrantRow[]>([])
   const [regsWaitlist, setRegsWaitlist] = useState<WaitlistRow[]>([])
@@ -304,6 +307,16 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
     await supabase.from('event_registrations')
       .update({ status, updated_at: new Date().toISOString() })
       .eq('id', reg.id)
+    if (regsEvent) openRegs(regsEvent)
+    load()
+  }
+
+  // A real delete and not a cancel. Yahav 12.8.26: someone registered
+  // under the old rules and he wants her off the list, not filed under
+  // "cancelled". The seat comes back either way.
+  async function deleteReg(reg: RegistrantRow) {
+    await supabase.from('event_registrations').delete().eq('id', reg.id)
+    setRegToDelete(null)
     if (regsEvent) openRegs(regsEvent)
     load()
   }
@@ -742,6 +755,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
                             {r.user_profiles?.area}
                             {!r.user_profiles?.baby_name && !r.user_profiles?.baby_dob && !r.user_profiles?.area && (phone ?? 'אין טלפון בפרופיל')}
                             {cancelled && ' · ביטלה'}
+                            {r.status === 'pending' && ' · באמצע תשלום'}
                           </p>
                         </div>
                         {regsEvent.price > 0 && !cancelled && (
@@ -756,7 +770,28 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
                             <MessageCircle className="w-4 h-4" />
                           </a>
                         )}
+                        <button onClick={e => { e.stopPropagation(); setRegToDelete(cur => cur === r.id ? null : r.id) }}
+                          className="p-2 rounded-xl text-sand-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          title="מחיקת ההרשמה">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
+                      {regToDelete === r.id && (
+                        <div className="flex items-center gap-2 mt-2 rounded-2xl px-3 py-2" style={{ background: '#FDF3F1' }}>
+                          <p className="flex-1 text-[13px] font-semibold" style={{ color: '#A35C3D' }}>
+                            למחוק את {name} מהרשימה? המקום יתפנה ואי אפשר לבטל את זה.
+                          </p>
+                          <button onClick={e => { e.stopPropagation(); deleteReg(r) }}
+                            className="px-3 py-1.5 rounded-xl text-[13px] font-bold text-white"
+                            style={{ background: '#A35C3D' }}>
+                            מחיקה
+                          </button>
+                          <button onClick={e => { e.stopPropagation(); setRegToDelete(null) }}
+                            className="px-3 py-1.5 rounded-xl text-[13px] font-bold text-sand-600 bg-white border border-sand-200">
+                            ביטול
+                          </button>
+                        </div>
+                      )}
                       {!cancelled && (
                         <div className="flex gap-1.5 mt-2">
                           {([

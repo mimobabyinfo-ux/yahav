@@ -558,9 +558,13 @@ export type CommunityEventRow = {
   payment_link_pair: string | null
   /** Seats taken, not rows: a mother bringing someone counts twice. */
   registered_count: number
-  my_status: 'registered' | 'cancelled' | 'attended' | 'no_show' | null
+  /** 'pending' is a 10 minute checkout hold, not a registration. */
+  my_status: 'pending' | 'registered' | 'cancelled' | 'attended' | 'no_show' | null
   /** Names the calling user is bringing with her. */
   my_guests: string[] | null
+  my_paid: boolean | null
+  /** While pending: the moment the seat stops being hers. */
+  my_hold_expires_at: string | null
 }
 
 // Row shape of the get_my_waitlists RPC — the calling user's place in
