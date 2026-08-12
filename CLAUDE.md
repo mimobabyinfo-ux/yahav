@@ -401,3 +401,22 @@ If a future need genuinely requires CRM data in the app, note what the public AP
 **When to revisit:** If submission volume grows or the owner starts missing important responses, implement via Supabase Edge Function + Green API. The badge counter (`forms_last_seen` localStorage key + `form_submissions.created_at` query in `App.tsx`) can remain as a fallback.
 
 **Implementation reference:** Badge state lives in `App.tsx` (`unreadForms` state, `clearFormsBadge()`), passed as props to `AdminSidebar` (desktop) and `AdminPage` (mobile). localStorage key: `forms_last_seen`.
+
+## Working through the Cowork device bridge (learned the hard way)
+
+- **Never run a bare git command from the bridge.** Even `git status` refreshes
+  the index, which creates `.git/index.lock`, and the bridge cannot unlink it.
+  That leaves git wedged until someone runs `del .git\index.lock` in cmd.
+  Use `git --no-optional-locks status` for read-only inspection, and leave every
+  write command (add / commit / push) to the human on Windows.
+- **Most of the repo shows as modified but is not.** Those diffs are CRLF vs LF
+  only (`git diff --ignore-all-space --stat` comes back empty). Always stage by
+  explicit path (`git add src public vite.config.ts`), never `git add -A` from
+  the repo root, or 200 whitespace-only files land in the commit.
+- **`npx tsc -p tsconfig.app.json --noEmit` does not fit the bridge 45s cap** when
+  the mount is slow, and background processes do not survive: every bridge call
+  runs in its own PID namespace, so anything backgrounded is killed on return.
+  Type-check in the cloud container instead: tar `src` + the tsconfigs +
+  package.json out of the repo, stage the tarball, `npm install --legacy-peer-deps`
+  (vite 8 vs @vitejs/plugin-react 4.7 peer range needs it), then run tsc there.
+  About 20 seconds, and it is repeatable.

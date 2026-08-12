@@ -9,7 +9,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['mimo_logo.png', 'icons/*.png'],
       manifest: {
-        name: 'Mimo — אמהות בביטחון',
+        name: 'Mimo · אמהות בביטחון',
         short_name: 'Mimo',
         description: 'מעקב, סדנאות וקהילה לאמהות טריות',
         theme_color: '#C49438',
@@ -21,8 +21,12 @@ export default defineConfig({
         lang: 'he',
         dir: 'rtl',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          // 'any' and 'maskable' are deliberately separate files. A single
+          // file marked 'any maskable' gets its edges cropped by Android's
+          // circle mask, which is what clipped the ducks' feet.
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
