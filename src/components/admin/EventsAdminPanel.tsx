@@ -134,18 +134,22 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
     loadWaitlistCounts()
     const [{ data: evs }, { data: regRows }, { data: partners }, { data: toks }] = await Promise.all([
       supabase.from('community_events').select('*').order('event_date', { ascending: true }),
-      supabase.from('event_registrations').select('event_id, status'),
+      supabase.from('event_registrations').select('event_id, status, guest_names'),
       supabase.from('service_partners').select('*').eq('is_active', true).order('display_order'),
       supabase.from('event_checkin_tokens').select('event_id'),
     ])
     setEvents((evs ?? []) as CommunityEvent[])
+    // Seats, not rows. A mother who brings someone takes two places,
+    // so counting registration rows would show a room as half empty
+    // while people stand outside it.
     const counter: Record<string, number> = {}
     const attended: Record<string, number> = {}
-    for (const r of (regRows ?? []) as { event_id: string; status: string }[]) {
+    for (const r of (regRows ?? []) as { event_id: string; status: string; guest_names: string[] | null }[]) {
+      const seats = 1 + (r.guest_names?.length ?? 0)
       if (r.status === 'registered' || r.status === 'attended') {
-        counter[r.event_id] = (counter[r.event_id] ?? 0) + 1
+        counter[r.event_id] = (counter[r.event_id] ?? 0) + seats
       }
-      if (r.status === 'attended') attended[r.event_id] = (attended[r.event_id] ?? 0) + 1
+      if (r.status === 'attended') attended[r.event_id] = (attended[r.event_id] ?? 0) + seats
     }
     setCounts(counter)
     setAttendedCounts(attended)

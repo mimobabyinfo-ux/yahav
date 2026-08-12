@@ -39,12 +39,12 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
     <div className="bg-white" style={{ borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
       {/* Header */}
       <div className="flex items-center" style={{ gap: 12 }}>
-        {/* Yahav 11.8.26: the community gets its own colour on the home
-            feed — the brand's rosa polvo — so it reads as a place and not
-            as another card. */}
+        {/* Yahav 12.8.26: the rosa polvo moved off this circle and onto
+            the date blocks below. A tinted disc up here was colour with
+            nothing to say. On a date it means "this is when". */}
         <span
           className="rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ width: 54, height: 54, background: '#EADBDD' }}
+          style={{ width: 54, height: 54, background: '#F7F2EA' }}
         >
           <MimoLeaf variant="blush" size={34} rotate={-12} />
         </span>
@@ -82,10 +82,14 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
                 className="w-full flex items-center text-right transition-shadow hover:shadow-sm"
                 style={{ padding: 12, border: '1px solid #F0EBE3', borderRadius: 18, gap: 12 }}
               >
-                {/* Date block */}
-                <span className="flex flex-col items-center justify-center flex-shrink-0" style={{ width: 46 }}>
+                {/* Date block. The rosa polvo wraps the date itself, so
+                    the eye lands on when the thing happens. */}
+                <span
+                  className="flex flex-col items-center justify-center flex-shrink-0"
+                  style={{ width: 46, paddingTop: 6, paddingBottom: 6, borderRadius: 14, background: '#EADBDD' }}
+                >
                   <span className="font-bold" style={{ fontSize: 18, lineHeight: 1, color: '#5E4938' }}>{d.getDate()}</span>
-                  <span className="font-semibold mt-0.5" style={{ fontSize: 12, color: '#957860' }}>{MONTHS_HE[d.getMonth()]}</span>
+                  <span className="font-semibold mt-0.5" style={{ fontSize: 12, color: '#8C6E63' }}>{MONTHS_HE[d.getMonth()]}</span>
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block font-bold truncate" style={{ fontSize: 15, lineHeight: 1.3, color: '#443327' }}>{ev.title}</span>

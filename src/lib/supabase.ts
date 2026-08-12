@@ -552,8 +552,11 @@ export type CommunityEventRow = {
   payment_link: string | null
   vendor_name: string | null
   image_url: string | null
+  /** Seats taken, not rows: a mother bringing someone counts twice. */
   registered_count: number
   my_status: 'registered' | 'cancelled' | 'attended' | 'no_show' | null
+  /** Names the calling user is bringing with her. */
+  my_guests: string[] | null
 }
 
 // Row shape of the get_my_waitlists RPC — the calling user's place in
@@ -587,4 +590,6 @@ export type EventAttendee = {
   community_tags: string[] | null
   child_dob: string | null
   child_gender: 'boy' | 'girl' | 'other' | null
+  /** People this attendee is bringing. They have no profile of their own. */
+  guest_names: string[] | null
 }

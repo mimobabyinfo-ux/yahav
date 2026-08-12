@@ -60,6 +60,13 @@ export default function EventsTab() {
   // Tapped attendee — opens the community profile bottom-sheet
   const [openAttendee, setOpenAttendee] = useState<{ attendee: EventAttendee; eventTitle: string } | null>(null)
 
+  // Guests a mother is bringing, per event, while she is still editing.
+  // Yahav 12.8.26: community events have no questionnaire and no WhatsApp
+  // group, so bringing a partner or a friend is only a name and a seat.
+  // Falls back to what the server already has for her.
+  const [guestDrafts, setGuestDrafts] = useState<Record<string, string[]>>({})
+  const [guestOpen, setGuestOpen] = useState<Record<string, boolean>>({})
+
   // My waitlist entries (event_id → position). Simple waitlist: joining
   // is possible only when full; when a spot frees the card highlights
   // "התפנה מקום" and registering auto-converts the entry (DB trigger).
@@ -95,17 +102,48 @@ export default function EventsTab() {
     if (next && !attendees[ev.id]) loadAttendees(ev.id)
   }
 
+  /** Names she is bringing: her unsaved edits first, else what is stored. */
+  function guestsOf(ev: CommunityEventRow): string[] {
+    return guestDrafts[ev.id] ?? ev.my_guests ?? []
+  }
+
+  function setGuests(eventId: string, next: string[]) {
+    setGuestDrafts(prev => ({ ...prev, [eventId]: next }))
+  }
+
+  function cleanGuests(ev: CommunityEventRow): string[] {
+    return guestsOf(ev).map(g => g.trim()).filter(Boolean).slice(0, 3)
+  }
+
   async function register(ev: CommunityEventRow) {
+    const guests = cleanGuests(ev)
     setBusyId(ev.id)
-    const { data, error } = await supabase.rpc('register_for_event', { p_event_id: ev.id })
+    const { data, error } = await supabase.rpc('register_for_event', {
+      p_event_id: ev.id,
+      p_guest_names: guests,
+    })
     setBusyId(null)
     if (error) { showToast('שגיאה. נסי שוב'); return }
-    if (data === 'full') { showToast('האירוע התמלא בדיוק עכשיו 😢'); load(); return }
-    if (data === 'registered' || data === 'already') {
-      showToast(ev.price > 0 ? 'שמרנו לך מקום! נשאר רק להשלים תשלום 🤎' : 'נתראה שם! 🤎')
-      if (ev.price > 0 && ev.payment_link) {
+    if (data === 'full') {
+      // With guests this is usually "not enough room for all of you"
+      // rather than "the event filled up", so say which one it is.
+      showToast(guests.length > 0 ? 'אין מספיק מקומות לכולכן 😢' : 'האירוע התמלא בדיוק עכשיו 😢')
+      load()
+      return
+    }
+    if (data === 'registered' || data === 'already' || data === 'updated') {
+      const seats = guests.length + 1
+      showToast(
+        data === 'updated' ? 'עדכנו את מי שמגיעה איתך 🤎'
+        : ev.price > 0 ? 'שמרנו לכן מקום! נשאר רק להשלים תשלום 🤎'
+        : seats > 1 ? 'נתראה שם, שתיכן! 🤎'
+        : 'נתראה שם! 🤎',
+      )
+      if (data !== 'updated' && ev.price > 0 && ev.payment_link) {
         window.open(ev.payment_link, '_blank', 'noopener')
       }
+      setGuestDrafts(prev => { const n = { ...prev }; delete n[ev.id]; return n })
+      setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
       load()
       if (attendees[ev.id]) loadAttendees(ev.id)
     }
@@ -148,6 +186,94 @@ export default function EventsTab() {
       return { y: Math.floor(idx / 12), m: (idx % 12) + 1 }
     })
     setCalSelectedId(null)
+  }
+
+  // ── "מי מגיעה איתך" editor ──
+  // A plain function and not a component on purpose: a component declared
+  // inside this one is a new type on every render, so React would remount
+  // the inputs and the field would lose focus after each keystroke.
+  function guestEditor(ev: CommunityEventRow, saveLabel: string | null) {
+    const list = guestsOf(ev)
+    const open = guestOpen[ev.id] ?? false
+    const seats = cleanGuests(ev).length + 1
+
+    if (!open) {
+      if (list.length === 0) {
+        return (
+          <button
+            onClick={() => { setGuests(ev.id, ['']); setGuestOpen(prev => ({ ...prev, [ev.id]: true })) }}
+            className="w-full mb-2 py-2 rounded-2xl text-[13px] font-bold transition-colors hover:brightness-95"
+            style={{ background: '#F7F2EA', color: '#7B604C' }}
+          >
+            + מגיעה עם עוד מישהי
+          </button>
+        )
+      }
+      return (
+        <button
+          onClick={() => setGuestOpen(prev => ({ ...prev, [ev.id]: true }))}
+          className="w-full mb-2 py-2 rounded-2xl text-[13px] font-bold text-right px-3 transition-colors hover:brightness-95"
+          style={{ background: '#F7F2EA', color: '#7B604C' }}
+        >
+          מגיעה עם {list.join(', ')} · לשינוי
+        </button>
+      )
+    }
+
+    return (
+      <div className="mb-2 space-y-1.5">
+        {list.map((g, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <input
+              value={g}
+              onChange={e => setGuests(ev.id, list.map((v, j) => (j === i ? e.target.value : v)))}
+              placeholder="השם של מי שמגיעה איתך"
+              maxLength={40}
+              className="flex-1 px-3 py-2 rounded-2xl text-[13px] font-semibold outline-none"
+              style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#4A3A28' }}
+            />
+            <button
+              onClick={() => {
+                const next = list.filter((_, j) => j !== i)
+                setGuests(ev.id, next)
+                if (next.length === 0) setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
+              }}
+              className="p-2 rounded-2xl"
+              style={{ background: '#F4EDE1', color: '#8A7A63' }}
+              title="הסרה"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+        <div className="flex items-center justify-between">
+          {list.length < 3 ? (
+            <button
+              onClick={() => setGuests(ev.id, [...list, ''])}
+              className="text-[13px] font-bold"
+              style={{ color: '#7B604C' }}
+            >
+              + עוד אחת
+            </button>
+          ) : <span />}
+          {ev.price > 0 && seats > 1 && (
+            <span className="text-[13px] font-semibold" style={{ color: '#A35C3D' }}>
+              ₪{ev.price} לכל אחת · סה״כ ₪{ev.price * seats}
+            </span>
+          )}
+        </div>
+        {saveLabel && (
+          <button
+            onClick={() => register(ev)}
+            disabled={busyId === ev.id}
+            className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
+            style={{ background: '#818267', color: '#FFFFFF' }}
+          >
+            {busyId === ev.id ? 'רגע...' : saveLabel}
+          </button>
+        )}
+      </div>
+    )
   }
 
   // ── Single event card (shared by list + calendar views) ──
@@ -238,6 +364,11 @@ export default function EventsTab() {
                       >
                         <span>{genderEmoji(a.child_gender)}</span>
                         {(a.mother_name ?? 'אמא').split(' ')[0]}
+                        {(a.guest_names?.length ?? 0) > 0 && (
+                          <span className="font-normal" style={{ color: '#8A7A63' }}>
+                            +{a.guest_names!.length}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -250,7 +381,8 @@ export default function EventsTab() {
         {/* Action row */}
         <div className="px-4 pb-4">
           {isMine ? (
-            <div className="flex gap-2">
+            <>
+              <div className="flex gap-2">
               <button
                 onClick={() => setTicketEvent(ev)}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white transition-all hover:brightness-95"
@@ -267,7 +399,9 @@ export default function EventsTab() {
               >
                 <X className="w-4 h-4" />
               </button>
-            </div>
+              </div>
+              <div className="mt-2">{guestEditor(ev, 'שמירה')}</div>
+            </>
           ) : isFull ? (
             /* Full event — waitlist instead of a dead-end */
             onWaitlist ? (
@@ -302,13 +436,19 @@ export default function EventsTab() {
                   🎉 התפנה מקום! מהרי להירשם
                 </p>
               )}
+              {guestEditor(ev, null)}
               <button
                 onClick={() => register(ev)}
                 disabled={busyId === ev.id}
                 className="w-full py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-40 transition-all"
                 style={{ background: '#E7C78A' }}
               >
-                {busyId === ev.id ? 'רגע...' : ev.price > 0 ? `אני מגיעה! (₪${ev.price})` : 'אני מגיעה!'}
+                {busyId === ev.id ? 'רגע...' : (() => {
+                  const seats = cleanGuests(ev).length + 1
+                  const total = ev.price * seats
+                  if (seats > 1) return ev.price > 0 ? `אנחנו מגיעות! (₪${total})` : 'אנחנו מגיעות!'
+                  return ev.price > 0 ? `אני מגיעה! (₪${ev.price})` : 'אני מגיעה!'
+                })()}
               </button>
             </>
           )}
@@ -449,8 +589,18 @@ export default function EventsTab() {
                 const dayEvents = eventsByDate[ds] ?? []
                 const isToday = ds === todayLocalIso()
                 return (
-                  <div key={day} className={`min-h-[50px] rounded-xl p-1 text-center ${isToday ? 'bg-mustard-50 ring-1 ring-mustard-300' : 'bg-[#F4EDE1]/70'}`}>
-                    <p className={`text-[13px] font-bold ${isToday ? 'text-mustard-700' : 'text-sand-600'}`}>{day}</p>
+                  // Yahav 12.8.26: a day with something on it wears the
+                  // brand's rosa polvo, so the month reads at a glance.
+                  // Empty days stay the quiet sand they were.
+                  <div
+                    key={day}
+                    className={`min-h-[50px] rounded-xl p-1 text-center ${isToday ? 'bg-mustard-50 ring-1 ring-mustard-300' : ''}`}
+                    style={isToday ? undefined : { background: dayEvents.length > 0 ? '#EADBDD' : 'rgba(244,237,225,.7)' }}
+                  >
+                    <p
+                      className={`text-[13px] font-bold ${isToday ? 'text-mustard-700' : ''}`}
+                      style={isToday ? undefined : { color: dayEvents.length > 0 ? '#5E4938' : '#A2937D' }}
+                    >{day}</p>
                     <div className="flex flex-col items-center gap-0.5 mt-0.5">
                       {dayEvents.map(ev => {
                         const mine = ev.my_status === 'registered' || ev.my_status === 'attended'

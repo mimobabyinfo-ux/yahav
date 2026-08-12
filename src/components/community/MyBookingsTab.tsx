@@ -98,11 +98,11 @@ export default function MyBookingsTab() {
       {upcoming.map(ev => (
         <div key={ev.id} className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
           <div className="flex items-start gap-3">
-            <span className="flex flex-col items-center justify-center flex-shrink-0 rounded-2xl" style={{ width: 56, padding: '8px 0', background: '#F6F3ED' }}>
+            <span className="flex flex-col items-center justify-center flex-shrink-0 rounded-2xl" style={{ width: 56, padding: '8px 0', background: '#EADBDD' }}>
               <span className="font-display" style={{ fontSize: 18, lineHeight: 1, color: '#443327' }}>
                 {ev.event_date.split('-')[2]}/{ev.event_date.split('-')[1]}
               </span>
-              <span className="font-semibold" style={{ fontSize: 10.5, color: '#8A7A63' }}>
+              <span className="font-semibold" style={{ fontSize: 10.5, color: '#8C6E63' }}>
                 {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'short' })}
               </span>
             </span>
@@ -114,6 +114,11 @@ export default function MyBookingsTab() {
                 <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {hhmm(ev.start_time) ?? dayLabel(ev.event_date)}</span>
                 {ev.location && <span className="flex items-center gap-1 min-w-0"><MapPin className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{ev.location}</span></span>}
               </p>
+              {(ev.my_guests?.length ?? 0) > 0 && (
+                <p className="text-xs font-semibold mt-1" style={{ color: '#8C6E63' }}>
+                  מגיעה עם {ev.my_guests!.join(', ')}
+                </p>
+              )}
             </div>
           </div>
 

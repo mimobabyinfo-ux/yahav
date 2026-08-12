@@ -16,10 +16,10 @@ import { normalizeIlPhone } from './customerLookup'
 //   1. paid registration for עטופים,
 //   2. whose cohort has ENDED (she finished the workshop),
 //   3. no registration for מגלים in any status,
-//   4. baby's age today ≥ 2.5 months (the מגלים lower bound minus a
-//      half-month head start so there's time to reach out), and
-//      < the מגלים upper bound (6 months) — past that it's no longer
-//      the right workshop.
+//   4. baby's age today >= 3 months (the מגלים lower bound exactly;
+//      Yahav 12.8.26 asked for 3 and not 2.5, a mother whose baby is
+//      not yet 3 months old reads as noise), and < the upper bound
+//      (6 months), past which it is no longer the right workshop.
 //
 // The baby's date of birth is NOT a column on registration_leads. It
 // comes from the developmental questionnaire the mother fills before
@@ -30,8 +30,9 @@ import { normalizeIlPhone } from './customerLookup'
 // can't see their baby's age from here.
 
 /** Months before the target workshop's lower age bound to start
- *  surfacing a mother — gives her time to plan a cohort. */
-export const MEGALIM_LEAD_MONTHS = 0.5
+ *  surfacing a mother. Zero: the card starts exactly at the workshop's
+ *  own lower bound. Raise it if Brenda ever wants a head start. */
+export const MEGALIM_LEAD_MONTHS = 0
 /** Fallbacks used when the workshop rows carry no age range yet. */
 const DEFAULT_TARGET_START_MONTHS = 3
 const DEFAULT_TARGET_END_MONTHS = 6
