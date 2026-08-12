@@ -50,11 +50,23 @@ const EMPTY_DRAFT: Draft = {
   payment_link: '', payment_link_pair: '', vendor_id: '', vendor_name: '', is_active: true,
 }
 
+type OpenCredit = {
+  id: string
+  user_id: string
+  mother_name: string
+  phone_number: string | null
+  amount: number
+  event_title: string | null
+  created_at: string
+  expires_at: string
+}
+
 type RegistrantRow = {
   id: string
   user_id: string
   status: 'pending' | 'registered' | 'cancelled' | 'attended' | 'no_show'
   paid: boolean
+  substitute_name: string | null
   created_at: string
   user_profiles: {
     mother_name: string | null; phone_number: string | null; email: string; area: string | null
@@ -101,6 +113,10 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
   const [showPast, setShowPast] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<CommunityEvent | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
+  // Credits Brenda still owes. Opened automatically when a mother
+  // cancels an event she had paid for, closed by hand when she gets a
+  // seat somewhere else, because a Morning link cannot discount itself.
+  const [credits, setCredits] = useState<OpenCredit[]>([])
   // Registrants drill-down
   // Which registration row is asking "sure?". Deleting a person off a
   // list is not undoable, so it never happens on a single tap.
@@ -136,6 +152,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
   const load = useCallback(async () => {
     setLoading(true)
     loadWaitlistCounts()
+    loadCredits()
     const [{ data: evs }, { data: regRows }, { data: partners }, { data: toks }] = await Promise.all([
       supabase.from('community_events').select('*').order('event_date', { ascending: true }),
       supabase.from('event_registrations').select('event_id, status, guest_names'),
@@ -269,7 +286,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
     const [{ data }, { data: wl }] = await Promise.all([
       supabase
         .from('event_registrations')
-        .select('id, user_id, status, paid, created_at, user_profiles(mother_name, phone_number, email, area, baby_name, baby_dob, community_bio, community_tags, staff_notes)')
+        .select('id, user_id, status, paid, substitute_name, created_at, user_profiles(mother_name, phone_number, email, area, baby_name, baby_dob, community_bio, community_tags, staff_notes)')
         .eq('event_id', ev.id)
         .order('created_at'),
       supabase
@@ -319,6 +336,18 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
     setRegToDelete(null)
     if (regsEvent) openRegs(regsEvent)
     load()
+  }
+
+  async function loadCredits() {
+    const { data } = await supabase.rpc('get_open_credits')
+    setCredits((data ?? []) as OpenCredit[])
+  }
+
+  async function closeCredit(c: OpenCredit) {
+    await supabase.from('community_credits')
+      .update({ used_at: new Date().toISOString(), used_note: 'סומן כמומש בניהול' })
+      .eq('id', c.id)
+    loadCredits()
   }
 
   async function togglePaid(reg: RegistrantRow) {
@@ -525,6 +554,40 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
           </div>
         </div>
       </div>
+
+      {credits.length > 0 && (
+        <div className="bg-white rounded-3xl p-4 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sand-800" style={{ fontSize: 15 }}>זיכויים פתוחים</h3>
+            <span className="text-[13px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#EADBDD', color: '#5E4938' }}>
+              {credits.length}
+            </span>
+          </div>
+          <p className="text-xs text-sand-500">
+            ביטלו אחרי שכבר שילמו. הכסף נשאר אצלנו והן אמורות לקבל מקום באירוע אחר. אין דרך לתת את זה אוטומטית, אז זה יושב כאן עד שתסמן מומש.
+          </p>
+          {credits.map(c => (
+            <div key={c.id} className="flex items-center gap-2 border border-sand-100 rounded-2xl p-2.5">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-sand-800 truncate">{c.mother_name} · ₪{c.amount}</p>
+                <p className="text-[13px] text-sand-500 truncate">
+                  {c.event_title ?? 'אירוע שנמחק'} · בתוקף עד {ddmm(c.expires_at.slice(0, 10))}
+                </p>
+              </div>
+              {c.phone_number && (
+                <a href={`https://wa.me/${c.phone_number.replace(/\D/g, '').replace(/^0/, '972')}`} target="_blank" rel="noopener noreferrer"
+                  className="p-2 rounded-xl bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title="WhatsApp">
+                  <MessageCircle className="w-4 h-4" />
+                </a>
+              )}
+              <button onClick={() => closeCredit(c)}
+                className="px-3 py-1.5 rounded-xl text-[13px] font-bold border-2 border-sand-200 text-sand-600 hover:border-green-300 hover:text-green-700 transition-all">
+                מומש
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-10">
@@ -756,6 +819,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
                             {!r.user_profiles?.baby_name && !r.user_profiles?.baby_dob && !r.user_profiles?.area && (phone ?? 'אין טלפון בפרופיל')}
                             {cancelled && ' · ביטלה'}
                             {r.status === 'pending' && ' · באמצע תשלום'}
+                            {r.substitute_name && ` · במקומה מגיעה ${r.substitute_name}`}
                           </p>
                         </div>
                         {regsEvent.price > 0 && !cancelled && (

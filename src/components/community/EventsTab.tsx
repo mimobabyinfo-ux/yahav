@@ -47,6 +47,10 @@ export default function EventsTab() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [attendees, setAttendees] = useState<Record<string, EventAttendee[]>>({})
   const [busyId, setBusyId] = useState<string | null>(null)
+  // Which event is showing the "how do you want to leave" sheet, and
+  // the name typed into it.
+  const [cancelling, setCancelling] = useState<string | null>(null)
+  const [substituteName, setSubstituteName] = useState<Record<string, string>>({})
   const [toast, setToast] = useState<string | null>(null)
   // Month chips (list view) — null = show all months
   const [monthFilter, setMonthFilter] = useState<string | null>(null)
@@ -190,12 +194,32 @@ export default function EventsTab() {
 
   async function cancel(ev: CommunityEventRow) {
     setBusyId(ev.id)
-    const { error } = await supabase.rpc('cancel_event_registration', { p_event_id: ev.id })
+    const { data, error } = await supabase.rpc('cancel_event_registration', { p_event_id: ev.id })
     setBusyId(null)
+    setCancelling(null)
     if (error) { showToast('שגיאה. נסי שוב'); return }
-    showToast('ההרשמה בוטלה. המקום התפנה למישהי אחרת')
+    showToast(
+      data === 'cancelled_with_credit'
+        ? 'ההרשמה בוטלה. הכסף שמור לך כזיכוי לחודש הקרוב 🤎'
+        : 'ההרשמה בוטלה. המקום התפנה למישהי אחרת',
+    )
     load()
     if (attendees[ev.id]) loadAttendees(ev.id)
+  }
+
+  /** She keeps the seat and someone else walks in with her name on it.
+   *  Better than a cancellation for both sides: no empty chair, no
+   *  credit for Brenda to honour later. */
+  async function sendSubstitute(ev: CommunityEventRow) {
+    const name = (substituteName[ev.id] ?? '').trim()
+    if (!name) { showToast('צריך למלא שם'); return }
+    setBusyId(ev.id)
+    const { data, error } = await supabase.rpc('set_event_substitute', { p_event_id: ev.id, p_name: name })
+    setBusyId(null)
+    if (error || data !== 'ok') { showToast('שגיאה. נסי שוב'); return }
+    setCancelling(null)
+    showToast(`רשמנו ש${name} מגיעה במקומך 🤎`)
+    load()
   }
 
   async function joinWaitlist(ev: CommunityEventRow) {
@@ -328,6 +352,12 @@ export default function EventsTab() {
     // Started paying and has not come back. Not a registration.
     const isHolding = ev.my_status === 'pending'
     const onWaitlist = waitlists[ev.id]
+    // A seat freed and it is hers for the hour. It counts against the
+    // room, so without this the card would tell her the event is full.
+    const myOffer = onWaitlist?.offer_expires_at ?? null
+    const offerUntil = myOffer
+      ? new Date(myOffer).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+      : null
     const expanded = expandedId === ev.id
     const names = attendees[ev.id]
 
@@ -464,7 +494,7 @@ export default function EventsTab() {
                 <Check className="w-4 h-4" /> רשומה · הכרטיס שלי
               </button>
               <button
-                onClick={() => cancel(ev)}
+                onClick={() => setCancelling(cur => cur === ev.id ? null : ev.id)}
                 disabled={busyId === ev.id}
                 className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-semibold disabled:opacity-40"
                 title="ביטול הרשמה"
@@ -472,9 +502,44 @@ export default function EventsTab() {
                 <X className="w-4 h-4" />
               </button>
               </div>
+              {cancelling === ev.id && (
+                <div className="mt-2 rounded-2xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
+                  <p className="text-[13px] font-bold" style={{ color: '#5E4938' }}>
+                    לא מסתדר לך להגיע?
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      value={substituteName[ev.id] ?? ''}
+                      onChange={e => setSubstituteName(prev => ({ ...prev, [ev.id]: e.target.value }))}
+                      placeholder="השם של מי שמגיעה במקומך"
+                      maxLength={40}
+                      className="flex-1 px-3 py-2 rounded-2xl text-[13px] font-semibold outline-none"
+                      style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#4A3A28' }}
+                    />
+                    <button
+                      onClick={() => sendSubstitute(ev)}
+                      disabled={busyId === ev.id}
+                      className="px-3 py-2 rounded-2xl text-[13px] font-bold text-[#4A3A28] disabled:opacity-40"
+                      style={{ background: '#E7C78A' }}
+                    >
+                      שליחה
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => cancel(ev)}
+                    disabled={busyId === ev.id}
+                    className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
+                    style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#8C6E63' }}
+                  >
+                    {ev.price > 0 && ev.my_paid
+                      ? 'ביטול. הכסף יישמר לי כזיכוי לחודש'
+                      : 'ביטול ההרשמה'}
+                  </button>
+                </div>
+              )}
               <div className="mt-2">{guestEditor(ev, 'שמירה')}</div>
             </>
-          ) : isFull ? (
+          ) : isFull && !myOffer ? (
             /* Full event — waitlist instead of a dead-end */
             onWaitlist ? (
               <div className="flex gap-2">
@@ -505,7 +570,9 @@ export default function EventsTab() {
               {/* A spot just freed while she's on the waitlist */}
               {onWaitlist && (
                 <p className="text-center text-[13px] font-bold mb-2" style={{ color: '#A35C3D' }}>
-                  🎉 התפנה מקום! מהרי להירשם
+                  {offerUntil
+                    ? `🎉 התפנה מקום והוא שמור לך עד ${offerUntil}`
+                    : '🎉 התפנה מקום! מהרי להירשם'}
                 </p>
               )}
               {guestEditor(ev, null)}

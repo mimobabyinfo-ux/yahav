@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CalendarPlus, MapPin, Clock, Ticket, CalendarDays, Download } from 'lucide-react'
-import { supabase, type CommunityEventRow } from '../../lib/supabase'
+import { supabase, type CommunityEventRow, type MyCredit } from '../../lib/supabase'
 import { downloadIcs, googleCalendarUrl, icsFilename, type CalendarEvent } from '../../utils/calendarIcs'
 import MembershipCard from './MembershipCard'
 import EventRemindersCard from './EventRemindersCard'
@@ -58,13 +58,20 @@ export default function MyBookingsTab() {
   const [events, setEvents] = useState<CommunityEventRow[]>([])
   const [loading, setLoading] = useState(true)
   const [ticketEvent, setTicketEvent] = useState<CommunityEventRow | null>(null)
+  // Money she already paid for an event she cancelled. It is hers to
+  // spend in the community, not to get back.
+  const [credits, setCredits] = useState<MyCredit[]>([])
 
   useEffect(() => {
-    supabase.rpc('get_community_events').then(({ data }) => {
+    Promise.all([
+      supabase.rpc('get_community_events'),
+      supabase.rpc('get_my_credits'),
+    ]).then(([{ data }, { data: cr }]) => {
       const rows = ((data ?? []) as CommunityEventRow[])
         .filter(e => e.my_status === 'registered' || e.my_status === 'attended')
         .sort((a, b) => a.event_date.localeCompare(b.event_date))
       setEvents(rows)
+      setCredits((cr ?? []) as MyCredit[])
       setLoading(false)
     })
   }, [])
@@ -93,6 +100,18 @@ export default function MyBookingsTab() {
 
   return (
     <div className="space-y-5">
+      {credits.length > 0 && (
+        <div className="rounded-3xl p-4" style={{ background: '#EADBDD' }}>
+          <p className="font-bold" style={{ fontSize: 15, color: '#5E4938' }}>
+            יש לך זיכוי של ₪{credits.reduce((sum, c) => sum + Number(c.amount), 0)}
+          </p>
+          <p className="font-semibold mt-1" style={{ fontSize: 13, color: '#8C6E63' }}>
+            לשימוש באירועי הקהילה עד {new Date(credits[0].expires_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}.
+            כותבות לנו ואנחנו שומרות לך מקום.
+          </p>
+        </div>
+      )}
+
       {upcoming.length > 0 && <EventRemindersCard />}
 
       {upcoming.map(ev => (

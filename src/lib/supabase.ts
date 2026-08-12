@@ -573,6 +573,18 @@ export type MyWaitlist = {
   event_id: string
   my_position: number
   waiting_count: number
+  /** Set while the freed seat is hers alone. Null the rest of the time. */
+  offer_expires_at: string | null
+}
+
+/** An open credit from a cancelled paid event. Valid one month, spent
+ *  inside the community, never returned as money. */
+export type MyCredit = {
+  id: string
+  amount: number
+  event_title: string | null
+  created_at: string
+  expires_at: string
 }
 
 export type EventRegistration = {
