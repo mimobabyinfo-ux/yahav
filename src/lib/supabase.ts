@@ -526,6 +526,8 @@ export type CommunityEvent = {
   capacity: number | null   // null = unlimited
   price: number
   payment_link: string | null
+  /** Morning link priced for two, for a mother bringing someone. */
+  payment_link_pair: string | null
   vendor_id: string | null
   vendor_name: string | null
   image_url: string | null
@@ -552,6 +554,8 @@ export type CommunityEventRow = {
   payment_link: string | null
   vendor_name: string | null
   image_url: string | null
+  /** Morning link priced for two, used when she brings exactly one guest. */
+  payment_link_pair: string | null
   /** Seats taken, not rows: a mother bringing someone counts twice. */
   registered_count: number
   my_status: 'registered' | 'cancelled' | 'attended' | 'no_show' | null

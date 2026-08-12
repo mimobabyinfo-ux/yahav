@@ -37,6 +37,7 @@ type Draft = {
   capacity: string
   price: string
   payment_link: string
+  payment_link_pair: string
   vendor_id: string
   vendor_name: string
   is_active: boolean
@@ -46,7 +47,7 @@ const EMPTY_DRAFT: Draft = {
   title: '', emoji: '🎉', event_type: '', description: '',
   event_date: '', start_time: '', end_time: '',
   location: '', location_link: '', capacity: '', price: '0',
-  payment_link: '', vendor_id: '', vendor_name: '', is_active: true,
+  payment_link: '', payment_link_pair: '', vendor_id: '', vendor_name: '', is_active: true,
 }
 
 type RegistrantRow = {
@@ -190,6 +191,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
       capacity: ev.capacity != null ? String(ev.capacity) : '',
       price: String(ev.price ?? 0),
       payment_link: ev.payment_link ?? '',
+      payment_link_pair: ev.payment_link_pair ?? '',
       vendor_id: ev.vendor_id ?? '',
       vendor_name: ev.vendor_name ?? '',
       is_active: ev.is_active,
@@ -222,6 +224,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
       capacity: draft.capacity ? Number(draft.capacity) : null,
       price,
       payment_link: draft.payment_link.trim() || null,
+      payment_link_pair: draft.payment_link_pair.trim() || null,
       vendor_id: draft.vendor_id || null,
       vendor_name: draft.vendor_name.trim() || null,
       is_active: draft.is_active,
@@ -656,10 +659,19 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
               </div>
 
               {Number(draft.price) > 0 && (
+                <>
                 <div>
                   <label className={labelCls}>לינק תשלום *</label>
                   <input value={draft.payment_link} onChange={e => setDraft(d => ({ ...d, payment_link: e.target.value }))} dir="ltr" placeholder="https://..." className={inputCls} />
                 </div>
+                <div>
+                  <label className={labelCls}>קישור תשלום לשתיים</label>
+                  <input value={draft.payment_link_pair} onChange={e => setDraft(d => ({ ...d, payment_link_pair: e.target.value }))} dir="ltr" placeholder="https://..." className={inputCls} />
+                  <p style={{ fontSize: 12, color: '#A2937D', marginTop: 4 }}>
+                    לינק Morning בסכום כפול. אמא שמביאה מישהי איתה תגיע אליו במקום לשלם פעמיים. בלעדיו האפליקציה תגיד לה לעבור בקישור הרגיל פעמיים.
+                  </p>
+                </div>
+                </>
               )}
 
               <div>

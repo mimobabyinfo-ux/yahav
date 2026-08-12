@@ -115,6 +115,30 @@ export default function EventsTab() {
     return guestsOf(ev).map(g => g.trim()).filter(Boolean).slice(0, 3)
   }
 
+  /** An open guest field with nothing typed in it. She has said she is
+   *  bringing someone but not who, so the seat count and the price
+   *  cannot be trusted yet. */
+  function hasBlankGuest(ev: CommunityEventRow): boolean {
+    return (guestOpen[ev.id] ?? false) && guestsOf(ev).some(g => g.trim() === '')
+  }
+
+  /** Morning links carry a fixed amount, so the link itself has to
+   *  change with the number of seats. Two has its own link when Brenda
+   *  set one; anything else pays through the single-seat link, more
+   *  than once, and the card says so out loud. */
+  function paymentLinkFor(ev: CommunityEventRow, seats: number): string | null {
+    if (seats === 2 && ev.payment_link_pair) return ev.payment_link_pair
+    return ev.payment_link
+  }
+
+  /** True when the link she will be sent to actually charges for
+   *  everyone coming. */
+  function paymentIsExact(ev: CommunityEventRow, seats: number): boolean {
+    if (ev.price <= 0) return true
+    if (seats === 1) return true
+    return seats === 2 && !!ev.payment_link_pair
+  }
+
   async function register(ev: CommunityEventRow) {
     const guests = cleanGuests(ev)
     setBusyId(ev.id)
@@ -139,8 +163,9 @@ export default function EventsTab() {
         : seats > 1 ? 'נתראה שם, שתיכן! 🤎'
         : 'נתראה שם! 🤎',
       )
-      if (data !== 'updated' && ev.price > 0 && ev.payment_link) {
-        window.open(ev.payment_link, '_blank', 'noopener')
+      const link = paymentLinkFor(ev, seats)
+      if (data !== 'updated' && ev.price > 0 && link) {
+        window.open(link, '_blank', 'noopener')
       }
       setGuestDrafts(prev => { const n = { ...prev }; delete n[ev.id]; return n })
       setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
@@ -256,20 +281,25 @@ export default function EventsTab() {
               + עוד אחת
             </button>
           ) : <span />}
-          {ev.price > 0 && seats > 1 && (
+          {ev.price > 0 && list.length > 0 && (
             <span className="text-[13px] font-semibold" style={{ color: '#A35C3D' }}>
-              ₪{ev.price} לכל אחת · סה״כ ₪{ev.price * seats}
+              ₪{ev.price} לכל אחת · סה״כ ₪{ev.price * (list.length + 1)}
             </span>
           )}
         </div>
+        {ev.price > 0 && seats > 1 && !paymentIsExact(ev, seats) && (
+          <p className="text-[13px] font-semibold leading-snug" style={{ color: '#8C6E63' }}>
+            קישור התשלום הוא ל{seats === 2 ? 'אחת' : 'אחת'}, אז צריך לעבור בו {seats} פעמים.
+          </p>
+        )}
         {saveLabel && (
           <button
             onClick={() => register(ev)}
-            disabled={busyId === ev.id}
+            disabled={busyId === ev.id || hasBlankGuest(ev)}
             className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
             style={{ background: '#818267', color: '#FFFFFF' }}
           >
-            {busyId === ev.id ? 'רגע...' : saveLabel}
+            {busyId === ev.id ? 'רגע...' : hasBlankGuest(ev) ? 'צריך למלא את השם' : saveLabel}
           </button>
         )}
       </div>
@@ -439,11 +469,11 @@ export default function EventsTab() {
               {guestEditor(ev, null)}
               <button
                 onClick={() => register(ev)}
-                disabled={busyId === ev.id}
+                disabled={busyId === ev.id || hasBlankGuest(ev)}
                 className="w-full py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-40 transition-all"
                 style={{ background: '#E7C78A' }}
               >
-                {busyId === ev.id ? 'רגע...' : (() => {
+                {busyId === ev.id ? 'רגע...' : hasBlankGuest(ev) ? 'צריך למלא את השם' : (() => {
                   const seats = cleanGuests(ev).length + 1
                   const total = ev.price * seats
                   if (seats > 1) return ev.price > 0 ? `אנחנו מגיעות! (₪${total})` : 'אנחנו מגיעות!'
@@ -452,8 +482,8 @@ export default function EventsTab() {
               </button>
             </>
           )}
-          {isMine && ev.price > 0 && ev.payment_link && (
-            <a href={ev.payment_link} target="_blank" rel="noopener noreferrer"
+          {isMine && ev.price > 0 && paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1) && (
+            <a href={paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1)!} target="_blank" rel="noopener noreferrer"
               className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-2xl text-xs font-bold text-mustard-700 bg-[#F4EDE1]">
               <ExternalLink className="w-3.5 h-3.5" /> להשלמת התשלום
             </a>
