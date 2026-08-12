@@ -420,3 +420,42 @@ If a future need genuinely requires CRM data in the app, note what the public AP
   package.json out of the repo, stage the tarball, `npm install --legacy-peer-deps`
   (vite 8 vs @vitejs/plugin-react 4.7 peer range needs it), then run tsc there.
   About 20 seconds, and it is repeatable.
+
+## Community event rules (Yahav decided these on 12.8.26)
+
+These are business rules, not implementation details. Do not change them
+without asking him.
+
+- **Payment first.** "If she did not pay, as far as I am concerned she did
+  not register." Tapping a paid event creates a `pending` row that holds
+  the seat for **10 minutes** and nothing more. Only the return from the
+  thank-you page (`mark_event_paid`) makes her registered. The 10 minutes
+  exist for exactly one reason: without them two mothers can pay for the
+  same last seat while both are inside Morning. Expiry is lazy, there is
+  no job: `event_seats_taken` stops counting the row.
+- **Free events still exist** (the cafe meet-ups, which cannot be charged
+  for). Those register on the tap, as before.
+- **A payment is always honoured**, even over capacity. `mark_event_paid`
+  returns `over_capacity` so the app can tell Brenda instead of turning
+  away a woman who already paid.
+- **A freed seat goes to the first in line for one hour.** While the offer
+  is live it counts as a taken seat, so the event reads as full to
+  everyone else. Missed her hour, she is out of the queue for that event.
+  Driven by `process-event-waitlist` every 10 minutes.
+- **No cash refunds, ever.** Cancelling after paying opens a credit valid
+  **one month**, spent inside the community. Redemption is MANUAL: a
+  Morning link cannot discount itself, so the app only tracks the debt
+  and Brenda gives the seat. Do not build "automatic" credit.
+- **Better than cancelling: send someone in your place** (`substitute_name`).
+  No money moves, no credit opens, the seat stays filled.
+- **Monthly retainer (~60 NIS): parked until September.** He wants one
+  month of real numbers first, specifically how many events a woman
+  actually attends and what she spends in total, before pricing it.
+
+Operational: every community event payment link needs its Morning success
+URL set to `https://mimo-baby.co.il/?thanks`. Without it she never becomes
+registered.
+
+Trap worth remembering: `event_registrations.status` has a CHECK
+constraint. Adding a new status means altering it, and `tsc` will not
+catch that. It cost a broken registration flow on production.
