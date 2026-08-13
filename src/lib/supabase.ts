@@ -285,10 +285,17 @@ export type WorkshopCohort = {
 export type WorkshopContent = {
   id: string
   workshop_id: string
-  type: 'video' | 'homework' | 'pdf'
+  // 'text' is a reading lesson: no file, the lesson body lives in body_html.
+  type: 'video' | 'homework' | 'pdf' | 'text'
   title: string
   description: string | null
   url: string | null
+  // Digital-course fields. `section` is the module heading a lesson sits
+  // under ("עיסוי בטן והקלה על גזים"); consecutive items sharing a section
+  // form one module. A workshop with no sections at all keeps the old
+  // videos / homework / files layout.
+  body_html: string | null
+  section: string | null
   tasks_json: string[] | null
   display_order: number
   is_active: boolean

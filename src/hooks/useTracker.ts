@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 // Stable session ID for this browser tab
 const SESSION_ID = `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
-type EventType =
+export type EventType =
   | 'page_view'
   | 'button_click'
   | 'video_start'
@@ -19,8 +19,11 @@ type EventType =
   | 'perk_view'
   | 'perk_copy_code'
   | 'perk_visit_link'
+  // Digital course: which lesson she opened, and which she marked done.
+  | 'lesson_open'
+  | 'lesson_complete'
 
-type EventData = Record<string, string | number | boolean | null>
+export type EventData = Record<string, string | number | boolean | null>
 
 export function useTracker() {
   const { user } = useAuth()

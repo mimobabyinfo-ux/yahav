@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { BUYING_SUBCATEGORIES } from '../data/buyingSubcategories'
 import type { AdminSection } from '../App'
 import CohortsModal from '../components/admin/CohortsModal'
+import WorkshopAccessModal from '../components/admin/WorkshopAccessModal'
 import FormSubmissionsView from '../components/admin/FormSubmissionsView'
 import FormSubmissionsModal from '../components/admin/FormSubmissionsModal'
 import AdminLargeModal from '../components/admin/AdminLargeModal'
@@ -1083,6 +1084,8 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   // Phase 5 / A1: cohort manager modal. User-facing label "מחזורים".
   const [cohortsWorkshop, setCohortsWorkshop] = useState<Workshop | null>(null)
+  // Product-side access control: who can open this product's content.
+  const [accessWorkshop, setAccessWorkshop] = useState<Workshop | null>(null)
   const [drawer, setDrawer] = useState<'create' | 'edit' | null>(null)
   const [form, setForm] = useState({ ...EMPTY_WORKSHOP_FORM })
   const [editing, setEditing] = useState<Workshop | null>(null)
@@ -1369,6 +1372,13 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
                                   >
                                     📅 מחזורים
                                   </button>
+                                  <button
+                                    onClick={() => setAccessWorkshop(w)}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                    title="מי עם גישה לתוכן של המוצר הזה"
+                                  >
+                                    🔑 גישות
+                                  </button>
                                 </>
                               )}
                               {(w as unknown as { public_registration?: boolean }).public_registration && (
@@ -1535,6 +1545,7 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
 
       {contentWorkshop && <WorkshopContentModal workshop={contentWorkshop} onClose={() => setContentWorkshop(null)} />}
       {cohortsWorkshop && <CohortsModal workshop={cohortsWorkshop} onClose={() => setCohortsWorkshop(null)} />}
+      {accessWorkshop && <WorkshopAccessModal workshop={accessWorkshop} onClose={() => setAccessWorkshop(null)} />}
       <ConfirmDialog
         open={!!pendingDelete}
         itemName={pendingDelete?.title ?? 'המוצר'}
@@ -3330,6 +3341,12 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [url, setUrl] = useState('')
+  // Digital course: the module heading this item sits under, and the body of
+  // a reading lesson. Both empty = the classic workshop layout, unchanged.
+  const [section, setSection] = useState('')
+  const [bodyHtml, setBodyHtml] = useState('')
+  // When set, the form edits this row instead of inserting a new one.
+  const [editingItem, setEditingItem] = useState<WorkshopContent | null>(null)
   const [tasks, setTasks] = useState<string[]>([])
   // Task A: shared delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<WorkshopContent | null>(null)
@@ -3349,7 +3366,43 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
 
   function resetForm() {
     setSelType(null); setTitle(''); setDescription(''); setUrl('')
+    setSection(''); setBodyHtml(''); setEditingItem(null)
     setTasks([]); setNewTask(''); setShowAdd(false)
+  }
+
+  function startEdit(item: WorkshopContent) {
+    setEditingItem(item)
+    setSelType(item.type)
+    setTitle(item.title)
+    setDescription(item.description ?? '')
+    setUrl(item.url ?? '')
+    setSection(item.section ?? '')
+    setBodyHtml(item.body_html ?? '')
+    setTasks(item.tasks_json ?? [])
+    setNewTask('')
+    setShowAdd(true)
+  }
+
+  /** Swap this item's display_order with its neighbour, then persist both. */
+  async function move(idx: number, dir: 'up' | 'down') {
+    const other = dir === 'up' ? idx - 1 : idx + 1
+    if (other < 0 || other >= items.length) return
+    const a = items[idx], b = items[other]
+    const reordered = [...items]
+    reordered[idx] = b; reordered[other] = a
+    // Renumber the whole list so rows seeded with duplicate or gapped
+    // display_order values can't make a swap look like a no-op.
+    const numbered = reordered.map((it, i) => ({ ...it, display_order: i + 1 }))
+    setItems(numbered)
+    const res = await Promise.all(
+      numbered.map(it =>
+        supabase.from('workshop_content').update({ display_order: it.display_order }).eq('id', it.id)
+      )
+    )
+    if (res.some(r => r.error)) {
+      console.error('[workshop_content reorder] failed:', res.filter(r => r.error))
+      load()
+    }
   }
 
   async function uploadFile(file: File) {
@@ -3372,17 +3425,26 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
   async function save() {
     if (!title.trim() || !selType) return
     setSaving(true)
-    const maxOrder = items.length > 0 ? Math.max(...items.map(i => i.display_order)) : 0
-    await supabase.from('workshop_content').insert({
-      workshop_id: workshop.id,
+    const fields = {
       type: selType,
       title,
       description: description || null,
-      url: url || null,
+      // A reading lesson has no file; keep a stale URL from leaking in if
+      // the admin switched the type on an existing row.
+      url: selType === 'text' ? null : (url || null),
+      section: section.trim() || null,
+      body_html: bodyHtml.trim() || null,
       tasks_json: selType === 'homework' && tasks.length > 0 ? tasks : null,
-      display_order: maxOrder + 1,
-    })
+    }
+    const { error } = editingItem
+      ? await supabase.from('workshop_content').update(fields).eq('id', editingItem.id)
+      : await supabase.from('workshop_content').insert({
+          ...fields,
+          workshop_id: workshop.id,
+          display_order: (items.length > 0 ? Math.max(...items.map(i => i.display_order)) : 0) + 1,
+        })
     setSaving(false)
+    if (error) { console.error('[workshop_content save] failed:', error); return }
     resetForm()
     load()
   }
@@ -3401,8 +3463,8 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
     setPendingDelete(null)
   }
 
-  const typeLabel = { video: '🎬 סרטון', homework: '📝 שיעור בית', pdf: '📄 קובץ' }
-  const typeBg   = { video: 'bg-mustard-50 text-mustard-700', homework: 'bg-[#F6ECD8] text-[#6E5836]', pdf: 'bg-blue-50 text-blue-700' }
+  const typeLabel = { video: '🎬 סרטון', homework: '📝 שיעור בית', pdf: '📄 קובץ', text: '📖 שיעור לקריאה' }
+  const typeBg   = { video: 'bg-mustard-50 text-mustard-700', homework: 'bg-[#F6ECD8] text-[#6E5836]', pdf: 'bg-blue-50 text-blue-700', text: 'bg-green-50 text-green-700' }
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -3436,13 +3498,13 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
               {!selType ? (
                 <>
                   <p className="text-xs font-bold text-sand-600 mb-1">בחרי סוג תוכן</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['video', 'homework', 'pdf'] as const).map(t => (
+                  <div className="grid grid-cols-4 gap-2">
+                    {(['video', 'text', 'homework', 'pdf'] as const).map(t => (
                       <button key={t} onClick={() => setSelType(t)}
                         className="flex flex-col items-center gap-1 py-3 rounded-2xl border-2 border-sand-200 hover:border-mustard-400 hover:bg-mustard-50 transition-all">
-                        <span className="text-xl">{t === 'video' ? '🎬' : t === 'homework' ? '📝' : '📄'}</span>
-                        <span className="text-[13px] font-semibold text-sand-600">
-                          {t === 'video' ? 'סרטון' : t === 'homework' ? 'שיעור בית' : 'PDF / קובץ'}
+                        <span className="text-xl">{t === 'video' ? '🎬' : t === 'text' ? '📖' : t === 'homework' ? '📝' : '📄'}</span>
+                        <span className="text-[11px] font-semibold text-sand-600 text-center leading-tight">
+                          {t === 'video' ? 'סרטון' : t === 'text' ? 'לקריאה' : t === 'homework' ? 'שיעור בית' : 'קובץ'}
                         </span>
                       </button>
                     ))}
@@ -3453,7 +3515,9 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
                 <>
                   {/* Type badge + back */}
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-xl ${typeBg[selType]}`}>{typeLabel[selType]}</span>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-xl ${typeBg[selType]}`}>
+                      {editingItem ? 'עריכה · ' : ''}{typeLabel[selType]}
+                    </span>
                     <button onClick={() => setSelType(null)} className="text-xs text-sand-400 hover:text-sand-600">שנה סוג</button>
                   </div>
 
@@ -3461,10 +3525,40 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
                   <input value={title} onChange={e => setTitle(e.target.value)}
                     placeholder="כותרת *" className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
 
+                  {/* Module heading — turns a workshop into an ordered course.
+                      Items sharing a name, one after the other, form a module. */}
+                  <div>
+                    <input value={section} onChange={e => setSection(e.target.value)}
+                      list="workshop-sections"
+                      placeholder="מודול (למשל: עיסוי בטן והקלה על גזים)"
+                      className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
+                    <datalist id="workshop-sections">
+                      {[...new Set(items.map(i => (i.section ?? '').trim()).filter(Boolean))].map(s => (
+                        <option key={s} value={s} />
+                      ))}
+                    </datalist>
+                    <p className="text-[13px] text-sand-400 mt-1">
+                      השאירי ריק כדי לשמור על התצוגה הרגילה של סדנה (סרטונים / שיעורי בית / קבצים).
+                    </p>
+                  </div>
+
                   {/* Description */}
                   <textarea value={description} onChange={e => setDescription(e.target.value)}
                     placeholder="תיאור (אופציונלי)" rows={2}
                     className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 resize-none" />
+
+                  {/* Lesson body — HTML, shown under the video or on its own. */}
+                  <div>
+                    <textarea value={bodyHtml} onChange={e => setBodyHtml(e.target.value)}
+                      placeholder={'תוכן השיעור (HTML)\n<h3>כותרת</h3>\n<p>פסקה</p>\n<ul><li>שלב</li></ul>'}
+                      rows={selType === 'text' ? 10 : 4}
+                      className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 resize-y font-mono leading-relaxed" />
+                    <p className="text-[13px] text-sand-400 mt-1">
+                      {selType === 'text'
+                        ? 'זהו כל תוכן השיעור. תגיות מותרות: h2 h3 p ul ol li strong em a br.'
+                        : 'טקסט שיופיע מתחת לסרטון (אופציונלי).'}
+                    </p>
+                  </div>
 
                   {/* Video: drag-drop zone */}
                   {selType === 'video' && (
@@ -3541,10 +3635,10 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
 
                   {/* Save / Cancel */}
                   <div className="flex gap-2 pt-1">
-                    <button onClick={save} disabled={saving || !title.trim() || (selType === 'homework' && tasks.length === 0)}
+                    <button onClick={save} disabled={saving || !title.trim() || (selType === 'homework' && tasks.length === 0) || (selType === 'text' && !bodyHtml.trim())}
                       className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
                       style={{ background: '#E7C78A' }}>
-                      {saving ? '...' : 'שמור'}
+                      {saving ? '...' : editingItem ? 'עדכן' : 'שמור'}
                     </button>
                     <button onClick={resetForm} className="px-4 py-2.5 rounded-xl text-sm bg-sand-100 text-sand-600">ביטול</button>
                   </div>
@@ -3559,23 +3653,48 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
           )}
 
           {items.map((item, idx) => (
-            <div key={item.id} className="bg-white border border-sand-100 rounded-2xl p-3 flex items-start gap-3">
-              <span className={`text-[13px] font-bold px-2 py-1 rounded-lg flex-shrink-0 mt-0.5 ${typeBg[item.type]}`}>
-                {typeLabel[item.type]}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-sand-800 truncate">{item.title}</p>
-                {item.type === 'homework' && item.tasks_json && (
-                  <p className="text-[13px] text-sand-400">{item.tasks_json.length} משימות</p>
-                )}
-                {item.url && item.type !== 'homework' && (
-                  <p className="text-[13px] text-sand-400 truncate">{item.url}</p>
-                )}
+            <div key={item.id} className="bg-white border border-sand-100 rounded-2xl p-3">
+              {/* Module heading, printed once above the first item of each run. */}
+              {(item.section ?? '').trim() &&
+               (item.section ?? '').trim() !== (items[idx - 1]?.section ?? '').trim() && (
+                <p className="text-[13px] font-bold text-mustard-700 mb-1.5">{(item.section ?? '').trim()}</p>
+              )}
+              <div className="flex items-start gap-3">
+                <span className={`text-[13px] font-bold px-2 py-1 rounded-lg flex-shrink-0 mt-0.5 ${typeBg[item.type]}`}>
+                  {typeLabel[item.type]}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-sand-800 truncate">{item.title}</p>
+                  {item.type === 'homework' && item.tasks_json && (
+                    <p className="text-[13px] text-sand-400">{item.tasks_json.length} משימות</p>
+                  )}
+                  {item.url && item.type !== 'homework' && (
+                    <p className="text-[13px] text-sand-400 truncate">{item.url}</p>
+                  )}
+                  {item.type === 'text' && (
+                    <p className="text-[13px] text-sand-400">
+                      {item.body_html ? `${item.body_html.replace(/<[^>]+>/g, ' ').trim().slice(0, 60)}…` : 'ללא תוכן'}
+                    </p>
+                  )}
+                </div>
+                <span className="text-[13px] text-sand-300 flex-shrink-0 mt-0.5">#{idx + 1}</span>
+                <div className="flex items-center flex-shrink-0">
+                  <button onClick={() => move(idx, 'up')} disabled={idx === 0}
+                    className="p-1 text-sand-300 hover:text-sand-600 disabled:opacity-30">
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => move(idx, 'down')} disabled={idx === items.length - 1}
+                    className="p-1 text-sand-300 hover:text-sand-600 disabled:opacity-30">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => startEdit(item)} className="p-1.5 text-sand-400 hover:text-mustard-500">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => setPendingDelete(item)} className="p-1.5 text-red-300 hover:text-red-500">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-              <span className="text-[13px] text-sand-300 flex-shrink-0 mt-0.5">#{idx + 1}</span>
-              <button onClick={() => setPendingDelete(item)} className="p-1.5 text-red-300 hover:text-red-500 flex-shrink-0">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
             </div>
           ))}
         </div>
@@ -3600,6 +3719,8 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
   const [contentWorkshop, setContentWorkshop] = useState<Workshop | null>(null)
   // Phase 5 / A1: cohort manager modal. User-facing label "מחזורים".
   const [cohortsWorkshop, setCohortsWorkshop] = useState<Workshop | null>(null)
+  // Product-side access control: who can open this product's content.
+  const [accessWorkshop, setAccessWorkshop] = useState<Workshop | null>(null)
   // Task A: shared delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<Workshop | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
@@ -3926,6 +4047,13 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
                     >
                       📅 מחזורים
                     </button>
+                    <button
+                      onClick={() => setAccessWorkshop(w)}
+                      className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                      title="מי עם גישה לתוכן של המוצר הזה"
+                    >
+                      🔑 מי עם גישה
+                    </button>
                       </>
                     )}
                     {(w as unknown as { public_registration?: boolean }).public_registration && (
@@ -3948,6 +4076,7 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
 
       {contentWorkshop && <WorkshopContentModal workshop={contentWorkshop} onClose={() => setContentWorkshop(null)} />}
       {cohortsWorkshop && <CohortsModal workshop={cohortsWorkshop} onClose={() => setCohortsWorkshop(null)} />}
+      {accessWorkshop && <WorkshopAccessModal workshop={accessWorkshop} onClose={() => setAccessWorkshop(null)} />}
       <ConfirmDialog
         open={!!pendingDelete}
         itemName={pendingDelete?.title ?? 'המוצר'}

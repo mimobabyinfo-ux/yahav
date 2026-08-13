@@ -1,9 +1,11 @@
 ﻿import { useEffect, useState, useMemo } from 'react'
-import { ExternalLink, MessageCircle, ShoppingBag, Star, X, Sparkles, CreditCard, CalendarDays } from 'lucide-react'
+import { ExternalLink, MessageCircle, ShoppingBag, Star, X, Sparkles, CreditCard, CalendarDays, GraduationCap } from 'lucide-react'
 import { supabase, Workshop, type PublicCohort } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { useWorkshopCategories, categoryLabel } from '../hooks/useWorkshopCategories'
+import { formatDate } from '../utils/dateUtils'
+import type { Page } from '../App'
 
 type WorkshopExt = Workshop & { whatsapp_number?: string }
 
@@ -229,10 +231,14 @@ type PurchasedRow = {
   id: string
   purchase_date: string
   amount_paid: number | null
+  // Access window. Present = she can open the content world behind this
+  // product; the pro area applies exactly the same date test.
+  access_start_date: string | null
+  access_end_date: string | null
   workshops: Workshop
 }
 
-export default function WorkshopsPage() {
+export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page) => void } = {}) {
   const { profile, user } = useAuth()
   const { ownerWhatsapp } = useOwnerSettings()
   const { categories } = useWorkshopCategories()
@@ -494,6 +500,18 @@ export default function WorkshopsPage() {
                       <span className="text-sm font-bold text-mustard-600">₪{p.workshops.price}</span>
                     )}
                   </div>
+                  {/* Access is open today → the way into the content she
+                      paid for. The pro area has no nav tab, so without this
+                      button a course buyer has no route to her course. */}
+                  {onNavigate && p.access_start_date && p.access_end_date &&
+                   p.access_start_date <= formatDate(new Date()) &&
+                   p.access_end_date >= formatDate(new Date()) && (
+                    <button onClick={() => onNavigate('pro')}
+                      className="w-full flex items-center justify-center gap-2 font-bold py-2.5 rounded-2xl text-sm text-[#4A3A28]"
+                      style={{ background: '#E7C78A' }}>
+                      <GraduationCap className="w-4 h-4" /> לצפייה בתכנים ←
+                    </button>
+                  )}
                   <a href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי! יש לי שאלה לגבי: ${p.workshops.title}`)}`}
                     target="_blank" rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 bg-musgo-500 hover:bg-musgo-600 text-white font-semibold py-2.5 rounded-2xl text-sm transition-all">

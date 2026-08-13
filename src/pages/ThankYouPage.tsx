@@ -128,6 +128,8 @@ export default function ThankYouPage() {
   // A community event she paid for from inside the app. Read once, on
   // mount, before the effect below clears it.
   const [eventPaid, setEventPaid] = useState(false)
+  // She paid, but we could not confirm her seat from this browser.
+  const [eventUnconfirmed, setEventUnconfirmed] = useState(false)
 
   useEffect(() => {
     let eventId: string | null = null
@@ -138,9 +140,20 @@ export default function ThankYouPage() {
 
     if (eventId) {
       setEventPaid(true)
-      try { localStorage.removeItem('mimo_pending_event_id') } catch { /* ignore */ }
-      supabase.rpc('mark_event_paid', { p_event_id: eventId }).then(({ data, error }) => {
+      const id = eventId
+      supabase.rpc('mark_event_paid', { p_event_id: id }).then(({ data, error }) => {
         if (error) console.error('[thank-you] mark_event_paid failed:', error)
+        // The RPC needs her session. Morning opens the payment page in a
+        // new tab (and some phones open it in a private one), so she can
+        // land here logged out — the RPC then answers 'unauthorized' and
+        // her registration is never flipped to paid. Keep the pending id
+        // so AuthContext can retry the moment she is signed in again, and
+        // tell her on-screen instead of showing a silent "thank you".
+        if (error || data === 'unauthorized') {
+          setEventUnconfirmed(true)
+          return
+        }
+        try { localStorage.removeItem('mimo_pending_event_id') } catch { /* ignore */ }
         // 'over_capacity' means her hold ran out mid-checkout and the
         // seat went to someone else. She is registered anyway: a woman
         // who has already paid is never the one turned away.
@@ -228,6 +241,30 @@ export default function ThankYouPage() {
           )}
 
           <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-line">{body}</p>
+
+          {/* Paid, but the seat could not be confirmed from this browser
+              (no session — private tab, or a new device). Say so instead of
+              letting her walk away thinking she is registered. */}
+          {eventUnconfirmed && (
+            <div className="rounded-2xl py-3 px-3.5 text-right space-y-2"
+              style={{ background: '#FDF3E3', border: '1px solid #E7C78A' }}>
+              <p className="text-sm font-bold" style={{ color: '#8A6A2F' }}>התשלום התקבל 🤍</p>
+              <p className="text-xs leading-relaxed" style={{ color: '#6E5836' }}>
+                לא הצלחנו לאשר את מקומך מהדפדפן הזה. התחברי לאפליקציית מימו והמקום יאושר אוטומטית —
+                או כתבי ל{owner || 'ברנדה'} ונסגור את זה ידנית.
+              </p>
+              {ownerWa && (
+                <a
+                  href={waHref(ownerWa, `היי! שילמתי עכשיו על ${ctx?.title ?? 'המפגש'} ולא קיבלתי אישור מקום 🤍`)}
+                  target="_blank" rel="noopener noreferrer"
+                  className="block w-full py-2.5 rounded-xl text-white font-bold text-xs text-center"
+                  style={{ background: 'linear-gradient(135deg, #25d366, #128c7e)' }}
+                >
+                  💬 לכתוב ל{owner || 'ברנדה'}
+                </a>
+              )}
+            </div>
+          )}
 
           {meeting && (
             <p className="text-sm font-bold rounded-2xl py-2.5 px-3" style={{ background: '#F6ECD8', color: '#6E5836' }}>

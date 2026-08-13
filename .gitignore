@@ -38,3 +38,7 @@ Thumbs.db
 
 # Claude Code permission cache — may contain commands with embedded secrets
 .claude/settings.local.json
+
+# Working folders created by Cowork sessions — never commit
+_backup_pre_course/
+_to_delete/

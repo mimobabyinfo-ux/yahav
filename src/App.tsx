@@ -196,7 +196,7 @@ function AppInner() {
       case 'dashboard':  return <DashboardPage onNavigate={setCurrentPage} />
       case 'journal':    return isPregnant ? <PregnancyDashboard onNavigate={setCurrentPage} /> : <JournalPage onNavigate={setCurrentPage} />
       case 'benefits':   return <BenefitsPage />
-      case 'workshops':  return <WorkshopsPage />
+      case 'workshops':  return <WorkshopsPage onNavigate={setCurrentPage} />
       case 'pro':        return <ProAreaPage />
       case 'admin':      return <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} overview={adminOverview} />
       case 'marketplace': return <ServicesMarketplacePage />

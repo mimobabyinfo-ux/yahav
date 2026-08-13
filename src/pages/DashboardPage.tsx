@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback } from 'react'
-import { ChevronLeft, Settings as SettingsIcon, MessageCircle, Star, Gift, Moon, Sun, Baby, Plus } from 'lucide-react'
+import { ChevronLeft, Settings as SettingsIcon, MessageCircle, Gift, Moon, Sun, Baby, Plus } from 'lucide-react'
 import { supabase, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
@@ -13,6 +13,7 @@ import LogEntryModal from '../components/LogEntryModal'
 import DailyTipCard from '../components/dashboard/DailyTipCard'
 import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard'
 import RecommendedWorkshopCard from '../components/dashboard/RecommendedWorkshopCard'
+import MyCoursesCard from '../components/dashboard/MyCoursesCard'
 import HomeAnnouncementsBanner from '../components/dashboard/HomeAnnouncementsBanner'
 import MimoLeaf from '../components/MimoLeaf'
 import PerkDetailsModal from '../components/PerkDetailsModal'
@@ -48,7 +49,7 @@ export function readNightPref(): NightModePref {
 }
 
 export default function DashboardPage({ onNavigate }: Props) {
-  const { profile, selectedChild, children, hasActiveWorkshopAccess, activeAccessUntil } = useAuth()
+  const { profile, selectedChild, children } = useAuth()
   const { ownerWhatsapp } = useOwnerSettings()
   const [modalType, setModalType] = useState<EntryType | null>(null)
   const [presetFeedingType, setPresetFeedingType] = useState<'breast' | 'bottle' | 'solid' | undefined>(undefined)
@@ -290,6 +291,10 @@ export default function DashboardPage({ onNavigate }: Props) {
           </div>
         )}
 
+        {/* The way in to a purchased course. The pro area has no nav tab,
+            so this card is a mother's only route to content she paid for. */}
+        <MyCoursesCard onNavigate={onNavigate} />
+
         {/* Age-matched product recommendation — what fits the baby's age
             right now, without digging through the store */}
         <RecommendedWorkshopCard onNavigate={onNavigate} />
@@ -297,13 +302,10 @@ export default function DashboardPage({ onNavigate }: Props) {
         {/* 3 · Community — Tier 2 */}
         <UpcomingEventsCard onNavigate={onNavigate} />
 
-        {/* Active workshop access badge — Tier 2 */}
-        {hasActiveWorkshopAccess && activeAccessUntil && (
-          <div className="flex items-center gap-2 px-4 py-3 rounded-2xl font-semibold" style={{ background: '#C8A460', color: '#33281B', fontSize: 14 }}>
-            <Star className="w-4 h-4 flex-shrink-0" />
-            <span>גישה לסדנה פתוחה עד {new Date(activeAccessUntil + 'T12:00:00').toLocaleDateString('he-IL')}</span>
-          </div>
-        )}
+        {/* The "גישה לסדנה פתוחה עד…" badge used to live here. It looked
+            like a button, wasn't one, and led nowhere — the first thing a
+            tester tapped. Its date now sits inside MyCoursesCard above,
+            which does navigate to the content. */}
 
         {/* Assigned tasks — Tier 2 */}
         <MyTasksPanel />

@@ -262,6 +262,29 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
     if (user) await fetchChildren(user.id)
   }
 
+  /**
+   * A mother who pays for a community event can land on the thank-you page
+   * with no session (Morning opens checkout in a new tab; some phones make
+   * it a private one). `mark_event_paid` then answers 'unauthorized' and
+   * ThankYouPage leaves the pending id in place. The moment she is signed
+   * in — here, on any load — we flush it, so her seat is confirmed without
+   * anyone noticing anything went wrong.
+   */
+  async function flushPendingEventPayment() {
+    let eventId: string | null = null
+    try {
+      const stored = localStorage.getItem('mimo_pending_event_id')
+      if (stored && /^[0-9a-f-]{36}$/.test(stored)) eventId = stored
+    } catch { return /* private mode */ }
+    if (!eventId) return
+    const { data, error } = await supabase.rpc('mark_event_paid', { p_event_id: eventId })
+    if (error || data === 'unauthorized') {
+      console.error('[auth] pending event payment still unconfirmed:', error ?? data)
+      return
+    }
+    try { localStorage.removeItem('mimo_pending_event_id') } catch { /* ignore */ }
+  }
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
@@ -270,6 +293,7 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
           fetchChildren(session.user.id, prof as UserProfile | null)
           fetchPurchasedWorkshops(session.user.id)
         }).finally(() => setLoading(false))
+        flushPendingEventPayment()
       } else {
         setProfile(null)
         setChildren([])

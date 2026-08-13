@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { formatDate } from '../utils/dateUtils'
+import CoursePlayer from '../components/course/CoursePlayer'
 
 type ActiveWorkshop = PurchasedWorkshop & { workshop: Workshop | null }
 
@@ -152,6 +153,27 @@ export default function ProAreaPage() {
           </p>
         </div>
       </div>
+    )
+  }
+
+  // ── Digital course view ────────────────────────────────────────────────────
+  // A workshop whose content carries module names (or reading lessons) is a
+  // course, not a folder of files: it gets the ordered player with progress.
+  // Everything else keeps the original videos / homework / files layout, so
+  // the existing סדנאות are untouched.
+  const isCourse = content.some(c => (c.section ?? '').trim() !== '' || c.type === 'text')
+
+  if (selected?.workshop && !contentLoading && isCourse && user) {
+    return (
+      <CoursePlayer
+        workshop={selected.workshop}
+        items={content}
+        userId={user.id}
+        ownerName={ownerName}
+        ownerWhatsapp={ownerWhatsapp}
+        onBack={() => { setSelected(null); setContent([]); setPlayingId(null) }}
+        track={track}
+      />
     )
   }
 
