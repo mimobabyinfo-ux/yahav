@@ -5915,7 +5915,7 @@ function PartnersTab() {
                   setForm(f => f.subcategories.includes(t) ? f : { ...f, subcategories: [...f.subcategories, t] })
                   setTopicDraft('')
                 }}
-                list="partner-subcats" placeholder="נושא, למשל: מאמנות כושר (Enter להוספה)"
+                placeholder="נושא, למשל: מאמנות כושר (Enter להוספה)"
                 className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400" />
               <button type="button"
                 onClick={() => {
@@ -5928,9 +5928,40 @@ function PartnersTab() {
                 className="px-4 py-2.5 rounded-2xl text-sm font-bold disabled:opacity-40"
                 style={{ background: '#F6ECD8', color: '#6E5836' }}>הוספה</button>
             </div>
-            <datalist id="partner-subcats">
-              {[...new Set([...partners.flatMap(p => (p.subcategories?.length ? p.subcategories : [p.subcategory]).map(t => subcatLabel(t))), ...SUBCAT_PRESETS])].filter(s => s !== 'ללא נושא').map(s => <option key={s} value={s} />)}
-            </datalist>
+            {/* Yahav 12.8.26: this used to be a <datalist>, which Safari
+                on the iPhone does not render at all, so on the phone the
+                field looked like a blank box and every topic had to be
+                retyped from memory. Existing topics are now visible
+                chips: tap one and it is added. Typing filters them. */}
+            {(() => {
+              const all = [...new Set([
+                ...partners.flatMap(p => (p.subcategories?.length ? p.subcategories : [p.subcategory]).map(t => subcatLabel(t))),
+                ...SUBCAT_PRESETS,
+              ])].filter(s => s !== 'ללא נושא')
+              const q = topicDraft.trim()
+              const options = all
+                .filter(s => !form.subcategories.includes(s))
+                .filter(s => !q || s.includes(q))
+              if (options.length === 0) return null
+              return (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {options.map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        setForm(f => f.subcategories.includes(s) ? f : { ...f, subcategories: [...f.subcategories, s] })
+                        setTopicDraft('')
+                      }}
+                      className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors hover:brightness-95"
+                      style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#8C6E63' }}
+                    >
+                      + {s}
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
           </div>
           <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))}
             placeholder="מספר WhatsApp (972...)" dir="ltr"
