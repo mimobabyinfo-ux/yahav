@@ -104,18 +104,9 @@ await page.click('nav >> text=קהילה');
 await shot('community-full.png');
 await shotNav('nav-community.png');
 
-// digital content: dashboard -> "התכנים שלך"
-await page.click('nav >> text=בית');
-await noSpinner(); await settle(2000);
-try {
-  await page.click('text=התכנים שלך', { timeout: 8000 });
-  await shot('courses-list.png');
-  await page.click(':text-is("סדנת עיסוי תינוקות")', { timeout: 8000 });
-  await page.waitForSelector('text=סרטונים', { timeout: 15000 });
-  await shot('course-content.png');
-} catch (e) { console.log('skip courses:', e.message); }
-
 // store
+await page.click('nav >> text=בית');
+await noSpinner(); await settle(1500);
 await page.click('nav >> text=מוצרים');
 await shot('store-full.png');
 await shotNav('nav-store.png');
