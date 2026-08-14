@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState, useMemo } from 'react'
 import { supabase, Workshop, type WorkshopOffer, type PublicCohort } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
+import { initPixel, pixelTrack } from '../utils/metaPixel'
 import { Instagram, Facebook } from 'lucide-react'
 
 // Mimo social profiles — shown as quiet icons at the bottom of the
@@ -213,6 +214,39 @@ export default function PublicRegisterPage() {
     return workshops.find(w => w.id === preselect) ?? null
   }, [workshops, preselect, offerWorkshop])
 
+  // A digital course has no cohort, no meeting, nothing to wait for — and
+  // the copy on this page should say so. Detected from the content itself
+  // (module names), so a future course needs no flag.
+  const [isDigitalCourse, setIsDigitalCourse] = useState(false)
+  useEffect(() => {
+    const id = lockedWorkshop?.id
+    if (!id) { setIsDigitalCourse(false); return }
+    let cancelled = false
+    supabase.from('workshop_content')
+      .select('id', { count: 'exact', head: true })
+      .eq('workshop_id', id)
+      .not('section', 'is', null)
+      .then(({ count }) => { if (!cancelled) setIsDigitalCourse((count ?? 0) > 0) })
+    return () => { cancelled = true }
+  }, [lockedWorkshop?.id])
+
+  // Campaign measurement. ViewContent when she lands, InitiateCheckout the
+  // moment she is sent to payment; Purchase fires later on ?thanks. All
+  // three are needed for a Sales campaign to optimise on buyers.
+  useEffect(() => {
+    if (!lockedWorkshop) return
+    initPixel().then(ready => {
+      if (!ready) return
+      pixelTrack('ViewContent', {
+        content_name: lockedWorkshop.title,
+        content_ids: [lockedWorkshop.id],
+        content_type: 'product',
+        value: lockedWorkshop.price ?? 0,
+        currency: 'ILS',
+      })
+    })
+  }, [lockedWorkshop])
+
   const offerPrice = useMemo(() => {
     if (!offer) return null
     return computeOfferPrice(offer, offerWorkshop)
@@ -331,6 +365,21 @@ export default function PublicRegisterPage() {
     }
     if (workshop?.payment_link) {
       rememberPendingLead(leadId)
+      // Fire before navigating away. Not awaited — a blocked pixel must
+      // never stand between a woman and the payment page.
+      pixelTrack('Lead', {
+        content_name: workshop.title,
+        content_ids: [workshop.id],
+        value: workshop.price ?? 0,
+        currency: 'ILS',
+      })
+      pixelTrack('InitiateCheckout', {
+        content_name: workshop.title,
+        content_ids: [workshop.id],
+        value: workshop.price ?? 0,
+        currency: 'ILS',
+        num_items: 1,
+      })
       window.location.href = workshop.payment_link
     } else {
       setSubmitting(false)
@@ -387,7 +436,19 @@ export default function PublicRegisterPage() {
           <p className="text-sand-500 text-sm">{subtitle}</p>
         </div>
 
-        <h1 className="text-center text-xl font-bold text-sand-800 mb-6">{hero}</h1>
+        {/* A campaign lands here with ?register=<product>. The global
+            "ברוכה הבאה לסדנאות מימו" is the wrong promise for a digital
+            course bought off an ad — name the thing she clicked on. */}
+        <h1 className="text-center text-xl font-bold text-sand-800 mb-1">
+          {lockedWorkshop ? lockedWorkshop.title : hero}
+        </h1>
+        {lockedWorkshop?.price != null && (
+          <p className="text-center text-sand-500 text-sm mb-6">
+            ₪{lockedWorkshop.price}
+            {isDigitalCourse && ' · גישה מיידית · שלך לתמיד'}
+          </p>
+        )}
+        {!lockedWorkshop?.price && <div className="mb-6" />}
 
         {/* Task B: special-offer banner — only when the form is in
             offer mode. Shows the offer label so the user can verify
@@ -603,7 +664,9 @@ export default function PublicRegisterPage() {
         </form>
 
         <p className="text-center text-[13px] text-sand-600 mt-4">
-          לאחר שליחת הטופס תועברי לעמוד התשלום
+          {isDigitalCourse
+            ? 'מיד אחרי התשלום נפתחת לך הגישה ונשלח מייל עם קישור ישיר לקורס'
+            : 'לאחר שליחת הטופס תועברי לעמוד התשלום'}
         </p>
 
         {/* Social footer */}

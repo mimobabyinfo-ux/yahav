@@ -10,6 +10,7 @@ import { BUYING_SUBCATEGORIES } from '../data/buyingSubcategories'
 import type { AdminSection } from '../App'
 import CohortsModal from '../components/admin/CohortsModal'
 import WorkshopAccessModal from '../components/admin/WorkshopAccessModal'
+import CourseInsightsPanel from '../components/admin/CourseInsightsPanel'
 import FormSubmissionsView from '../components/admin/FormSubmissionsView'
 import FormSubmissionsModal from '../components/admin/FormSubmissionsModal'
 import AdminLargeModal from '../components/admin/AdminLargeModal'
@@ -2645,6 +2646,10 @@ function InsightsTab() {
 
   return (
     <div className="space-y-6">
+      {/* The digital course is an exposure product — what matters is not
+          how many bought, but how many became Mimo users afterwards. */}
+      <CourseInsightsPanel />
+
       {/* ── B1-1: כסף והרשמות ── */}
       <KpiGroup title="כסף והרשמות">
         <KpiCard

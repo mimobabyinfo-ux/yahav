@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
+import { pixelTrack } from '../utils/metaPixel'
 
 // ?thanks — where Morning sends her back after a successful payment.
 //
@@ -188,7 +189,6 @@ export default function ThankYouPage() {
       supabase.rpc('get_thankyou_context', { p_workshop_key: workshopKey || null, p_lead_id: leadId }),
       supabase.from('global_settings').select('setting_key, setting_value').in('setting_key', [
         'app_subtitle', 'owner_name', 'owner_whatsapp', 'whatsapp_community_link', 'instagram_link',
-        'meta_pixel_id',
         KEYS.group.title, KEYS.group.body,
         KEYS.meetup.title, KEYS.meetup.body,
         KEYS.private.title, KEYS.private.body,
@@ -249,57 +249,19 @@ export default function ThankYouPage() {
   }
 
   // ── Meta Purchase ─────────────────────────────────────────────────────────
-  // The pixel lives on the landing page, but the money lands HERE — Morning
-  // sends her to ?thanks, which is the app. Without this the campaign has no
-  // purchase signal and Meta optimises for form-fills instead of sales.
-  //
-  // Loaded only on this page and only after a real payment: the whole app
-  // does not need a tracker following mothers around their baby's journal.
+  // The money lands HERE — Morning sends her to ?thanks, which is the app,
+  // not the marketing site where the pixel normally lives. Without this the
+  // campaign has no purchase signal at all.
   useEffect(() => {
     if (!paidLeadId || !ctx?.found) return
-    const pixelId = settings.meta_pixel_id
-    if (!pixelId) return
-
-    let cancelled = false
-    const w = window as unknown as { fbq?: ((...a: unknown[]) => void) & { callMethod?: unknown; queue?: unknown[]; loaded?: boolean; version?: string }; _fbq?: unknown }
-
-    function ready(): Promise<void> {
-      if (w.fbq) return Promise.resolve()
-      const n: any = function (...args: unknown[]) {
-        n.callMethod ? n.callMethod.apply(n, args) : n.queue.push(args)
-      }
-      n.push = n; n.loaded = true; n.version = '2.0'; n.queue = []
-      w.fbq = n; w._fbq = n
-      return new Promise(resolve => {
-        const t = document.createElement('script')
-        t.async = true
-        t.src = 'https://connect.facebook.net/en_US/fbevents.js'
-        t.onload = () => resolve()
-        t.onerror = () => resolve()   // ad blocker — never hold up the page
-        document.head.appendChild(t)
-      })
-    }
-
-    ;(async () => {
-      // The amount she actually paid, so Meta optimises on real revenue and
-      // ROAS is not a guess.
-      // get_thankyou_context returns the price, so no extra round trip.
-      const value: number | null = ctx.price != null ? Number(ctx.price) : null
-      await ready()
-      if (cancelled || !w.fbq) return
-      w.fbq('init', pixelId)
-      w.fbq('track', 'PageView')
-      w.fbq('track', 'Purchase', {
-        value: value ?? 0,
-        currency: 'ILS',
-        content_name: ctx.title ?? '',
-        content_ids: ctx.workshop_id ? [ctx.workshop_id] : [],
-        content_type: 'product',
-      })
-    })()
-
-    return () => { cancelled = true }
-  }, [paidLeadId, ctx, settings.meta_pixel_id])
+    pixelTrack('Purchase', {
+      value: ctx.price != null ? Number(ctx.price) : 0,
+      currency: 'ILS',
+      content_name: ctx.title ?? '',
+      content_ids: ctx.workshop_id ? [ctx.workshop_id] : [],
+      content_type: 'product',
+    })
+  }, [paidLeadId, ctx])
 
   if (loading) {
     return (
