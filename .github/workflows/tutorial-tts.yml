@@ -1,7 +1,7 @@
 name: tutorial-tts
 
-# Manually-triggered helper: generates the Hebrew narration audio for the
-# app tutorial video and commits the MP3s back to the branch it ran on.
+# Manually/push-triggered helper: generates the Hebrew narration audio for the
+# app tutorial video and real-app screenshots, then commits them to the branch.
 on:
   workflow_dispatch:
   push:
@@ -9,13 +9,14 @@ on:
     paths:
       - "marketing/tutorial-video/narration.json"
       - "marketing/tutorial-video/generate_tts.py"
+      - "marketing/tutorial-video/shoot_screens.mjs"
       - ".github/workflows/tutorial-tts.yml"
 
 permissions:
   contents: write
 
 jobs:
-  tts:
+  assets:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,10 +25,19 @@ jobs:
           python-version: "3.12"
       - run: pip install edge-tts==7.2.8
       - run: python marketing/tutorial-video/generate_tts.py
-      - name: Commit generated audio
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Screenshot the real app
+        run: |
+          npm init -y > /dev/null
+          npm i playwright@1.49.1 > /dev/null
+          npx playwright install --with-deps chromium
+          node marketing/tutorial-video/shoot_screens.mjs
+      - name: Commit generated assets
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add marketing/tutorial-video/audio
-          git commit -m "tutorial video: generate Hebrew narration audio" || echo "nothing to commit"
+          git add marketing/tutorial-video/audio marketing/tutorial-video/screens
+          git commit -m "tutorial video: narration audio + real app screenshots" || echo "nothing to commit"
           git push
