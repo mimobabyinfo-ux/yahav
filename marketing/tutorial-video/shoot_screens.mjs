@@ -25,19 +25,48 @@ await page.addInitScript(() => {
 });
 
 const settle = (ms = 2500) => page.waitForTimeout(ms);
+
+// The bottom nav is position:fixed, so a full-page screenshot bakes it into the
+// middle of the image and hides the content behind it. Hide it for the body
+// shots and capture it once on its own; the video pins it back to the frame.
+const HIDE_NAV = 'nav.fixed,[class*="fixed"][class*="bottom-0"]{visibility:hidden !important}';
+async function hideNav() { await page.addStyleTag({ content: HIDE_NAV }); }
+async function showNav() {
+  await page.evaluate(() => {
+    document.querySelectorAll('style').forEach(s => {
+      if (s.textContent.includes('visibility:hidden')) s.remove();
+    });
+  });
+}
 const noSpinner = () =>
   page.waitForFunction(() => !document.querySelector('.animate-spin'), null, { timeout: 20000 }).catch(() => {});
-async function shot(name, { full = true } = {}) {
+async function shot(name, { full = true, nav = true } = {}) {
   await noSpinner();
   await settle(2200);
+  if (full && nav) await hideNav();
   await page.screenshot({ path: path.join(OUT, name), fullPage: full });
+  if (full && nav) await showNav();
+  console.log('shot', name);
+}
+
+// The nav strip on its own, from the viewport bottom.
+async function shotNav(name) {
+  await settle(600);
+  const box = await page.evaluate(() => {
+    const el = document.querySelector('nav') || document.querySelector('[class*="bottom-0"]');
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.x, y: r.y, width: r.width, height: r.height };
+  });
+  if (!box) { console.log('no nav found for', name); return; }
+  await page.screenshot({ path: path.join(OUT, name), clip: box });
   console.log('shot', name);
 }
 
 await page.goto('https://mimo-baby.co.il', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('input[name="email"]', { timeout: 30000 });
 await settle(1500);
-await shot('login.png', { full: false });
+await shot('login.png', { full: false, nav: false });
 
 await page.fill('input[name="email"]', EMAIL);
 await page.fill('input[name="password"]', PASSWORD);
@@ -45,6 +74,7 @@ await page.click('button[type="submit"]');
 await page.waitForSelector('text=רישום מהיר ביומן', { timeout: 30000 });
 await settle(3500);
 await shot('home-full.png');
+await shotNav('nav-home.png');
 
 // expand the extra quick actions
 try {
@@ -55,10 +85,12 @@ try {
 // journal
 await page.click('nav >> text=יומן');
 await shot('journal-full.png');
+await shotNav('nav-journal.png');
 
 // community (events tab; do NOT expand cards — attendee names stay private)
 await page.click('nav >> text=קהילה');
 await shot('community-full.png');
+await shotNav('nav-community.png');
 
 // digital content: dashboard -> "התכנים שלך"
 await page.click('nav >> text=בית');
@@ -74,9 +106,10 @@ try {
 // store
 await page.click('nav >> text=מוצרים');
 await shot('store-full.png');
+await shotNav('nav-store.png');
 try {
   await page.click('text=ליווי התפתחותי - סדנת עטופים', { timeout: 8000 });
-  await shot('store-modal.png', { full: false });
+  await shot('store-modal.png', { full: false, nav: false });
 } catch (e) { console.log('skip store-modal:', e.message); }
 
 await browser.close();
