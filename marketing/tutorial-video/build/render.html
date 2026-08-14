@@ -429,9 +429,8 @@
       <div class="statusband"></div>
     </div>
     <div class="callout" id="s6c1" style="top:640px; right:24px;">🏷️ רישום מהיר ביומן</div>
-    <div class="callout" id="s6c2" style="top:850px; left:24px;">🎓 התכנים שלך</div>
-    <div class="callout" id="s6c3" style="top:1060px; right:24px;">💛 המלצה לפי גיל התינוק</div>
-    <div class="callout" id="s6c4" style="top:1270px; left:24px;">🌿 האירועים הקרובים</div>
+    <div class="callout" id="s6c2" style="top:900px; left:24px;">💛 המלצה לפי גיל התינוק</div>
+    <div class="callout" id="s6c3" style="top:1160px; right:24px;">🌿 המפגשים הקרובים</div>
     <div class="caption" id="cap6"></div>
   </section>
 
@@ -467,54 +466,34 @@
     <div class="caption" id="cap8"></div>
   </section>
 
-  <!-- S9 digital content (real, two phases) -->
+  <!-- S9 products (real, store + cohort modal) -->
   <section class="scene" id="s9">
-    <div class="titlezone">
-      <div class="platchip">🎓 התכנים שלך</div>
-      <div class="title disp" style="margin-top:24px;">סדנאות דיגיטליות</div>
-    </div>
-    <div class="phone">
-      <div class="screen">
-        <img class="shot" id="s9shot1" src="assets/screens/courses-list.png">
-        <img class="shot" id="s9shot2" src="assets/screens/course-content.png" style="opacity:0;">
-        <img class="navbar" src="assets/screens/nav-home.png">
-      </div>
-      <div class="statusband"></div>
-    </div>
-    <div class="callout" id="s9c1" style="top:700px; right:24px;">✓ גישה פעילה לתכנים שרכשת</div>
-    <div class="callout" id="s9c2" style="top:960px; left:24px;">🎬 סרטוני הדרכה לצפייה חוזרת</div>
-    <div class="callout" id="s9c3" style="top:1220px; right:24px;">💬 שאלי את ברנדה — ישירות</div>
-    <div class="caption" id="cap9"></div>
-  </section>
-
-  <!-- S10 products (real, store + cohort modal) -->
-  <section class="scene" id="s10">
     <div class="titlezone">
       <div class="platchip">🛍️ מוצרים</div>
       <div class="title disp" style="margin-top:24px;">סדנאות וליווי</div>
     </div>
     <div class="phone">
       <div class="screen">
-        <img class="shot" id="s10shot1" src="assets/screens/store-full.png">
-        <img class="navbar" id="s10nav" src="assets/screens/nav-store.png">
-        <img class="shot" id="s10shot2" src="assets/screens/store-modal.png" style="opacity:0;">
+        <img class="shot" id="s9shot1" src="assets/screens/store-full.png">
+        <img class="navbar" id="s9nav" src="assets/screens/nav-store.png">
+        <img class="shot" id="s9shot2" src="assets/screens/store-modal.png" style="opacity:0;">
       </div>
       <div class="statusband"></div>
     </div>
-    <div class="callout" id="s10c1" style="top:700px; right:24px;">🗓️ בוחרות מחזור — תאריך ושעה</div>
-    <div class="callout" id="s10c2" style="top:960px; left:24px;">🔥 רואות כמה מקומות נשארו</div>
-    <div class="callout" id="s10c3" style="top:1220px; right:24px;">💳 תשלום אונליין או וואטסאפ</div>
-    <div class="caption" id="cap10"></div>
+    <div class="callout" id="s9c1" style="top:700px; right:24px;">🗓️ בוחרות מחזור — תאריך ושעה</div>
+    <div class="callout" id="s9c2" style="top:960px; left:24px;">🔥 רואות כמה מקומות נשארו</div>
+    <div class="callout" id="s9c3" style="top:1220px; right:24px;">💳 תשלום אונליין או וואטסאפ</div>
+    <div class="caption" id="cap9"></div>
   </section>
 
-  <!-- S11 outro -->
-  <section class="scene" id="s11">
-    <img class="outro-duck" src="assets/duck-family.png" id="s10duck">
-    <div class="outro-title disp" id="s10title">בית עוטף ומלטף 💛</div>
-    <div class="outro-sub" id="s10sub">משהו לא ברור? אנחנו כאן בשבילך</div>
-    <div class="wa-chip" id="s10wa">💬 כתבי לנו בוואטסאפ</div>
-    <div class="url-chip disp" id="s10url">mimo-baby.co.il</div>
-    <div class="caption" id="cap11"></div>
+  <!-- S10 outro -->
+  <section class="scene" id="s10">
+    <img class="outro-duck" src="assets/duck-family.png" id="s9duck">
+    <div class="outro-title disp" id="s9title">בית עוטף ומלטף 💛</div>
+    <div class="outro-sub" id="s9sub">משהו לא ברור? אנחנו כאן בשבילך</div>
+    <div class="wa-chip" id="s9wa">💬 כתבי לנו בוואטסאפ</div>
+    <div class="url-chip disp" id="s9url">mimo-baby.co.il</div>
+    <div class="caption" id="cap10"></div>
   </section>
 
 <script>
@@ -610,8 +589,8 @@ function build(TL) {
   // S6 home
   t = byId.s6.start;
   fadeUp(document.querySelector('#s6 .phone'), t+0.25, 0.8, 100);
-  pan('s6shot', t+1.6, byId.s6.dur-3.2, [0, 0.28, 0.62, 1]);
-  popIn('s6c1', t+1.6); popIn('s6c2', t+3.6); popIn('s6c3', t+5.4); popIn('s6c4', t+7.4);
+  pan('s6shot', t+1.6, byId.s6.dur-3.2, [0, 0.35, 0.75]);
+  popIn('s6c1', t+1.6); popIn('s6c2', t+4.4); popIn('s6c3', t+7.2);
 
   // S7 journal
   t = byId.s7.start;
@@ -625,34 +604,25 @@ function build(TL) {
   pan('s8shot', t+1.6, byId.s8.dur-3.2, [0, 0.5, 1]);
   popIn('s8c1', t+1.8); popIn('s8c2', t+4.2); popIn('s8c3', t+6.8);
 
-  // S9 digital content: list -> inside the workshop
+  // S9 products: store -> cohort picker modal
   t = byId.s9.start;
   fadeUp(document.querySelector('#s9 .phone'), t+0.25, 0.8, 100);
-  popIn('s9c1', t+1.6);
-  anim('s9shot1', [{opacity:1},{opacity:0}], {t0:t+3.4, dur:0.5, fill:'forwards'});
-  anim('s9shot2', [{opacity:0},{opacity:1}], {t0:t+3.6, dur:0.5, fill:'forwards'});
-  pan('s9shot2', t+4.4, byId.s9.dur-5.6, [0, 1]);
-  popIn('s9c2', t+4.6); popIn('s9c3', t+7.2);
+  pan('s9shot1', t+1.4, 4.2, [0, 0.45]);
+  popIn('s9c1', t+1.8);
+  anim('s9shot1', [{opacity:1},{opacity:0}], {t0:t+5.6, dur:0.5, fill:'forwards'});
+  anim('s9shot2', [{opacity:0},{opacity:1}], {t0:t+5.8, dur:0.5, fill:'forwards'});
+  anim('s9nav', [{opacity:1},{opacity:0}], {t0:t+5.6, dur:0.4, fill:'forwards'});
+  popIn('s9c2', t+4.2); popIn('s9c3', t+7.0);
 
-  // S10 products: store -> cohort picker modal
+  // S10 outro
   t = byId.s10.start;
-  fadeUp(document.querySelector('#s10 .phone'), t+0.25, 0.8, 100);
-  pan('s10shot1', t+1.4, 4.2, [0, 0.45]);
-  popIn('s10c1', t+1.8);
-  anim('s10shot1', [{opacity:1},{opacity:0}], {t0:t+5.6, dur:0.5, fill:'forwards'});
-  anim('s10shot2', [{opacity:0},{opacity:1}], {t0:t+5.8, dur:0.5, fill:'forwards'});
-  anim('s10nav', [{opacity:1},{opacity:0}], {t0:t+5.6, dur:0.4, fill:'forwards'});
-  popIn('s10c2', t+4.2); popIn('s10c3', t+7.0);
-
-  // S11 outro
-  t = byId.s11.start;
-  anim('s10duck', [{opacity:0, transform:'translateX(-50%) scale(.7)'},{opacity:1, transform:'translateX(-50%) scale(1)'}], {t0:t+0.35, dur:0.8, easing:POP});
-  fadeUp('s10title', t+1.1);
-  fadeUp('s10sub', t+2.0);
-  anim('s10wa', [{opacity:0, transform:'translateX(-50%) translateY(50px)'},{opacity:1, transform:'translateX(-50%) translateY(0)'}], {t0:t+3.0, dur:0.7});
-  anim('s10url', [{opacity:0, transform:'translateX(-50%) translateY(50px)'},{opacity:1, transform:'translateX(-50%) translateY(0)'}], {t0:t+4.1, dur:0.7});
-  pulse('s10wa', t+5.2, 2);
-  confetti('s11', t+0.9);
+  anim('s9duck', [{opacity:0, transform:'translateX(-50%) scale(.7)'},{opacity:1, transform:'translateX(-50%) scale(1)'}], {t0:t+0.35, dur:0.8, easing:POP});
+  fadeUp('s9title', t+1.1);
+  fadeUp('s9sub', t+2.0);
+  anim('s9wa', [{opacity:0, transform:'translateX(-50%) translateY(50px)'},{opacity:1, transform:'translateX(-50%) translateY(0)'}], {t0:t+3.0, dur:0.7});
+  anim('s9url', [{opacity:0, transform:'translateX(-50%) translateY(50px)'},{opacity:1, transform:'translateX(-50%) translateY(0)'}], {t0:t+4.1, dur:0.7});
+  pulse('s9wa', t+5.2, 2);
+  confetti('s10', t+0.9);
 }
 
 function confetti(sceneId, t0) {
@@ -663,7 +633,7 @@ function confetti(sceneId, t0) {
     d.className = 'confetti';
     d.style.background = colors[i % colors.length];
     d.style.left = (150 + Math.random()*780) + 'px';
-    d.style.top  = (sceneId==='s11' ? 300 : 700) + 'px';
+    d.style.top  = (sceneId==='s10' ? 300 : 700) + 'px';
     d.style.borderRadius = Math.random()>0.5 ? '50%' : '6px';
     scene.appendChild(d);
     const dx = (Math.random()-0.5)*700;
