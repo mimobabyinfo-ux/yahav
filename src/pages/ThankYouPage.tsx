@@ -383,7 +383,10 @@ export default function ThankYouPage() {
                   ? 'שלחנו לך מייל עם קישור כניסה — אם הוא לא הגיע, פשוט היכנסי לאפליקציה והתחברי עם אותה כתובת מייל.'
                   : 'שלחנו לך מייל עם קישור כניסה ישיר. אפשר גם להיכנס מכאן:'}
               </p>
-              <a href="/" className="block w-full py-3 rounded-xl font-bold text-sm text-center text-[#4A3A28]"
+              {/* ?course opens the course itself, not the app home. She
+                  bought a course; do not make her go looking for it. */}
+              <a href={ctx?.workshop_id ? `/?course=${ctx.workshop_id}` : '/?course'}
+                className="block w-full py-3 rounded-xl font-bold text-sm text-center text-[#4A3A28]"
                 style={{ background: '#E7C78A' }}>
                 כניסה לקורס ←
               </a>

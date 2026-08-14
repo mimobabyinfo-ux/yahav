@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { supabase, Workshop, WorkshopContent } from '../../lib/supabase'
 import type { EventType, EventData } from '../../hooks/useTracker'
+import { signedMediaUrl } from '../../utils/signedMedia'
 
 /**
  * Digital-course player.
@@ -284,14 +285,27 @@ export default function CoursePlayer({
  */
 function LessonVideo({ url, onPlay }: { url: string; onPlay: () => void }) {
   const [ratio, setRatio] = useState(FALLBACK_RATIO)
+  // Signed at play time, expires within the hour. See utils/signedMedia.
+  const [src, setSrc] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    signedMediaUrl(url).then(u => { if (!cancelled) setSrc(u) })
+    return () => { cancelled = true }
+  }, [url])
+
   return (
     <div className="flex justify-center">
       <div
         className="relative w-full overflow-hidden rounded-2xl bg-black"
         style={{ aspectRatio: String(ratio), maxHeight: '70vh', maxWidth: `calc(70vh * ${ratio})` }}
       >
+        {!src && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-7 h-7 border-2 border-white/30 border-t-white/80 rounded-full animate-spin" />
+          </div>
+        )}
         <video
-          src={url}
+          src={src ?? undefined}
           controls
           playsInline
           preload="metadata"

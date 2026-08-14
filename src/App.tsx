@@ -55,6 +55,12 @@ const isOfferPage = new URLSearchParams(window.location.search).has('offer')
 // Vendor/host check-in for community events (?checkin=<token>) — public,
 // no login; access enforced by the token RPCs.
 const checkinToken = new URLSearchParams(window.location.search).get('checkin')
+// ?course[=<workshop id>] — where the welcome email lands. A woman who
+// bought the digital course may have zero interest in the app, and making
+// her hunt for it on the home screen is the fastest way to lose her. This
+// opens the course itself; everything else is one tap away if she wants it.
+const isCoursePage = new URLSearchParams(window.location.search).has('course')
+const courseWorkshopId = new URLSearchParams(window.location.search).get('course') || null
 const isThanksPage = new URLSearchParams(window.location.search).has('thanks')
 const isSettingsPage = new URLSearchParams(window.location.search).has('settings')
 
@@ -63,7 +69,7 @@ const REGS_LS_KEY = 'registrations_last_seen'
 
 function AppInner() {
   const { user, profile, loading, isGuest } = useAuth()
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard')
+  const [currentPage, setCurrentPage] = useState<Page>(isCoursePage ? 'pro' : 'dashboard')
   // Admin lands on the home screen ("what needs me today") — design
   // handoff §3. Everything else stays reachable from the sidebar.
   const [adminSection, setAdminSection] = useState<AdminSection>('home')
@@ -86,8 +92,11 @@ function AppInner() {
     setTimerVersion(v => v + 1)
   }, [currentPage]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-land admins on the admin page (unless viewing as user)
+  // Auto-land admins on the admin page (unless viewing as user).
+  // ?course wins: an admin opening a customer's welcome link wants to see
+  // what the customer sees.
   useEffect(() => {
+    if (isCoursePage) return
     if (profile?.is_admin && !viewAsUser) {
       setCurrentPage('admin')
     }
@@ -197,7 +206,7 @@ function AppInner() {
       case 'journal':    return isPregnant ? <PregnancyDashboard onNavigate={setCurrentPage} /> : <JournalPage onNavigate={setCurrentPage} />
       case 'benefits':   return <BenefitsPage />
       case 'workshops':  return <WorkshopsPage onNavigate={setCurrentPage} />
-      case 'pro':        return <ProAreaPage />
+      case 'pro':        return <ProAreaPage autoOpenWorkshopId={isCoursePage ? courseWorkshopId : null} />
       case 'admin':      return <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} overview={adminOverview} />
       case 'marketplace': return <ServicesMarketplacePage />
       case 'community':  return <CommunityPage />

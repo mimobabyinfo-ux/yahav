@@ -426,7 +426,7 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
 function UsersTab() {
   const [users, setUsers] = useState<UserWithChildren[]>([])
   const [search, setSearch] = useState('')
-  const [modeFilter, setModeFilter] = useState<'all' | 'pregnant' | 'mom'>('all')
+  const [modeFilter, setModeFilter] = useState<'all' | 'pregnant' | 'mom' | 'course'>('all')
   const [editUser, setEditUser] = useState<UserWithChildren | null>(null)
   const [editName, setEditName] = useState('')
   const [editLeadStatus, setEditLeadStatus] = useState<string>('')
@@ -446,7 +446,12 @@ function UsersTab() {
   useEffect(() => { load() }, [load])
 
   const filtered = users.filter(u => {
-    if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
+    // 'course' is not a user_mode — it is where the account came from.
+    // A woman who bought the course has no baby details and would look
+    // like an abandoned signup in the plain list.
+    if (modeFilter === 'course') {
+      if (u.acquisition_source !== 'course_purchase') return false
+    } else if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
     return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
   })
 
@@ -489,14 +494,14 @@ function UsersTab() {
 
       {/* Mode filter */}
       <div className="flex gap-2">
-        {(['all', 'mom', 'pregnant'] as const).map(m => (
+        {(['all', 'mom', 'pregnant', 'course'] as const).map(m => (
           <button
             key={m}
             onClick={() => setModeFilter(m)}
             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${modeFilter === m ? 'text-white shadow-sm' : 'bg-sand-50 text-sand-500'}`}
             style={modeFilter === m ? { background: '#E7C78A' } : {}}
           >
-            {m === 'all' ? 'הכל' : m === 'mom' ? '👶 אמהות' : '🤰 הריון'}
+            {m === 'all' ? 'הכל' : m === 'mom' ? '👶 אמהות' : m === 'pregnant' ? '🤰 הריון' : '🎓 קורס'}
           </button>
         ))}
       </div>
@@ -511,6 +516,9 @@ function UsersTab() {
                 <p className="font-bold text-sand-800 text-sm truncate">{u.mother_name ?? '—'}</p>
                 {u.is_admin && <span className="text-[13px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-bold">ADMIN</span>}
                 {u.user_mode === 'pregnant' && <span className="text-[13px] bg-[#E4EBEF] text-[#3E5966] px-1.5 py-0.5 rounded-md font-bold">🤰 הריון</span>}
+                {u.acquisition_source === 'course_purchase' && (
+                  <span className="text-[13px] bg-[#F6ECD8] text-[#6E5836] px-1.5 py-0.5 rounded-md font-bold">🎓 קורס</span>
+                )}
                 <LeadBadge status={u.lead_status} />
               </div>
               <p className="text-xs text-sand-400 truncate">{u.email}</p>
@@ -652,7 +660,7 @@ function UsersTab() {
 function UsersTabDesktop() {
   const [users, setUsers] = useState<UserWithChildren[]>([])
   const [search, setSearch] = useState('')
-  const [modeFilter, setModeFilter] = useState<'all' | 'pregnant' | 'mom'>('all')
+  const [modeFilter, setModeFilter] = useState<'all' | 'pregnant' | 'mom' | 'course'>('all')
   const [drawer, setDrawer] = useState<UserWithChildren | null>(null)
   const [editName, setEditName] = useState('')
   const [editLeadStatus, setEditLeadStatus] = useState('')
@@ -672,7 +680,12 @@ function UsersTabDesktop() {
   useEffect(() => { load() }, [load])
 
   const filtered = users.filter(u => {
-    if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
+    // 'course' is not a user_mode — it is where the account came from.
+    // A woman who bought the course has no baby details and would look
+    // like an abandoned signup in the plain list.
+    if (modeFilter === 'course') {
+      if (u.acquisition_source !== 'course_purchase') return false
+    } else if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
     return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
   })
 
@@ -715,11 +728,11 @@ function UsersTabDesktop() {
               className="w-full pr-9 pl-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-800 focus:outline-none focus:border-mustard-400 shadow-sm" />
           </div>
           <div className="flex gap-1.5">
-            {(['all', 'mom', 'pregnant'] as const).map(m => (
+            {(['all', 'mom', 'pregnant', 'course'] as const).map(m => (
               <button key={m} onClick={() => setModeFilter(m)}
                 className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${modeFilter === m ? 'text-white' : 'bg-white text-gray-500 border border-gray-200'}`}
                 style={modeFilter === m ? { background: '#E7C78A' } : {}}>
-                {m === 'all' ? 'הכל' : m === 'mom' ? '👶 אמהות' : '🤰 הריון'}
+                {m === 'all' ? 'הכל' : m === 'mom' ? '👶 אמהות' : m === 'pregnant' ? '🤰 הריון' : '🎓 קורס'}
               </button>
             ))}
           </div>
@@ -747,6 +760,9 @@ function UsersTabDesktop() {
                       <div>
                         <p className="text-sm font-semibold text-gray-800 whitespace-nowrap">{u.mother_name ?? '—'}</p>
                         {u.is_admin && <span className="text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold">ADMIN</span>}
+                        {u.acquisition_source === 'course_purchase' && (
+                          <span className="text-[9px] bg-[#F6ECD8] text-[#6E5836] px-1 rounded font-bold">🎓 קורס</span>
+                        )}
                       </div>
                     </div>
                   </td>

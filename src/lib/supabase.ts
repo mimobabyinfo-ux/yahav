@@ -18,6 +18,11 @@ export type UserProfile = {
   is_admin: boolean
   display_name: string | null
   lead_status: 'new_lead' | 'active_workshop' | 'post_service' | null
+  /** Where this account came from. null / 'app' = she signed up herself.
+   *  'course_purchase' = the account was created automatically when she
+   *  bought a digital course, so she may have no baby details and no
+   *  interest in the tracker — a paying customer, not a lapsed signup. */
+  acquisition_source: 'app' | 'course_purchase' | null
   staff_notes: string | null
   last_active: string | null
   family_id: string | null
@@ -172,6 +177,10 @@ export type Workshop = {
   price: number | null
   currency: string | null
   payment_link: string | null
+  /** productId from Morning's payment/received webhook for this product's
+   *  payment link. When set, a payment that has no registration behind it
+   *  (a raw link sent over WhatsApp) still opens an account. */
+  morning_product_id: string | null
   next_workshop_id: string | null
   public_registration: boolean
   // Phase 5 / A2 Part 2: optional questionnaire linked to this workshop
@@ -197,7 +206,7 @@ export type Workshop = {
   // NULL = auto-detect (physical → product, has cohorts → group,
   // otherwise → private). Set explicitly for a cohort-based product
   // that has NO dedicated WhatsApp group (מפגש אבות, בוקר של מימו).
-  thanks_template: 'group' | 'meetup' | 'private' | 'product' | null
+  thanks_template: 'group' | 'meetup' | 'private' | 'product' | 'simple' | 'course' | null
   age_range_start_months: number | null
   age_range_end_months: number | null
 }

@@ -6,10 +6,17 @@ import { useTracker } from '../hooks/useTracker'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { formatDate } from '../utils/dateUtils'
 import CoursePlayer from '../components/course/CoursePlayer'
+import { signedMediaUrl } from '../utils/signedMedia'
 
 type ActiveWorkshop = PurchasedWorkshop & { workshop: Workshop | null }
 
-export default function ProAreaPage() {
+/**
+ * autoOpenWorkshopId — set by ?course in the URL, which is where the
+ * welcome email lands. She bought a course; she should be looking at the
+ * course, not at a list with one item in it. A bare ?course with no id
+ * opens her only course when she has exactly one.
+ */
+export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWorkshopId?: string | null } = {}) {
   const { user, profile, hasActiveWorkshopAccess, purchasedWorkshops } = useAuth()
   const { track } = useTracker()
   const { ownerName, ownerWhatsapp } = useOwnerSettings()
@@ -57,6 +64,23 @@ export default function ProAreaPage() {
   }, [user, profile, purchasedWorkshops])
 
   useEffect(() => { fetchActive() }, [fetchActive])
+
+  // Open the course straight away when she arrived from the email. Runs
+  // once: `opened` latches so pressing back does not slam her into the
+  // lesson list again.
+  const [autoOpened, setAutoOpened] = useState(false)
+  useEffect(() => {
+    if (autoOpened || loading || activeWorkshops.length === 0) return
+    const target = autoOpenWorkshopId
+      ? activeWorkshops.find(aw => aw.workshop_id === autoOpenWorkshopId)
+      : (activeWorkshops.length === 1 ? activeWorkshops[0] : null)
+    if (!target) return
+    setAutoOpened(true)
+    openWorkshop(target)
+    // openWorkshop is stable enough for this one-shot; re-running on every
+    // render would fight the user's own navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpened, loading, activeWorkshops, autoOpenWorkshopId])
 
   async function openWorkshop(aw: ActiveWorkshop) {
     setSelected(aw)
@@ -257,7 +281,7 @@ export default function ProAreaPage() {
                         {item.url && (
                           <div className="relative bg-sand-100 h-36">
                             {playingId === item.id ? (
-                              <video src={item.url} controls autoPlay className="w-full h-full object-cover bg-black" onEnded={() => setPlayingId(null)} />
+                              <ClassicVideo url={item.url} onEnded={() => setPlayingId(null)} />
                             ) : (
                               <button onClick={() => { track('video_start', { item_id: item.id }); setPlayingId(item.id) }}
                                 className="absolute inset-0 flex items-center justify-center w-full h-full">
@@ -521,5 +545,30 @@ export default function ProAreaPage() {
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * The old workshops play from the same storage bucket, so they need the
+ * same signature — otherwise locking the bucket would break every סדנה
+ * Brenda already sold.
+ */
+function ClassicVideo({ url, onEnded }: { url: string; onEnded: () => void }) {
+  const [src, setSrc] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    signedMediaUrl(url).then(u => { if (!cancelled) setSrc(u) })
+    return () => { cancelled = true }
+  }, [url])
+  if (!src) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-black">
+        <div className="w-6 h-6 border-2 border-white/30 border-t-white/80 rounded-full animate-spin" />
+      </div>
+    )
+  }
+  return (
+    <video src={src} controls autoPlay playsInline
+      className="w-full h-full object-cover bg-black" onEnded={onEnded} />
   )
 }
