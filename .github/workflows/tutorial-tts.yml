@@ -4,6 +4,12 @@ name: tutorial-tts
 # app tutorial video and commits the MP3s back to the branch it ran on.
 on:
   workflow_dispatch:
+  push:
+    branches: ["claude/app-installation-tutorial-video-*"]
+    paths:
+      - "marketing/tutorial-video/narration.json"
+      - "marketing/tutorial-video/generate_tts.py"
+      - ".github/workflows/tutorial-tts.yml"
 
 permissions:
   contents: write
