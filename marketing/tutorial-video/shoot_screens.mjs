@@ -27,25 +27,35 @@ await page.addInitScript(() => {
 const settle = (ms = 2500) => page.waitForTimeout(ms);
 
 // The bottom nav is position:fixed, so a full-page screenshot bakes it into the
-// middle of the image and hides the content behind it. Hide it for the body
-// shots and capture it once on its own; the video pins it back to the frame.
-const HIDE_NAV = 'nav.fixed,[class*="fixed"][class*="bottom-0"]{visibility:hidden !important}';
-async function hideNav() { await page.addStyleTag({ content: HIDE_NAV }); }
-async function showNav() {
+// middle of the image and hides the content behind it. Hide every fixed-position
+// element for the body shots and capture the nav once on its own; the video pins
+// it back to the bottom of the phone frame.
+async function hideFixed() {
   await page.evaluate(() => {
-    document.querySelectorAll('style').forEach(s => {
-      if (s.textContent.includes('visibility:hidden')) s.remove();
+    window.__hidden = [];
+    document.querySelectorAll('body *').forEach((el) => {
+      const cs = getComputedStyle(el);
+      if (cs.position === 'fixed' && cs.display !== 'none' && el.getBoundingClientRect().height > 0) {
+        window.__hidden.push([el, el.style.display]);
+        el.style.setProperty('display', 'none', 'important');
+      }
     });
+    return window.__hidden.length;
   });
 }
-const noSpinner = () =>
-  page.waitForFunction(() => !document.querySelector('.animate-spin'), null, { timeout: 20000 }).catch(() => {});
+async function showFixed() {
+  await page.evaluate(() => {
+    (window.__hidden || []).forEach(([el, prev]) => { el.style.display = prev; });
+    window.__hidden = [];
+  });
+}
+
 async function shot(name, { full = true, nav = true } = {}) {
   await noSpinner();
   await settle(2200);
-  if (full && nav) await hideNav();
+  if (full && nav) await hideFixed();
   await page.screenshot({ path: path.join(OUT, name), fullPage: full });
-  if (full && nav) await showNav();
+  if (full && nav) await showFixed();
   console.log('shot', name);
 }
 
