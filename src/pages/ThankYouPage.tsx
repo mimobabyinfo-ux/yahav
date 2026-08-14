@@ -39,13 +39,17 @@ import MimoLogo from '../components/MimoLogo'
 // WhatsApp link stays unknown to the app on purpose (Brenda, 11.8:
 // "להוריד לגמרי") and Brenda marks that payment by hand, as before.
 
-type ThanksKind = 'group' | 'meetup' | 'private' | 'product' | 'simple'
+//   course  — a digital course. The only kind with nothing to wait for:
+//             the content is already open and the login link is in her
+//             inbox. Promising "פרטים יישלחו" here would be wrong.
+type ThanksKind = 'group' | 'meetup' | 'private' | 'product' | 'simple' | 'course'
 
 type ThanksContext = {
   found: boolean
   workshop_id?: string
   title?: string
   kind?: ThanksKind
+  price?: number | null
   lead_found?: boolean
   lead_name?: string | null
   lead_status?: string | null
@@ -91,6 +95,14 @@ const COPY: Record<ThanksKind, { title: string; body: (owner: string) => string 
       'נתאם יחד איסוף. כתבי לי בוואטסאפ ונסגור מתי נוח לך.' +
       (owner ? `\nבאהבה, ${owner}` : ''),
   },
+  course: {
+    title: 'הקורס שלך פתוח 🤎',
+    body: owner =>
+      'התשלום התקבל ופתחנו לך גישה מלאה לקורס.\n' +
+      'שלחנו לך מייל עם קישור כניסה ישיר — ואפשר גם להיכנס מכאן, עכשיו.\n\n' +
+      'הקורס בנוי משיעורים קצרים שאפשר לעשות בקצב שלך. אין תאריך התחלה ואין מה לחכות לו.' +
+      (owner ? `\nבאהבה, ${owner}` : ''),
+  },
 }
 
 // Settings keys per kind. group keeps the ORIGINAL keys so Brenda's
@@ -101,6 +113,7 @@ const KEYS: Record<ThanksKind, { title: string; body: string }> = {
   private: { title: 'thank_you_title_private', body: 'thank_you_body_private' },
   product: { title: 'thank_you_title_product', body: 'thank_you_body_product' },
   simple:  { title: 'thank_you_title_simple',  body: 'thank_you_body_simple' },
+  course:  { title: 'thank_you_title_course',  body: 'thank_you_body_course' },
 }
 
 function waHref(number: string, text: string): string {
@@ -130,6 +143,10 @@ export default function ThankYouPage() {
   const [eventPaid, setEventPaid] = useState(false)
   // She paid, but we could not confirm her seat from this browser.
   const [eventUnconfirmed, setEventUnconfirmed] = useState(false)
+  // Digital course: the lead that just paid, and how the claim went.
+  const [paidLeadId, setPaidLeadId] = useState<string | null>(null)
+  const [accessOpened, setAccessOpened] = useState(false)
+  const [mailFailed, setMailFailed] = useState(false)
 
   useEffect(() => {
     let eventId: string | null = null
@@ -171,11 +188,13 @@ export default function ThankYouPage() {
       supabase.rpc('get_thankyou_context', { p_workshop_key: workshopKey || null, p_lead_id: leadId }),
       supabase.from('global_settings').select('setting_key, setting_value').in('setting_key', [
         'app_subtitle', 'owner_name', 'owner_whatsapp', 'whatsapp_community_link', 'instagram_link',
+        'meta_pixel_id',
         KEYS.group.title, KEYS.group.body,
         KEYS.meetup.title, KEYS.meetup.body,
         KEYS.private.title, KEYS.private.body,
         KEYS.product.title, KEYS.product.body,
         KEYS.simple.title, KEYS.simple.body,
+        KEYS.course.title, KEYS.course.body,
       ]),
     ]).then(([ctxRes, setRes]) => {
       setCtx((ctxRes.data as ThanksContext) ?? { found: false })
@@ -187,15 +206,100 @@ export default function ThankYouPage() {
       setLoading(false)
     })
 
-    // Flip her registration to שילמה. The key is cleared first so a
-    // refresh can't re-fire it; the RPC only touches 'pending' rows.
+    // Flip her registration to שילמה, THEN hand her over to
+    // claim-course-purchase. The order matters: the edge function refuses
+    // any lead that is not already 'paid', which is exactly what stops
+    // someone from claiming a course by guessing a lead id.
+    //
+    // The key is cleared first so a refresh can't re-fire it; the RPC only
+    // touches 'pending' rows, and the claim is idempotent besides.
     if (leadId) {
+      const id = leadId
       try { localStorage.removeItem('mimo_pending_lead_id') } catch { /* ignore */ }
-      supabase.rpc('mark_lead_paid', { p_lead_id: leadId }).then(({ error }) => {
-        if (error) console.error('[thank-you] mark_lead_paid failed:', error)
-      })
+      supabase.rpc('mark_lead_paid', { p_lead_id: id })
+        .then(({ error }) => {
+          if (error) console.error('[thank-you] mark_lead_paid failed:', error)
+          setPaidLeadId(id)
+          return claimPurchase(id)
+        })
     }
   }, [workshopKey])
+
+  // Open her account + access + welcome email. Fire-and-forget from her
+  // point of view: she is already on the thank-you page and the Morning
+  // webhook is the safety net if this call never lands.
+  async function claimPurchase(id: string) {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/claim-course-purchase`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: id }),
+      })
+      const out = await res.json().catch(() => null)
+      if (!res.ok || !out?.ok) {
+        console.error('[thank-you] claim failed:', res.status, out)
+        return
+      }
+      // Nothing was opened and nothing was emailed → she has no way in.
+      if (out.access_opened && !out.email_sent) setMailFailed(true)
+      if (out.access_opened) setAccessOpened(true)
+    } catch (e) {
+      console.error('[thank-you] claim threw:', e)
+    }
+  }
+
+  // ── Meta Purchase ─────────────────────────────────────────────────────────
+  // The pixel lives on the landing page, but the money lands HERE — Morning
+  // sends her to ?thanks, which is the app. Without this the campaign has no
+  // purchase signal and Meta optimises for form-fills instead of sales.
+  //
+  // Loaded only on this page and only after a real payment: the whole app
+  // does not need a tracker following mothers around their baby's journal.
+  useEffect(() => {
+    if (!paidLeadId || !ctx?.found) return
+    const pixelId = settings.meta_pixel_id
+    if (!pixelId) return
+
+    let cancelled = false
+    const w = window as unknown as { fbq?: ((...a: unknown[]) => void) & { callMethod?: unknown; queue?: unknown[]; loaded?: boolean; version?: string }; _fbq?: unknown }
+
+    function ready(): Promise<void> {
+      if (w.fbq) return Promise.resolve()
+      const n: any = function (...args: unknown[]) {
+        n.callMethod ? n.callMethod.apply(n, args) : n.queue.push(args)
+      }
+      n.push = n; n.loaded = true; n.version = '2.0'; n.queue = []
+      w.fbq = n; w._fbq = n
+      return new Promise(resolve => {
+        const t = document.createElement('script')
+        t.async = true
+        t.src = 'https://connect.facebook.net/en_US/fbevents.js'
+        t.onload = () => resolve()
+        t.onerror = () => resolve()   // ad blocker — never hold up the page
+        document.head.appendChild(t)
+      })
+    }
+
+    ;(async () => {
+      // The amount she actually paid, so Meta optimises on real revenue and
+      // ROAS is not a guess.
+      // get_thankyou_context returns the price, so no extra round trip.
+      const value: number | null = ctx.price != null ? Number(ctx.price) : null
+      await ready()
+      if (cancelled || !w.fbq) return
+      w.fbq('init', pixelId)
+      w.fbq('track', 'PageView')
+      w.fbq('track', 'Purchase', {
+        value: value ?? 0,
+        currency: 'ILS',
+        content_name: ctx.title ?? '',
+        content_ids: ctx.workshop_id ? [ctx.workshop_id] : [],
+        content_type: 'product',
+      })
+    })()
+
+    return () => { cancelled = true }
+  }, [paidLeadId, ctx, settings.meta_pixel_id])
 
   if (loading) {
     return (
@@ -266,6 +370,26 @@ export default function ThankYouPage() {
             </div>
           )}
 
+          {/* Digital course: her account is open. Give her the door right
+              here — the email is the backup, not the only way in. */}
+          {accessOpened && (
+            <div className="rounded-2xl py-4 px-4 text-right space-y-3"
+              style={{ background: '#FDF3E3', border: '1px solid #E7C78A' }}>
+              <p className="text-sm font-bold" style={{ color: '#8A6A2F' }}>
+                החשבון שלך מוכן והקורס פתוח 🤎
+              </p>
+              <p className="text-xs leading-relaxed" style={{ color: '#6E5836' }}>
+                {mailFailed
+                  ? 'שלחנו לך מייל עם קישור כניסה — אם הוא לא הגיע, פשוט היכנסי לאפליקציה והתחברי עם אותה כתובת מייל.'
+                  : 'שלחנו לך מייל עם קישור כניסה ישיר. אפשר גם להיכנס מכאן:'}
+              </p>
+              <a href="/" className="block w-full py-3 rounded-xl font-bold text-sm text-center text-[#4A3A28]"
+                style={{ background: '#E7C78A' }}>
+                כניסה לקורס ←
+              </a>
+            </div>
+          )}
+
           {meeting && (
             <p className="text-sm font-bold rounded-2xl py-2.5 px-3" style={{ background: '#F6ECD8', color: '#6E5836' }}>
               {meeting}
@@ -287,7 +411,7 @@ export default function ThankYouPage() {
                 💬 הצטרפי לקהילת מימו בוואטסאפ
               </a>
             )}
-            {kind !== 'group' && kind !== 'simple' && ownerWa && (
+            {kind !== 'group' && kind !== 'simple' && kind !== 'course' && ownerWa && (
               <a
                 href={waHref(ownerWa, kind === 'product' ? waProductText : waPrivateText)}
                 target="_blank"
