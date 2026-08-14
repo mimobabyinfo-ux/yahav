@@ -1,0 +1,27 @@
+name: tutorial-tts
+
+# Manually-triggered helper: generates the Hebrew narration audio for the
+# app tutorial video and commits the MP3s back to the branch it ran on.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install edge-tts==7.2.8
+      - run: python marketing/tutorial-video/generate_tts.py
+      - name: Commit generated audio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add marketing/tutorial-video/audio
+          git commit -m "tutorial video: generate Hebrew narration audio" || echo "nothing to commit"
+          git push
