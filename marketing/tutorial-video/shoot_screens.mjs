@@ -10,7 +10,7 @@ const OUT = path.join(path.dirname(new URL(import.meta.url).pathname), 'screens'
 fs.mkdirSync(OUT, { recursive: true });
 
 const EMAIL = 'demo.video@mimo-baby.co.il';
-const PASSWORD = process.env.DEMO_PASSWORD || 'MimoDemo8452vid';
+const PASSWORD = process.env.DEMO_PASSWORD || 'MimoShoot4471tmp';
 
 const browser = await chromium.launch();
 const page = await browser.newPage({
@@ -66,7 +66,8 @@ await noSpinner(); await settle(2000);
 try {
   await page.click('text=התכנים שלך', { timeout: 8000 });
   await shot('courses-list.png');
-  await page.click('text=סדנת עיסוי תינוקות', { timeout: 8000 });
+  await page.click(':text-is("סדנת עיסוי תינוקות")', { timeout: 8000 });
+  await page.waitForSelector('text=סרטונים', { timeout: 15000 });
   await shot('course-content.png');
 } catch (e) { console.log('skip courses:', e.message); }
 
