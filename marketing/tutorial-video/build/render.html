@@ -62,6 +62,10 @@
     width:190px; height:34px; border-radius:20px; background:#443327; z-index:5;
   }
   .screen { position:absolute; inset:0; background:#FDFCFA; }
+  .statusband {
+    position:absolute; top:0; left:0; right:0; height:52px; z-index:9;
+    background:linear-gradient(#F8F5F1 62%, rgba(248,245,241,0));
+  }
 
   /* safari */
   .site-hero { position:absolute; top:120px; left:44px; right:44px; text-align:center; }
@@ -235,7 +239,7 @@
   }
 
   .warncard {
-    position:absolute; bottom:300px; left:70px; right:70px;
+    position:absolute; bottom:250px; left:70px; right:70px;
     background:#fff; border-radius:28px; border-right:14px solid #CE9177;
     box-shadow:0 12px 34px rgba(68,51,39,.14);
     padding:26px 32px; font-size:32px; font-weight:700; color:#713924;
@@ -254,6 +258,15 @@
   .s1-icon { position:absolute; top:560px; left:50%; transform:translateX(-50%); width:330px; height:330px; border-radius:80px; box-shadow:0 26px 60px rgba(68,51,39,.2); }
   .s1-title { position:absolute; top:960px; left:60px; right:60px; text-align:center; font-size:92px; line-height:1.2; color:#443327; }
   .s1-sub { position:absolute; top:1210px; left:60px; right:60px; text-align:center; font-size:48px; font-weight:600; color:#818267; }
+  .shot { position:absolute; top:38px; left:0; width:620px; }
+  .navbar { position:absolute; bottom:0; left:0; width:620px; z-index:8; box-shadow:0 -8px 20px rgba(68,51,39,.06); }
+  .callout {
+    position:absolute; z-index:30;
+    background:#fff; border:5px solid #E7C78A; color:#5E4938;
+    border-radius:999px; padding:14px 34px;
+    font-size:34px; font-weight:800; white-space:nowrap;
+    box-shadow:0 10px 30px rgba(68,51,39,.18); opacity:0;
+  }
   .s1-url { position:absolute; top:1330px; left:50%; transform:translateX(-50%); border:3px solid #E7C78A; background:#fff; color:#AC894A; border-radius:999px; padding:18px 48px; font-size:42px; font-weight:800; direction:ltr; }
 </style>
 </head>
@@ -284,11 +297,7 @@
     </div>
     <div class="phone" id="s2phone">
       <div class="screen">
-        <div class="site-hero">
-          <img src="assets/icon-512.png">
-          <div class="h disp">הרשמה לסדנאות מימו</div>
-          <div class="p">מרכז התפתחות לתינוקות</div>
-        </div>
+        <img class="shot" src="assets/screens/login.png" style="top:-90px;">
         <div class="warncard" id="s2warn"><span style="font-size:44px;">⚠️</span><span>לא מתוך וואטסאפ או אינסטגרם — רק ספארי</span></div>
         <div class="safaribar">
           <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#5E4938" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11z" fill="#CE9177" stroke="none"/></svg>
@@ -308,10 +317,7 @@
     </div>
     <div class="phone">
       <div class="screen">
-        <div class="site-hero" style="opacity:.45;">
-          <img src="assets/icon-512.png">
-          <div class="h disp">הרשמה לסדנאות מימו</div>
-        </div>
+        <img class="shot" src="assets/screens/login.png" style="top:-90px; opacity:.4;">
         <div class="toolbar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
@@ -412,162 +418,103 @@
     <div class="caption" id="cap5"></div>
   </section>
 
-  <!-- S6 home dashboard -->
+  <!-- S6 home (real) -->
   <section class="scene" id="s6">
     <div class="titlezone">
       <div class="platchip">🏠 בית</div>
       <div class="title disp" style="margin-top:24px;">הכל במבט אחד</div>
     </div>
     <div class="phone">
-      <div class="screen" style="background:#F8F5F1;">
-        <div class="appheader" id="s6hello">
-          <div class="hello disp">ערב טוב, אמא 👋</div>
-          <div class="sub">עומר · 5 שבועות</div>
-        </div>
-        <div class="card" id="s6quick">
-          <div class="ct">רישום מהיר 🏷️</div>
-          <div class="quickrow">
-            <div class="quick" id="s6q1"><div class="qc">🤱</div><div class="ql">הנקה</div></div>
-            <div class="quick" id="s6q2"><div class="qc">🌙</div><div class="ql">שינה</div></div>
-            <div class="quick" id="s6q3"><div class="qc">🧷</div><div class="ql">חיתול</div></div>
-          </div>
-        </div>
-        <div class="reco" id="s6reco">
-          <div class="emoji">💛</div>
-          <div>
-            <div class="t1">מתאים בדיוק לגיל של עומר</div>
-            <div class="t2">ליווי התפתחותי · סדנת עטופים</div>
-          </div>
-        </div>
-        <div class="card" id="s6events">
-          <div class="ct">מפגשים קרובים 🌿</div>
-          <div style="margin-top:14px;">
-            <div class="eventrow">
-              <div class="datebox"><div class="d">13</div><div class="m">אוג׳</div></div>
-              <div><div class="et">הרצאה · שינה</div><div class="es">19:00 · הסטודיו ברמת גן</div></div>
-              <div class="tagchip">נרשמת ✓</div>
-            </div>
-            <div class="eventrow">
-              <div class="datebox"><div class="d">19</div><div class="m">אוג׳</div></div>
-              <div><div class="et">מפגש בית קפה</div><div class="es">10:30 · תל אביב</div></div>
-              <div class="tagchip" style="background:#FAF0D7; color:#876B38;">חינם</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="notch"></div>
+      <div class="screen"><img class="shot" id="s6shot" src="assets/screens/home-full.png"><img class="navbar" src="assets/screens/nav-home.png"></div>
+      <div class="statusband"></div>
     </div>
+    <div class="callout" id="s6c1" style="top:640px; right:24px;">🏷️ רישום מהיר ביומן</div>
+    <div class="callout" id="s6c2" style="top:850px; left:24px;">🎓 התכנים שלך</div>
+    <div class="callout" id="s6c3" style="top:1060px; right:24px;">💛 המלצה לפי גיל התינוק</div>
+    <div class="callout" id="s6c4" style="top:1270px; left:24px;">🌿 האירועים הקרובים</div>
     <div class="caption" id="cap6"></div>
   </section>
 
-  <!-- S7 community -->
+  <!-- S7 journal (real) -->
   <section class="scene" id="s7">
-    <div class="titlezone">
-      <div class="platchip">🌿 קהילה</div>
-      <div class="title disp" style="margin-top:24px;">אירועים והרשמות</div>
-    </div>
-    <div class="phone">
-      <div class="screen" style="background:#F8F5F1;">
-        <div class="card" id="s7card" style="margin-top:110px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div class="ct" style="font-size:38px;">הרצאה · שינה 🥱</div>
-            <div class="tagchip" style="background:#F5E3B3; color:#876B38; font-size:26px;">₪30</div>
-          </div>
-          <div id="s7details" style="margin-top:16px; font-size:28px; font-weight:600; color:#818267; line-height:1.7;">
-            🗓️ יום חמישי · 13/08 · 19:00–20:15<br>
-            📍 הסטודיו של שיר · רמת גן
-          </div>
-          <div id="s7nav" style="margin-top:14px; display:inline-block; background:#F0EAE2; border-radius:999px; padding:10px 24px; font-size:26px; font-weight:700; color:#5E4938;">ניווט למיקום בוויז 🚗</div>
-          <div style="margin-top:24px; font-size:28px; font-weight:800; color:#443327;">מי מגיעה? 🙋‍♀️</div>
-          <div class="avatars">
-            <div class="av" id="s7a1"><span class="b">👶</span>ברנדה</div>
-            <div class="av" id="s7a2"><span class="b">🌸</span>הילה</div>
-            <div class="av" id="s7a3"><span class="b">⭐</span>+3</div>
-          </div>
-          <div class="bigbtn" id="s7btn">אני מגיעה! (₪30)
-            <span class="ripple" id="s7rip" style="top:20px; right:120px;"></span>
-          </div>
-          <div class="ghostbtn" id="s7tick">🎟️ ההזמנות שלי · כרטיס כניסה</div>
-        </div>
-      </div>
-      <div class="notch"></div>
-    </div>
-    <div class="caption" id="cap7"></div>
-  </section>
-
-  <!-- S8 journal -->
-  <section class="scene" id="s8">
     <div class="titlezone">
       <div class="platchip">📒 יומן</div>
       <div class="title disp" style="margin-top:24px;">היום של התינוק</div>
     </div>
     <div class="phone">
-      <div class="screen" style="background:#F8F5F1;">
-        <div style="padding:100px 44px 0; font-size:30px; font-weight:700; color:#818267;" id="s8head">מה תרצי לתעד?</div>
-        <div class="jgrid">
-          <div class="jcell"><div class="je">🤱</div><div class="jl">הנקה</div></div>
-          <div class="jcell"><div class="je">🍼</div><div class="jl">בקבוק</div></div>
-          <div class="jcell"><div class="je">🥣</div><div class="jl">אוכל</div></div>
-          <div class="jcell"><div class="je">🌙</div><div class="jl">שינה</div></div>
-          <div class="jcell"><div class="je">🧷</div><div class="jl">חיתול</div></div>
-          <div class="jcell"><div class="je">🐢</div><div class="jl">זמן בטן</div></div>
-          <div class="jcell"><div class="je">📝</div><div class="jl">הערה</div></div>
-          <div class="jcell"><div class="je">⭐</div><div class="jl">אבן דרך</div></div>
-          <div class="jcell"><div class="je">🩺</div><div class="jl">רופא</div></div>
-        </div>
-        <div class="card" id="s8sum" style="display:flex; justify-content:space-between; align-items:center;">
-          <div class="ct">סיכום יומי · שבועי 📆</div>
-          <div class="tagchip" style="background:#DDE4E8; color:#455057;">לצפייה</div>
-        </div>
-        <div class="card" id="s8share" style="display:flex; justify-content:space-between; align-items:center;">
-          <div class="ct">משתפים את בן/בת הזוג 👨‍👩‍👧</div>
-          <div class="tagchip" style="background:#EADBDD; color:#735659;">הזמנה</div>
-        </div>
-      </div>
-      <div class="notch"></div>
+      <div class="screen"><img class="shot" id="s7shot" src="assets/screens/journal-full.png"><img class="navbar" src="assets/screens/nav-journal.png"></div>
+      <div class="statusband"></div>
     </div>
+    <div class="callout" id="s7c1" style="top:660px; right:24px;">⚡ רישום בלחיצה אחת</div>
+    <div class="callout" id="s7c2" style="top:900px; left:24px;">🕐 ציר זמן · יום ושבוע</div>
+    <div class="callout" id="s7c3" style="top:1140px; right:24px;">👨‍👩‍👧 משתפים את בן הזוג</div>
+    <div class="caption" id="cap7"></div>
+  </section>
+
+  <!-- S8 community (real) -->
+  <section class="scene" id="s8">
+    <div class="titlezone">
+      <div class="platchip">🌿 קהילה</div>
+      <div class="title disp" style="margin-top:24px;">מפגשים והרשמות</div>
+    </div>
+    <div class="phone">
+      <div class="screen"><img class="shot" id="s8shot" src="assets/screens/community-full.png"><img class="navbar" src="assets/screens/nav-community.png"></div>
+      <div class="statusband"></div>
+    </div>
+    <div class="callout" id="s8c1" style="top:700px; right:24px;">🗓️ תאריך, שעה ומחיר</div>
+    <div class="callout" id="s8c2" style="top:940px; left:24px;">🙋‍♀️ "אני מגיעה!" בלחיצה</div>
+    <div class="callout" id="s8c3" style="top:1180px; right:24px;">🎟️ כרטיס כניסה בהזמנות שלי</div>
     <div class="caption" id="cap8"></div>
   </section>
 
-  <!-- S9 products -->
+  <!-- S9 digital content (real, two phases) -->
   <section class="scene" id="s9">
+    <div class="titlezone">
+      <div class="platchip">🎓 התכנים שלך</div>
+      <div class="title disp" style="margin-top:24px;">סדנאות דיגיטליות</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <img class="shot" id="s9shot1" src="assets/screens/courses-list.png">
+        <img class="shot" id="s9shot2" src="assets/screens/course-content.png" style="opacity:0;">
+        <img class="navbar" src="assets/screens/nav-home.png">
+      </div>
+      <div class="statusband"></div>
+    </div>
+    <div class="callout" id="s9c1" style="top:700px; right:24px;">✓ גישה פעילה לתכנים שרכשת</div>
+    <div class="callout" id="s9c2" style="top:960px; left:24px;">🎬 סרטוני הדרכה לצפייה חוזרת</div>
+    <div class="callout" id="s9c3" style="top:1220px; right:24px;">💬 שאלי את ברנדה — ישירות</div>
+    <div class="caption" id="cap9"></div>
+  </section>
+
+  <!-- S10 products (real, store + cohort modal) -->
+  <section class="scene" id="s10">
     <div class="titlezone">
       <div class="platchip">🛍️ מוצרים</div>
       <div class="title disp" style="margin-top:24px;">סדנאות וליווי</div>
     </div>
     <div class="phone">
-      <div class="screen" style="background:#F8F5F1;">
-        <div class="card" id="s9card" style="margin-top:120px; padding:0; overflow:hidden;">
-          <div class="prodimg"><img src="assets/duck-mama.png"></div>
-          <div style="padding:28px 34px 34px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <div class="ct" style="font-size:34px;">ליווי התפתחותי · סדנת עטופים</div>
-            </div>
-            <div style="margin-top:8px; font-size:26px; font-weight:600; color:#818267;">MIMO · לגילאי 0–3 חודשים</div>
-            <div style="margin-top:14px; font-size:44px; font-weight:800; color:#AC894A;" id="s9price">₪800</div>
-            <div class="cohorts">
-              <div class="cohort" id="s9c1">19/08 · 11:45</div>
-              <div class="cohort" id="s9c2">03/09 · 11:45</div>
-              <div class="cohort" id="s9c3">23/09 · 11:45</div>
-            </div>
-            <div class="bigbtn" id="s9btn">📅 לבחירת מחזור והרשמה</div>
-            <div class="ghostbtn" id="s9wa" style="background:#818267; color:#fff; border-color:#818267;">💬 וואטסאפ ישיר לברנדה</div>
-          </div>
-        </div>
+      <div class="screen">
+        <img class="shot" id="s10shot1" src="assets/screens/store-full.png">
+        <img class="navbar" id="s10nav" src="assets/screens/nav-store.png">
+        <img class="shot" id="s10shot2" src="assets/screens/store-modal.png" style="opacity:0;">
       </div>
-      <div class="notch"></div>
+      <div class="statusband"></div>
     </div>
-    <div class="caption" id="cap9"></div>
+    <div class="callout" id="s10c1" style="top:700px; right:24px;">🗓️ בוחרות מחזור — תאריך ושעה</div>
+    <div class="callout" id="s10c2" style="top:960px; left:24px;">🔥 רואות כמה מקומות נשארו</div>
+    <div class="callout" id="s10c3" style="top:1220px; right:24px;">💳 תשלום אונליין או וואטסאפ</div>
+    <div class="caption" id="cap10"></div>
   </section>
 
-  <!-- S10 outro -->
-  <section class="scene" id="s10">
+  <!-- S11 outro -->
+  <section class="scene" id="s11">
     <img class="outro-duck" src="assets/duck-family.png" id="s10duck">
     <div class="outro-title disp" id="s10title">בית עוטף ומלטף 💛</div>
     <div class="outro-sub" id="s10sub">משהו לא ברור? אנחנו כאן בשבילך</div>
     <div class="wa-chip" id="s10wa">💬 כתבי לנו בוואטסאפ</div>
     <div class="url-chip disp" id="s10url">mimo-baby.co.il</div>
-    <div class="caption" id="cap10"></div>
+    <div class="caption" id="cap11"></div>
   </section>
 
 <script>
@@ -651,50 +598,61 @@ function build(TL) {
   pulse('s5row', t+5.5, 1);
   fadeUp('s5done', t+6.9, 0.6, 30);
 
-  // S6
+  // helper: scroll a full-page screenshot inside the phone
+  function pan(imgId, t0, dur, stops) {
+    const img = document.getElementById(imgId);
+    const h = img.naturalHeight * (620 / img.naturalWidth);
+    const maxPan = Math.max(0, h - (1110 - 130));
+    const kf = stops.map(f => ({ transform: `translateY(${-Math.round(maxPan * f)}px)` }));
+    anim(img, kf, { t0, dur, easing: 'ease-in-out' });
+  }
+
+  // S6 home
   t = byId.s6.start;
-  fadeUp('s6hello', t+0.5);
-  fadeUp('s6quick', t+1.6);
-  popIn('s6q1', t+2.1); popIn('s6q2', t+2.35); popIn('s6q3', t+2.6);
-  fadeUp('s6reco', t+4.6);
-  pulse('s6reco', t+5.5, 1);
-  fadeUp('s6events', t+6.7);
+  fadeUp(document.querySelector('#s6 .phone'), t+0.25, 0.8, 100);
+  pan('s6shot', t+1.6, byId.s6.dur-3.2, [0, 0.28, 0.62, 1]);
+  popIn('s6c1', t+1.6); popIn('s6c2', t+3.6); popIn('s6c3', t+5.4); popIn('s6c4', t+7.4);
 
-  // S7
+  // S7 journal
   t = byId.s7.start;
-  fadeUp('s7card', t+0.4, 0.8, 90);
-  fadeIn('s7details', t+1.4, 0.6);
-  popIn('s7nav', t+4.6);
-  popIn('s7a1', t+3.2); popIn('s7a2', t+3.45); popIn('s7a3', t+3.7);
-  pulse('s7btn', t+6.3, 2);
-  rippleGo('s7rip', t+6.6);
-  fadeUp('s7tick', t+7.4, 0.6, 30);
+  fadeUp(document.querySelector('#s7 .phone'), t+0.25, 0.8, 100);
+  pan('s7shot', t+1.6, byId.s7.dur-3.2, [0, 0.45, 1]);
+  popIn('s7c1', t+1.8); popIn('s7c2', t+4.6); popIn('s7c3', t+7.6);
 
-  // S8
+  // S8 community
   t = byId.s8.start;
-  fadeIn('s8head', t+0.4);
-  document.querySelectorAll('#s8 .jcell').forEach((c,i)=> popIn(c, t+0.7+i*0.24));
-  fadeUp('s8sum', t+5.2);
-  fadeUp('s8share', t+6.6);
+  fadeUp(document.querySelector('#s8 .phone'), t+0.25, 0.8, 100);
+  pan('s8shot', t+1.6, byId.s8.dur-3.2, [0, 0.5, 1]);
+  popIn('s8c1', t+1.8); popIn('s8c2', t+4.2); popIn('s8c3', t+6.8);
 
-  // S9
+  // S9 digital content: list -> inside the workshop
   t = byId.s9.start;
-  fadeUp('s9card', t+0.4, 0.8, 90);
-  popIn('s9price', t+2.0);
-  popIn('s9c1', t+3.4); popIn('s9c2', t+3.65); popIn('s9c3', t+3.9);
-  fadeUp('s9btn', t+5.3, 0.6, 30);
-  fadeUp('s9wa', t+6.3, 0.6, 30);
-  pulse('s9wa', t+7.2, 2);
+  fadeUp(document.querySelector('#s9 .phone'), t+0.25, 0.8, 100);
+  popIn('s9c1', t+1.6);
+  anim('s9shot1', [{opacity:1},{opacity:0}], {t0:t+3.4, dur:0.5, fill:'forwards'});
+  anim('s9shot2', [{opacity:0},{opacity:1}], {t0:t+3.6, dur:0.5, fill:'forwards'});
+  pan('s9shot2', t+4.4, byId.s9.dur-5.6, [0, 1]);
+  popIn('s9c2', t+4.6); popIn('s9c3', t+7.2);
 
-  // S10
+  // S10 products: store -> cohort picker modal
   t = byId.s10.start;
+  fadeUp(document.querySelector('#s10 .phone'), t+0.25, 0.8, 100);
+  pan('s10shot1', t+1.4, 4.2, [0, 0.45]);
+  popIn('s10c1', t+1.8);
+  anim('s10shot1', [{opacity:1},{opacity:0}], {t0:t+5.6, dur:0.5, fill:'forwards'});
+  anim('s10shot2', [{opacity:0},{opacity:1}], {t0:t+5.8, dur:0.5, fill:'forwards'});
+  anim('s10nav', [{opacity:1},{opacity:0}], {t0:t+5.6, dur:0.4, fill:'forwards'});
+  popIn('s10c2', t+4.2); popIn('s10c3', t+7.0);
+
+  // S11 outro
+  t = byId.s11.start;
   anim('s10duck', [{opacity:0, transform:'translateX(-50%) scale(.7)'},{opacity:1, transform:'translateX(-50%) scale(1)'}], {t0:t+0.35, dur:0.8, easing:POP});
   fadeUp('s10title', t+1.1);
   fadeUp('s10sub', t+2.0);
   anim('s10wa', [{opacity:0, transform:'translateX(-50%) translateY(50px)'},{opacity:1, transform:'translateX(-50%) translateY(0)'}], {t0:t+3.0, dur:0.7});
   anim('s10url', [{opacity:0, transform:'translateX(-50%) translateY(50px)'},{opacity:1, transform:'translateX(-50%) translateY(0)'}], {t0:t+4.1, dur:0.7});
   pulse('s10wa', t+5.2, 2);
-  confetti('s10', t+0.9);
+  confetti('s11', t+0.9);
 }
 
 function confetti(sceneId, t0) {
@@ -705,7 +663,7 @@ function confetti(sceneId, t0) {
     d.className = 'confetti';
     d.style.background = colors[i % colors.length];
     d.style.left = (150 + Math.random()*780) + 'px';
-    d.style.top  = (sceneId==='s10' ? 300 : 700) + 'px';
+    d.style.top  = (sceneId==='s11' ? 300 : 700) + 'px';
     d.style.borderRadius = Math.random()>0.5 ? '50%' : '6px';
     scene.appendChild(d);
     const dx = (Math.random()-0.5)*700;

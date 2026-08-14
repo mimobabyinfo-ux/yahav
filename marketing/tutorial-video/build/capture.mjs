@@ -40,6 +40,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
 await page.goto('file://' + path.join(HERE, 'render.html'));
 await page.evaluate(() => document.fonts.ready);
+await page.evaluate(() => Promise.all(Array.from(document.images).map(i => i.decode().catch(() => {}))));
 await page.evaluate((tl) => window.INIT(tl), TL);
 
 const only = process.env.ONLY_TIMES ? process.env.ONLY_TIMES.split(',').map(Number) : null;
