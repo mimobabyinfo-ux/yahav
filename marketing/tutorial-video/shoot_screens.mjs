@@ -25,6 +25,8 @@ await page.addInitScript(() => {
 });
 
 const settle = (ms = 2500) => page.waitForTimeout(ms);
+const noSpinner = () =>
+  page.waitForFunction(() => !document.querySelector('.animate-spin'), null, { timeout: 20000 }).catch(() => {});
 
 // The bottom nav is position:fixed, so a full-page screenshot bakes it into the
 // middle of the image and hides the content behind it. Hide every fixed-position
