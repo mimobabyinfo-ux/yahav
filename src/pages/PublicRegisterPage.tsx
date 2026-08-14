@@ -1,7 +1,8 @@
-﻿import { useEffect, useState, useMemo } from 'react'
+﻿import { useEffect, useState, useMemo, useRef } from 'react'
 import { supabase, Workshop, type WorkshopOffer, type PublicCohort } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 import { initPixel, pixelTrack } from '../utils/metaPixel'
+import CourseSalesSections from '../components/course/CourseSalesSections'
 import { Instagram, Facebook } from 'lucide-react'
 
 // Mimo social profiles — shown as quiet icons at the bottom of the
@@ -218,6 +219,7 @@ export default function PublicRegisterPage() {
   // the copy on this page should say so. Detected from the content itself
   // (module names), so a future course needs no flag.
   const [isDigitalCourse, setIsDigitalCourse] = useState(false)
+  const formRef = useRef<HTMLFormElement | null>(null)
   useEffect(() => {
     const id = lockedWorkshop?.id
     if (!id) { setIsDigitalCourse(false); return }
@@ -436,19 +438,25 @@ export default function PublicRegisterPage() {
           <p className="text-sand-500 text-sm">{subtitle}</p>
         </div>
 
-        {/* A campaign lands here with ?register=<product>. The global
-            "ברוכה הבאה לסדנאות מימו" is the wrong promise for a digital
-            course bought off an ad — name the thing she clicked on. */}
-        <h1 className="text-center text-xl font-bold text-sand-800 mb-1">
-          {lockedWorkshop ? lockedWorkshop.title : hero}
-        </h1>
-        {lockedWorkshop?.price != null && (
-          <p className="text-center text-sand-500 text-sm mb-6">
-            ₪{lockedWorkshop.price}
-            {isDigitalCourse && ' · גישה מיידית · שלך לתמיד'}
-          </p>
+        {/* A campaign lands here with ?register=<product>. A digital course
+            gets the full sales page above the form — one page that sells
+            and collects, on the same origin as the thank-you page. */}
+        {isDigitalCourse && lockedWorkshop ? (
+          <CourseSalesSections
+            workshop={lockedWorkshop}
+            onCta={() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          />
+        ) : (
+          <>
+            <h1 className="text-center text-xl font-bold text-sand-800 mb-1">
+              {lockedWorkshop ? lockedWorkshop.title : hero}
+            </h1>
+            {lockedWorkshop?.price != null && (
+              <p className="text-center text-sand-500 text-sm mb-6">₪{lockedWorkshop.price}</p>
+            )}
+            {lockedWorkshop?.price == null && <div className="mb-6" />}
+          </>
         )}
-        {!lockedWorkshop?.price && <div className="mb-6" />}
 
         {/* Task B: special-offer banner — only when the form is in
             offer mode. Shows the offer label so the user can verify
@@ -460,7 +468,7 @@ export default function PublicRegisterPage() {
           </div>
         )}
 
-        <form onSubmit={submit} className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
+        <form ref={formRef} onSubmit={submit} className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם מלא</label>
             <input
