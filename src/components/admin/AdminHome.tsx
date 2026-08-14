@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import type { AdminOverview } from './useAdminOverview'
 import type { AdminTask, AdminTaskSection } from './adminTasks'
 import MimoLeaf from '../MimoLeaf'
+import UnclaimedPurchasesCard from './UnclaimedPurchasesCard'
 
 // Admin home ("בית") — answers "what needs me today" (design handoff §3).
 // Three blocks: greeting strip with counters, the derived task list
@@ -186,6 +187,11 @@ export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
               ))}
             </div>
           </div>
+
+          {/* Paid but never got in. Renders nothing when the list is empty,
+              which is the normal state — it only appears when a mother is
+              actually stuck, and then it sits above everything else. */}
+          <UnclaimedPurchasesCard />
 
           {/* דורש תשומת לב — one line per task, טופל persists (phase 2) */}
           <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
