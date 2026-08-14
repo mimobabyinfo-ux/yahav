@@ -117,3 +117,5 @@ try {
 
 await browser.close();
 console.log('done');
+
+// Reshoot trigger: home screen no longer carries a purchased-workshops card.
