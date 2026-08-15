@@ -25,11 +25,14 @@ SCENES = [
     ('11-outro',       ['10-a.m4a', '10-b.m4a']),
 ]
 
-# leading/trailing silence trim, mono, then loudness normalise
-TRIM = ("silenceremove=start_periods=1:start_duration=0.10:start_threshold=-45dB:detection=peak,"
-        "areverse,"
-        "silenceremove=start_periods=1:start_duration=0.10:start_threshold=-45dB:detection=peak,"
-        "areverse")
+# Silence handling. `start_silence` keeps that much of the ORIGINAL room tone
+# instead of butting the cut against the first/last syllable — splicing bone-dry
+# speech onto digital silence is what makes a join sound like a cut.
+def trim(head=0.05, tail=0.05):
+    cut = "silenceremove=start_periods=1:start_duration=0.10:start_threshold=-45dB:detection=peak"
+    return f"{cut}:start_silence={head},areverse,{cut}:start_silence={tail},areverse"
+
+TRIM = trim()
 POLISH = "highpass=f=80,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000"
 
 def run(cmd):
@@ -51,15 +54,19 @@ for sid, takes in SCENES:
         run([FF, '-y', '-i', str(RAW / takes[0]), '-ac', '1',
              '-af', f'{TRIM},{POLISH}', '-c:a', 'libmp3lame', '-b:a', '160k', str(dest)])
     else:
-        # trim each half, then join with a natural 0.35s beat between them
+        # Join the halves on real room tone, not on inserted silence: keep the
+        # tail of the first take and the head of the second, and cross-fade the
+        # two quiet stretches into each other so the seam is inaudible.
         parts = []
         for i, t in enumerate(takes):
             tmp = OUT / f'.{sid}.part{i}.wav'
-            run([FF, '-y', '-i', str(RAW / t), '-ac', '1', '-af', TRIM, str(tmp)])
+            head = 0.05 if i == 0 else 0.26
+            tail = 0.30 if i == 0 else 0.05
+            run([FF, '-y', '-i', str(RAW / t), '-ac', '1', '-af', trim(head, tail), str(tmp)])
             parts.append(tmp)
         run([FF, '-y', '-i', str(parts[0]), '-i', str(parts[1]),
              '-filter_complex',
-             f'[0:a]apad=pad_dur=0.35[a0];[a0][1:a]concat=n=2:v=0:a=1,{POLISH}[out]',
+             f'[0:a][1:a]acrossfade=d=0.18:c1=tri:c2=tri,{POLISH}[out]',
              '-map', '[out]', '-c:a', 'libmp3lame', '-b:a', '160k', str(dest)])
         for p in parts:
             p.unlink()
