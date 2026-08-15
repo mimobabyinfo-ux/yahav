@@ -100,7 +100,7 @@
   /* ios share sheet — laid out LTR like the real one: the action row runs
      Copy → Bookmarks → Reading List → View More, so View More sits on the RIGHT */
   .sheet {
-    position:absolute; left:10px; right:10px; bottom:12px;
+    position:absolute; left:10px; right:10px; bottom:12px; z-index:12;
     background:#3B3A3C; border-radius:46px;
     box-shadow:0 -14px 44px rgba(0,0,0,.28);
     padding:24px 20px 30px;
@@ -139,7 +139,19 @@
   .sheet .circ .c svg { width:46px; height:46px; }
   .sheet .circ .l { margin-top:10px; font-size:21px; font-weight:500; color:#F2F1F3; line-height:1.25; }
 
-  /* menu list (ios + android) */
+  /* the dark list that appears once the sheet is expanded */
+  .menulist { margin-top:20px; background:#4B4A4D; border-radius:28px; overflow:hidden; }
+  .menulist .row {
+    display:flex; align-items:center; gap:22px;
+    padding:22px 26px; font-size:30px; font-weight:500; color:#FFFFFF;
+    border-bottom:2px solid rgba(255,255,255,.10); position:relative;
+  }
+  .menulist .row:last-child { border-bottom:none; }
+  .menulist .row svg { width:36px; height:36px; flex:none; }
+  .menulist .row.hl { background:#E7C78A; color:#3B3A3C; font-weight:800; }
+  .menulist .row-ring { position:absolute; inset:4px; border-radius:20px; border:6px solid #C8A460; opacity:0; }
+
+  /* menu list (android) */
   .menucard {
     position:absolute; left:40px; right:40px; top:300px; direction:ltr;
     background:#fff; border-radius:36px; box-shadow:0 16px 44px rgba(68,51,39,.16);
@@ -430,23 +442,82 @@
     </div>
     <div class="phone">
       <div class="screen" id="s4menuview">
-        <div class="menucard" id="s4menu">
-          <div class="row">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="1.6"><path d="M12 15V4m0 0L8.4 7.6M12 4l3.6 3.6"/><path d="M5.5 12v6.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V12"/></svg>
-            <span>Share</span>
+        <img class="shot" src="assets/screens/login.png" style="top:-90px; opacity:.35;">
+        <div class="sheet" id="s4sheet" style="transform:none; padding:20px 20px 24px;">
+          <div class="grab"></div>
+          <div class="siterow" style="padding:14px 18px;">
+            <img src="assets/icon-512.png" style="width:74px; height:74px;">
+            <div class="txt">
+              <div class="t">הרשמה לסדנאות מימו</div>
+              <div class="u">mimo-baby.co.il</div>
+            </div>
           </div>
-          <div class="row">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="1.6"><path d="M7 4h10v17l-5-4-5 4z"/></svg>
-            <span>Add to Bookmarks</span>
+          <div class="apps" style="margin-top:20px;">
+            <div class="appicon">
+              <div class="sq" style="background:#1F7BEE; width:82px; height:82px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M8 13a5 5 0 0 1 8 0M9.6 16.2a3 3 0 0 1 4.8 0"/><circle cx="12" cy="19" r=".9" fill="#fff"/></svg>
+              </div>
+              <div class="l">AirDrop</div>
+            </div>
+            <div class="appicon">
+              <div class="sq" style="background:#4CD264; width:82px; height:82px;">
+                <svg viewBox="0 0 24 24" fill="#fff"><path d="M12 4C7 4 3 7.3 3 11.3c0 2.2 1.2 4.2 3.2 5.5-.2 1-.7 2.1-1.5 3 1.7-.2 3.2-.9 4.3-1.7 1 .3 2 .4 3 .4 5 0 9-3.3 9-7.2S17 4 12 4z"/></svg>
+              </div>
+              <div class="l">Messages</div>
+            </div>
+            <div class="appicon">
+              <div class="sq" style="background:#2E93F5; width:82px; height:82px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><rect x="3" y="6" width="18" height="12" rx="2.4"/><path d="M3.6 7.4 12 13l8.4-5.6"/></svg>
+              </div>
+              <div class="l">Mail</div>
+            </div>
+            <div class="appicon">
+              <div class="sq" style="background:#FBD14B; width:82px; height:82px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7A5B00" stroke-width="1.7"><path d="M5 4h14v16H5z" fill="#fff8dd"/><path d="M5 8h14"/></svg>
+              </div>
+              <div class="l">Notes</div>
+            </div>
           </div>
-          <div class="row">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="1.6"><path d="M12 7.5C10.4 5.6 4 5.2 4 7v11c0-1.8 6.4-1.4 8 .5 1.6-1.9 8-1.5 8 .5V7c0-1.8-6.4-1.4-8 .5z"/></svg>
-            <span>Add Bookmark to…</span>
+          <div class="circles" style="margin-top:20px;">
+            <div class="circ">
+              <div class="c" style="width:82px; height:82px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="9" y="9" width="11" height="12" rx="2"/><path d="M15 5H6a2 2 0 0 0-2 2v10"/></svg></div>
+              <div class="l">Copy</div>
+            </div>
+            <div class="circ">
+              <div class="c" style="width:82px; height:82px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 4h10v17l-5-4-5 4z"/></svg></div>
+              <div class="l">Add to<br>Bookmarks</div>
+            </div>
+            <div class="circ">
+              <div class="c" style="width:82px; height:82px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6.5" cy="14" r="3.2"/><circle cx="17.5" cy="14" r="3.2"/><path d="M9.7 14h4.6M3.3 12.4 5 9.6M20.7 12.4 19 9.6"/></svg></div>
+              <div class="l">Add to<br>Reading List</div>
+            </div>
+            <div class="circ">
+              <div class="c" style="width:82px; height:82px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 15l6-6 6 6"/></svg></div>
+              <div class="l">View Less</div>
+            </div>
           </div>
-          <div class="row hl" id="s4row">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.6v6.8M8.6 12h6.8"/></svg>
-            <span style="font-weight:800;">Add to Home Screen</span>
-            <span class="row-ring" id="s4ring"></span>
+          <div class="menulist" id="s4menu">
+            <div class="row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><path d="M12 7.5C10.4 5.6 4 5.2 4 7v11c0-1.8 6.4-1.4 8 .5 1.6-1.9 8-1.5 8 .5V7c0-1.8-6.4-1.4-8 .5z"/></svg>
+              <span>Add Bookmark to…</span>
+            </div>
+            <div class="row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><path d="m12 4 2.4 5 5.6.7-4 3.9 1 5.4-5-2.7-5 2.7 1-5.4-4-3.9 5.6-.7z"/></svg>
+              <span>Add to Favorites</span>
+            </div>
+            <div class="row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 14c1.5-4 2.6-4 4 0s2.5 4 4 0"/></svg>
+              <span>Add to Quick Note</span>
+            </div>
+            <div class="row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><path d="M5 5h14M5 10h9M5 15h6"/><circle cx="16.5" cy="16" r="3.2"/><path d="m19 18.4 2 2"/></svg>
+              <span>Find on Page</span>
+            </div>
+            <div class="row hl" id="s4row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#3B3A3C" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.6v6.8M8.6 12h6.8"/></svg>
+              <span>Add to Home Screen</span>
+              <span class="row-ring" id="s4ring"></span>
+            </div>
           </div>
         </div>
       </div>
