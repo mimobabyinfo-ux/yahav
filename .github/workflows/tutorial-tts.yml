@@ -1,14 +1,13 @@
-name: tutorial-tts
+name: tutorial-screens
 
-# Manually/push-triggered helper: generates the Hebrew narration audio for the
-# app tutorial video and real-app screenshots, then commits them to the branch.
+# Manually/push-triggered helper: shoots the real-app screenshots for the tutorial
+# video and commits them to the branch. (Narration is now a human recording —
+# see marketing/tutorial-video/voice-raw — so the TTS step was removed.)
 on:
   workflow_dispatch:
   push:
     branches: ["claude/app-installation-tutorial-video-*"]
     paths:
-      - "marketing/tutorial-video/narration.json"
-      - "marketing/tutorial-video/generate_tts.py"
       - "marketing/tutorial-video/shoot_screens.mjs"
       - ".github/workflows/tutorial-tts.yml"
 
@@ -16,15 +15,10 @@ permissions:
   contents: write
 
 jobs:
-  assets:
+  screens:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install edge-tts==7.2.8
-      - run: python marketing/tutorial-video/generate_tts.py
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -38,6 +32,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add marketing/tutorial-video/audio marketing/tutorial-video/screens
-          git commit -m "tutorial video: narration audio + real app screenshots" || echo "nothing to commit"
+          git add marketing/tutorial-video/screens
+          git commit -m "tutorial video: real app screenshots" || echo "nothing to commit"
           git push
