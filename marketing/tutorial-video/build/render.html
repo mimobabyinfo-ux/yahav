@@ -44,8 +44,8 @@
   }
 
   .caption {
-    position:absolute; bottom:100px; left:90px; right:90px;
-    text-align:center; font-size:44px; line-height:1.5; font-weight:600; color:#5E4938;
+    position:absolute; bottom:64px; left:80px; right:80px;
+    text-align:center; font-size:44px; line-height:1.42; font-weight:600; color:#5E4938;
   }
 
   /* ---------- phone mockup ---------- */
@@ -446,7 +446,7 @@
     </div>
     <div class="callout" id="s7c1" style="top:660px; right:24px;">⚡ רישום בלחיצה אחת</div>
     <div class="callout" id="s7c2" style="top:900px; left:24px;">🕐 ציר זמן · יום ושבוע</div>
-    <div class="callout" id="s7c3" style="top:1140px; right:24px;">👨‍👩‍👧 משתפים את בן הזוג</div>
+    <div class="callout" id="s7c3" style="top:1140px; right:24px;">👨‍👩‍👧 משתפים בן זוג · סבתא · בייביסיטר</div>
     <div class="caption" id="cap7"></div>
   </section>
 
@@ -482,7 +482,7 @@
     </div>
     <div class="callout" id="s9c1" style="top:700px; right:24px;">🗓️ בוחרות מחזור — תאריך ושעה</div>
     <div class="callout" id="s9c2" style="top:960px; left:24px;">🔥 רואות כמה מקומות נשארו</div>
-    <div class="callout" id="s9c3" style="top:1220px; right:24px;">💳 תשלום אונליין או וואטסאפ</div>
+    <div class="callout" id="s9c3" style="top:1220px; right:24px;">💬 נרשמות או שולחות וואטסאפ</div>
     <div class="caption" id="cap9"></div>
   </section>
 
@@ -529,7 +529,12 @@ function build(TL) {
     anim(el, [{opacity:0},{opacity:1}], {t0:s.start, dur: i===0 ? 0.001 : 0.45});
     if (i < TL.length-1) anim(el, [{opacity:1},{opacity:0}], {t0:s.start+s.dur-0.45, dur:0.45, fill:'forwards'});
     const cap = document.getElementById('cap'+(i+1));
-    if (cap && s.cap) { cap.textContent = s.cap; fadeUp(cap, s.start+0.35, 0.6, 30); }
+    if (cap && s.cap) {
+      cap.textContent = s.cap;
+      const n = s.cap.length;
+      cap.style.fontSize = (n <= 105 ? 44 : n <= 140 ? 39 : n <= 175 ? 35 : 32) + 'px';
+      fadeUp(cap, s.start+0.35, 0.6, 30);
+    }
   });
 
   let t;
