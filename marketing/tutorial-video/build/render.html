@@ -72,19 +72,22 @@
   .site-hero img { width:170px; height:170px; border-radius:42px; box-shadow:0 10px 24px rgba(68,51,39,.14); }
   .site-hero .h { margin-top:26px; font-size:40px; color:#443327; }
   .site-hero .p { margin-top:10px; font-size:30px; color:#818267; font-weight:600; }
-  .safaribar {
-    position:absolute; bottom:34px; left:30px; right:30px; height:104px;
-    background:#F0EAE2; border-radius:28px;
-    display:flex; align-items:center; justify-content:center; gap:16px;
-    font-size:34px; color:#5E4938; font-weight:700;
+  .chrome {
+    position:absolute; bottom:0; left:0; right:0; z-index:6;
+    background:#F4F1EC; border-top:2px solid #E2DBD0;
+    padding:16px 22px 20px;
   }
-  .safaribar .url { direction:ltr; display:inline-block; overflow:hidden; white-space:nowrap; }
-  .toolbar {
-    position:absolute; bottom:160px; left:30px; right:30px; height:96px;
+  .chrome .urlpill {
+    background:#E8E3DA; border-radius:26px; height:86px;
+    display:flex; align-items:center; justify-content:center; gap:14px;
+    font-size:32px; color:#5E4938; font-weight:700;
+  }
+  .chrome .urlpill .url { direction:ltr; display:inline-block; overflow:hidden; white-space:nowrap; }
+  .chrome .icons {
     display:flex; align-items:center; justify-content:space-around;
-    color:#8A8370;
+    margin-top:16px; color:#8A8370; direction:ltr;
   }
-  .toolbar svg { width:52px; height:52px; }
+  .chrome .icons svg { width:50px; height:50px; }
   .hl-ring {
     position:absolute; width:130px; height:130px; border-radius:50%;
     border:8px solid #C8A460; opacity:0;
@@ -94,41 +97,61 @@
     background:rgba(200,164,96,.45); opacity:0;
   }
 
-  /* ios share sheet */
+  /* ios share sheet — laid out LTR like the real one: the action row runs
+     Copy → Bookmarks → Reading List → View More, so View More sits on the RIGHT */
   .sheet {
-    position:absolute; left:14px; right:14px; bottom:14px;
-    background:#F8F5F1; border-radius:44px 44px 56px 56px;
-    box-shadow:0 -12px 40px rgba(68,51,39,.22);
-    padding:30px 34px 36px;
+    position:absolute; left:10px; right:10px; bottom:12px;
+    background:#3B3A3C; border-radius:46px;
+    box-shadow:0 -14px 44px rgba(0,0,0,.28);
+    padding:24px 20px 30px;
+    direction:ltr;
     transform:translateY(110%);
   }
-  .sheet .grab { width:90px; height:10px; border-radius:6px; background:#D5C6B7; margin:0 auto 26px; }
-  .sheet .siterow { display:flex; align-items:center; gap:22px; background:#fff; border-radius:26px; padding:20px 24px; }
-  .sheet .siterow img { width:76px; height:76px; border-radius:20px; }
-  .sheet .siterow .t { font-size:30px; font-weight:700; color:#443327; }
-  .sheet .siterow .u { direction:ltr; text-align:right; font-size:24px; color:#818267; font-weight:600; }
-  .sheet .circles { display:flex; justify-content:space-around; margin-top:30px; }
+  .sheet .grab { width:88px; height:8px; border-radius:5px; background:#6E6D70; margin:0 auto 22px; }
+  .sheet .siterow {
+    display:flex; align-items:flex-start; gap:18px;
+    background:#F2F1F3; border-radius:24px; padding:18px 20px;
+  }
+  .sheet .siterow img { width:86px; height:86px; border-radius:20px; flex:none; }
+  .sheet .siterow .txt { direction:rtl; text-align:right; flex:1; }
+  .sheet .siterow .t { font-size:29px; font-weight:700; color:#1C1C1E; line-height:1.25; }
+  .sheet .siterow .u { direction:ltr; text-align:right; font-size:24px; color:#8A8A8E; font-weight:600; margin-top:2px; }
+  .sheet .options {
+    display:inline-flex; align-items:center; gap:8px;
+    margin-top:12px; background:#E2E1E4; color:#3B3A3C;
+    border-radius:999px; padding:7px 20px; font-size:23px; font-weight:600;
+  }
+  .sheet .apps { display:flex; justify-content:space-between; margin-top:26px; padding:0 6px; }
+  .sheet .appicon { width:120px; text-align:center; }
+  .sheet .appicon .sq {
+    width:96px; height:96px; border-radius:22px; margin:0 auto;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .sheet .appicon .sq svg { width:52px; height:52px; }
+  .sheet .appicon .l { margin-top:10px; font-size:22px; color:#F2F1F3; font-weight:500; }
+  .sheet .circles { display:flex; justify-content:space-between; margin-top:28px; padding:0 6px; }
   .sheet .circ { text-align:center; width:120px; position:relative; }
   .sheet .circ .c {
-    width:104px; height:104px; border-radius:50%; background:#fff;
+    width:96px; height:96px; border-radius:50%; background:#545356;
     display:flex; align-items:center; justify-content:center; margin:0 auto;
-    font-size:44px; color:#5E4938;
+    color:#FFFFFF;
   }
-  .sheet .circ .l { margin-top:12px; font-size:24px; font-weight:600; color:#7B604C; }
+  .sheet .circ .c svg { width:46px; height:46px; }
+  .sheet .circ .l { margin-top:10px; font-size:21px; font-weight:500; color:#F2F1F3; line-height:1.25; }
 
   /* menu list (ios + android) */
   .menucard {
-    position:absolute; left:40px; right:40px; top:300px;
+    position:absolute; left:40px; right:40px; top:300px; direction:ltr;
     background:#fff; border-radius:36px; box-shadow:0 16px 44px rgba(68,51,39,.16);
     overflow:hidden;
   }
   .menucard .row {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:30px 36px; font-size:34px; font-weight:600; color:#443327;
-    border-bottom:2px solid #F0EAE2;
+    display:flex; align-items:center; gap:26px;
+    padding:28px 34px; font-size:34px; font-weight:600; color:#1C1C1E;
+    border-bottom:2px solid #EFEAE2;
   }
   .menucard .row:last-child { border-bottom:none; }
-  .menucard .row .ic { font-size:38px; }
+  .menucard .row svg { width:38px; height:38px; flex:none; }
   .menucard .row.hl { background:#FAF0D7; position:relative; }
   .row-ring { position:absolute; inset:6px; border-radius:26px; border:6px solid #C8A460; opacity:0; pointer-events:none; }
 
@@ -299,9 +322,11 @@
       <div class="screen">
         <img class="shot" src="assets/screens/login.png" style="top:-90px;">
         <div class="warncard" id="s2warn"><span style="font-size:44px;">⚠️</span><span>לא מתוך וואטסאפ או אינסטגרם — רק ספארי</span></div>
-        <div class="safaribar">
-          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#5E4938" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11z" fill="#CE9177" stroke="none"/></svg>
-          <span class="url" id="s2url">mimo-baby.co.il</span>
+        <div class="chrome">
+          <div class="urlpill">
+            <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="#5E4938" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11z" fill="#CE9177" stroke="none"/></svg>
+            <span class="url" id="s2url">mimo-baby.co.il</span>
+          </div>
         </div>
       </div>
       <div class="notch"></div>
@@ -318,33 +343,76 @@
     <div class="phone">
       <div class="screen">
         <img class="shot" src="assets/screens/login.png" style="top:-90px; opacity:.4;">
-        <div class="toolbar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
-          <span style="position:relative; display:flex;" id="s3sharewrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#443327" stroke-width="2"><path d="M12 15V3m0 0L8 7m4-4 4 4"/><path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>
-            <span class="hl-ring" id="s3ring" style="top:-42px; left:-40px;"></span>
-            <span class="ripple" id="s3rip" style="top:-4px; left:-4px;"></span>
-          </span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14l-8-4z"/></svg>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="7" y="9" width="10" height="10" rx="2" fill="#F8F5F1"/></svg>
+        <div class="chrome">
+          <div class="urlpill">
+            <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="#5E4938" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11z" fill="#CE9177" stroke="none"/></svg>
+            <span class="url">mimo-baby.co.il</span>
+          </div>
+          <div class="icons">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#C9C3B7" stroke-width="1.9" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+            <span style="position:relative; display:flex;" id="s3sharewrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#443327" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.2V3.4m0 0L8.4 7M12 3.4 15.6 7"/><path d="M6 10.4v8.2a1.8 1.8 0 0 0 1.8 1.8h8.4a1.8 1.8 0 0 0 1.8-1.8v-8.2"/></svg>
+              <span class="hl-ring" id="s3ring" style="top:-40px; left:-40px;"></span>
+              <span class="ripple" id="s3rip" style="top:-5px; left:-5px;"></span>
+            </span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 4h10v17l-5-4-5 4z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="7" width="12" height="12" rx="2.4"/><path d="M8 4.5h10a1.6 1.6 0 0 1 1.6 1.6v10"/></svg>
+          </div>
         </div>
         <div class="sheet" id="s3sheet">
           <div class="grab"></div>
           <div class="siterow">
             <img src="assets/icon-512.png">
-            <div>
-              <div class="t disp">הרשמה לסדנאות מימו</div>
+            <div class="txt">
+              <div class="t">הרשמה לסדנאות מימו</div>
               <div class="u">mimo-baby.co.il</div>
+              <div class="options" style="direction:ltr;">Options <span>›</span></div>
+            </div>
+          </div>
+          <div class="apps">
+            <div class="appicon">
+              <div class="sq" style="background:#1F7BEE;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M8 13a5 5 0 0 1 8 0M9.6 16.2a3 3 0 0 1 4.8 0"/><circle cx="12" cy="19" r=".9" fill="#fff"/></svg>
+              </div>
+              <div class="l">AirDrop</div>
+            </div>
+            <div class="appicon">
+              <div class="sq" style="background:#4CD264;">
+                <svg viewBox="0 0 24 24" fill="#fff"><path d="M12 4C7 4 3 7.3 3 11.3c0 2.2 1.2 4.2 3.2 5.5-.2 1-.7 2.1-1.5 3 1.7-.2 3.2-.9 4.3-1.7 1 .3 2 .4 3 .4 5 0 9-3.3 9-7.2S17 4 12 4z"/></svg>
+              </div>
+              <div class="l">Messages</div>
+            </div>
+            <div class="appicon">
+              <div class="sq" style="background:#2E93F5;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><rect x="3" y="6" width="18" height="12" rx="2.4"/><path d="M3.6 7.4 12 13l8.4-5.6"/></svg>
+              </div>
+              <div class="l">Mail</div>
+            </div>
+            <div class="appicon">
+              <div class="sq" style="background:#FBD14B;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7A5B00" stroke-width="1.7"><path d="M5 4h14v16H5z" fill="#fff8dd"/><path d="M5 8h14"/></svg>
+              </div>
+              <div class="l">Notes</div>
             </div>
           </div>
           <div class="circles">
-            <div class="circ"><div class="c">⧉</div><div class="l">העתקה</div></div>
-            <div class="circ"><div class="c">🔖</div><div class="l">סימניה</div></div>
-            <div class="circ"><div class="c">👓</div><div class="l">קריאה</div></div>
+            <div class="circ">
+              <div class="c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="9" y="9" width="11" height="12" rx="2"/><path d="M15 5H6a2 2 0 0 0-2 2v10"/></svg></div>
+              <div class="l">Copy</div>
+            </div>
+            <div class="circ">
+              <div class="c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 4h10v17l-5-4-5 4z"/></svg></div>
+              <div class="l">Add to<br>Bookmarks</div>
+            </div>
+            <div class="circ">
+              <div class="c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6.5" cy="14" r="3.2"/><circle cx="17.5" cy="14" r="3.2"/><path d="M9.7 14h4.6M3.3 12.4 5 9.6M20.7 12.4 19 9.6"/></svg></div>
+              <div class="l">Add to<br>Reading List</div>
+            </div>
             <div class="circ" id="s3more">
-              <div class="c" style="background:#FAF0D7;">⌄</div><div class="l" style="color:#876B38;">View More</div>
-              <span class="hl-ring" id="s3ring2" style="top:-14px; left:-6px; width:132px; height:132px;"></span>
+              <div class="c" style="background:#E7C78A; color:#3B3A3C;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="l" style="color:#F5E3B3; font-weight:700;">View More</div>
+              <span class="hl-ring" id="s3ring2" style="top:-10px; left:2px; width:116px; height:116px;"></span>
             </div>
           </div>
         </div>
@@ -363,10 +431,23 @@
     <div class="phone">
       <div class="screen" id="s4menuview">
         <div class="menucard" id="s4menu">
-          <div class="row"><span>Add Bookmark to…</span><span class="ic">📖</span></div>
-          <div class="row"><span>Add to Favorites</span><span class="ic">⭐</span></div>
-          <div class="row"><span>Find on Page</span><span class="ic">🔍</span></div>
-          <div class="row hl" id="s4row"><span style="font-weight:800;">Add to Home Screen</span><span class="ic">➕</span><span class="row-ring" id="s4ring"></span></div>
+          <div class="row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="1.6"><path d="M12 15V4m0 0L8.4 7.6M12 4l3.6 3.6"/><path d="M5.5 12v6.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V12"/></svg>
+            <span>Share</span>
+          </div>
+          <div class="row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="1.6"><path d="M7 4h10v17l-5-4-5 4z"/></svg>
+            <span>Add to Bookmarks</span>
+          </div>
+          <div class="row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="1.6"><path d="M12 7.5C10.4 5.6 4 5.2 4 7v11c0-1.8 6.4-1.4 8 .5 1.6-1.9 8-1.5 8 .5V7c0-1.8-6.4-1.4-8 .5z"/></svg>
+            <span>Add Bookmark to…</span>
+          </div>
+          <div class="row hl" id="s4row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.6v6.8M8.6 12h6.8"/></svg>
+            <span style="font-weight:800;">Add to Home Screen</span>
+            <span class="row-ring" id="s4ring"></span>
+          </div>
         </div>
       </div>
       <div class="homescreen" id="s4home">
