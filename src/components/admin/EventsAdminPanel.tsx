@@ -38,6 +38,8 @@ type Draft = {
   price: string
   payment_link: string
   payment_link_pair: string
+  morning_product_id: string
+  morning_product_id_pair: string
   vendor_id: string
   vendor_name: string
   is_active: boolean
@@ -47,7 +49,8 @@ const EMPTY_DRAFT: Draft = {
   title: '', emoji: '🎉', event_type: '', description: '',
   event_date: '', start_time: '', end_time: '',
   location: '', location_link: '', capacity: '', price: '0',
-  payment_link: '', payment_link_pair: '', vendor_id: '', vendor_name: '', is_active: true,
+  payment_link: '', payment_link_pair: '', morning_product_id: '', morning_product_id_pair: '',
+  vendor_id: '', vendor_name: '', is_active: true,
 }
 
 type OpenCredit = {
@@ -229,6 +232,8 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
       price: String(ev.price ?? 0),
       payment_link: ev.payment_link ?? '',
       payment_link_pair: ev.payment_link_pair ?? '',
+      morning_product_id: ev.morning_product_id ?? '',
+      morning_product_id_pair: ev.morning_product_id_pair ?? '',
       vendor_id: ev.vendor_id ?? '',
       vendor_name: ev.vendor_name ?? '',
       is_active: ev.is_active,
@@ -262,6 +267,8 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
       price,
       payment_link: draft.payment_link.trim() || null,
       payment_link_pair: draft.payment_link_pair.trim() || null,
+      morning_product_id: draft.morning_product_id.trim() || null,
+      morning_product_id_pair: draft.morning_product_id_pair.trim() || null,
       vendor_id: draft.vendor_id || null,
       vendor_name: draft.vendor_name.trim() || null,
       is_active: draft.is_active,
@@ -848,6 +855,22 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                   <input value={draft.payment_link_pair} onChange={e => setDraft(d => ({ ...d, payment_link_pair: e.target.value }))} dir="ltr" placeholder="https://..." className={inputCls} />
                   <p style={{ fontSize: 12, color: '#A2937D', marginTop: 4 }}>
                     לינק Morning בסכום כפול. אמא שמביאה מישהי איתה תגיע אליו במקום לשלם פעמיים. בלעדיו האפליקציה תגיד לה לעבור בקישור הרגיל פעמיים.
+                  </p>
+                </div>
+
+                {/* Brenda 17.8.26: this is what lets Bit come back. With the
+                    product id here, Morning tells the server directly that
+                    the payment happened — the browser no longer has to come
+                    home for a seat to be confirmed. Without it the event
+                    still works, it just depends on the thank-you page. */}
+                <div className="rounded-xl p-3" style={{ background: '#FAF7F1' }}>
+                  <label className={labelCls}>מזהה מוצר ב-Morning (productId)</label>
+                  <input value={draft.morning_product_id} onChange={e => setDraft(d => ({ ...d, morning_product_id: e.target.value }))} dir="ltr" placeholder="למשל 4f2c…" className={inputCls} />
+                  <label className={labelCls} style={{ marginTop: 8 }}>מזהה המוצר של הקישור לשתיים</label>
+                  <input value={draft.morning_product_id_pair} onChange={e => setDraft(d => ({ ...d, morning_product_id_pair: e.target.value }))} dir="ltr" placeholder="אם יש קישור לשתיים" className={inputCls} />
+                  <p style={{ fontSize: 12, color: '#A2937D', marginTop: 6, lineHeight: 1.5 }}>
+                    עם המזהה הזה מורנינג מודיעה לנו ישירות שהתשלום עבר, גם אם האמא סגרה את הדפדפן או שילמה בביט.
+                    בלעדיו ההרשמה תאושר רק אם היא חוזרת לדף התודה.
                   </p>
                 </div>
                 </>

@@ -548,6 +548,11 @@ export type CommunityEvent = {
   payment_link: string | null
   /** Morning link priced for two, for a mother bringing someone. */
   payment_link_pair: string | null
+  /** productId from Morning's payment/received webhook. With it set, a
+   *  payment is confirmed server-side and the browser never has to come
+   *  back — which is what makes Bit and Apple Pay safe to offer. */
+  morning_product_id: string | null
+  morning_product_id_pair: string | null
   vendor_id: string | null
   vendor_name: string | null
   image_url: string | null
