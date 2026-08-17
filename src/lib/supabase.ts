@@ -585,6 +585,9 @@ export type CommunityEventRow = {
   my_paid: boolean | null
   /** While pending: the moment the seat stops being hers. */
   my_hold_expires_at: string | null
+  /** She declared a payment we could not observe (Bit, cross-device).
+   *  Awaiting Brenda's confirmation — NOT proof that she paid. */
+  my_payment_claimed_at: string | null
 }
 
 // Row shape of the get_my_waitlists RPC — the calling user's place in

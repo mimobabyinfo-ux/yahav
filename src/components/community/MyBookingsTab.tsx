@@ -106,14 +106,29 @@ export default function MyBookingsTab() {
 
   return (
     <div className="space-y-5">
+      {/* Brenda 17.8.26: credits are spent IN THE APP now, and each one
+          stands alone — it pays for an event costing the same or less,
+          and they are never added together. So they are listed one by one
+          rather than summed into a single number that would promise more
+          than it can buy. */}
       {credits.length > 0 && (
-        <div className="rounded-3xl p-4" style={{ background: '#EADBDD' }}>
+        <div className="rounded-3xl p-4 space-y-2" style={{ background: '#EADBDD' }}>
           <p className="font-bold" style={{ fontSize: 15, color: '#5E4938' }}>
-            יש לך זיכוי של ₪{credits.reduce((sum, c) => sum + Number(c.amount), 0)}
+            {credits.length === 1 ? 'יש לך זיכוי' : `יש לך ${credits.length} זיכויים`}
           </p>
-          <p className="font-semibold mt-1" style={{ fontSize: 13, color: '#8C6E63' }}>
-            לשימוש באירועי הקהילה עד {new Date(credits[0].expires_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}.
-            כותבות לנו ואנחנו שומרות לך מקום.
+          <div className="space-y-1.5">
+            {credits.map(c => (
+              <div key={c.id} className="flex items-center justify-between rounded-2xl px-3 py-2" style={{ background: 'rgba(255,255,255,.6)' }}>
+                <span className="font-bold" style={{ fontSize: 15, color: '#5E4938' }}>₪{Number(c.amount)}</span>
+                <span className="font-semibold" style={{ fontSize: 12, color: '#8C6E63' }}>
+                  בתוקף עד {new Date(c.expires_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="font-semibold" style={{ fontSize: 12, color: '#8C6E63', lineHeight: 1.5 }}>
+            כל זיכוי משמש לאירוע קהילה אחד בסכום הזה או פחות. בוחרות אירוע ולוחצות "לשימוש בזיכוי שלי",
+            ואם נשאר עודף הוא חוזר אלייך כזיכוי חדש.
           </p>
         </div>
       )}

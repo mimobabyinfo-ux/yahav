@@ -66,6 +66,12 @@ type RegistrantRow = {
   user_id: string
   status: 'pending' | 'registered' | 'cancelled' | 'attended' | 'no_show'
   paid: boolean
+  /** What she actually paid. The cancellation credit is this, not price x seats. */
+  paid_amount: number | null
+  /** She said she paid somewhere we cannot see it (Bit, cross-device).
+   *  Needs Brenda's confirmation — it is a claim, not a payment. */
+  payment_claimed_at: string | null
+  guest_names: string[] | null
   substitute_name: string | null
   created_at: string
   user_profiles: {
@@ -286,7 +292,7 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
     const [{ data }, { data: wl }] = await Promise.all([
       supabase
         .from('event_registrations')
-        .select('id, user_id, status, paid, substitute_name, created_at, user_profiles(mother_name, phone_number, email, area, baby_name, baby_dob, community_bio, community_tags, staff_notes)')
+        .select('id, user_id, status, paid, paid_amount, payment_claimed_at, guest_names, substitute_name, created_at, user_profiles(mother_name, phone_number, email, area, baby_name, baby_dob, community_bio, community_tags, staff_notes)')
         .eq('event_id', ev.id)
         .order('created_at'),
       supabase
@@ -338,6 +344,32 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
     load()
   }
 
+  // Cancellation-credit window (global_settings.credit_cancel_hours).
+  const [cancelHours, setCancelHours] = useState('48')
+  const [savingHours, setSavingHours] = useState(false)
+  const [hoursSaved, setHoursSaved] = useState(false)
+
+  useEffect(() => {
+    supabase.from('global_settings').select('setting_value')
+      .eq('setting_key', 'credit_cancel_hours').maybeSingle()
+      .then(({ data }) => { if (data?.setting_value) setCancelHours(data.setting_value) })
+  }, [])
+
+  async function saveCancelHours() {
+    const n = Number(cancelHours)
+    if (!Number.isFinite(n) || n < 0) return
+    setSavingHours(true)
+    await supabase.from('global_settings').upsert(
+      { setting_key: 'credit_cancel_hours', setting_value: String(Math.round(n)),
+        setting_type: 'number', category: 'community',
+        description: 'עד כמה שעות לפני האירוע ביטול עדיין מזכה בזיכוי' },
+      { onConflict: 'setting_key' },
+    )
+    setSavingHours(false)
+    setHoursSaved(true)
+    setTimeout(() => setHoursSaved(false), 2000)
+  }
+
   async function loadCredits() {
     const { data } = await supabase.rpc('get_open_credits')
     setCredits((data ?? []) as OpenCredit[])
@@ -351,8 +383,37 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
   }
 
   async function togglePaid(reg: RegistrantRow) {
+    const nowPaid = !reg.paid
+    const seats = 1 + (reg.guest_names?.length ?? 0)
     await supabase.from('event_registrations')
-      .update({ paid: !reg.paid, updated_at: new Date().toISOString() })
+      .update({
+        paid: nowPaid,
+        // Recording the amount matters: a cancellation refunds paid_amount,
+        // so a payment confirmed by hand without one would credit ₪0.
+        paid_amount: nowPaid ? (reg.paid_amount ?? (regsEvent?.price ?? 0) * seats) : null,
+        paid_at: nowPaid ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', reg.id)
+    if (regsEvent) openRegs(regsEvent)
+  }
+
+  /** Brenda 17.8.26, after paying by Bit and never reaching the thank-you
+   *  page: the mother declares the payment, and this is where it becomes
+   *  real. Confirming registers her and records the amount; rejecting
+   *  clears the claim and drops her back to owing payment. */
+  async function resolveClaim(reg: RegistrantRow, confirmed: boolean) {
+    const seats = 1 + (reg.guest_names?.length ?? 0)
+    await supabase.from('event_registrations')
+      .update(confirmed
+        ? {
+            status: 'registered', paid: true,
+            paid_amount: reg.paid_amount ?? (regsEvent?.price ?? 0) * seats,
+            paid_at: new Date().toISOString(),
+            payment_claimed_at: null, hold_expires_at: null,
+            updated_at: new Date().toISOString(),
+          }
+        : { payment_claimed_at: null, updated_at: new Date().toISOString() })
       .eq('id', reg.id)
     if (regsEvent) openRegs(regsEvent)
   }
@@ -553,6 +614,37 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Brenda 17.8.26: "I need control from the admin for these things —
+          in the end there are registrations and cancellations here." The
+          credit window lives in global_settings so it moves without a
+          deploy. Cancelling is always allowed; this only decides how late
+          a cancellation still earns the money back. */}
+      <div className="bg-white rounded-3xl p-4 shadow-sm">
+        <label className="block text-xs font-bold text-sand-700 mb-1.5">
+          ⏳ זיכוי על ביטול, עד כמה שעות לפני האירוע
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="number" min={0} inputMode="numeric"
+            value={cancelHours}
+            onChange={e => setCancelHours(e.target.value)}
+            className="w-24 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-500"
+          />
+          <button
+            onClick={saveCancelHours}
+            disabled={savingHours}
+            className="px-4 py-2 rounded-xl text-sm font-bold text-[#4A3A28] disabled:opacity-40"
+            style={{ background: '#E7C78A' }}
+          >
+            {savingHours ? 'שומר...' : 'שמירה'}
+          </button>
+          {hoursSaved && <span className="text-xs font-bold text-green-600">נשמר ✓</span>}
+        </div>
+        <p className="text-[11px] text-sand-400 mt-1.5 leading-relaxed">
+          ביטול תמיד אפשרי. אחרי החלון הזה ההרשמה מתבטלת והמקום מתפנה, אבל בלי זיכוי.
+        </p>
       </div>
 
       {credits.length > 0 && (
@@ -818,9 +910,30 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
                             {r.user_profiles?.area}
                             {!r.user_profiles?.baby_name && !r.user_profiles?.baby_dob && !r.user_profiles?.area && (phone ?? 'אין טלפון בפרופיל')}
                             {cancelled && ' · ביטלה'}
-                            {r.status === 'pending' && ' · באמצע תשלום'}
+                            {r.status === 'pending' && !r.payment_claimed_at && ' · באמצע תשלום'}
+                            {r.paid && r.paid_amount != null && ` · שילמה ₪${Number(r.paid_amount)}`}
                             {r.substitute_name && ` · במקומה מגיעה ${r.substitute_name}`}
                           </p>
+                          {/* A declared payment we could not observe. It sits
+                              here until Brenda confirms it — never auto-
+                              approved, or a claim becomes a free seat. */}
+                          {r.payment_claimed_at && !r.paid && (
+                            <div className="mt-1.5 rounded-xl p-2" style={{ background: '#F6ECD8' }} onClick={e => e.stopPropagation()}>
+                              <p className="text-[12px] font-bold" style={{ color: '#8A6A2F' }}>
+                                אמרה ששילמה (ביט / העברה) · {new Date(r.payment_claimed_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
+                              </p>
+                              <div className="flex gap-1.5 mt-1.5">
+                                <button onClick={() => resolveClaim(r, true)}
+                                  className="flex-1 py-1.5 rounded-lg text-[12px] font-bold text-white" style={{ background: '#818267' }}>
+                                  אישור התשלום
+                                </button>
+                                <button onClick={() => resolveClaim(r, false)}
+                                  className="px-3 py-1.5 rounded-lg text-[12px] font-bold bg-white text-sand-600 border border-sand-200">
+                                  לא התקבל
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         {regsEvent.price > 0 && !cancelled && (
                           <button onClick={e => { e.stopPropagation(); togglePaid(r) }}

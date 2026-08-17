@@ -68,6 +68,14 @@ export default function CommunityPage() {
   const { selectedChild, profile, user, refreshProfile } = useAuth()
   const isPregnant = profile?.user_mode === 'pregnant'
 
+  // Brenda 17.8.26: "add some kind of balance tab at the top". Credit is
+  // money she already paid, so it should be visible from anywhere in the
+  // community, not buried inside ההזמנות שלי.
+  const [creditBalance, setCreditBalance] = useState(0)
+  useEffect(() => {
+    supabase.rpc('get_my_credit_balance').then(({ data }) => setCreditBalance(Number(data ?? 0)))
+  }, [])
+
   const [pageTab, setPageTab] = useState<PageTab>(() => {
     const stored = sessionStorage.getItem('mimo_community_tab')
     sessionStorage.removeItem('mimo_community_tab')
@@ -244,6 +252,16 @@ export default function CommunityPage() {
               >
                 <Pencil className="w-3.5 h-3.5" />
                 ערוך פרופיל
+              </button>
+            )}
+            {creditBalance > 0 && (
+              <button
+                onClick={() => setPageTab('bookings')}
+                className="flex items-center gap-1 px-2.5 py-2 rounded-2xl text-xs font-bold shadow-sm transition-all"
+                style={{ background: '#EADBDD', color: '#5E4938' }}
+                title="הזיכוי שלך, לשימוש באירועי הקהילה"
+              >
+                יתרה ₪{creditBalance}
               </button>
             )}
             {/* Digital membership card — shown at partner businesses for perks */}

@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
 import { MapPin, Clock, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft } from 'lucide-react'
-import { supabase, type CommunityEventRow, type EventAttendee, type MyWaitlist } from '../../lib/supabase'
+import { supabase, type CommunityEventRow, type EventAttendee, type MyWaitlist, type MyCredit } from '../../lib/supabase'
 import { getBabyAge } from '../../utils/dateUtils'
 import CommunityMemberSheet from './CommunityMemberSheet'
 import { MimoLeafPair } from '../MimoLeaf'
@@ -50,7 +50,6 @@ export default function EventsTab() {
   // Which event is showing the "how do you want to leave" sheet, and
   // the name typed into it.
   const [cancelling, setCancelling] = useState<string | null>(null)
-  const [substituteName, setSubstituteName] = useState<Record<string, string>>({})
   const [toast, setToast] = useState<string | null>(null)
   // Month chips (list view) — null = show all months
   const [monthFilter, setMonthFilter] = useState<string | null>(null)
@@ -76,14 +75,35 @@ export default function EventsTab() {
   // "התפנה מקום" and registering auto-converts the entry (DB trigger).
   const [waitlists, setWaitlists] = useState<Record<string, MyWaitlist>>({})
 
-  // Open credit from a cancelled paid event, in shekels. Drives the
-  // "pay with my credit" button — see redeemCredit below.
-  const [creditBalance, setCreditBalance] = useState(0)
+  // Open credits from cancelled paid events. Brenda 17.8.26: credits are
+  // NOT pooled — one credit pays for one event costing the same or less,
+  // never more. So we hold the list, not a sum, and each event asks
+  // whether a single credit covers it.
+  const [credits, setCredits] = useState<MyCredit[]>([])
 
   const loadCredit = useCallback(async () => {
-    const { data } = await supabase.rpc('get_my_credit_balance')
-    setCreditBalance(Number(data ?? 0))
+    const { data } = await supabase.rpc('get_my_credits')
+    setCredits((data ?? []) as MyCredit[])
   }, [])
+
+  // How many hours before an event a cancellation still earns a credit.
+  // Admin setting (global_settings.credit_cancel_hours) so Brenda can move
+  // it without a deploy; 48 is the default she chose.
+  const [creditHours, setCreditHours] = useState(48)
+  useEffect(() => {
+    supabase.from('global_settings').select('setting_value')
+      .eq('setting_key', 'credit_cancel_hours').maybeSingle()
+      .then(({ data }) => {
+        const n = Number(data?.setting_value)
+        if (Number.isFinite(n) && n > 0) setCreditHours(n)
+      })
+  }, [])
+
+  /** The credit that would pay for this event, or null. */
+  function creditFor(total: number): MyCredit | null {
+    if (total <= 0) return null
+    return credits.find(c => Number(c.amount) >= total) ?? null
+  }
 
   const load = useCallback(async () => {
     const [{ data }, { data: wl }] = await Promise.all([
@@ -214,7 +234,7 @@ export default function EventsTab() {
     })
     setBusyId(null)
     if (error) { showToast('שגיאה. נסי שוב'); return }
-    if (data === 'insufficient') { showToast('הזיכוי לא מכסה את כל הסכום'); loadCredit(); return }
+    if (data === 'insufficient') { showToast('אין לך זיכוי שמכסה את האירוע הזה'); loadCredit(); return }
     if (data === 'full') { showToast('האירוע התמלא בדיוק עכשיו 😢'); load(); return }
     if (data === 'already') { showToast('את כבר רשומה לאירוע 🤎'); load(); return }
     if (data !== 'redeemed') { showToast('שגיאה. נסי שוב'); return }
@@ -226,6 +246,21 @@ export default function EventsTab() {
     if (attendees[ev.id]) loadAttendees(ev.id)
   }
 
+  /** Brenda 17.8.26: "I paid with Bit, it didn't take me to the thank-you
+   *  page, so it wasn't counted." The seat is held and Brenda confirms it
+   *  from the admin — a declaration is not a payment, and treating one as
+   *  proof is exactly what minted a credit out of nothing last time. */
+  async function claimPaid(ev: CommunityEventRow) {
+    setBusyId(ev.id)
+    const { data, error } = await supabase.rpc('claim_event_payment', { p_event_id: ev.id })
+    setBusyId(null)
+    if (error) { showToast('שגיאה. נסי שוב'); return }
+    if (data === 'already') { showToast('ההרשמה שלך כבר מאושרת 🤎'); load(); return }
+    if (data !== 'claimed') { showToast('שגיאה. נסי שוב'); return }
+    showToast('תודה! המקום שמור לך ונאשר את התשלום בהקדם 🤎')
+    load()
+  }
+
   async function cancel(ev: CommunityEventRow) {
     setBusyId(ev.id)
     const { data, error } = await supabase.rpc('cancel_event_registration', { p_event_id: ev.id })
@@ -234,27 +269,14 @@ export default function EventsTab() {
     if (error) { showToast('שגיאה. נסי שוב'); return }
     showToast(
       data === 'cancelled_with_credit'
-        ? 'ההרשמה בוטלה. הכסף שמור לך כזיכוי לחודש הקרוב 🤎'
-        : 'ההרשמה בוטלה. המקום התפנה למישהי אחרת',
+        ? 'ההרשמה בוטלה. הכסף שמור לך כזיכוי באפליקציה לחודש הקרוב 🤎'
+        : data === 'cancelled_too_late'
+          ? 'ההרשמה בוטלה. הביטול מאוחר מדי לזיכוי'
+          : 'ההרשמה בוטלה. המקום התפנה למישהי אחרת',
     )
     loadCredit()
     load()
     if (attendees[ev.id]) loadAttendees(ev.id)
-  }
-
-  /** She keeps the seat and someone else walks in with her name on it.
-   *  Better than a cancellation for both sides: no empty chair, no
-   *  credit for Brenda to honour later. */
-  async function sendSubstitute(ev: CommunityEventRow) {
-    const name = (substituteName[ev.id] ?? '').trim()
-    if (!name) { showToast('צריך למלא שם'); return }
-    setBusyId(ev.id)
-    const { data, error } = await supabase.rpc('set_event_substitute', { p_event_id: ev.id, p_name: name })
-    setBusyId(null)
-    if (error || data !== 'ok') { showToast('שגיאה. נסי שוב'); return }
-    setCancelling(null)
-    showToast(`רשמנו ש${name} מגיעה במקומך 🤎`)
-    load()
   }
 
   async function joinWaitlist(ev: CommunityEventRow) {
@@ -495,7 +517,9 @@ export default function EventsTab() {
           {isHolding ? (
             <div className="space-y-2">
               <p className="text-center text-[13px] font-bold" style={{ color: '#A35C3D' }}>
-                להשלמת ההרשמה אנא השלימי את התשלום.
+                {ev.my_payment_claimed_at
+                  ? 'קיבלנו! מאשרות את התשלום ושומרות לך את המקום 🤎'
+                  : 'להשלמת ההרשמה אנא השלימי את התשלום.'}
               </p>
               <div className="flex gap-2">
                 <a
@@ -516,6 +540,19 @@ export default function EventsTab() {
                   לביטול הרשמה
                 </button>
               </div>
+              {/* Bit and cross-device payments never come back through the
+                  thank-you page, so the app cannot see them. She says so
+                  herself and Brenda confirms it from the admin. */}
+              {!ev.my_payment_claimed_at && (
+                <button
+                  onClick={() => claimPaid(ev)}
+                  disabled={busyId === ev.id}
+                  className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
+                  style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#8C6E63' }}
+                >
+                  שילמתי בביט או בהעברה
+                </button>
+              )}
             </div>
           ) : isMine ? (
             <>
@@ -536,42 +573,33 @@ export default function EventsTab() {
                 לביטול הרשמה
               </button>
               </div>
+              {/* Brenda 17.8.26: no "send someone in my place" — cancelling
+                  offers one outcome, a credit inside the app. */}
               {cancelling === ev.id && (
                 <div className="mt-2 rounded-2xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
                   <p className="text-[13px] font-bold" style={{ color: '#5E4938' }}>
                     לא מסתדר לך להגיע?
                   </p>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      value={substituteName[ev.id] ?? ''}
-                      onChange={e => setSubstituteName(prev => ({ ...prev, [ev.id]: e.target.value }))}
-                      placeholder="השם של מי שמגיעה במקומך"
-                      maxLength={40}
-                      className="flex-1 px-3 py-2 rounded-2xl text-[13px] font-semibold outline-none"
-                      style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#4A3A28' }}
-                    />
-                    <button
-                      onClick={() => sendSubstitute(ev)}
-                      disabled={busyId === ev.id}
-                      className="px-3 py-2 rounded-2xl text-[13px] font-bold text-[#4A3A28] disabled:opacity-40"
-                      style={{ background: '#E7C78A' }}
-                    >
-                      שליחה
-                    </button>
-                  </div>
+                  {ev.price > 0 && ev.my_paid && (
+                    <p className="text-[12px] leading-relaxed" style={{ color: '#8C6E63' }}>
+                      הסכום ששילמת יישמר לך כזיכוי <b>באפליקציה</b> לחודש הקרוב, לשימוש באירוע קהילה
+                      אחר באותו מחיר או פחות. הזיכוי ניתן עד {creditHours} שעות לפני האירוע.
+                    </p>
+                  )}
                   <button
                     onClick={() => cancel(ev)}
                     disabled={busyId === ev.id}
                     className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
                     style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#8C6E63' }}
                   >
-                    {ev.price > 0 && ev.my_paid
-                      ? 'ביטול. הכסף יישמר לי כזיכוי לחודש'
-                      : 'ביטול ההרשמה'}
+                    {ev.price > 0 && ev.my_paid ? 'ביטול וקבלת זיכוי' : 'ביטול ההרשמה'}
                   </button>
                 </div>
               )}
-              <div className="mt-2">{guestEditor(ev, 'שמירה')}</div>
+              {/* Brenda 17.8.26: "after I registered you can't add someone —
+                  cancel that option". It also had a money hole behind it:
+                  a guest added after payment was a seat nobody paid for,
+                  which is what produced the ₪60 credit on a ₪30 purchase. */}
             </>
           ) : isFull && !myOffer ? (
             /* Full event — waitlist instead of a dead-end */
@@ -623,16 +651,23 @@ export default function EventsTab() {
                   return ev.price > 0 ? `אני מגיעה! (₪${ev.price})` : 'אני מגיעה!'
                 })()}
               </button>
-              {ev.price > 0 && creditBalance >= ev.price * (cleanGuests(ev).length + 1) && (
-                <button
-                  onClick={() => redeemCredit(ev)}
-                  disabled={busyId === ev.id || hasBlankGuest(ev)}
-                  className="mt-2 w-full py-2.5 rounded-2xl text-sm font-bold disabled:opacity-40 transition-all"
-                  style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
-                >
-                  לשימוש בזיכוי שלי (₪{creditBalance})
-                </button>
-              )}
+              {(() => {
+                // One credit covers one event, same price or less. If none
+                // of her credits reaches this total she pays normally —
+                // credits are not added together.
+                const credit = creditFor(ev.price * (cleanGuests(ev).length + 1))
+                if (!credit) return null
+                return (
+                  <button
+                    onClick={() => redeemCredit(ev)}
+                    disabled={busyId === ev.id || hasBlankGuest(ev)}
+                    className="mt-2 w-full py-2.5 rounded-2xl text-sm font-bold disabled:opacity-40 transition-all"
+                    style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
+                  >
+                    לשימוש בזיכוי שלי (₪{Number(credit.amount)})
+                  </button>
+                )
+              })()}
             </>
           )}
           {isMine && ev.price > 0 && paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1) && (
