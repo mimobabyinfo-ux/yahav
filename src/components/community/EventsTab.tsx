@@ -263,21 +263,6 @@ export default function EventsTab() {
     if (attendees[ev.id]) loadAttendees(ev.id)
   }
 
-  /** Brenda 17.8.26: "I paid with Bit, it didn't take me to the thank-you
-   *  page, so it wasn't counted." The seat is held and Brenda confirms it
-   *  from the admin — a declaration is not a payment, and treating one as
-   *  proof is exactly what minted a credit out of nothing last time. */
-  async function claimPaid(ev: CommunityEventRow) {
-    setBusyId(ev.id)
-    const { data, error } = await supabase.rpc('claim_event_payment', { p_event_id: ev.id })
-    setBusyId(null)
-    if (error) { showToast('שגיאה. נסי שוב'); return }
-    if (data === 'already') { showToast('ההרשמה שלך כבר מאושרת 🤎'); load(); return }
-    if (data !== 'claimed') { showToast('שגיאה. נסי שוב'); return }
-    showToast('תודה! המקום שמור לך ונאשר את התשלום בהקדם 🤎')
-    load()
-  }
-
   async function cancel(ev: CommunityEventRow) {
     setBusyId(ev.id)
     const { data, error } = await supabase.rpc('cancel_event_registration', { p_event_id: ev.id })
@@ -576,19 +561,15 @@ export default function EventsTab() {
                   </button>
                 )
               })()}
-              {/* Bit and cross-device payments never come back through the
-                  thank-you page, so the app cannot see them. She says so
-                  herself and Brenda confirms it from the admin. */}
-              {!ev.my_payment_claimed_at && (
-                <button
-                  onClick={() => claimPaid(ev)}
-                  disabled={busyId === ev.id}
-                  className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
-                  style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#8C6E63' }}
-                >
-                  שילמתי בביט או בהעברה
-                </button>
-              )}
+              {/* Brenda 17.8.26, later the same day: she removed Bit, Apple
+                  Pay and Google Pay from Morning, leaving card only — and a
+                  card payment always returns through the thank-you page, so
+                  the app sees it by itself. The "I paid by Bit" button was
+                  a workaround for payments that never came back; with none
+                  of those left it would only invite a false claim.
+                  claim_event_payment and the admin confirm queue stay in
+                  place, unused, for the rare payment that still goes
+                  missing (a crashed tab) and for the day Bit comes back. */}
             </div>
           ) : isMine ? (
             <>
