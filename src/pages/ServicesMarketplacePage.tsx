@@ -34,11 +34,11 @@ const SUBCATEGORY_LABELS: Record<string, string> = {
 }
 
 const SUBCATEGORY_EMOJI: Record<string, string> = {
-  doula:        '🤝',
-  pelvic_floor: '🧘',
+  doula:        '🤝🏼',
+  pelvic_floor: '🧘🏼',
   studio:       '🌸',
-  lactation:    '🤱',
-  osteopath:    '🙌',
+  lactation:    '🤱🏼',
+  osteopath:    '🙌🏼',
   physio:       '💪',
   psychologist: '🤎',
   nutrition:    '🥗',
@@ -124,7 +124,7 @@ export default function ServicesMarketplacePage() {
 
         {/* Category tabs */}
         <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
-          {([['pregnancy', '🤰 הריון'], ['motherhood', '🌸 אמהות']] as [Category, string][]).map(([v, label]) => (
+          {([['pregnancy', '🤰🏼 הריון'], ['motherhood', '🌸 אמהות']] as [Category, string][]).map(([v, label]) => (
             <button
               key={v}
               onClick={() => setCategory(v)}

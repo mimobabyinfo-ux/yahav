@@ -4,8 +4,8 @@ import MimoLogo from '../components/MimoLogo'
 const WHATSAPP_MSG = encodeURIComponent('היי! ראיתי את המצגת של Mimo ואשמח לשמוע עוד על שיתוף פעולה 🌸')
 
 const STATS = [
-  { value: '35+', label: 'משתמשות פעילות', emoji: '👩' },
-  { value: '100%', label: 'אמהות ובהריון', emoji: '🤰' },
+  { value: '35+', label: 'משתמשות פעילות', emoji: '👩🏼' },
+  { value: '100%', label: 'אמהות ובהריון', emoji: '🤰🏼' },
   { value: '3', label: 'לידים ב-7 ימים אחרונים', emoji: '📲' },
   { value: '0₪', label: 'עלות הצטרפות', emoji: '🎁' },
 ]
@@ -32,11 +32,11 @@ const HOW_IT_WORKS = [
 ]
 
 const CATEGORIES = [
-  { emoji: '🤱', label: 'יועצת הנקה' },
-  { emoji: '🤝', label: 'דולה' },
-  { emoji: '🙌', label: 'אוסטאופתיה' },
+  { emoji: '🤱🏼', label: 'יועצת הנקה' },
+  { emoji: '🤝🏼', label: 'דולה' },
+  { emoji: '🙌🏼', label: 'אוסטאופתיה' },
   { emoji: '💪', label: 'פיזיותרפיה' },
-  { emoji: '🧘', label: 'רצפת אגן' },
+  { emoji: '🧘🏼', label: 'רצפת אגן' },
   { emoji: '🌸', label: 'סטודיו לתנועה' },
   { emoji: '🍼', label: 'ייעוץ שינה' },
   { emoji: '🧠', label: 'פסיכולוגיה ורפואה' },
@@ -47,13 +47,13 @@ const TESTIMONIALS = [
     name: 'ד״ר מיכל כהן',
     role: 'יועצת הנקה',
     text: 'קיבלתי כבר 2 פניות WhatsApp מהאפליקציה תוך יומיים מהרישום. הלקוחות מגיעות מוכנות ורציניות.',
-    emoji: '🤱',
+    emoji: '🤱🏼',
   },
   {
     name: 'שירה לוי',
     role: 'דולה',
     text: 'Mimo מגיעה לאמהות בדיוק ברגע שהן הכי זקוקות לתמיכה. זה הגיוני שנהיה שם יחד.',
-    emoji: '🤝',
+    emoji: '🤝🏼',
   },
 ]
 
@@ -110,8 +110,8 @@ export default function PublicPartnerPage() {
           <h2 className="text-xl font-black text-sand-800 text-center">מי המשתמשות שלנו?</h2>
           <div className="space-y-3">
             {[
-              { emoji: '👩‍🍼', title: 'אמהות טריות', desc: 'בחודשים הראשונים אחרי הלידה, מחפשות ייעוץ, שירותים ותמיכה.' },
-              { emoji: '🤰', title: 'נשים בהריון', desc: 'מתכננות את הלידה ומה שאחרי: קונות, שואלות, מחפשות מקצוענים.' },
+              { emoji: '👩🏼‍🍼', title: 'אמהות טריות', desc: 'בחודשים הראשונים אחרי הלידה, מחפשות ייעוץ, שירותים ותמיכה.' },
+              { emoji: '🤰🏼', title: 'נשים בהריון', desc: 'מתכננות את הלידה ומה שאחרי: קונות, שואלות, מחפשות מקצוענים.' },
               { emoji: '📱', title: 'משתמשות יומיומיות', desc: 'נכנסות לאפליקציה מספר פעמים ביום לרישומי האכלה, שינה ועוד.' },
             ].map(u => (
               <div key={u.title} className="flex items-start gap-3">

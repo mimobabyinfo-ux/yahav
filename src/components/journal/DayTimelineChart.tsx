@@ -1,20 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Minus, Plus } from 'lucide-react'
 import type { DailyLogEntryWithDetails, FeedingDetail, SleepDetail } from '../../lib/supabase'
-import { formatDate, formatDuration } from '../../utils/dateUtils'
+import { formatDate, formatDuration, entryTypeEmoji } from '../../utils/dateUtils'
 import { sleepTypeFromStartTime } from '../../utils/sleepTypeFromTime'
 import { ENTRY_COLORS } from '../DailyTimeline'
+import TimelineLegend from './TimelineLegend'
 
 // The day's Gantt timeline: 00:00 at the top, 24:00 at the bottom, blocks
 // placed by real time.
 //
-// Brenda 17.8.26 asked for three things here, and the first one forced the
-// geometry to change:
+// Brenda 17.8.26 asked for several things here, and the first one forced
+// the geometry to change:
 //  · ZOOM. The chart used to squeeze 24 hours into a fixed 400px, so a
 //    12-minute feed was two pixels and a busy morning was a smear. Layout
-//    is px-per-hour, the container scrolls, and the value is continuous:
-//    pinch drives it directly, +/− step it.
+//    is px-per-hour, the container scrolls, and the value is continuous
+//    and driven by the pinch. The +/− buttons are gone: "drop the plus
+//    and minus, it's redundant if you can pinch with your hands."
 //  · A LEGEND. Colour with no key is decoration.
+//  · EMOJI INSIDE THE BLOCKS. "add the emoji of each of the things —
+//    nursing, sleep, bottle, food and so on — inside the colours." One
+//    colour covers every kind of feed, so a breast, a bottle and a first
+//    taste of avocado were three identical rectangles. The emoji is what
+//    tells them apart at a glance, and it fits where a word does not.
 //  · A clearer NOW line — see below.
 //
 // Cross-midnight rule is unchanged: a sleep that started yesterday and
@@ -22,18 +28,12 @@ import { ENTRY_COLORS } from '../DailyTimeline'
 
 const MIN_PX_PER_HOUR = 20    // the whole day just fits the viewport
 const MAX_PX_PER_HOUR = 150   // a single feed is a readable block
-const BUTTON_STEP = 1.6       // what one tap of +/- multiplies by
 const VIEWPORT_MAX_PX = 480
 const MIN_DURATION_BLOCK_PX = 6
 const INSTANT_HEIGHT_PX = 4
 const MINS_PER_DAY = 1440
 const TEXT_LABEL_THRESHOLD_PX = 28
-const LEGEND: { type: string; label: string }[] = [
-  { type: 'feeding',    label: 'האכלה' },
-  { type: 'sleep',      label: 'שינה' },
-  { type: 'diaper',     label: 'חיתול' },
-  { type: 'tummy_time', label: 'זמן בטן' },
-]
+const EMOJI_THRESHOLD_PX = 15   // below this a block is a stripe, not a card
 
 type Props = {
   /** Entries with entry_date in [selectedDate-1, selectedDate]. The
@@ -80,6 +80,7 @@ type Segment = {
   startMin: number
   durMin: number
   color: string
+  emoji: string
   isInstant: boolean
   bordered: boolean
   primaryLabel: string | null
@@ -97,6 +98,7 @@ function buildSegmentsForDay(entries: DailyLogEntryWithDetails[], day: string): 
     let durMin = 0
     let isInstant = false
     let primaryLabel: string | null = null
+    let emoji = entryTypeEmoji(e.entry_type)
 
     if (e.entry_type === 'sleep') {
       const sd = firstOf<SleepDetail>(e.sleep_details as SleepDetail | SleepDetail[] | null)
@@ -113,9 +115,9 @@ function buildSegmentsForDay(entries: DailyLogEntryWithDetails[], day: string): 
       durMin = perSideSec > 0 ? perSideSec / 60 : (fd?.duration_minutes ?? 0)
       if (durMin <= 0) {
         isInstant = true
-      } else if (fd?.feeding_type === 'breast') primaryLabel = 'הנקה'
-      else if (fd?.feeding_type === 'bottle')  primaryLabel = 'בקבוק'
-      else if (fd?.feeding_type === 'solid')   primaryLabel = 'מוצק'
+      } else if (fd?.feeding_type === 'breast') { primaryLabel = 'הנקה'; emoji = '🤱🏼' }
+      else if (fd?.feeding_type === 'bottle')  { primaryLabel = 'בקבוק'; emoji = '🍼' }
+      else if (fd?.feeding_type === 'solid')   { primaryLabel = 'אוכל';  emoji = '🥄' }
       else primaryLabel = 'האכלה'
     } else if (e.entry_type === 'tummy_time') {
       durMin = tummyDurationFromNotes(e.notes) ?? 0
@@ -134,6 +136,7 @@ function buildSegmentsForDay(entries: DailyLogEntryWithDetails[], day: string): 
         startMin,
         durMin: isInstant ? 0 : Math.max(0, Math.min(durMin, MINS_PER_DAY - startMin)),
         color: colors.dot,
+        emoji,
         isInstant,
         bordered,
         primaryLabel,
@@ -151,6 +154,7 @@ function buildSegmentsForDay(entries: DailyLogEntryWithDetails[], day: string): 
           startMin: 0,
           durMin: Math.min(tailMin, MINS_PER_DAY),
           color: colors.dot,
+          emoji,
           isInstant: false,
           bordered: false,
           primaryLabel,
@@ -285,29 +289,9 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
 
   return (
     <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] overflow-hidden">
-      {/* Zoom control */}
-      <div className="flex items-center justify-between px-3 pt-3">
+      {/* The pinch is the whole zoom control now. */}
+      <div className="px-3 pt-3">
         <span className="text-[11px] font-semibold text-sand-500">ציר הזמן של היום · אפשר לצבוט להגדלה</span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => zoomTo(pxPerHour / BUTTON_STEP)}
-            disabled={pxPerHour <= MIN_PX_PER_HOUR + 0.5}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-sand-600 disabled:opacity-30"
-            style={{ background: '#F4EDE1' }}
-            aria-label="הקטנה"
-          >
-            <Minus className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => zoomTo(pxPerHour * BUTTON_STEP)}
-            disabled={pxPerHour >= MAX_PX_PER_HOUR - 0.5}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-sand-600 disabled:opacity-30"
-            style={{ background: '#F4EDE1' }}
-            aria-label="הגדלה"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-        </div>
       </div>
 
       <div
@@ -380,6 +364,9 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
                 : Math.max(rawHeight, MIN_DURATION_BLOCK_PX)
               const showText = !seg.isInstant && height >= TEXT_LABEL_THRESHOLD_PX
                 && (seg.primaryLabel || seg.secondaryLabel)
+              // Between a stripe and a card there is room for the emoji
+              // alone, which still says what happened.
+              const showEmojiOnly = !showText && height >= EMOJI_THRESHOLD_PX
 
               return (
                 <div
@@ -395,14 +382,22 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
                   }}
                 >
                   {showText && (
-                    <div className="flex items-start justify-between px-2.5 py-1.5 text-[#4A3A28]">
-                      {seg.primaryLabel && (
-                        <span className="text-xs font-bold whitespace-nowrap">{seg.primaryLabel}</span>
-                      )}
+                    <div className="flex items-start justify-between px-2 py-1.5 text-[#4A3A28]">
+                      <span className="flex items-center gap-1 min-w-0">
+                        <span className="text-xs leading-none">{seg.emoji}</span>
+                        {seg.primaryLabel && (
+                          <span className="text-xs font-bold whitespace-nowrap">{seg.primaryLabel}</span>
+                        )}
+                      </span>
                       {seg.secondaryLabel && (
                         <span className="text-xs font-medium whitespace-nowrap opacity-90">{seg.secondaryLabel}</span>
                       )}
                     </div>
+                  )}
+                  {showEmojiOnly && (
+                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[11px] leading-none">
+                      {seg.emoji}
+                    </span>
                   )}
                 </div>
               )
@@ -411,18 +406,7 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 border-t border-[#F4EFE7]">
-        {LEGEND.map(l => (
-          <span key={l.type} className="flex items-center gap-1.5 text-[11px] font-semibold text-sand-600">
-            <span
-              className="inline-block rounded-sm"
-              style={{ width: 9, height: 9, background: (ENTRY_COLORS[l.type] ?? ENTRY_COLORS.note).dot }}
-            />
-            {l.label}
-          </span>
-        ))}
-      </div>
+      <TimelineLegend className="px-3 py-2.5 border-t border-[#F4EFE7]" />
     </div>
   )
 }

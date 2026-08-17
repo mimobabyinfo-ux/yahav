@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Camera, Trash2 } from 'lucide-react'
+import { Camera, Trash2, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatDate, formatTime } from '../../utils/dateUtils'
@@ -17,16 +17,18 @@ const ACCENT = '#B57F50' // earthy brown — diaper theme
 
 type DiaperType = 'wet' | 'dirty' | 'both' | 'dry'
 
-const DIAPER_OPTIONS: { key: DiaperType; label: string; emoji: string }[] = [
-  { key: 'wet',   label: 'פיפי',  emoji: '💧' },
-  { key: 'dirty', label: 'קקי',   emoji: '💩' },
-  { key: 'both',  label: 'שניהם', emoji: '✨' },
-  { key: 'dry',   label: 'יבש',   emoji: '☀️' },
-]
-
+// Brenda 17.8.26: "on the diaper, instead of 'both' let me press פיפי and
+// קקי together." A "both" button is the app asking her to translate what
+// she saw into one of four labels; pressing the two things that happened
+// is just reporting them. The stored value is unchanged — wet, dirty, both
+// or dry — so every summary and chart keeps working.
 export default function DiaperPage({ onBack, onSaved }: Props) {
   const { user, selectedChild } = useAuth()
-  const [diaperType, setDiaperType] = useState<DiaperType>('wet')
+  const [wet, setWet] = useState(true)
+  const [dirty, setDirty] = useState(false)
+  const [dry, setDry] = useState(false)
+  const diaperType: DiaperType | null =
+    dry ? 'dry' : wet && dirty ? 'both' : wet ? 'wet' : dirty ? 'dirty' : null
   const [time, setTime] = useState(() => formatTime(new Date()))
   const [notes, setNotes] = useState('')
   const [photo, setPhoto] = useState<Blob | null>(null)
@@ -58,7 +60,7 @@ export default function DiaperPage({ onBack, onSaved }: Props) {
   }
 
   async function handleSave() {
-    if (!user || saving) return
+    if (!user || saving || !diaperType) return
     setSaving(true)
     setSaveError(null)
     try {
@@ -117,35 +119,51 @@ export default function DiaperPage({ onBack, onSaved }: Props) {
           {saveError && <p className="text-xs text-red-500 text-center">{saveError}</p>}
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !diaperType}
             className="w-full font-semibold py-4 rounded-2xl text-white shadow-md transition-all disabled:opacity-50"
             style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}dd)` }}
           >
-            {saving ? 'שומרת…' : 'שמירה ✓'}
+            {saving ? 'שומרת…' : !diaperType ? 'מה היה בחיתול?' : 'שמירה ✓'}
           </button>
         </>
       }
     >
       <div className="max-w-xs mx-auto space-y-5">
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-2 text-right">סוג</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-2 text-right">מה היה בחיתול?</label>
           <div className="grid grid-cols-2 gap-2">
-            {DIAPER_OPTIONS.map(opt => (
+            {([
+              { on: wet,   emoji: '💧', label: 'פיפי', toggle: () => { setWet(v => !v); setDry(false) } },
+              { on: dirty, emoji: '💩', label: 'קקי',  toggle: () => { setDirty(v => !v); setDry(false) } },
+            ]).map(o => (
               <button
-                key={opt.key}
+                key={o.label}
                 type="button"
-                onClick={() => setDiaperType(opt.key)}
+                onClick={o.toggle}
+                aria-pressed={o.on}
                 className={`py-3 rounded-xl text-sm font-medium transition-all border-2 flex items-center justify-center gap-1.5 ${
-                  diaperType === opt.key
-                    ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
-                    : 'border-sand-200 text-sand-600'
+                  o.on ? 'border-mustard-500 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-600'
                 }`}
               >
-                <span>{opt.emoji}</span>
-                <span>{opt.label}</span>
+                <span>{o.emoji}</span>
+                <span>{o.label}</span>
+                {o.on && <Check className="w-3.5 h-3.5" />}
               </button>
             ))}
           </div>
+          {/* יבש is the absence of the other two, so it clears them. */}
+          <button
+            type="button"
+            onClick={() => { setDry(v => !v); setWet(false); setDirty(false) }}
+            aria-pressed={dry}
+            className={`mt-2 w-full py-3 rounded-xl text-sm font-medium transition-all border-2 flex items-center justify-center gap-1.5 ${
+              dry ? 'border-mustard-500 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-600'
+            }`}
+          >
+            <span>☀️</span>
+            <span>יבש</span>
+            {dry && <Check className="w-3.5 h-3.5" />}
+          </button>
         </div>
 
         <div>

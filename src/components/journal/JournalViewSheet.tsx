@@ -1,20 +1,24 @@
-import { CalendarDays, LayoutList, BarChart3, CalendarRange, Check } from 'lucide-react'
+import { CalendarDays, BarChart3, CalendarRange, Check } from 'lucide-react'
 import type { JournalTab } from './JournalTabs'
 
 // The sheet behind the date. Brenda 17.8.26: "I tap the day and then I get
-// the option to see all the other views — week, list and summary — so that
-// screen isn't full of text and clutter."
+// the option to see all the other views, so that screen isn't full of text
+// and clutter."
 //
 // This is the Google Calendar move: the view switcher is not a permanent
 // strip competing with the content, it lives one tap behind the thing you
 // already look at. The date picker sits here too, so the header keeps its
 // single job.
+//
+// Three views, not four. רשימה folded into שבוע the same day — a week of
+// entries as a list and a week of entries as a chart were two tabs holding
+// one thing. Day and week are now the same screen at two widths; summary
+// is the only view that answers a different question.
 
 const VIEWS: { id: JournalTab; label: string; hint: string; icon: typeof CalendarDays }[] = [
-  { id: 'day',     label: 'יום',    hint: 'ציר הזמן, הפירוט והסיכום של יום אחד', icon: CalendarDays },
-  { id: 'week',    label: 'שבוע',   hint: 'שבעה ימים זה לצד זה',                 icon: CalendarRange },
-  { id: 'list',    label: 'רשימה',  hint: 'כל הרשומות אחת אחרי השנייה',          icon: LayoutList },
-  { id: 'summary', label: 'סיכום',  hint: 'ממוצעים ומגמות לאורך זמן',            icon: BarChart3 },
+  { id: 'day',     label: 'יום',   hint: 'ציר הזמן, הפירוט והסיכום של יום אחד', icon: CalendarDays },
+  { id: 'week',    label: 'שבוע',  hint: 'ציר הזמן, הפירוט והסיכום של השבוע',   icon: CalendarRange },
+  { id: 'summary', label: 'סיכום', hint: 'ממוצעים ומגמות לאורך זמן',            icon: BarChart3 },
 ]
 
 type Props = {
@@ -29,7 +33,7 @@ type Props = {
 export default function JournalViewSheet({
   tab, selectedDate, maxDate, onTabChange, onDateChange, onClose,
 }: Props) {
-  // Picking a date from week/list/summary means "show me that day", so it
+  // Picking a date from week/summary means "show me that day", so it
   // switches to the day view as well — otherwise the date silently does
   // nothing and the sheet looks broken.
   const jumpsToDay = tab !== 'day'
@@ -40,8 +44,14 @@ export default function JournalViewSheet({
       onClick={onClose}
       dir="rtl"
     >
+      {/* Brenda 17.8.26, on the screenshot: "and the missing, cut-off part
+          at the bottom." The sheet ended flush with the viewport and the
+          bottom nav sits on top of it, so the date field — the last thing
+          in the sheet — was half hidden behind the tab bar. The padding
+          clears the nav plus the phone's home indicator. */}
       <div
-        className="w-full max-w-[480px] bg-white rounded-t-3xl p-5 pb-8 space-y-4 animate-rise"
+        className="w-full max-w-[480px] bg-white rounded-t-3xl p-5 space-y-4 animate-rise"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 6.5rem)' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="w-10 h-1 rounded-full mx-auto" style={{ background: '#E4DAD0' }} />

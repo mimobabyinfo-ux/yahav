@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatDate, formatTime } from '../utils/dateUtils'
 import { formatTimeSince } from '../utils/timeSince'
 import { useLastEntry } from '../hooks/useLastEntry'
-import { formatSeconds, timerElapsedSeconds } from '../hooks/useActiveTimer'
+import { formatSeconds, timerElapsedSeconds, timersForChild } from '../hooks/useActiveTimer'
 import { sleepTypeFromStartTime } from '../utils/sleepTypeFromTime'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
 
@@ -156,14 +156,13 @@ export default function ActivityTimers({
   }
 
   // ── active_timers loading + 1Hz tick for the legacy big-card render ────
+  // By baby, not by phone — the same reason as ActiveTimerBanner: a
+  // shared journal has to show the timer the mother started.
   const loadTimers = useCallback(async () => {
     if (!user) return
-    const { data } = await supabase
-      .from('active_timers')
-      .select('*')
-      .eq('user_id', user.id)
-    setActiveTimers(data ?? [])
-  }, [user])
+    const { data } = await supabase.from('active_timers').select('*')
+    setActiveTimers(timersForChild(data, selectedChild?.id))
+  }, [user, selectedChild])
 
   useEffect(() => { loadTimers() }, [loadTimers])
 

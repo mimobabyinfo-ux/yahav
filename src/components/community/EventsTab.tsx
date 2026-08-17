@@ -37,7 +37,7 @@ function todayLocalIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏻' : g === 'girl' ? '👧' : '👶'
+const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏼' : g === 'girl' ? '👧🏼' : '👶🏼'
 
 export default function EventsTab() {
   const [events, setEvents] = useState<CommunityEventRow[]>([])
@@ -319,23 +319,28 @@ export default function EventsTab() {
     const open = guestOpen[ev.id] ?? false
     const seats = cleanGuests(ev).length + 1
 
+    // Brenda 17.8.26: "coming with someone else — make it smaller, to the
+    // side." It was a full-width filled button sitting directly above the
+    // register button, so the card offered two equally loud choices when
+    // bringing a friend is the rare one. It is a quiet inline link now, and
+    // it says מישהו/י because partners come too.
     if (!open) {
       if (list.length === 0) {
         return (
           <button
             onClick={() => { setGuests(ev.id, ['']); setGuestOpen(prev => ({ ...prev, [ev.id]: true })) }}
-            className="w-full mb-2 py-2 rounded-2xl text-[13px] font-bold transition-colors hover:brightness-95"
-            style={{ background: '#F7F2EA', color: '#7B604C' }}
+            className="mb-2 text-[12px] font-semibold px-1 transition-colors hover:brightness-95"
+            style={{ color: '#9C8A74' }}
           >
-            + מגיעה עם עוד מישהי
+            + מגיעה עם עוד מישהו/י
           </button>
         )
       }
       return (
         <button
           onClick={() => setGuestOpen(prev => ({ ...prev, [ev.id]: true }))}
-          className="w-full mb-2 py-2 rounded-2xl text-[13px] font-bold text-right px-3 transition-colors hover:brightness-95"
-          style={{ background: '#F7F2EA', color: '#7B604C' }}
+          className="mb-2 text-[12px] font-semibold px-1 text-right transition-colors hover:brightness-95"
+          style={{ color: '#9C8A74' }}
         >
           מגיעה עם {list.join(', ')} · לשינוי
         </button>
@@ -349,7 +354,7 @@ export default function EventsTab() {
             <input
               value={g}
               onChange={e => setGuests(ev.id, list.map((v, j) => (j === i ? e.target.value : v)))}
-              placeholder="השם של מי שמגיעה איתך"
+              placeholder="השם של מי שמגיע/ה איתך"
               maxLength={40}
               className="flex-1 px-3 py-2 rounded-2xl text-[13px] font-semibold outline-none"
               style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#4A3A28' }}
@@ -372,17 +377,12 @@ export default function EventsTab() {
           {list.length < 3 ? (
             <button
               onClick={() => setGuests(ev.id, [...list, ''])}
-              className="text-[13px] font-bold"
-              style={{ color: '#7B604C' }}
+              className="text-[12px] font-semibold"
+              style={{ color: '#9C8A74' }}
             >
-              + עוד אחת
+              + עוד אחד/ת
             </button>
           ) : <span />}
-          {ev.price > 0 && list.length > 0 && (
-            <span className="text-[13px] font-semibold" style={{ color: '#A35C3D' }}>
-              ₪{ev.price} לכל אחת · סה״כ ₪{ev.price * (list.length + 1)}
-            </span>
-          )}
         </div>
         {ev.price > 0 && seats > 1 && !paymentIsExact(ev, seats) && (
           <p className="text-[13px] font-semibold leading-snug" style={{ color: '#8C6E63' }}>
@@ -430,9 +430,14 @@ export default function EventsTab() {
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-bold text-sand-800 text-sm leading-snug">{ev.title}</p>
+                {/* Brenda 17.8.26: "leave the cost on the card top-left in
+                    red, and nowhere else on the card." The price used to be
+                    repeated on the guest row and inside the register button;
+                    saying it three times made the card read as a checkout.
+                    One chip, one number. */}
                 <span className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full"
                   style={ev.price > 0
-                    ? { background: '#F4EDE1', color: '#A35C3D' }
+                    ? { background: '#FBEBE7', color: '#C1392C' }
                     : { background: '#F4EDE1', color: '#818267' }}>
                   {ev.price > 0 ? `₪${ev.price}` : 'חינם'}
                 </span>
@@ -668,12 +673,8 @@ export default function EventsTab() {
                 className="w-full py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-40 transition-all"
                 style={{ background: '#E7C78A' }}
               >
-                {busyId === ev.id ? 'רגע...' : hasBlankGuest(ev) ? 'צריך למלא את השם' : (() => {
-                  const seats = cleanGuests(ev).length + 1
-                  const total = ev.price * seats
-                  if (seats > 1) return ev.price > 0 ? `אנחנו מגיעות! (₪${total})` : 'אנחנו מגיעות!'
-                  return ev.price > 0 ? `אני מגיעה! (₪${ev.price})` : 'אני מגיעה!'
-                })()}
+                {busyId === ev.id ? 'רגע...' : hasBlankGuest(ev) ? 'צריך למלא את השם'
+                  : cleanGuests(ev).length + 1 > 1 ? 'אנחנו מגיעות!' : 'אני מגיעה!'}
               </button>
               {(() => {
                 // One credit covers one event, same price or less. If none

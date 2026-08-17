@@ -153,7 +153,7 @@ export default function CourseSalesSections({ workshop, onCta }: Props) {
           {ageLine && (
             <span className="inline-block text-[11px] font-bold px-3 py-1 rounded-full"
               style={{ background: '#FFFFFF', color: C.moss }}>
-              👶 {ageLine}
+              👶🏼 {ageLine}
             </span>
           )}
 

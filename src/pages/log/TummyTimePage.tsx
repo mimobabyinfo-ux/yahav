@@ -187,7 +187,7 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
 
   if (loading) {
     return (
-      <ActionPageLayout title="זמן בטן" emoji="🤸" accent={ACCENT} onBack={onBack} headerAction={headerAction}>
+      <ActionPageLayout title="זמן בטן" emoji="🤸🏼" accent={ACCENT} onBack={onBack} headerAction={headerAction}>
         <div className="text-center text-sand-400 text-sm py-8">טוענת…</div>
       </ActionPageLayout>
     )
@@ -199,7 +199,7 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
       <>
         <ActionPageLayout
           title="זמן בטן"
-          emoji="🤸"
+          emoji="🤸🏼"
           accent={ACCENT}
           onBack={onBack}
           headerAction={headerAction}
@@ -229,7 +229,7 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
     <>
       <ActionPageLayout
         title="זמן בטן"
-        emoji="🤸"
+        emoji="🤸🏼"
         accent={ACCENT}
         onBack={onBack}
         headerAction={headerAction}

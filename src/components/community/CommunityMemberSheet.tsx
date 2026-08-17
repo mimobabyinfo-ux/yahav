@@ -21,7 +21,7 @@ type Props = {
   member: Member
   /** "אמא ל-{name} ({age})" or "שבוע 28" — caller composes this. */
   secondaryLine: string
-  /** Big avatar emoji at the top (gender or 🤰). */
+  /** Big avatar emoji at the top (gender or 🤰🏼). */
   avatarEmoji: string
   /** Pre-filled WhatsApp greeting (different copy for mom vs pregnant). */
   whatsappGreeting: string

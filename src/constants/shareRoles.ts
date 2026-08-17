@@ -11,11 +11,11 @@ export type ShareRoleDef = {
 }
 
 export const SHARE_ROLES: ShareRoleDef[] = [
-  { id: 'father',  label: 'אבא',    emoji: '👨' },
-  { id: 'grandma', label: 'סבתא',   emoji: '👵' },
-  { id: 'grandpa', label: 'סבא',    emoji: '👴' },
-  { id: 'aunt',    label: 'דודה',   emoji: '👩' },
-  { id: 'nanny',   label: 'מטפלת',  emoji: '👩‍⚕️' },
+  { id: 'father',  label: 'אבא',    emoji: '👨🏼' },
+  { id: 'grandma', label: 'סבתא',   emoji: '👵🏼' },
+  { id: 'grandpa', label: 'סבא',    emoji: '👴🏼' },
+  { id: 'aunt',    label: 'דודה',   emoji: '👩🏼' },
+  { id: 'nanny',   label: 'מטפלת',  emoji: '👩🏼‍⚕️' },
 ]
 
 export function roleDef(id: ShareRole | null | undefined): ShareRoleDef | null {

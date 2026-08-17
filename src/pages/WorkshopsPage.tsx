@@ -324,9 +324,10 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
       {/* Brand header — cream, matching the rest of the app */}
       <div className="px-5 pt-8 pb-5">
         <div className="max-w-sm mx-auto flex items-start justify-between">
+          {/* Brenda 17.8.26: plain "מוצרים". "מיוחדים" and "נבחרו במיוחד
+              עבורך" both promise a curation the page does not do. */}
           <div>
-            <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>מוצרים מיוחדים</h1>
-            <p className="text-sm mt-1 font-semibold" style={{ color: '#957860' }}>נבחרו במיוחד עבורך</p>
+            <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>מוצרים</h1>
           </div>
           <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: '#F6ECD8' }}>
             <Sparkles className="w-5 h-5" style={{ color: '#8A6A2F' }} />

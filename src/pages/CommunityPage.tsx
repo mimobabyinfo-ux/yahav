@@ -232,12 +232,12 @@ export default function CommunityPage() {
     return matchesTag(p.community_tags)
   })
 
-  const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏻' : g === 'girl' ? '👧' : '👶'
+  const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏼' : g === 'girl' ? '👧🏼' : '👶🏼'
 
   return (
     <div className="min-h-screen p-4 pb-28 relative" dir="rtl">
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
-        <span className="text-[250px] opacity-5">{isPregnant ? '🤰' : '👩‍👩‍👧'}</span>
+        <span className="text-[250px] opacity-5">{isPregnant ? '🤰🏼' : '👩‍👩‍👧🏼'}</span>
       </div>
 
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
@@ -314,7 +314,7 @@ export default function CommunityPage() {
         {pageTab === 'members' && (showEditSection ? (
           <div className="bg-white rounded-3xl p-5 shadow-sm space-y-4">
             <p className="text-base font-bold text-sand-800">
-              {isPregnant ? 'הצטרפי לקהילת הריון 🤰' : 'הצטרפי לקהילה 🌸'}
+              {isPregnant ? 'הצטרפי לקהילת הריון 🤰🏼' : 'הצטרפי לקהילה 🌸'}
             </p>
 
             <div className="relative">
@@ -520,7 +520,7 @@ export default function CommunityPage() {
                     <div className="flex items-start gap-3">
                       <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 mt-0.5"
                         style={{ background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)' }}>
-                        🤰
+                        🤰🏼
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sand-800 text-sm">
@@ -546,7 +546,7 @@ export default function CommunityPage() {
                       {p.community_consent && p.phone_number && (
                         <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
                           <a
-                            href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת הריון של Mimo 🤰')}`}
+                            href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת הריון של Mimo 🤰🏼')}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors"
@@ -686,10 +686,10 @@ export default function CommunityPage() {
         return (
           <CommunityMemberSheet
             member={m}
-            avatarEmoji="🤰"
+            avatarEmoji="🤰🏼"
             secondaryLine={secondary}
-            whatsappGreeting={`היי ${firstName}! מצאתי אותך בקהילת הריון של Mimo 🤰`}
-            fallbackGreeting="היי! אני בהריון ורוצה להתחבר עם בנות בשבוע דומה 🤰"
+            whatsappGreeting={`היי ${firstName}! מצאתי אותך בקהילת הריון של Mimo 🤰🏼`}
+            fallbackGreeting="היי! אני בהריון ורוצה להתחבר עם בנות בשבוע דומה 🤰🏼"
             onClose={() => setOpenMember(null)}
           />
         )

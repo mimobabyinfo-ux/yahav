@@ -24,6 +24,24 @@ import { useAuth } from '../contexts/AuthContext'
 
 type AdditionalData = Record<string, unknown>
 
+/** Timers that belong to the baby currently on screen.
+ *
+ *  Brenda 17.8.26 asked that a shared journal show the mother's running
+ *  timers, so the queries no longer filter by user_id — RLS bounds them to
+ *  the family (active_timers_family_*). What is left is telling one baby's
+ *  timers from a sibling's. Rows written before active_timers had a
+ *  child_id are NULL, and a NULL is "the only baby there was", so it
+ *  belongs to whoever is on screen rather than disappearing.
+ */
+export function timersForChild<T extends { child_id?: string | null }>(
+  rows: T[] | null | undefined,
+  childId: string | null | undefined,
+): T[] {
+  const all = rows ?? []
+  if (!childId) return all
+  return all.filter(t => !t.child_id || t.child_id === childId)
+}
+
 // ── Pure helpers (also exported for the banner / page components) ──────────
 
 // Detect the per-side breastfeeding schema by the presence of any of its
@@ -86,7 +104,7 @@ export function timerElapsedSeconds(timer: ActiveTimer): number {
 // ── Hook ───────────────────────────────────────────────────────────────────
 
 export function useActiveTimer(type?: string) {
-  const { user } = useAuth()
+  const { user, selectedChild } = useAuth()
   const [timer, setTimer] = useState<ActiveTimer | null>(null)
   const [loading, setLoading] = useState(true)
   const [, setTick] = useState(0)
@@ -98,17 +116,18 @@ export function useActiveTimer(type?: string) {
       setLoading(false)
       return
     }
+    // Scoped to the baby, not to the phone, so a timer started on another
+    // family member's device is the same timer here. RLS bounds the rows
+    // to the family.
     let q = supabase
       .from('active_timers')
       .select('*')
-      .eq('user_id', user.id)
       .order('start_time', { ascending: false })
-      .limit(1)
     if (type) q = q.eq('timer_type', type)
     const { data } = await q
-    setTimer(data?.[0] ?? null)
+    setTimer(timersForChild(data, selectedChild?.id)[0] ?? null)
     setLoading(false)
-  }, [user, type])
+  }, [user, selectedChild, type])
 
   useEffect(() => { load() }, [load])
 
@@ -144,6 +163,7 @@ export function useActiveTimer(type?: string) {
       .from('active_timers')
       .insert({
         user_id: user.id,
+        child_id: selectedChild?.id ?? null,
         timer_type: timerType,
         start_time: new Date().toISOString(),
         additional_data: merged,

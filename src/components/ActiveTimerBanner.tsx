@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Pause } from 'lucide-react'
 import { supabase, ActiveTimer } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatSeconds, timerElapsedSeconds, timerIsPaused } from '../hooks/useActiveTimer'
+import { formatSeconds, timerElapsedSeconds, timerIsPaused, timersForChild } from '../hooks/useActiveTimer'
 import type { Page } from '../App'
 
 // Surfaces any running timer no matter which page the user is on.
@@ -33,14 +33,20 @@ const PAGE_FOR_TIMER: Record<string, Page | undefined> = {
 const META: Record<string, { emoji: string; label: string }> = {
   sleep: { emoji: '😴', label: 'שינה' },
   feeding: { emoji: '🍼', label: 'האכלה' },
-  tummy_time: { emoji: '🤸', label: 'זמן בטן' },
+  tummy_time: { emoji: '🤸🏼', label: 'זמן בטן' },
 }
 
 export default function ActiveTimerBanner({ onNavigate, refetchKey = 0 }: Props) {
-  const { user } = useAuth()
+  const { user, selectedChild } = useAuth()
   const [timers, setTimers] = useState<ActiveTimer[]>([])
   const [tick, setTick] = useState(0)
 
+  // Scoped to the BABY, not to the phone. Brenda 17.8.26 asked that a
+  // family member opening the share link see the same journal she does,
+  // timers included; a timer she started belongs to her account, so
+  // filtering by user_id showed the partner an empty bar while a sleep
+  // was running. RLS keeps this inside the family (see the
+  // active_timers_family_* policies).
   const load = useCallback(async () => {
     if (!user) {
       setTimers([])
@@ -49,10 +55,9 @@ export default function ActiveTimerBanner({ onNavigate, refetchKey = 0 }: Props)
     const { data } = await supabase
       .from('active_timers')
       .select('*')
-      .eq('user_id', user.id)
       .order('start_time', { ascending: true })
-    setTimers(data ?? [])
-  }, [user])
+    setTimers(timersForChild(data, selectedChild?.id))
+  }, [user, selectedChild])
 
   useEffect(() => { load() }, [load, refetchKey])
 

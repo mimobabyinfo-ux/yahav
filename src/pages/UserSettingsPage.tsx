@@ -6,7 +6,7 @@ import { getBabyAge } from '../utils/dateUtils'
 import SharingManagementPanel from '../components/sharing/SharingManagementPanel'
 
 function genderEmoji(g: string | null) {
-  return g === 'boy' ? '👶🏻' : g === 'girl' ? '👧' : '👶'
+  return g === 'boy' ? '👶🏼' : g === 'girl' ? '👧🏼' : '👶🏼'
 }
 
 function genderLabel(g: string | null) {
@@ -378,7 +378,7 @@ export default function UserSettingsPage() {
                       onClick={() => setNewGender(g)}
                       className={`flex-1 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${newGender === g ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}
                     >
-                      {g === 'girl' ? 'בת 👧' : g === 'boy' ? 'בן 👶🏻' : 'אחר 👶'}
+                      {g === 'girl' ? 'בת 👧🏼' : g === 'boy' ? 'בן 👶🏼' : 'אחר 👶🏼'}
                     </button>
                   ))}
                 </div>

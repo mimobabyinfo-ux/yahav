@@ -76,7 +76,7 @@ function WeekGuideCard({ guide, week, items = [] }: { guide: PregnancyWeeklyGuid
       >
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)' }}>
-          {guide.baby_size_emoji ?? '🤰'}
+          {guide.baby_size_emoji ?? '🤰🏼'}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold text-purple-600">מדריך שבוע {week}</p>
@@ -411,7 +411,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
     if (profile.reminder_vitamins_enabled && timeIsDue(profile.reminder_vitamins_time))
       active.push({ key: `reminder_time_${profile.reminder_vitamins_time}`, emoji: '💊', text: `זמן לויטמינים / תרופות (${profile.reminder_vitamins_time})` })
     if (profile.reminder_exercise_enabled && timeIsDue(profile.reminder_exercise_time))
-      active.push({ key: `reminder_time_${profile.reminder_exercise_time}`, emoji: '🧘', text: `זמן לתרגיל יומי (${profile.reminder_exercise_time})` })
+      active.push({ key: `reminder_time_${profile.reminder_exercise_time}`, emoji: '🧘🏼', text: `זמן לתרגיל יומי (${profile.reminder_exercise_time})` })
     setReminders(active)
   }, [profile])
 
@@ -534,7 +534,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
           <div className="flex items-start justify-between mb-5">
             <div>
               <p className="text-sm" style={{ color: '#D9B978' }}>שלום,</p>
-              <h1 className="text-2xl font-bold text-white">{profile?.mother_name ?? 'אמא לעתיד'} 🤰</h1>
+              <h1 className="text-2xl font-bold text-white">{profile?.mother_name ?? 'אמא לעתיד'} 🤰🏼</h1>
             </div>
             <div className="flex items-center gap-1">
               <a
@@ -559,7 +559,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                   {daysLeft === 0 ? '🎉 יום הלידה הגיע!' : `עוד ${daysLeft} ימים ללידה`}
                 </p>
               </div>
-              <div className="absolute left-4 top-4 text-6xl opacity-20">👶</div>
+              <div className="absolute left-4 top-4 text-6xl opacity-20">👶🏼</div>
             </div>
           ) : (
             <div className="bg-white/10 rounded-3xl p-4 text-center mb-4">
@@ -915,7 +915,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
               {(['girl', 'boy', 'other'] as const).map(g => (
                 <button key={g} onClick={() => setBabyGender(g)}
                   className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-all ${babyGender === g ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}>
-                  {g === 'girl' ? 'בת 👧' : g === 'boy' ? 'בן 👶🏻' : 'אחר 👶'}
+                  {g === 'girl' ? 'בת 👧🏼' : g === 'boy' ? 'בן 👶🏼' : 'אחר 👶🏼'}
                 </button>
               ))}
             </div>

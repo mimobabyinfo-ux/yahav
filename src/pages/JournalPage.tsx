@@ -13,7 +13,6 @@ import type { JournalTab } from '../components/journal/JournalTabs'
 import JournalViewSheet from '../components/journal/JournalViewSheet'
 import DayView from '../components/journal/DayView'
 import WeekView from '../components/journal/WeekView'
-import ListView from '../components/journal/ListView'
 import SummaryView from '../components/journal/SummaryView'
 import type { Page } from '../App'
 
@@ -26,7 +25,7 @@ const UPSELLS: Record<string, { emoji: string; text: string; cta: string; wa: st
   sleep:   { emoji: '😴', text: 'מתמודדת עם שינה קשה?',   cta: 'סדנת שינה לתינוקות',    wa: 'היי! אני מתמודדת עם שינה קשה ורוצה לשמוע על הסדנה' },
   diaper:  { emoji: '🍼', text: 'הרבה חיתולים מלוכלכים? נסי עיסוי בטן', cta: 'סדנת עיסוי תינוקות', wa: 'היי! אני מעוניינת לשמוע על סדנת עיסוי תינוקות' },
   note:    { emoji: '🤎', text: 'כתבת הערה. אנחנו כאן לכל שאלה',       cta: 'שאלי אותנו בוואטסאפ',  wa: 'היי! יש לי שאלה לגבי התינוק שלי' },
-  feeding: { emoji: '🤱', text: 'רוצה תמיכה בהנקה?',     cta: 'להתייעצות עם מנחה',     wa: 'היי! אני מעוניינת בייעוץ הנקה' },
+  feeding: { emoji: '🤱🏼', text: 'רוצה תמיכה בהנקה?',     cta: 'להתייעצות עם מנחה',     wa: 'היי! אני מעוניינת בייעוץ הנקה' },
 }
 
 function UpsellCard({ type, onDismiss, ownerWhatsapp }: { type: EntryType; onDismiss: () => void; ownerWhatsapp: string }) {
@@ -164,11 +163,11 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   useEffect(() => {
     if (tab === 'day') {
       fetchEntries()
-    } else if (tab === 'week' || tab === 'list') {
-      // Week tab widens by one day on the LEFT so cross-midnight sleeps
-      // from the Saturday BEFORE weekStart still appear on Sunday's
-      // column in the chart (C4 / Q7). List view reuses the same range
-      // (visible 7 days only — the chart's filter logic ignores any extra).
+    } else if (tab === 'week') {
+      // The week fetch widens by one day on the LEFT so cross-midnight
+      // sleeps from the Saturday BEFORE weekStart still appear on
+      // Sunday's column in the chart. Everything below the chart trims
+      // back to the seven visible days.
       const from = formatDate(addDays(weekStart, -1))
       const to = formatDate(addDays(weekStart, 6))
       fetchRangeEntries(from, to)
@@ -185,7 +184,6 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   const headerSubLabel =
     tab === 'day'  ? formatDisplayDate(selectedDate) :
     tab === 'week' ? `שבוע ${formatDate(weekStart)} – ${formatDate(addDays(weekStart, 6))}` :
-    tab === 'list' ? 'תצוגת רשימה' :
     'תצוגת סיכום'
 
   return (
@@ -195,17 +193,17 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
       </div>
 
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
-        {/* Guest banner — Phase 4 / C1 surfaces role + custom name from
-            the redeemed invite so the greeting feels personal. Falls
-            back to the generic "בן/בת משפחה" label for legacy guests
-            whose invites predate the role column. */}
+        {/* Guest banner. Brenda 17.8.26 took the role picker out of
+            sharing, so new invites carry no role and the greeting is just
+            the baby's name. Invites made before today still have one and
+            still get named. */}
         {isGuest && selectedChild && (() => {
           const roleLabelMap: Record<string, { emoji: string; label: string }> = {
-            father:  { emoji: '👨',    label: 'אבא' },
-            grandma: { emoji: '👵',    label: 'סבתא' },
-            grandpa: { emoji: '👴',    label: 'סבא' },
-            aunt:    { emoji: '👩',    label: 'דודה' },
-            nanny:   { emoji: '👩‍⚕️', label: 'מטפלת' },
+            father:  { emoji: '👨🏼',    label: 'אבא' },
+            grandma: { emoji: '👵🏼',    label: 'סבתא' },
+            grandpa: { emoji: '👴🏼',    label: 'סבא' },
+            aunt:    { emoji: '👩🏼',    label: 'דודה' },
+            nanny:   { emoji: '👩🏼‍⚕️', label: 'מטפלת' },
           }
           const def = profile?.family_role ? roleLabelMap[profile.family_role] : null
           const name = profile?.family_display_name?.trim()
@@ -213,10 +211,10 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
             ? `היי ${name}! זה היומן של ${selectedChild.name}`
             : def
               ? `שלום ${def.label}, זה היומן של ${selectedChild.name}`
-              : `צופה ביומן של ${selectedChild.name}. הצטרפת כבן/בת משפחה`
+              : `היי! זה היומן של ${selectedChild.name}`
           return (
             <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={{ background: 'linear-gradient(135deg, #FFF8E7, #FFF0CC)' }}>
-              <span className="text-lg">{def?.emoji ?? '👁️'}</span>
+              <span className="text-lg">{def?.emoji ?? '👶🏼'}</span>
               <p className="text-xs font-semibold text-mustard-800">{greeting}</p>
             </div>
           )
@@ -270,10 +268,10 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
           />
         </div>
 
-        {/* Brenda 17.8.26: no tab strip anywhere. All four views wear the
+        {/* Brenda 17.8.26: no tab strip anywhere. Every view wears the
             same header — arrows, a tappable label, and the view sheet
-            behind it. "כשזה שבוע אז שיוצג פשוט השבוע ושיהיה אפשר ללחוץ
-            על זה ולחזור ליום או לעבור לרשימה." */}
+            behind it. Later the same day she folded רשימה into שבוע, so
+            three views are left: a day, a week, and the long view. */}
 
         {/* Upsell card surfaces briefly after a past-date manual log save. */}
         {tab === 'day' && upsellType && (
@@ -299,18 +297,9 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
           <WeekView
             entries={allEntries}
             weekStart={weekStart}
+            loading={rangeLoading}
             onWeekShift={setWeekStart}
             onDayClick={handleDayClick}
-            onOpenViews={() => setViewSheet(true)}
-          />
-        )}
-
-        {tab === 'list' && (
-          <ListView
-            entries={allEntries}
-            weekStart={weekStart}
-            onWeekShift={setWeekStart}
-            loading={rangeLoading}
             onEntrySaved={handleEntrySaved}
             onEditEntry={setEditingEntry}
             onOpenViews={() => setViewSheet(true)}

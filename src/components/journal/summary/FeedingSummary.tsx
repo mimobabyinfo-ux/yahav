@@ -64,7 +64,7 @@ export default function FeedingSummary({ entries, buckets, granularity, dayCount
   if (totals.total === 0) {
     return (
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-8 text-center space-y-2">
-        <div className="text-4xl">🤱</div>
+        <div className="text-4xl">🤱🏼</div>
         <p className="text-sm font-semibold text-sand-700">אין נתוני האכלה ב{rangeLabel}</p>
         <p className="text-xs text-sand-400">החיתוך משתנה מיד אחרי שמירת האכלה</p>
       </div>

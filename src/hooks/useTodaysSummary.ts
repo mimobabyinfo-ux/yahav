@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { timersForChild } from './useActiveTimer'
 import { supabase, FeedingDetail, SleepDetail, DiaperDetail } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDate } from '../utils/dateUtils'
@@ -91,14 +92,13 @@ export function useTodaysSummary(refetchKey: number = 0): TodaysSummary {
       // Active sleep timer (running OR paused) — start_time becomes a
       // candidate for sleep.last; incomplete sleeps are intentionally
       // NOT counted toward napCount/nightCount/totalMinutes.
-      // user-scoped per existing active_timers RLS; matches the
-      // ActiveTimerBanner's visibility model.
+      // Family-scoped by RLS, same visibility model as
+      // ActiveTimerBanner — a sleep the partner started is still this
+      // baby's sleep.
       supabase
         .from('active_timers')
-        .select('start_time')
-        .eq('user_id', user.id)
-        .eq('timer_type', 'sleep')
-        .limit(1),
+        .select('start_time, child_id')
+        .eq('timer_type', 'sleep'),
     ])
 
     // PostgREST embeds return detail tables as arrays even when there's
@@ -117,8 +117,9 @@ export function useTodaysSummary(refetchKey: number = 0): TodaysSummary {
       Array.isArray(v) ? (v[0] ?? null) : (v ?? null)
 
     const allRows = (entriesRes.data ?? []) as unknown as Row[]
-    const activeSleepStart = timerRes.data?.[0]?.start_time
-      ? new Date(timerRes.data[0].start_time)
+    const activeSleepRow = timersForChild(timerRes.data, selectedChild.id)[0]
+    const activeSleepStart = activeSleepRow?.start_time
+      ? new Date(activeSleepRow.start_time)
       : null
 
     // Filter rows:

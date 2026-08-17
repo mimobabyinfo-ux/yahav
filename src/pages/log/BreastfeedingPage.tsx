@@ -3,7 +3,7 @@ import { Play, Pause, Plus, Square } from 'lucide-react'
 import { supabase, ActiveTimer } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatDate, formatTime } from '../../utils/dateUtils'
-import { formatSeconds } from '../../hooks/useActiveTimer'
+import { formatSeconds, timersForChild } from '../../hooks/useActiveTimer'
 import { useLastEntry } from '../../hooks/useLastEntry'
 import { formatTimeSince } from '../../utils/timeSince'
 import ActionPageLayout from './ActionPageLayout'
@@ -119,14 +119,14 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
       setLoading(false)
       return
     }
+    // By baby, not by phone (see timersForChild) so a feed started on the
+    // partner's device continues here.
     const { data } = await supabase
       .from('active_timers')
       .select('*')
-      .eq('user_id', user.id)
       .eq('timer_type', 'feeding')
       .order('start_time', { ascending: false })
-      .limit(1)
-    const row = data?.[0] ?? null
+    const row = timersForChild(data, selectedChild?.id)[0] ?? null
     if (row && isLegacyFeedingTimer(row)) {
       // Q2(a): treat as fresh session — active_side = breast_side from the old
       // row (defaulting to right per ActivityTimers' historical default),
@@ -178,6 +178,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
         .from('active_timers')
         .insert({
           user_id: user.id,
+          child_id: selectedChild?.id ?? null,
           timer_type: 'feeding',
           start_time: nowIso,
           additional_data: seed,
@@ -373,7 +374,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
 
   if (loading) {
     return (
-      <ActionPageLayout title="הנקה" emoji="🤱" accent={ACCENT} onBack={onBack} headerAction={headerAction}>
+      <ActionPageLayout title="הנקה" emoji="🤱🏼" accent={ACCENT} onBack={onBack} headerAction={headerAction}>
         <div className="text-center text-sand-400 text-sm py-8">טוענת…</div>
       </ActionPageLayout>
     )
@@ -409,7 +410,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
     <>
     <ActionPageLayout
       title="הנקה"
-      emoji="🤱"
+      emoji="🤱🏼"
       accent={ACCENT}
       onBack={onBack}
       headerAction={headerAction}

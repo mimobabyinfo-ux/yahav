@@ -118,7 +118,7 @@ export default function TodaysJournalPanel({ refetchKey = 0, onNavigate }: Props
         <div className="space-y-2.5">
           {/* Feeding */}
           <Row
-            emoji="🤱"
+            emoji="🤱🏼"
             label="האכלה אחרונה"
             sinceText={formatTimeSince(s.feeding.last, 'עוד לא היום!')}
             detail={buildFeedingAggregate(s.feeding)}
@@ -150,7 +150,7 @@ export default function TodaysJournalPanel({ refetchKey = 0, onNavigate }: Props
 
           {/* Tummy */}
           <Row
-            emoji="🤸"
+            emoji="🤸🏼"
             label="זמן בטן"
             sinceText={formatTimeSince(s.tummy.last, 'עוד לא היום!')}
             detail={s.tummy.count > 0 ? `${s.tummy.count} פעמים היום` : ''}

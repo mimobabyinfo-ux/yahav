@@ -512,7 +512,7 @@ function UsersTab() {
             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${modeFilter === m ? 'text-white shadow-sm' : 'bg-sand-50 text-sand-500'}`}
             style={modeFilter === m ? { background: '#E7C78A' } : {}}
           >
-            {m === 'all' ? 'הכל' : m === 'mom' ? '👶 אמהות' : m === 'pregnant' ? '🤰 הריון' : '🎓 קורס'}
+            {m === 'all' ? 'הכל' : m === 'mom' ? '👶🏼 אמהות' : m === 'pregnant' ? '🤰🏼 הריון' : '🎓 קורס'}
           </button>
         ))}
       </div>
@@ -526,7 +526,7 @@ function UsersTab() {
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-bold text-sand-800 text-sm truncate">{u.mother_name ?? '—'}</p>
                 {u.is_admin && <span className="text-[13px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-bold">ADMIN</span>}
-                {u.user_mode === 'pregnant' && <span className="text-[13px] bg-[#E4EBEF] text-[#3E5966] px-1.5 py-0.5 rounded-md font-bold">🤰 הריון</span>}
+                {u.user_mode === 'pregnant' && <span className="text-[13px] bg-[#E4EBEF] text-[#3E5966] px-1.5 py-0.5 rounded-md font-bold">🤰🏼 הריון</span>}
                 {u.acquisition_source === 'course_purchase' && (
                   <span className="text-[13px] bg-[#F6ECD8] text-[#6E5836] px-1.5 py-0.5 rounded-md font-bold">🎓 קורס</span>
                 )}
@@ -543,7 +543,7 @@ function UsersTab() {
           {/* Communication row */}
           <div className="flex gap-2">
             <a
-              href={`https://wa.me/${u.phone_number?.replace(/\D/g, '') ?? ''}?text=${encodeURIComponent(`היי ${u.mother_name ?? ''}! 👋`)}`}
+              href={`https://wa.me/${u.phone_number?.replace(/\D/g, '') ?? ''}?text=${encodeURIComponent(`היי ${u.mother_name ?? ''}! 👋🏼`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
@@ -625,8 +625,8 @@ function UsersTab() {
                 className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 bg-white"
               >
                 <option value="">לא הוגדר</option>
-                <option value="mom">👶 אמא</option>
-                <option value="pregnant">🤰 בהריון</option>
+                <option value="mom">👶🏼 אמא</option>
+                <option value="pregnant">🤰🏼 בהריון</option>
               </select>
             </div>
             <div>
@@ -743,7 +743,7 @@ function UsersTabDesktop() {
               <button key={m} onClick={() => setModeFilter(m)}
                 className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${modeFilter === m ? 'text-white' : 'bg-white text-gray-500 border border-gray-200'}`}
                 style={modeFilter === m ? { background: '#E7C78A' } : {}}>
-                {m === 'all' ? 'הכל' : m === 'mom' ? '👶 אמהות' : m === 'pregnant' ? '🤰 הריון' : '🎓 קורס'}
+                {m === 'all' ? 'הכל' : m === 'mom' ? '👶🏼 אמהות' : m === 'pregnant' ? '🤰🏼 הריון' : '🎓 קורס'}
               </button>
             ))}
           </div>
@@ -780,9 +780,9 @@ function UsersTabDesktop() {
                   <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px] truncate">{u.email}</td>
                   <td className="px-4 py-3">
                     {u.user_mode === 'pregnant'
-                      ? <span className="text-[13px] bg-[#E4EBEF] text-[#3E5966] px-2 py-0.5 rounded-lg font-bold">🤰 הריון</span>
+                      ? <span className="text-[13px] bg-[#E4EBEF] text-[#3E5966] px-2 py-0.5 rounded-lg font-bold">🤰🏼 הריון</span>
                       : u.user_mode === 'mom'
-                      ? <span className="text-[13px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-lg font-bold">👶 אמא</span>
+                      ? <span className="text-[13px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-lg font-bold">👶🏼 אמא</span>
                       : <span className="text-[13px] text-gray-400">—</span>
                     }
                   </td>

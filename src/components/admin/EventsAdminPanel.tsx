@@ -18,7 +18,7 @@ const EVENT_TYPE_PRESETS: { label: string; emoji: string }[] = [
   { label: 'אימון אחרי לידה', emoji: '💪' },
   { label: 'קפה ביחד',        emoji: '☕' },
   { label: 'הליכה בפארק',     emoji: '🌳' },
-  { label: 'יוגה',             emoji: '🧘‍♀️' },
+  { label: 'יוגה',             emoji: '🧘🏼‍♀️' },
   { label: 'ערב יין',          emoji: '🍷' },
   { label: 'מעגל אמהות',      emoji: '💬' },
   { label: 'אחר',              emoji: '🎉' },
@@ -1026,7 +1026,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                         return (
                           <div className="mt-2 pt-2 border-t border-sand-100 space-y-1.5 text-xs text-sand-600">
                             {(p?.baby_name || p?.baby_dob) && (
-                              <p>👶 {p?.baby_name ?? 'תינוק/ת'}{p?.baby_dob ? ` · ${getBabyAge(p.baby_dob)}` : ''}</p>
+                              <p>👶🏼 {p?.baby_name ?? 'תינוק/ת'}{p?.baby_dob ? ` · ${getBabyAge(p.baby_dob)}` : ''}</p>
                             )}
                             {p?.email && <p className="truncate">✉️ <span dir="ltr">{p.email}</span></p>}
                             {p?.community_bio && <p className="leading-relaxed">💬 {p.community_bio}</p>}

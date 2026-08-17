@@ -76,7 +76,7 @@ export default function MedicalPage({ onBack, onSaved }: Props) {
   return (
     <ActionPageLayout
       title="רופא"
-      emoji="👨‍⚕️"
+      emoji="👨🏼‍⚕️"
       accent={ACCENT}
       onBack={onBack}
       bottom={

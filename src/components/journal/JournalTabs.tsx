@@ -1,36 +1,16 @@
-// 4-tab strip at the top of the Journal page.
-// Brand segmented control: white track, amarillo pill with dark text
-// (WCAG rule: never white-on-amarillo), springy transition.
+// The journal's view identifiers.
+//
+// The tab strip itself is gone — every view wears JournalHeader instead,
+// and the switcher lives in JournalViewSheet, one tap behind the date.
+// Brenda 17.8.26 then folded רשימה into שבוע, so three remain. The type
+// stays here because most of the journal imports it from this path.
+//
+// 'list' is kept in the union only so a value persisted by an older build
+// can be recognised and mapped to 'week' rather than rendering nothing.
 
-export type JournalTab = 'day' | 'week' | 'list' | 'summary'
+export type JournalTab = 'day' | 'week' | 'summary'
+export type LegacyJournalTab = JournalTab | 'list'
 
-const TABS: { id: JournalTab; label: string }[] = [
-  { id: 'day',     label: 'יום' },
-  { id: 'week',    label: 'שבוע' },
-  { id: 'list',    label: 'רשימה' },
-  { id: 'summary', label: 'סיכום' },
-]
-
-type Props = {
-  value: JournalTab
-  onChange: (tab: JournalTab) => void
-}
-
-export default function JournalTabs({ value, onChange }: Props) {
-  return (
-    <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1">
-      {TABS.map(t => (
-        <button
-          key={t.id}
-          onClick={() => onChange(t.id)}
-          className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
-            value === t.id ? 'shadow-sm' : 'text-sand-500 hover:text-sand-700'
-          }`}
-          style={value === t.id ? { background: '#E7C78A', color: '#4A3A28' } : {}}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
-  )
+export function normalizeTab(tab: LegacyJournalTab): JournalTab {
+  return tab === 'list' ? 'week' : tab
 }

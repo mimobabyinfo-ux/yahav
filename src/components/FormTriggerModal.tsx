@@ -121,7 +121,7 @@ export default function FormTriggerModal() {
 
         {submitted ? (
           <div className="p-8 text-center space-y-2">
-            <div className="text-5xl">🙏</div>
+            <div className="text-5xl">🙏🏼</div>
             <p className="font-bold text-sand-800">תודה על המשוב!</p>
           </div>
         ) : (
