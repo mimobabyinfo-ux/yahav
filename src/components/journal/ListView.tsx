@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, ArrowDownNarrowWide, ArrowUpNarrowWide } from 'lucide-react'
+import { ArrowDownNarrowWide, ArrowUpNarrowWide } from 'lucide-react'
 import type { DailyLogEntryWithDetails } from '../../lib/supabase'
 import { formatDate } from '../../utils/dateUtils'
 import { hebrewDateHeader } from '../../utils/hebrewDate'
 import DailyTimeline from '../DailyTimeline'
 import MimoLeaf from '../MimoLeaf'
+import JournalHeader from './JournalHeader'
+import { hebrewWeekRange } from '../../utils/hebrewWeekRange'
 
 // Phase 3 / C5: ListView — chronological list of the selected week's
 // entries, date-grouped, with filter chips (by entry_type) and a
@@ -34,6 +36,7 @@ type Props = {
   loading: boolean
   onEntrySaved: () => void
   onEditEntry: (entry: DailyLogEntryWithDetails) => void
+  onOpenViews: () => void
 }
 
 function addDays(date: Date, n: number): Date {
@@ -49,6 +52,7 @@ export default function ListView({
   loading,
   onEntrySaved,
   onEditEntry,
+  onOpenViews,
 }: Props) {
   const [filter, setFilter] = useState<FilterChip>('all')
   // Sort: true = newest-first (descending), false = oldest-first.
@@ -83,28 +87,20 @@ export default function ListView({
     return out
   }, [visibleEntries])
 
-  const weekRangeLabel = `${formatDate(weekStart)} – ${formatDate(addDays(weekStart, 6))}`
+  const weekRangeLabel = hebrewWeekRange(weekStart)
 
   return (
     <div className="space-y-3">
-      {/* Week-arrow row — matches WeekView's pattern exactly. */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => onWeekShift(addDays(weekStart, -7))}
-          className="p-2 rounded-xl bg-white shadow-sm hover:bg-sand-50 transition-colors"
-          aria-label="שבוע קודם"
-        >
-          <ChevronRight className="w-4 h-4 text-sand-500" />
-        </button>
-        <span className="text-sm font-semibold text-sand-600">{weekRangeLabel}</span>
-        <button
-          onClick={() => onWeekShift(addDays(weekStart, 7))}
-          className="p-2 rounded-xl bg-white shadow-sm hover:bg-sand-50 transition-colors"
-          aria-label="שבוע הבא"
-        >
-          <ChevronLeft className="w-4 h-4 text-sand-500" />
-        </button>
-      </div>
+      {/* Same header as every other view — see JournalHeader. */}
+      <JournalHeader
+        onPrev={() => onWeekShift(addDays(weekStart, -7))}
+        onNext={() => onWeekShift(addDays(weekStart, 7))}
+        prevLabel="שבוע קודם"
+        nextLabel="שבוע הבא"
+        onOpenViews={onOpenViews}
+      >
+        <span className="font-semibold" style={{ fontSize: 17, color: '#443327' }}>{weekRangeLabel}</span>
+      </JournalHeader>
 
       {/* Filter chips — horizontal-scroll on overflow. Mustard-pill style
           on active matches Day-view's filter strip + the journal tabs. */}

@@ -1,8 +1,10 @@
-import { ChevronLeft, ChevronRight, Baby, Moon, Droplets, Shapes, type LucideIcon } from 'lucide-react'
+import { Baby, Moon, Droplets, Shapes, type LucideIcon } from 'lucide-react'
 import type { DailyLogEntryWithDetails, SleepDetail } from '../../lib/supabase'
 import { formatDate, formatDuration, entryTypeLabel } from '../../utils/dateUtils'
 import { ENTRY_COLORS } from '../DailyTimeline'
 import WeekTimelineChart from './WeekTimelineChart'
+import JournalHeader from './JournalHeader'
+import { hebrewWeekRange } from '../../utils/hebrewWeekRange'
 
 // Phase 3 / C4: full rewrite of WeekView.
 // Replaces the colored-dots grid with a true Gantt-style chart (in
@@ -14,6 +16,7 @@ type Props = {
   weekStart: Date
   onWeekShift: (newWeekStart: Date) => void
   onDayClick: (date: string) => void
+  onOpenViews: () => void
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -87,33 +90,24 @@ function computeHighlights(entries: DailyLogEntryWithDetails[], weekDates: strin
 
 // ── Component ───────────────────────────────────────────────────────────────
 
-export default function WeekView({ entries, weekStart, onWeekShift, onDayClick }: Props) {
+export default function WeekView({ entries, weekStart, onWeekShift, onDayClick, onOpenViews }: Props) {
   const weekDates = Array.from({ length: 7 }, (_, i) => formatDate(addDays(weekStart, i)))
   const highlights = computeHighlights(entries, weekDates)
-  const weekLabel = `${formatDate(weekStart)} – ${formatDate(addDays(weekStart, 6))}`
+  const weekLabel = hebrewWeekRange(weekStart)
 
   return (
     <div className="space-y-3">
-      {/* Week arrow row (absorbed from JournalPage per Q8). */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => onWeekShift(addDays(weekStart, -7))}
-          className="p-2 rounded-xl bg-white shadow-sm hover:bg-sand-50 transition-colors"
-          aria-label="שבוע קודם"
-        >
-          <ChevronRight className="w-4 h-4 text-sand-500" />
-        </button>
-        <span className="text-sm font-semibold text-sand-600">{weekLabel}</span>
-        <button
-          onClick={() => onWeekShift(addDays(weekStart, 7))}
-          className="p-2 rounded-xl bg-white shadow-sm hover:bg-sand-50 transition-colors"
-          aria-label="שבוע הבא"
-        >
-          <ChevronLeft className="w-4 h-4 text-sand-500" />
-        </button>
-      </div>
+      {/* Same header as every other view — see JournalHeader. */}
+      <JournalHeader
+        onPrev={() => onWeekShift(addDays(weekStart, -7))}
+        onNext={() => onWeekShift(addDays(weekStart, 7))}
+        prevLabel="שבוע קודם"
+        nextLabel="שבוע הבא"
+        onOpenViews={onOpenViews}
+      >
+        <span className="font-semibold" style={{ fontSize: 17, color: '#443327' }}>{weekLabel}</span>
+      </JournalHeader>
 
-      {/* Chart */}
       <WeekTimelineChart entries={entries} weekStart={weekStart} onDayClick={onDayClick} />
 
       {/* Highlights — 2×2 grid, only renders cards that have a value. */}

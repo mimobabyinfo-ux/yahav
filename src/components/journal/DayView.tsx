@@ -1,13 +1,11 @@
-import { useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
+import { useRef } from 'react'
 import type { DailyLogEntryWithDetails } from '../../lib/supabase'
 import { formatDate, formatDisplayDate } from '../../utils/dateUtils'
 import MimoLeaf from '../MimoLeaf'
 import DailySummary from '../DailySummary'
 import DailyTimeline from '../DailyTimeline'
 import DayTimelineChart from './DayTimelineChart'
-import type { JournalTab } from './JournalTabs'
-import JournalViewSheet from './JournalViewSheet'
+import JournalHeader from './JournalHeader'
 
 // The day screen.
 //
@@ -50,9 +48,8 @@ type Props = {
   onFilterChange: (f: TimelineFilter) => void
   onEntrySaved: () => void
   onEditEntry: (entry: DailyLogEntryWithDetails) => void
-  /** The four journal views — switched from the sheet behind the date. */
-  tab: JournalTab
-  onTabChange: (tab: JournalTab) => void
+  /** Opens the shared view sheet, which JournalPage owns. */
+  onOpenViews: () => void
 }
 
 function shiftDate(iso: string, days: number): string {
@@ -76,8 +73,7 @@ export default function DayView({
   onFilterChange,
   onEntrySaved,
   onEditEntry,
-  tab,
-  onTabChange,
+  onOpenViews,
 }: Props) {
   const today = formatDate(new Date())
   const isToday = selectedDate === today
@@ -86,7 +82,6 @@ export default function DayView({
   // render cross-midnight sleep tails. Everything else wants strictly today.
   const todayEntries = entries.filter(e => e.entry_date === selectedDate)
 
-  const [sheetOpen, setSheetOpen] = useState(false)
   const { num, weekday } = dayHeading(selectedDate)
 
   // ── Swipe-to-navigate (50px deltaX, horizontal-dominant) ────────────
@@ -117,39 +112,22 @@ export default function DayView({
 
   return (
     <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} className="space-y-4">
-      {/* ── The one control: the date ──────────────────────────────── */}
-      <div className="flex items-center justify-between gap-1">
-        <button
-          onClick={() => onDateChange(shiftDate(selectedDate, -1))}
-          className="p-2 rounded-xl text-sand-500 hover:bg-white transition-colors"
-          aria-label="יום קודם"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-
-        <button
-          onClick={() => setSheetOpen(true)}
-          className="flex items-baseline gap-2 px-3 py-1.5 rounded-2xl hover:bg-white transition-colors"
-        >
-          <span className="font-display" style={{ fontSize: 26, lineHeight: 1, color: '#443327' }}>{num}</span>
-          <span className="font-semibold" style={{ fontSize: 15, color: '#7B604C' }}>{weekday}</span>
-          {isToday && (
-            <span className="font-bold rounded-full" style={{ fontSize: 11, padding: '2px 7px', background: '#F6ECD8', color: '#8A6A2F' }}>
-              היום
-            </span>
-          )}
-          <ChevronDown className="w-4 h-4" style={{ color: '#A2937D' }} />
-        </button>
-
-        <button
-          onClick={() => !isToday && onDateChange(shiftDate(selectedDate, 1))}
-          disabled={isToday}
-          className="p-2 rounded-xl text-sand-500 hover:bg-white transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
-          aria-label="יום הבא"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-      </div>
+      <JournalHeader
+        onPrev={() => onDateChange(shiftDate(selectedDate, -1))}
+        onNext={() => onDateChange(shiftDate(selectedDate, 1))}
+        nextDisabled={isToday}
+        prevLabel="יום קודם"
+        nextLabel="יום הבא"
+        onOpenViews={onOpenViews}
+      >
+        <span className="font-display" style={{ fontSize: 26, lineHeight: 1, color: '#443327' }}>{num}</span>
+        <span className="font-semibold" style={{ fontSize: 15, color: '#7B604C' }}>{weekday}</span>
+        {isToday && (
+          <span className="font-bold rounded-full" style={{ fontSize: 11, padding: '2px 7px', background: '#F6ECD8', color: '#8A6A2F' }}>
+            היום
+          </span>
+        )}
+      </JournalHeader>
 
       {loading && (
         <div className="text-center py-8">
@@ -204,16 +182,6 @@ export default function DayView({
         </div>
       )}
 
-      {sheetOpen && (
-        <JournalViewSheet
-          tab={tab}
-          selectedDate={selectedDate}
-          maxDate={today}
-          onTabChange={t => { onTabChange(t); setSheetOpen(false) }}
-          onDateChange={d => { onDateChange(d); setSheetOpen(false) }}
-          onClose={() => setSheetOpen(false)}
-        />
-      )}
     </div>
   )
 }

@@ -14,6 +14,14 @@ import { normalizeIlPhone } from './customerLookup'
 
 export type AdminTaskSection = 'registrations' | 'forms' | 'workshops' | 'events' | 'partners'
 
+/** A mother who says she paid outside the app, awaiting confirmation. */
+export type PaymentClaim = {
+  event_id: string
+  event_title: string
+  mother_name: string | null
+  claimed_at: string
+}
+
 export type AdminTask = {
   key: string
   title: string          // one line — carries the number and the object
@@ -64,6 +72,11 @@ export type AdminTaskInput = {
   leads: TaskLead[]
   linkedFormDefs: Map<string, LinkedFormDef>
   linkedSubmissions: LinkedSubmission[]
+  /** Brenda 17.8.26: "if she marks it, it should pop a notification in the
+   *  admin". A declared Bit/transfer payment is money waiting on a decision
+   *  only she can make, so it belongs on the home screen, not buried in an
+   *  event's registrant list. */
+  paymentClaims: PaymentClaim[]
   /** Israel-calendar today as YYYY-MM-DD (passed in for testability). */
   today: string
   /** Epoch ms "now" (passed in for testability). */
@@ -135,10 +148,36 @@ export function buildFilledIndex(defs: Map<string, LinkedFormDef>, subs: LinkedS
 }
 
 export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
-  const { workshops, cohorts, events, checkinEventIds, leads, linkedFormDefs, linkedSubmissions, today, nowMs } = input
+  const { workshops, cohorts, events, checkinEventIds, leads, linkedFormDefs, linkedSubmissions, paymentClaims, today, nowMs } = input
   const tasks: AdminTask[] = []
 
   const workshopIdsWithCohorts = new Set(cohorts.map(c => c.workshop_id))
+
+  // 0 · Declared payments. Highest thing on the list on purpose: a seat is
+  //     being held on her word, and only Brenda can turn it into a fact.
+  if (paymentClaims.length > 0) {
+    const byEvent = new Map<string, PaymentClaim[]>()
+    for (const c of paymentClaims) {
+      const list = byEvent.get(c.event_id) ?? []
+      list.push(c)
+      byEvent.set(c.event_id, list)
+    }
+    for (const [eventId, list] of byEvent) {
+      const names = list.map(c => c.mother_name).filter(Boolean) as string[]
+      tasks.push({
+        key: `payment_claim:${eventId}:${list.length}`,
+        title: list.length === 1
+          ? `${names[0] ?? 'אמא'} אומרת ששילמה על "${list[0].event_title}"`
+          : `${list.length} אמהות אומרות ששילמו על "${list[0].event_title}"`,
+        facts: ['ביט או העברה', 'ממתין לאישור שלך'],
+        severity: 'high',
+        section: 'events',
+        actionLabel: 'לאישור התשלום',
+        sourceUpdatedAt: list.map(c => c.claimed_at).sort().slice(-1)[0] ?? null,
+        targetId: eventId,
+      })
+    }
+  }
 
   // 1 · Active paid product without a payment link — nobody can buy it.
   for (const w of workshops) {

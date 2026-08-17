@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, type Workshop, type WorkshopCohort, type CommunityEvent, type HomeAnnouncement } from '../../lib/supabase'
-import { deriveAdminTasks, applyDismissals, type AdminTask, type ManualTask, type TaskLead, type LinkedFormDef, type LinkedSubmission } from './adminTasks'
+import { deriveAdminTasks, applyDismissals, type AdminTask, type ManualTask, type TaskLead, type LinkedFormDef, type LinkedSubmission, type PaymentClaim } from './adminTasks'
 import { deriveMegalimCandidates, type MegalimCandidatesResult, type ProfileDob } from './megalimCandidates'
 
 // One shared fetch for the admin home screen + sidebar badges — called
@@ -56,16 +56,22 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
   // Phase 2: manual tasks + dismissal timestamps (task_key → dismissed_at).
   const [manualTasks, setManualTasks] = useState<ManualTask[]>([])
   const [dismissals, setDismissals] = useState<Map<string, string>>(new Map())
+  // Declared Bit/transfer payments awaiting Brenda's confirmation.
+  const [paymentClaims, setPaymentClaims] = useState<PaymentClaim[]>([])
 
   const load = useCallback(async () => {
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-    const [ws, cs, evs, toks, lds, evRegs, anns, pls, mts, dms, dobs] = await Promise.all([
+    const [ws, cs, evs, toks, lds, evRegs, claims, anns, pls, mts, dms, dobs] = await Promise.all([
       supabase.from('workshops').select('*').order('display_order'),
       supabase.from('workshop_cohorts').select('*').order('start_date'),
       supabase.from('community_events').select('*').order('event_date'),
       supabase.from('event_checkin_tokens').select('event_id'),
       supabase.from('registration_leads').select('id, name, phone, email, status, created_at, selected_workshop_id, cohort_id'),
       supabase.from('event_registrations').select('event_id, status'),
+      supabase.from('event_registrations')
+        .select('event_id, payment_claimed_at, community_events(title), user_profiles(mother_name)')
+        .not('payment_claimed_at', 'is', null)
+        .eq('paid', false),
       supabase.from('home_announcements').select('*').order('display_order'),
       supabase.from('partner_leads').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
       supabase.from('admin_tasks').select('*').eq('status', 'open').order('created_at', { ascending: false }),
@@ -89,6 +95,16 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
       }
     }
     setEventRegCounts(evCount)
+    setPaymentClaims(((claims.data ?? []) as unknown as {
+      event_id: string; payment_claimed_at: string
+      community_events: { title: string } | null
+      user_profiles: { mother_name: string | null } | null
+    }[]).map(c => ({
+      event_id: c.event_id,
+      event_title: c.community_events?.title ?? 'אירוע',
+      mother_name: c.user_profiles?.mother_name ?? null,
+      claimed_at: c.payment_claimed_at,
+    })))
     setAnnouncements((anns.data ?? []) as HomeAnnouncement[])
     setProfileDobs((dobs.data ?? []) as ProfileDob[])
     setRecentPartnerLeads(pls.count ?? 0)
@@ -125,6 +141,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
       leads,
       linkedFormDefs: formDefs,
       linkedSubmissions: formSubs,
+      paymentClaims,
       today: todayIsrael(),
       nowMs: Date.now(),
     })

@@ -9,7 +9,8 @@ import ChildSwitcher from '../components/ChildSwitcher'
 import ShareBabyModal from '../components/ShareBabyModal'
 import ActivityTimers from '../components/ActivityTimers'
 import MimoLeaf from '../components/MimoLeaf'
-import JournalTabs, { JournalTab } from '../components/journal/JournalTabs'
+import type { JournalTab } from '../components/journal/JournalTabs'
+import JournalViewSheet from '../components/journal/JournalViewSheet'
 import DayView from '../components/journal/DayView'
 import WeekView from '../components/journal/WeekView'
 import ListView from '../components/journal/ListView'
@@ -89,6 +90,9 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   const [refetchKey, setRefetchKey] = useState(0)
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>('all')
   const [shareOpen, setShareOpen] = useState(false)
+  // The view sheet lives here, not inside a view, so every view opens the
+  // same one and picking a date from week/list can switch to day.
+  const [viewSheet, setViewSheet] = useState(false)
 
   // Week navigation
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()))
@@ -266,12 +270,10 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
           />
         </div>
 
-        {/* Brenda 17.8.26: the day screen carries no tab strip — the four
-            views moved behind the date (see JournalViewSheet), which is
-            what makes that screen read like a calendar instead of a
-            control panel. The other three views keep the strip, because
-            there the date header is not the thing you tap. */}
-        {tab !== 'day' && <JournalTabs value={tab} onChange={setTab} />}
+        {/* Brenda 17.8.26: no tab strip anywhere. All four views wear the
+            same header — arrows, a tappable label, and the view sheet
+            behind it. "כשזה שבוע אז שיוצג פשוט השבוע ושיהיה אפשר ללחוץ
+            על זה ולחזור ליום או לעבור לרשימה." */}
 
         {/* Upsell card surfaces briefly after a past-date manual log save. */}
         {tab === 'day' && upsellType && (
@@ -289,8 +291,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
             onFilterChange={setTimelineFilter}
             onEntrySaved={handleEntrySaved}
             onEditEntry={setEditingEntry}
-            tab={tab}
-            onTabChange={setTab}
+            onOpenViews={() => setViewSheet(true)}
           />
         )}
 
@@ -300,6 +301,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
             weekStart={weekStart}
             onWeekShift={setWeekStart}
             onDayClick={handleDayClick}
+            onOpenViews={() => setViewSheet(true)}
           />
         )}
 
@@ -311,6 +313,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
             loading={rangeLoading}
             onEntrySaved={handleEntrySaved}
             onEditEntry={setEditingEntry}
+            onOpenViews={() => setViewSheet(true)}
           />
         )}
         {tab === 'summary' && (
@@ -320,10 +323,28 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
               setSelectedDate(iso)
               setTab('day')
             }}
+            onOpenViews={() => setViewSheet(true)}
           />
         )}
         </div>
       </div>
+
+      {viewSheet && (
+        <JournalViewSheet
+          tab={tab}
+          selectedDate={selectedDate}
+          maxDate={formatDate(new Date())}
+          onTabChange={t => { setTab(t); setViewSheet(false) }}
+          onDateChange={d => {
+            // A date always means "show me that day", from any view.
+            setSelectedDate(d)
+            setWeekStart(startOfWeek(new Date(d + 'T12:00:00')))
+            setTab('day')
+            setViewSheet(false)
+          }}
+          onClose={() => setViewSheet(false)}
+        />
+      )}
 
       {/* Create modal (past-date taps + non-hybrid action types) */}
       {modalType && (

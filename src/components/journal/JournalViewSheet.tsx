@@ -29,8 +29,17 @@ type Props = {
 export default function JournalViewSheet({
   tab, selectedDate, maxDate, onTabChange, onDateChange, onClose,
 }: Props) {
+  // Picking a date from week/list/summary means "show me that day", so it
+  // switches to the day view as well — otherwise the date silently does
+  // nothing and the sheet looks broken.
+  const jumpsToDay = tab !== 'day'
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose} dir="rtl">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center"
+      style={{ background: 'rgba(94, 73, 56, 0.22)', backdropFilter: 'blur(2px)' }}
+      onClick={onClose}
+      dir="rtl"
+    >
       <div
         className="w-full max-w-[480px] bg-white rounded-t-3xl p-5 pb-8 space-y-4 animate-rise"
         onClick={e => e.stopPropagation()}
@@ -59,7 +68,9 @@ export default function JournalViewSheet({
         </div>
 
         <div className="pt-3 border-t border-[#F0EAE0]">
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5">מעבר לתאריך</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5">
+            {jumpsToDay ? 'מעבר ליום מסוים' : 'מעבר לתאריך'}
+          </label>
           <input
             type="date"
             value={selectedDate}

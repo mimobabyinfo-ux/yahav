@@ -4,6 +4,7 @@ import SleepSummary from './summary/SleepSummary'
 import FeedingSummary from './summary/FeedingSummary'
 import SolidSummary from './summary/SolidSummary'
 import DiaperSummary from './summary/DiaperSummary'
+import JournalHeader from './JournalHeader'
 
 // Phase 3 / C6: סיכום tab. Two-level navigation — category sub-nav
 // (sleep / feeding / solids / diapers) + time-range strip (7 / 14 / 30
@@ -33,9 +34,10 @@ type Props = {
   refetchKey: number
   /** Tap a chart bar → navigate to that day in DayView. */
   onNavigateToDay?: (iso: string) => void
+  onOpenViews: () => void
 }
 
-export default function SummaryView({ refetchKey, onNavigateToDay }: Props) {
+export default function SummaryView({ refetchKey, onNavigateToDay, onOpenViews }: Props) {
   const [subTab, setSubTab] = useState<SubTab>('sleep')
   const [range, setRange] = useState<SummaryRange>('7d')
 
@@ -52,7 +54,13 @@ export default function SummaryView({ refetchKey, onNavigateToDay }: Props) {
 
   return (
     <div className="space-y-3">
-      {/* Sub-nav — mustard pill on active, mirrors JournalTabs style. */}
+      {/* Same header as every other view. Nothing to step through here,
+          so it is the label alone — but it is still the way back. */}
+      <JournalHeader onOpenViews={onOpenViews}>
+        <span className="font-semibold" style={{ fontSize: 17, color: '#443327' }}>סיכום</span>
+      </JournalHeader>
+
+      {/* Sub-nav — mustard pill on active. */}
       <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1">
         {SUB_TABS.map(t => (
           <button
