@@ -1,15 +1,35 @@
 import { useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, BarChart3, LayoutGrid, List, type LucideIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import type { DailyLogEntryWithDetails } from '../../lib/supabase'
 import { formatDate, formatDisplayDate } from '../../utils/dateUtils'
-import { hebrewDateHeader } from '../../utils/hebrewDate'
-import HorizontalCalendar from '../HorizontalCalendar'
 import MimoLeaf from '../MimoLeaf'
 import DailySummary from '../DailySummary'
 import DailyTimeline from '../DailyTimeline'
 import DayTimelineChart from './DayTimelineChart'
+import type { JournalTab } from './JournalTabs'
+import JournalViewSheet from './JournalViewSheet'
 
-// Timeline filter — shown only inside the "list" sub-view.
+// The day screen.
+//
+// Brenda 17.8.26: "the journal is very very crowded and messy and hard to
+// use... I want it to be intuitive like Google Calendar, where what's in
+// the journal is purely baby things."
+//
+// The crowding was structural, not cosmetic: before any data appeared she
+// passed FIVE stacked controls — the tab strip, an arrow row, a week
+// strip, a graph/cards/list toggle, and a category filter. Each was
+// reasonable on its own; together they were the page.
+//
+// Google Calendar shows exactly one control, the date, and hides
+// everything else behind it. So:
+//  · One header line: ‹ 16 יום ראשון › . Tapping the date opens a sheet
+//    with the four views and a date picker. The week strip is gone —
+//    swiping between days replaces it.
+//  · The content is then a single scroll in the order she asked for:
+//    timeline → detail → daily summary. No toggle. That is also how a
+//    day is actually read: what happened, when exactly, how much in total.
+//  · The category filter moved down to sit on the detail list it filters.
+
 type TimelineFilter = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time'
 const TIMELINE_FILTERS: { value: TimelineFilter; label: string }[] = [
   { value: 'all',        label: 'הכל' },
@@ -19,16 +39,7 @@ const TIMELINE_FILTERS: { value: TimelineFilter; label: string }[] = [
   { value: 'tummy_time', label: 'בטן' },
 ]
 
-// Phase 3 / C4 UX restructure: Day-view now toggles between 3
-// visualization modes (graph / cards / list) so mom isn't fed all of
-// them at once. Default 'graph' on every mount — intentionally NOT
-// persisted to localStorage (Q from the spec).
-type DayViewMode = 'graph' | 'cards' | 'list'
-const VIEW_MODES: { id: DayViewMode; icon: LucideIcon; label: string }[] = [
-  { id: 'graph', icon: BarChart3,  label: 'ציר זמן' },
-  { id: 'cards', icon: LayoutGrid, label: 'סיכום יומי' },
-  { id: 'list',  icon: List,       label: 'פירוט' },
-]
+const HE_WEEKDAY = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'שבת']
 
 type Props = {
   selectedDate: string                                  // YYYY-MM-DD
@@ -39,13 +50,21 @@ type Props = {
   onFilterChange: (f: TimelineFilter) => void
   onEntrySaved: () => void
   onEditEntry: (entry: DailyLogEntryWithDetails) => void
+  /** The four journal views — switched from the sheet behind the date. */
+  tab: JournalTab
+  onTabChange: (tab: JournalTab) => void
 }
 
-// ── Date helpers ────────────────────────────────────────────────────────────
 function shiftDate(iso: string, days: number): string {
   const d = new Date(iso + 'T00:00:00')
   d.setDate(d.getDate() + days)
   return formatDate(d)
+}
+
+/** "16 יום ראשון" — the number first, the way Google Calendar writes it. */
+function dayHeading(iso: string): { num: string; weekday: string } {
+  const d = new Date(iso + 'T00:00:00')
+  return { num: String(d.getDate()), weekday: HE_WEEKDAY[d.getDay()] }
 }
 
 export default function DayView({
@@ -57,35 +76,24 @@ export default function DayView({
   onFilterChange,
   onEntrySaved,
   onEditEntry,
+  tab,
+  onTabChange,
 }: Props) {
   const today = formatDate(new Date())
   const isToday = selectedDate === today
 
   // JournalPage widens fetchEntries by 1 day on the LEFT so the chart can
-  // render cross-midnight sleep tails. Everything else on this page wants
-  // strictly-today entries.
+  // render cross-midnight sleep tails. Everything else wants strictly today.
   const todayEntries = entries.filter(e => e.entry_date === selectedDate)
 
-  // View mode toggle — resets to 'graph' on mount (not persisted).
-  const [mode, setMode] = useState<DayViewMode>('graph')
-
-  // Hidden <input type="date"> ref — tapping the center label opens the
-  // native date picker via .showPicker() (Chromium / Safari iOS support).
-  const datePickerRef = useRef<HTMLInputElement>(null)
-  function openPicker() {
-    const el = datePickerRef.current
-    if (!el) return
-    if (typeof el.showPicker === 'function') {
-      try { el.showPicker(); return } catch { /* fall through */ }
-    }
-    el.click()
-  }
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const { num, weekday } = dayHeading(selectedDate)
 
   // ── Swipe-to-navigate (50px deltaX, horizontal-dominant) ────────────
   // RTL convention: swipe LEFT = next day; swipe RIGHT = previous day.
-  // Matches HorizontalCalendar's chevron orientation.
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   function handleTouchStart(e: React.TouchEvent) {
+    if (e.touches.length !== 1) { touchStartRef.current = null; return }
     const t = e.touches[0]
     touchStartRef.current = { x: t.clientX, y: t.clientY }
   }
@@ -105,64 +113,42 @@ export default function DayView({
     }
   }
 
+  const filtered = filter === 'all' ? todayEntries : todayEntries.filter(e => e.entry_type === filter)
+
   return (
     <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} className="space-y-4">
-      {/* Date-nav header */}
-      <div className="flex items-center justify-between gap-2 bg-white rounded-2xl shadow-sm px-2 py-1.5">
+      {/* ── The one control: the date ──────────────────────────────── */}
+      <div className="flex items-center justify-between gap-1">
         <button
           onClick={() => onDateChange(shiftDate(selectedDate, -1))}
-          className="p-2 rounded-xl text-sand-500 hover:bg-sand-50 transition-colors"
+          className="p-2 rounded-xl text-sand-500 hover:bg-white transition-colors"
           aria-label="יום קודם"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
+
         <button
-          onClick={openPicker}
-          className="flex items-center gap-1.5 text-sm font-semibold text-sand-700 hover:text-mustard-600 transition-colors"
+          onClick={() => setSheetOpen(true)}
+          className="flex items-baseline gap-2 px-3 py-1.5 rounded-2xl hover:bg-white transition-colors"
         >
-          <CalendarIcon className="w-4 h-4 text-sand-600" />
-          <span>{isToday ? `היום · ${hebrewDateHeader(selectedDate).split(' · ')[1]}` : hebrewDateHeader(selectedDate)}</span>
+          <span className="font-display" style={{ fontSize: 26, lineHeight: 1, color: '#443327' }}>{num}</span>
+          <span className="font-semibold" style={{ fontSize: 15, color: '#7B604C' }}>{weekday}</span>
+          {isToday && (
+            <span className="font-bold rounded-full" style={{ fontSize: 11, padding: '2px 7px', background: '#F6ECD8', color: '#8A6A2F' }}>
+              היום
+            </span>
+          )}
+          <ChevronDown className="w-4 h-4" style={{ color: '#A2937D' }} />
         </button>
+
         <button
           onClick={() => !isToday && onDateChange(shiftDate(selectedDate, 1))}
           disabled={isToday}
-          className="p-2 rounded-xl text-sand-500 hover:bg-sand-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-2 rounded-xl text-sand-500 hover:bg-white transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
           aria-label="יום הבא"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <input
-          ref={datePickerRef}
-          type="date"
-          value={selectedDate}
-          max={today}
-          onChange={e => e.target.value && onDateChange(e.target.value)}
-          className="sr-only"
-          aria-hidden="true"
-          tabIndex={-1}
-        />
-      </div>
-
-      {/* Horizontal week strip — for jumping ±N days beyond the arrow row. */}
-      <div className="bg-white rounded-3xl p-4 shadow-sm border border-[#F0EAE0]">
-        <HorizontalCalendar selectedDate={selectedDate} onSelect={onDateChange} />
-      </div>
-
-      {/* ── View toggle (graph / cards / list) ────────────────────────── */}
-      <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1">
-        {VIEW_MODES.map(m => (
-          <button
-            key={m.id}
-            onClick={() => setMode(m.id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
-              mode === m.id ? 'shadow-sm' : 'text-sand-500'
-            }`}
-            style={mode === m.id ? { background: '#E7C78A', color: '#4A3A28' } : {}}
-          >
-            <m.icon className="w-4 h-4" strokeWidth={2.2} />
-            <span>{m.label}</span>
-          </button>
-        ))}
       </div>
 
       {loading && (
@@ -171,49 +157,63 @@ export default function DayView({
         </div>
       )}
 
-      {/* ── Mode-specific content — keyed so tab switches animate ────── */}
-      <div key={mode} className="animate-rise space-y-4">
-      {!loading && mode === 'graph' && (
-        <DayTimelineChart entries={entries} selectedDate={selectedDate} />
-      )}
+      {!loading && (
+        <div key={selectedDate} className="animate-rise space-y-4">
+          {/* 1 — ציר זמן */}
+          <DayTimelineChart entries={entries} selectedDate={selectedDate} />
 
-      {!loading && mode === 'cards' && (
-        <DailySummary entries={todayEntries} />
-      )}
+          {/* 2 — פירוט */}
+          <div className="space-y-2">
+            <p className="text-[13px] font-bold px-1" style={{ color: '#7B604C' }}>פירוט</p>
+            <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1">
+              {TIMELINE_FILTERS.map(f => (
+                <button
+                  key={f.value}
+                  onClick={() => onFilterChange(f.value)}
+                  className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    filter === f.value ? 'shadow-sm' : 'text-sand-500'
+                  }`}
+                  style={filter === f.value ? { background: '#E7C78A', color: '#4A3A28' } : {}}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
 
-      {!loading && mode === 'list' && (
-        <>
-          {/* Filter strip — narrows the timeline to a single category. */}
-          <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1">
-            {TIMELINE_FILTERS.map(f => (
-              <button
-                key={f.value}
-                onClick={() => onFilterChange(f.value)}
-                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
-                  filter === f.value ? 'shadow-sm' : 'text-sand-500'
-                }`}
-                style={filter === f.value ? { background: '#E7C78A', color: '#4A3A28' } : {}}
-              >
-                {f.label}
-              </button>
-            ))}
+            {filtered.length === 0 ? (
+              <div className="bg-white rounded-3xl p-8 shadow-sm border border-[#F0EAE0] text-center space-y-2">
+                <MimoLeaf variant="sand-2" size={64} rotate={-8} className="mx-auto" />
+                <p className="text-sm text-sand-500">
+                  {todayEntries.length > 0
+                    ? 'אין רשומות בקטגוריה הזו'
+                    : isToday ? 'עוד לא נרשמו פעולות היום' : `אין רשומות מ${formatDisplayDate(selectedDate)}`}
+                </p>
+              </div>
+            ) : (
+              <DailyTimeline entries={filtered} onRefresh={onEntrySaved} onEditEntry={onEditEntry} />
+            )}
           </div>
 
-          {todayEntries.length === 0 ? (
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-[#F0EAE0] text-center space-y-2">
-              <MimoLeaf variant="sand-2" size={64} rotate={-8} className="mx-auto" />
-              <p className="text-sm text-sand-500">{isToday ? 'עוד לא נרשמו פעולות היום' : `אין רשומות מ${formatDisplayDate(selectedDate)}`}</p>
+          {/* 3 — סיכום יומי */}
+          {todayEntries.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[13px] font-bold px-1" style={{ color: '#7B604C' }}>סיכום יומי</p>
+              <DailySummary entries={todayEntries} />
             </div>
-          ) : (
-            <DailyTimeline
-              entries={filter === 'all' ? todayEntries : todayEntries.filter(e => e.entry_type === filter)}
-              onRefresh={onEntrySaved}
-              onEditEntry={onEditEntry}
-            />
           )}
-        </>
+        </div>
       )}
-      </div>
+
+      {sheetOpen && (
+        <JournalViewSheet
+          tab={tab}
+          selectedDate={selectedDate}
+          maxDate={today}
+          onTabChange={t => { onTabChange(t); setSheetOpen(false) }}
+          onDateChange={d => { onDateChange(d); setSheetOpen(false) }}
+          onClose={() => setSheetOpen(false)}
+        />
+      )}
     </div>
   )
 }

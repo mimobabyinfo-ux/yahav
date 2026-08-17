@@ -266,7 +266,12 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
           />
         </div>
 
-        <JournalTabs value={tab} onChange={setTab} />
+        {/* Brenda 17.8.26: the day screen carries no tab strip — the four
+            views moved behind the date (see JournalViewSheet), which is
+            what makes that screen read like a calendar instead of a
+            control panel. The other three views keep the strip, because
+            there the date header is not the thing you tap. */}
+        {tab !== 'day' && <JournalTabs value={tab} onChange={setTab} />}
 
         {/* Upsell card surfaces briefly after a past-date manual log save. */}
         {tab === 'day' && upsellType && (
@@ -284,6 +289,8 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
             onFilterChange={setTimelineFilter}
             onEntrySaved={handleEntrySaved}
             onEditEntry={setEditingEntry}
+            tab={tab}
+            onTabChange={setTab}
           />
         )}
 

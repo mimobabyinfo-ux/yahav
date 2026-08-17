@@ -20,6 +20,11 @@ export default function BottlePage({ onBack, onSaved }: Props) {
   const [amount, setAmount] = useState('')
   const [milkType, setMilkType] = useState<MilkType>('formula')
   const [time, setTime] = useState(() => formatTime(new Date()))
+  // Brenda 17.8.26: "in bottle I have no option to put it backwards — if I
+  // forgot last night and remember this morning". A time alone always
+  // meant today, so a forgotten feed could only be logged on the wrong
+  // day. Defaults to today, so nothing changes for the common case.
+  const [date, setDate] = useState(() => formatDate(new Date()))
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -42,7 +47,7 @@ export default function BottlePage({ onBack, onSaved }: Props) {
         .insert({
           user_id: user.id,
           child_id: selectedChild?.id ?? null,
-          entry_date: formatDate(now),
+          entry_date: date || formatDate(now),
           entry_time: time || formatTime(now),
           entry_type: 'feeding',
           notes: notes.trim() || null,
@@ -123,14 +128,28 @@ export default function BottlePage({ onBack, onSaved }: Props) {
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">שעה</label>
-          <input
-            type="time"
-            value={time}
-            onChange={e => setTime(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
-          />
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">תאריך</label>
+            <input
+              type="date"
+              value={date}
+              max={formatDate(new Date())}
+              onChange={e => setDate(e.target.value)}
+              dir="ltr"
+              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">שעה</label>
+            <input
+              type="time"
+              value={time}
+              onChange={e => setTime(e.target.value)}
+              dir="ltr"
+              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
+            />
+          </div>
         </div>
 
         <div>

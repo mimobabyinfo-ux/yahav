@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { X, Copy, Check, MessageCircle, Eye, Users, ChevronRight, ArrowRight } from 'lucide-react'
+import { X, Copy, Check, MessageCircle, Users, ChevronRight, ArrowRight } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { getBabyAge } from '../utils/dateUtils'
 import { SHARE_ROLES, type ShareRole, roleDef } from '../constants/shareRoles'
 
 // Phase 4 / C1: the share modal now exposes TWO flows.
@@ -24,37 +23,13 @@ type Stage =
 export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
   const { profile, selectedChild, createFamilyInvite, createFamily, refreshProfile } = useAuth()
   const [stage, setStage] = useState<Stage>({ kind: 'menu' })
-  const [copiedLive, setCopiedLive] = useState(false)
   const [copiedJoin, setCopiedJoin] = useState(false)
 
-  const appBase = window.location.origin
   const baby = selectedChild
-  const age = baby?.dob ? getBabyAge(baby.dob) : null
-  const genderEmoji = baby?.gender === 'boy' ? '👶🏻' : baby?.gender === 'girl' ? '👧' : '👶'
 
-  const liveLink = baby?.share_token ? `${appBase}?baby=${baby.share_token}` : null
-
-  // ── Anonymous quick-share (legacy children.share_token) ────────────────
-  const liveShareText = [
-    `${genderEmoji} ${baby?.name ?? 'התינוק שלי'}`,
-    age ? `גיל: ${age}` : null,
-    profile?.mother_name ? `אמא: ${profile.mother_name}` : null,
-    '',
-    '👀 לצפייה חיה בפעילויות של היום:',
-    liveLink ?? appBase,
-  ].filter(l => l !== null).join('\n')
-
-  function copyLiveLink() {
-    if (!liveLink) return
-    navigator.clipboard.writeText(liveLink).then(() => {
-      setCopiedLive(true)
-      setTimeout(() => setCopiedLive(false), 2000)
-    })
-  }
-
-  function shareLiveWhatsApp() {
-    window.open(`https://wa.me/?text=${encodeURIComponent(liveShareText)}`, '_blank')
-  }
+  // Brenda 17.8.26: the anonymous view-only link is gone. Sharing a baby's
+  // day with anyone holding a URL was the one route into this app that
+  // asked nobody's permission, and she does not want it offered.
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose} dir="rtl">
@@ -87,14 +62,7 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
 
         <div className="overflow-y-auto flex-1">
           {stage.kind === 'menu' && (
-            <MenuView
-              babyName={baby?.name ?? 'התינוק שלך'}
-              liveLink={liveLink}
-              copiedLive={copiedLive}
-              onOpenFamily={() => setStage({ kind: 'family-form' })}
-              onShareLive={shareLiveWhatsApp}
-              onCopyLive={copyLiveLink}
-            />
+            <MenuView onOpenFamily={() => setStage({ kind: 'family-form' })} />
           )}
 
           {stage.kind === 'family-form' && (
@@ -148,19 +116,10 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Menu view: two sections (family share + quick anonymous)
+// Menu view: family share, the only sharing route there is.
 // ───────────────────────────────────────────────────────────────────────────
 
-type MenuViewProps = {
-  babyName: string
-  liveLink: string | null
-  copiedLive: boolean
-  onOpenFamily: () => void
-  onShareLive: () => void
-  onCopyLive: () => void
-}
-
-function MenuView({ babyName, liveLink, copiedLive, onOpenFamily, onShareLive, onCopyLive }: MenuViewProps) {
+function MenuView({ onOpenFamily }: { onOpenFamily: () => void }) {
   return (
     <div className="p-5 space-y-4">
       {/* Section 1 — family share (primary, prominent) */}
@@ -173,44 +132,9 @@ function MenuView({ babyName, liveLink, copiedLive, onOpenFamily, onShareLive, o
           <p className="font-bold text-sand-800">שתפי עם בני משפחה</p>
           <ChevronRight className="w-4 h-4 text-mustard-500 mr-auto rotate-180" />
         </div>
-        <p className="text-xs text-sand-600 leading-relaxed">
-          תני גישה לבעל הזוג, סבים, או למטפלת. הם יראו את היומן של {babyName} עם ברכה אישית.
-        </p>
-        <p className="text-[11px] text-mustard-700 font-semibold">בחרי תפקיד וצרי לינק ←</p>
+        <p className="text-sm font-bold text-mustard-700">בחרי תפקיד וצרי לינק ←</p>
       </button>
 
-      {/* Section 2 — anonymous quick share (secondary, smaller) */}
-      {liveLink ? (
-        <div className="rounded-2xl p-3 bg-white border border-sand-200 space-y-2">
-          <div className="flex items-center gap-2">
-            <Eye className="w-4 h-4 text-sand-500 flex-shrink-0" />
-            <p className="text-xs font-semibold text-sand-700">שיתוף מהיר אנונימי</p>
-          </div>
-          <p className="text-[11px] text-sand-500 leading-relaxed">
-            לינק לצפייה בלבד, בלי חשבון ובלי הרשמה.
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={onShareLive}
-              className="flex-1 flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-xl text-xs transition-all"
-            >
-              <MessageCircle className="w-3.5 h-3.5" />
-              WhatsApp
-            </button>
-            <button
-              onClick={onCopyLive}
-              className="flex-1 flex items-center justify-center gap-1.5 border border-sand-200 text-sand-700 font-semibold py-2 rounded-xl text-xs transition-all hover:bg-sand-50"
-            >
-              {copiedLive ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-              {copiedLive ? 'הועתק' : 'העתק לינק'}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <p className="text-[11px] text-sand-400 px-1">
-          (לינק מהיר זמין אחרי שמוסיפים תינוק)
-        </p>
-      )}
     </div>
   )
 }

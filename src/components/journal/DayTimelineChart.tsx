@@ -1,22 +1,38 @@
+import { useEffect, useRef, useState } from 'react'
+import { Minus, Plus } from 'lucide-react'
 import type { DailyLogEntryWithDetails, FeedingDetail, SleepDetail } from '../../lib/supabase'
 import { formatDate, formatDuration } from '../../utils/dateUtils'
 import { sleepTypeFromStartTime } from '../../utils/sleepTypeFromTime'
 import { ENTRY_COLORS } from '../DailyTimeline'
 
-// Phase 3 / C4 (Day-view addition): single-column Gantt timeline for the
-// selected day. Mirrors WeekTimelineChart's geometry — 0:00 top, 24:00
-// bottom, time-positioned segments — but bigger (400px tall) with text
-// labels inside large duration blocks, plus a muted gray "now" line that
-// appears on EVERY day (not just today). The cross-midnight rule matches
-// the rest of the journal: a sleep that started yesterday but ended today
-// renders on today's column starting at 00:00.
+// The day's Gantt timeline: 00:00 at the top, 24:00 at the bottom, blocks
+// placed by real time.
+//
+// Brenda 17.8.26 asked for three things here, and the first one forced the
+// geometry to change:
+//  · ZOOM. The chart used to squeeze 24 hours into a fixed 400px, so a
+//    12-minute feed was two pixels and a busy morning was a smear. Layout
+//    is now px-per-hour rather than percentages, the container scrolls,
+//    and +/− (or a pinch) moves between three levels.
+//  · A LEGEND. Colour with no key is decoration.
+//  · A clearer NOW line — see below.
+//
+// Cross-midnight rule is unchanged: a sleep that started yesterday and
+// ended today renders on today's column starting at 00:00.
 
-const CHART_HEIGHT_PX = 400
+const ZOOM_LEVELS = [20, 44, 88] as const   // px per hour
+const DEFAULT_ZOOM = 0
+const VIEWPORT_MAX_PX = 480
 const MIN_DURATION_BLOCK_PX = 6
 const INSTANT_HEIGHT_PX = 4
 const MINS_PER_DAY = 1440
-const TEXT_LABEL_THRESHOLD_PX = 28   // only render text inside a block this tall or taller
-const GRID_HOURS = [0, 3, 6, 9, 12, 15, 18, 21]  // every 3 hours
+const TEXT_LABEL_THRESHOLD_PX = 28
+const LEGEND: { type: string; label: string }[] = [
+  { type: 'feeding',    label: 'האכלה' },
+  { type: 'sleep',      label: 'שינה' },
+  { type: 'diaper',     label: 'חיתול' },
+  { type: 'tummy_time', label: 'זמן בטן' },
+]
 
 type Props = {
   /** Entries with entry_date in [selectedDate-1, selectedDate]. The
@@ -60,13 +76,11 @@ function resolveSleepKind(e: DailyLogEntryWithDetails, sd: SleepDetail | null): 
 }
 
 type Segment = {
-  topPct: number
-  heightPct: number
-  minHeightPx: number
+  startMin: number
+  durMin: number
   color: string
   isInstant: boolean
   bordered: boolean
-  // For text labels inside large blocks
   primaryLabel: string | null
   secondaryLabel: string | null
 }
@@ -79,7 +93,6 @@ function buildSegmentsForDay(entries: DailyLogEntryWithDetails[], day: string): 
     const startMin = timeToMinutes(e.entry_time.slice(0, 5))
     if (startMin == null) continue
 
-    // Compute duration + flags.
     let durMin = 0
     let isInstant = false
     let primaryLabel: string | null = null
@@ -116,14 +129,9 @@ function buildSegmentsForDay(entries: DailyLogEntryWithDetails[], day: string): 
     const secondary = !isInstant && durMin > 0 ? formatDuration(durMin) : null
 
     if (e.entry_date === day) {
-      // Primary segment on selected day. If it overflows past midnight,
-      // the height calc clamps to 24:00 (no tail rendered here — tomorrow's
-      // column would carry it on its own day view).
-      const effectiveDur = isInstant ? 0 : Math.max(0, Math.min(durMin, MINS_PER_DAY - startMin))
       out.push({
-        topPct: (startMin / MINS_PER_DAY) * 100,
-        heightPct: (effectiveDur / MINS_PER_DAY) * 100,
-        minHeightPx: isInstant ? INSTANT_HEIGHT_PX : MIN_DURATION_BLOCK_PX,
+        startMin,
+        durMin: isInstant ? 0 : Math.max(0, Math.min(durMin, MINS_PER_DAY - startMin)),
         color: colors.dot,
         isInstant,
         bordered,
@@ -137,27 +145,25 @@ function buildSegmentsForDay(entries: DailyLogEntryWithDetails[], day: string): 
       const dayStartEpoch = new Date(`${day}T00:00:00`).getTime()
       const dayEndEpoch = dayStartEpoch + MINS_PER_DAY * 60000
       if (endEpoch > dayStartEpoch && startEpoch < dayEndEpoch) {
-        const tailMin = Math.min(endEpoch, dayEndEpoch) - dayStartEpoch
-        const tailDur = tailMin / 60000
+        const tailMin = (Math.min(endEpoch, dayEndEpoch) - dayStartEpoch) / 60000
         out.push({
-          topPct: 0,
-          heightPct: Math.min((tailDur / MINS_PER_DAY) * 100, 100),
-          minHeightPx: MIN_DURATION_BLOCK_PX,
+          startMin: 0,
+          durMin: Math.min(tailMin, MINS_PER_DAY),
           color: colors.dot,
           isInstant: false,
           bordered: false,
           primaryLabel,
-          secondaryLabel: secondary,  // shows the FULL sleep duration; mom understands "this is a 9h sleep, you see 6h of it here"
+          // The FULL sleep duration: "this is a 9h sleep, you see 6h of it".
+          secondaryLabel: secondary,
         })
       }
     }
-    // Other day entries from neighbors don't render in the day view.
   }
 
   // Z-order: long blocks first (background), instants on top.
   out.sort((a, b) => {
     if (a.isInstant !== b.isInstant) return a.isInstant ? 1 : -1
-    return b.heightPct - a.heightPct
+    return b.durMin - a.durMin
   })
 
   return out
@@ -175,114 +181,206 @@ function pad2(n: number): string { return n.toString().padStart(2, '0') }
 export default function DayTimelineChart({ entries, selectedDate }: Props) {
   const segs = buildSegmentsForDay(entries, selectedDate)
 
-  const nowMin = currentMinuteOfDay()
-  const nowLabel = `${pad2(Math.floor(nowMin / 60))}:${pad2(nowMin % 60)}`
-  // Tomorrow guard: if the user is looking at a FUTURE date, the now-line
-  // doesn't belong. Hide it. (Past days = show now-line at current hour as
-  // a comparison aid, per spec.)
+  const [zoom, setZoom] = useState<number>(DEFAULT_ZOOM)
+  const pxPerHour = ZOOM_LEVELS[zoom]
+  const chartHeight = pxPerHour * 24
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // The now-line ticks. A journal that shows a frozen "now" is a chart;
+  // one that moves is a clock you can read your day against.
+  const [nowMin, setNowMin] = useState(currentMinuteOfDay)
+  useEffect(() => {
+    const t = setInterval(() => setNowMin(currentMinuteOfDay()), 60_000)
+    return () => clearInterval(t)
+  }, [])
+
   const today = formatDate(new Date())
+  const isToday = selectedDate === today
   const showNowLine = selectedDate <= today
+  const nowLabel = `${pad2(Math.floor(nowMin / 60))}:${pad2(nowMin % 60)}`
+
+  // Open where the day actually is. On today that is the current hour; on
+  // a past day it is the first thing that happened. Starting at 00:00 wastes
+  // the first screen on the hours she slept through.
+  const anchorMin = isToday
+    ? nowMin
+    : (segs.length > 0 ? Math.min(...segs.map(s => s.startMin)) : 7 * 60)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const target = (anchorMin / 60) * pxPerHour - el.clientHeight / 2
+    el.scrollTop = Math.max(0, Math.min(target, chartHeight - el.clientHeight))
+    // Re-anchor when the day or the zoom changes, not on every tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, pxPerHour])
+
+  // ── Pinch to zoom ────────────────────────────────────────────────────
+  const pinchStartRef = useRef<number | null>(null)
+  function touchDistance(t: React.TouchList): number {
+    const dx = t[0].clientX - t[1].clientX
+    const dy = t[0].clientY - t[1].clientY
+    return Math.hypot(dx, dy)
+  }
+  function onTouchStart(e: React.TouchEvent) {
+    if (e.touches.length === 2) pinchStartRef.current = touchDistance(e.touches)
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    if (e.touches.length !== 2 || pinchStartRef.current == null) return
+    const ratio = touchDistance(e.touches) / pinchStartRef.current
+    if (ratio > 1.35 && zoom < ZOOM_LEVELS.length - 1) { setZoom(zoom + 1); pinchStartRef.current = touchDistance(e.touches) }
+    if (ratio < 0.75 && zoom > 0) { setZoom(zoom - 1); pinchStartRef.current = touchDistance(e.touches) }
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    if (e.touches.length < 2) pinchStartRef.current = null
+  }
+
+  // Hour gridlines: every 3h when compressed, every hour once zoomed in.
+  const hourStep = pxPerHour >= 44 ? 1 : 3
+  const gridHours: number[] = []
+  for (let h = 0; h < 24; h += hourStep) gridHours.push(h)
 
   return (
     <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] overflow-hidden">
+      {/* Zoom control */}
+      <div className="flex items-center justify-between px-3 pt-3">
+        <span className="text-[11px] font-semibold text-sand-500">ציר הזמן של היום</span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setZoom(z => Math.max(0, z - 1))}
+            disabled={zoom === 0}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-sand-600 disabled:opacity-30"
+            style={{ background: '#F4EDE1' }}
+            aria-label="הקטנה"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setZoom(z => Math.min(ZOOM_LEVELS.length - 1, z + 1))}
+            disabled={zoom === ZOOM_LEVELS.length - 1}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-sand-600 disabled:opacity-30"
+            style={{ background: '#F4EDE1' }}
+            aria-label="הגדלה"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
       <div
-        key={selectedDate}
-        className="grid grid-cols-[28px_1fr] animate-fade-in"
-        style={{ height: CHART_HEIGHT_PX }}
+        ref={scrollRef}
+        className="overflow-y-auto scroll-hide mt-2"
+        style={{ maxHeight: VIEWPORT_MAX_PX }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
-        {/* Time rail — 8 hour labels every 3h, LTR-formatted. */}
-        <div className="relative border-l border-sand-100" dir="ltr">
-          {GRID_HOURS.map(h => {
-            if (h === 0) return null  // skip 00:00 — clips the chart edge
-            return (
-              <span
-                key={h}
-                className="absolute text-[11px] text-sand-600 right-1"
-                style={{ top: `calc(${(h / 24) * 100}% - 6px)` }}
-              >
-                {pad2(h)}:00
-              </span>
-            )
-          })}
-        </div>
-
-        {/* The single day column */}
-        <div className="relative">
-          {/* Faint hour gridlines */}
-          {GRID_HOURS.map(h => (
-            <div
-              key={h}
-              className="absolute left-0 right-0 h-px bg-sand-200/40 pointer-events-none"
-              style={{ top: `${(h / 24) * 100}%` }}
-            />
-          ))}
-
-          {/* "Now" line — muted slate, full-width across the column.
-              Visible on today + past days (a comparison aid: "what was
-              happening at this hour on past days?"). Hidden on future days. */}
-          {showNowLine && (
-            <>
-              <div
-                className="absolute left-0 right-0 pointer-events-none"
-                style={{
-                  top: `${(nowMin / MINS_PER_DAY) * 100}%`,
-                  height: 1.5,
-                  background: '#64748B',
-                  opacity: 0.55,
-                }}
-              />
-              <div
-                className="absolute pointer-events-none"
-                style={{
-                  top: `calc(${(nowMin / MINS_PER_DAY) * 100}% - 8px)`,
-                  left: 4,
-                }}
-              >
-                <span className="inline-block text-[11px] font-bold text-sand-600 bg-white/85 px-1.5 py-0.5 rounded">
-                  {nowLabel}
+        <div className="grid grid-cols-[34px_1fr]" style={{ height: chartHeight }}>
+          {/* Time rail */}
+          <div className="relative border-l border-sand-100" dir="ltr">
+            {gridHours.map(h => (
+              h === 0 ? null : (
+                <span
+                  key={h}
+                  className="absolute text-[11px] text-sand-600 right-1"
+                  style={{ top: h * pxPerHour - 6 }}
+                >
+                  {pad2(h)}:00
                 </span>
-              </div>
-            </>
-          )}
+              )
+            ))}
+          </div>
 
-          {/* Segments */}
-          {segs.map((seg, i) => {
-            const heightStyle = seg.isInstant
-              ? `${INSTANT_HEIGHT_PX}px`
-              : `max(${seg.heightPct}%, ${seg.minHeightPx}px)`
-            // Decide if there's room for the in-block text label.
-            const blockPx = seg.isInstant
-              ? INSTANT_HEIGHT_PX
-              : Math.max((seg.heightPct / 100) * CHART_HEIGHT_PX, seg.minHeightPx)
-            const showText = !seg.isInstant && blockPx >= TEXT_LABEL_THRESHOLD_PX && (seg.primaryLabel || seg.secondaryLabel)
-
-            return (
+          {/* The day column */}
+          <div className="relative">
+            {gridHours.map(h => (
               <div
-                key={i}
-                className="absolute left-1.5 right-1.5 overflow-hidden"
-                style={{
-                  top: `${seg.topPct}%`,
-                  height: heightStyle,
-                  background: seg.color,
-                  opacity: seg.isInstant ? 0.85 : 0.92,
-                  borderRadius: seg.isInstant ? 2 : 6,
-                  boxShadow: seg.bordered ? 'inset 0 0 0 1px rgba(255,255,255,0.55)' : undefined,
-                }}
-              >
-                {showText && (
-                  <div className="flex items-start justify-between px-2.5 py-1.5 text-[#4A3A28]">
-                    {seg.primaryLabel && (
-                      <span className="text-xs font-bold whitespace-nowrap">{seg.primaryLabel}</span>
-                    )}
-                    {seg.secondaryLabel && (
-                      <span className="text-xs font-medium whitespace-nowrap opacity-90">{seg.secondaryLabel}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+                key={h}
+                className="absolute left-0 right-0 h-px bg-sand-200/40 pointer-events-none"
+                style={{ top: h * pxPerHour }}
+              />
+            ))}
+
+            {/* Now line. On today it is the brand's rojo tierra, because it
+                means "you are here". On a past day it stays muted grey —
+                there it is only a comparison aid. */}
+            {showNowLine && (
+              <>
+                <div
+                  className="absolute left-0 right-0 pointer-events-none"
+                  style={{
+                    top: (nowMin / 60) * pxPerHour,
+                    height: isToday ? 2 : 1.5,
+                    background: isToday ? '#A35C3D' : '#64748B',
+                    opacity: isToday ? 0.9 : 0.5,
+                  }}
+                />
+                <div
+                  className="absolute pointer-events-none"
+                  style={{ top: (nowMin / 60) * pxPerHour - 8, left: 4 }}
+                >
+                  <span
+                    className="inline-block text-[11px] font-bold px-1.5 py-0.5 rounded"
+                    style={isToday
+                      ? { background: '#A35C3D', color: '#FFFFFF' }
+                      : { background: 'rgba(255,255,255,.85)', color: '#6E6257' }}
+                  >
+                    {nowLabel}
+                  </span>
+                </div>
+              </>
+            )}
+
+            {/* Segments */}
+            {segs.map((seg, i) => {
+              const top = (seg.startMin / 60) * pxPerHour
+              const rawHeight = (seg.durMin / 60) * pxPerHour
+              const height = seg.isInstant
+                ? INSTANT_HEIGHT_PX
+                : Math.max(rawHeight, MIN_DURATION_BLOCK_PX)
+              const showText = !seg.isInstant && height >= TEXT_LABEL_THRESHOLD_PX
+                && (seg.primaryLabel || seg.secondaryLabel)
+
+              return (
+                <div
+                  key={i}
+                  className="absolute left-1.5 right-1.5 overflow-hidden"
+                  style={{
+                    top,
+                    height,
+                    background: seg.color,
+                    opacity: seg.isInstant ? 0.85 : 0.92,
+                    borderRadius: seg.isInstant ? 2 : 6,
+                    boxShadow: seg.bordered ? 'inset 0 0 0 1px rgba(255,255,255,0.55)' : undefined,
+                  }}
+                >
+                  {showText && (
+                    <div className="flex items-start justify-between px-2.5 py-1.5 text-[#4A3A28]">
+                      {seg.primaryLabel && (
+                        <span className="text-xs font-bold whitespace-nowrap">{seg.primaryLabel}</span>
+                      )}
+                      {seg.secondaryLabel && (
+                        <span className="text-xs font-medium whitespace-nowrap opacity-90">{seg.secondaryLabel}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 border-t border-[#F4EFE7]">
+        {LEGEND.map(l => (
+          <span key={l.type} className="flex items-center gap-1.5 text-[11px] font-semibold text-sand-600">
+            <span
+              className="inline-block rounded-sm"
+              style={{ width: 9, height: 9, background: (ENTRY_COLORS[l.type] ?? ENTRY_COLORS.note).dot }}
+            />
+            {l.label}
+          </span>
+        ))}
       </div>
     </div>
   )

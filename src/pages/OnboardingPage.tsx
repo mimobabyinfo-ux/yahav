@@ -150,26 +150,31 @@ export default function OnboardingPage() {
           </button>
         )}
 
-        {/* Header */}
+        {/* Header. Brenda 17.8.26: bigger logo, and the greeting set in the
+            real brand face (Gveret Levin, .font-brand) in rojo tierra —
+            straight out of the brand book rather than the generic
+            Varela Round the rest of the app falls back to. */}
         <div className="text-center">
-          <div className="flex justify-center mb-2">
-            <MimoLogo size={100} />
+          <div className="flex justify-center mb-3">
+            <MimoLogo size={150} />
           </div>
-          <h1 className="text-2xl font-bold text-sand-800">ברוכה הבאה!</h1>
+          <h1 className="font-brand" style={{ fontSize: 34, lineHeight: 1.15, fontWeight: 400, color: '#A35C3D' }}>
+            ברוכה הבאה!
+          </h1>
         </div>
 
-        {/* Step 1: Mode selection only */}
+        {/* Step 1: mode selection. The "איפה את בתהליך?" prompt is gone —
+            two buttons that say בהיריון and כבר אמא are the question. */}
         {mode === null && (
-          <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
-            <p className="text-sm font-semibold text-sand-700 text-center">איפה את בתהליך?</p>
+          <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5">
             <div className="flex gap-2">
               <button type="button" onClick={() => setMode('pregnant')}
                 className="flex-1 py-4 rounded-2xl text-sm font-bold border-2 border-sand-200 text-sand-500 hover:border-mustard-400 hover:bg-mustard-50 hover:text-mustard-700 transition-all">
-                🤰 בהיריון
+                🤰🏼 בהיריון
               </button>
               <button type="button" onClick={() => setMode('mom')}
                 className="flex-1 py-4 rounded-2xl text-sm font-bold border-2 border-sand-200 text-sand-500 hover:border-mustard-400 hover:bg-mustard-50 hover:text-mustard-700 transition-all">
-                👶 כבר אמא
+                👶🏼 כבר אמא
               </button>
             </div>
           </div>

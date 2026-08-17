@@ -70,6 +70,13 @@ const REGS_LS_KEY = 'registrations_last_seen'
 function AppInner() {
   const { user, profile, loading, isGuest } = useAuth()
   const [currentPage, setCurrentPage] = useState<Page>(isCoursePage ? 'pro' : 'dashboard')
+  // Brenda 17.8.26: "when I go into nursing/sleep/bottle FROM the journal
+  // and press back, I want to come back to the journal, not to the home
+  // screen." The log pages are opened from two places, so back has to
+  // remember which one — we record the page that launched it.
+  const [logReturnPage, setLogReturnPage] = useState<Page>('dashboard')
+
+  const backFromLog = useCallback(() => setCurrentPage(logReturnPage), [logReturnPage])
   // Admin lands on the home screen ("what needs me today") — design
   // handoff §3. Everything else stays reachable from the sidebar.
   const [adminSection, setAdminSection] = useState<AdminSection>('home')
@@ -146,7 +153,12 @@ function AppInner() {
   }, [])
 
   function navigate(page: Page) {
-    setCurrentPage(page)
+    // Remember the screen a log page was opened from, so its back button
+    // returns there instead of always dropping her on the home screen.
+    setCurrentPage(prev => {
+      if (page.startsWith('log-') && !prev.startsWith('log-')) setLogReturnPage(prev)
+      return page
+    })
   }
 
   function navigateAdmin(section: AdminSection) {
@@ -184,44 +196,36 @@ function AppInner() {
   // Authenticated user settings — accessible from any role except guest
   if (isSettingsPage && !isGuest) return <UserSettingsPage />
 
-  // Guests see ONLY the journal — no nav, no other pages
-  if (isGuest) {
-    return (
-      <div className="min-h-screen">
-        <JournalPage />
-      </div>
-    )
-  }
-
   const isAdminMode = (profile?.is_admin ?? false) && !viewAsUser
   const isPregnant = profile?.user_mode === 'pregnant'
+
 
   const renderPage = () => {
     // Pregnant users get their own dashboard
     if (currentPage === 'dashboard' && isPregnant) {
-      return <PregnancyDashboard onNavigate={setCurrentPage} />
+      return <PregnancyDashboard onNavigate={navigate} />
     }
     switch (currentPage) {
-      case 'dashboard':  return <DashboardPage onNavigate={setCurrentPage} />
-      case 'journal':    return isPregnant ? <PregnancyDashboard onNavigate={setCurrentPage} /> : <JournalPage onNavigate={setCurrentPage} />
+      case 'dashboard':  return <DashboardPage onNavigate={navigate} />
+      case 'journal':    return isPregnant ? <PregnancyDashboard onNavigate={navigate} /> : <JournalPage onNavigate={navigate} />
       case 'benefits':   return <BenefitsPage />
-      case 'workshops':  return <WorkshopsPage onNavigate={setCurrentPage} />
+      case 'workshops':  return <WorkshopsPage onNavigate={navigate} />
       case 'pro':        return <ProAreaPage autoOpenWorkshopId={isCoursePage ? courseWorkshopId : null} />
       case 'admin':      return <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} overview={adminOverview} />
       case 'marketplace': return <ServicesMarketplacePage />
       case 'community':  return <CommunityPage />
-      case 'log-sleep':  return <SleepPage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
-      case 'log-tummy':  return <TummyTimePage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
-      case 'log-feeding-breast': return <BreastfeedingPage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
-      case 'log-feeding-bottle': return <BottlePage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
-      case 'log-feeding-solid':  return <SolidPage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
-      case 'log-diaper':         return <DiaperPage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
-      case 'log-medical':        return <MedicalPage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
-      case 'log-milestone':      return <MilestonePage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
-      case 'log-note':           return <NotePage onBack={() => setCurrentPage('dashboard')} onSaved={() => setTimerVersion(v => v + 1)} />
+      case 'log-sleep':  return <SleepPage onBack={backFromLog} onSaved={() => setTimerVersion(v => v + 1)} />
+      case 'log-tummy':  return <TummyTimePage onBack={backFromLog} onSaved={() => setTimerVersion(v => v + 1)} />
+      case 'log-feeding-breast': return <BreastfeedingPage onBack={backFromLog} onSaved={() => setTimerVersion(v => v + 1)} />
+      case 'log-feeding-bottle': return <BottlePage onBack={backFromLog} onSaved={() => setTimerVersion(v => v + 1)} />
+      case 'log-feeding-solid':  return <SolidPage onBack={backFromLog} onSaved={() => setTimerVersion(v => v + 1)} />
+      case 'log-diaper':         return <DiaperPage onBack={backFromLog} onSaved={() => setTimerVersion(v => v + 1)} />
+      case 'log-medical':        return <MedicalPage onBack={backFromLog} onSaved={() => setTimerVersion(v => v + 1)} />
+      case 'log-milestone':      return <MilestonePage onBack={backFromLog} onSaved={() => setTimerVersion(v => v + 1)} />
+      case 'log-note':           return <NotePage onBack={backFromLog} onSaved={() => setTimerVersion(v => v + 1)} />
       default:           return isPregnant
-        ? <PregnancyDashboard onNavigate={setCurrentPage} />
-        : <DashboardPage onNavigate={setCurrentPage} />
+        ? <PregnancyDashboard onNavigate={navigate} />
+        : <DashboardPage onNavigate={navigate} />
     }
   }
 
@@ -272,6 +276,28 @@ function AppInner() {
   // Dedicated action pages get a full screen — no bottom nav, no install prompt
   // (they have their own back button + sticky CTA).
   const isLogPage = currentPage.startsWith('log-')
+
+  // Guests see ONLY the journal — no nav, no other pages.
+  //
+  // Brenda 17.8.26: "the shared journal looks different from the sharer's
+  // journal — they should be the same one!" It IS the same component, but
+  // it was rendered in a bare div while the owner's runs inside the app
+  // shell, and it was handed no onNavigate, so every quick-add fell back
+  // to the modal picker instead of opening the same dedicated log pages
+  // she sees. Two small omissions that added up to a different-feeling
+  // screen. Same shell and the same navigation now; the only differences
+  // left are the ones that must exist — a guest has no bottom nav and
+  // cannot share the journal onward.
+  if (isGuest) {
+    return (
+      <div className={`min-h-screen ${isLogPage ? '' : 'pb-6'}`}>
+        <ActiveTimerBanner onNavigate={navigate} refetchKey={timerVersion} />
+        <div key={currentPage} className="page-enter">
+          {isLogPage ? renderPage() : <JournalPage onNavigate={navigate} />}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={`min-h-screen ${isLogPage ? '' : 'pb-20'}`}>

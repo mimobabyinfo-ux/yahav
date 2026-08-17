@@ -26,6 +26,16 @@ h1, h2, .font-display {
   font-family: 'Varela Round', 'Nunito', system-ui, sans-serif;
 }
 
+/* The real brand face, for the few places Brenda wants it verbatim from
+   the brand book (the welcome screen first). Both spellings stay in the
+   stack: Google serves the family as "Gveret Levin", while designers who
+   installed it locally have it under the foundry name — see the 11.8.26
+   font incident, where requesting the foundry name returned HTTP 400 and
+   the app silently rendered in Varela Round on every machine but hers. */
+.font-brand {
+  font-family: 'Gveret Levin', 'Gveret Levin AlefAlefAlef', 'Varela Round', 'Nunito', system-ui, sans-serif;
+}
+
 /* Micro-interactions: every tap feels soft and responsive. */
 button, a {
   transition: background-color .15s ease, color .15s ease, box-shadow .15s ease,
