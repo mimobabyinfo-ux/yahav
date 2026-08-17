@@ -168,10 +168,21 @@ export default function ThankYouPage() {
         // so AuthContext can retry the moment she is signed in again, and
         // tell her on-screen instead of showing a silent "thank you".
         if (error || data === 'unauthorized') {
+          // Reaching THIS page is the payment provider's success redirect,
+          // so the payment did happen — we just have no session to record
+          // it with. Promote the id to the confirmed key; AuthContext
+          // retries that one, and only that one, once she signs in.
+          try {
+            localStorage.setItem('mimo_paid_event_id', id)
+            localStorage.removeItem('mimo_pending_event_id')
+          } catch { /* private mode */ }
           setEventUnconfirmed(true)
           return
         }
-        try { localStorage.removeItem('mimo_pending_event_id') } catch { /* ignore */ }
+        try {
+          localStorage.removeItem('mimo_pending_event_id')
+          localStorage.removeItem('mimo_paid_event_id')
+        } catch { /* ignore */ }
         // 'over_capacity' means her hold ran out mid-checkout and the
         // seat went to someone else. She is registered anyway: a woman
         // who has already paid is never the one turned away.

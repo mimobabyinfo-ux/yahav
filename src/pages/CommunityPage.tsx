@@ -2,12 +2,12 @@
 import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft, Tag, WalletCards } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { getBabyAge } from '../utils/dateUtils'
 import { CITIES } from '../data/cities'
 import { COMMUNITY_TAGS, tagDef, type CommunityTagId } from '../constants/communityTags'
 import TagSelector from '../components/community/TagSelector'
 import CommunityTagFilter from '../components/community/CommunityTagFilter'
+import NeighborhoodPicker from '../components/community/NeighborhoodPicker'
 import CommunityMemberSheet from '../components/community/CommunityMemberSheet'
 import EventsTab from '../components/community/EventsTab'
 import MyBookingsTab from '../components/community/MyBookingsTab'
@@ -24,6 +24,8 @@ type CommunityProfile = {
   child_id: string
   child_dob: string | null
   child_gender: 'boy' | 'girl' | 'other' | null
+  /** First name only — the view deliberately does not expose the surname. */
+  child_name: string | null
 }
 
 type PregnantProfile = {
@@ -64,7 +66,6 @@ function pregnancyWeek(dueDate: string): number {
 
 export default function CommunityPage() {
   const { selectedChild, profile, user, refreshProfile } = useAuth()
-  const { ownerWhatsapp } = useOwnerSettings()
   const isPregnant = profile?.user_mode === 'pregnant'
 
   const [pageTab, setPageTab] = useState<PageTab>(() => {
@@ -98,20 +99,11 @@ export default function CommunityPage() {
     return hits.sort((a, b) => rankCity(a, q) - rankCity(b, q) || a.localeCompare(b, 'he'))
   }, [citySearch])
 
-  // Neighbourhood inside the city — optional, free text, suggested from
-  // what other mothers in the SAME city already typed. No gazetteer of
-  // Israeli neighbourhoods is shipped: it would be wrong for half the
-  // country and stale within a year.
+  // Neighbourhood inside the city. Brenda 17.8.26 turned this from free
+  // text into a real picker — see components/community/NeighborhoodPicker,
+  // which is the same control the signup form uses so the two screens
+  // cannot drift apart or store the same neighbourhood two ways.
   const [neighborhoodInput, setNeighborhoodInput] = useState('')
-  const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([])
-
-  useEffect(() => {
-    const city = areaInput.trim()
-    if (!city) { setNeighborhoodOptions([]); return }
-    supabase.rpc('get_neighborhood_suggestions', { p_area: city }).then(({ data }) => {
-      setNeighborhoodOptions(((data ?? []) as { neighborhood: string }[]).map(r => r.neighborhood))
-    })
-  }, [areaInput])
   const [showCities, setShowCities] = useState(false)
   const [phoneInput, setPhoneInput] = useState('')
   const [bioInput, setBioInput] = useState('')
@@ -295,9 +287,13 @@ export default function CommunityPage() {
              calendar file. Same RPC as the events tab, filtered to her. */}
         {pageTab === 'bookings' && <MyBookingsTab />}
 
-        {pageTab === 'members' && (<>
-        {/* Community profile form */}
-        {showEditSection && (
+        {/* Brenda 17.8.26: "when you tap edit profile there's no reason to
+            see all the members underneath — it should be separate, and
+            then take you back to the members page". So the members tab is
+            one of two screens, never both at once: the profile form, or
+            the directory. The same rule serves the first-time join, where
+            a half-filled form under a list of strangers is worse still. */}
+        {pageTab === 'members' && (showEditSection ? (
           <div className="bg-white rounded-3xl p-5 shadow-sm space-y-4">
             <p className="text-base font-bold text-sand-800">
               {isPregnant ? 'הצטרפי לקהילת הריון 🤰' : 'הצטרפי לקהילה 🌸'}
@@ -342,17 +338,11 @@ export default function CommunityPage() {
                   <MapPin className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
                   שכונה ב{areaInput.trim()} <span className="text-sand-400 font-normal">(לא חובה)</span>
                 </label>
-                <input
+                <NeighborhoodPicker
+                  city={areaInput.trim()}
                   value={neighborhoodInput}
-                  onChange={e => setNeighborhoodInput(e.target.value)}
-                  list="mimo-neighborhoods"
-                  placeholder="למשל: שכונת גפן"
-                  autoComplete="off"
-                  className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm bg-white focus:outline-none focus:border-mustard-400"
+                  onChange={setNeighborhoodInput}
                 />
-                <datalist id="mimo-neighborhoods">
-                  {neighborhoodOptions.map(n => <option key={n} value={n} />)}
-                </datalist>
               </div>
             )}
 
@@ -417,8 +407,8 @@ export default function CommunityPage() {
 
             <div className="flex gap-2">
               {editMode && (
-                <button onClick={() => setEditMode(false)} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">
-                  ביטול
+                <button onClick={() => setEditMode(false)} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold whitespace-nowrap">
+                  חזרה לחברות
                 </button>
               )}
               <button
@@ -431,7 +421,7 @@ export default function CommunityPage() {
               </button>
             </div>
           </div>
-        )}
+        ) : (<>
 
         {/* Filters */}
         {isPregnant ? (
@@ -516,7 +506,7 @@ export default function CommunityPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sand-800 text-sm">
-                          {p.mother_name ? p.mother_name.split(' ')[0] : 'בהריון'}
+                          {p.mother_name ?? 'בהריון'}
                         </p>
                         <p className="text-xs text-sand-600">
                           {week != null ? `שבוע ${week}` : 'בהריון'}
@@ -535,8 +525,8 @@ export default function CommunityPage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
-                        {p.community_consent && p.phone_number ? (
+                      {p.community_consent && p.phone_number && (
+                        <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
                           <a
                             href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת הריון של Mimo 🤰')}`}
                             target="_blank"
@@ -546,18 +536,8 @@ export default function CommunityPage() {
                             <MessageCircle className="w-3.5 h-3.5" />
                             WhatsApp
                           </a>
-                        ) : (
-                          <a
-                            href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent('היי! אני בהריון ורוצה להתחבר עם בנות בשבוע דומה 🤰')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            חיבור
-                          </a>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
@@ -601,17 +581,24 @@ export default function CommunityPage() {
                     className="bg-white rounded-3xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 mt-0.5"
-                        style={{ background: '#F4EDE1' }}>
-                        {genderEmoji(p.child_gender)}
+                      {/* Brenda 17.8.26: the name on this card is the
+                          MOTHER's, so the baby emoji had to go — it read as
+                          if the baby were the member. Her initial instead,
+                          and the baby moves to its own "אמא של" line. */}
+                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5 font-display"
+                        style={{ background: '#F4EDE1', fontSize: 19, color: '#8A6A2F' }}>
+                        {(p.mother_name ?? 'א').trim().charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sand-800 text-sm">
-                          {p.mother_name ? p.mother_name.split(' ')[0] : 'אמא'}
+                          {p.mother_name ?? 'אמא'}
                         </p>
                         <p className="text-xs text-sand-600">
-                          {p.child_dob ? getBabyAge(p.child_dob) : ''}
-                          {p.area && ` · ${p.area}`}
+                          {[
+                            p.child_name ? `אמא של ${p.child_name}` : 'אמא',
+                            p.child_dob ? getBabyAge(p.child_dob) : null,
+                            p.area,
+                          ].filter(Boolean).join(' · ')}
                         </p>
                         {p.community_bio && (
                           <p className="text-xs text-sand-600 mt-1.5 leading-relaxed line-clamp-2">{p.community_bio}</p>
@@ -626,8 +613,13 @@ export default function CommunityPage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
-                        {p.community_consent && p.phone_number ? (
+                      {/* Brenda 17.8.26: no "חיבור" fallback. A mother who
+                          did not tick the phone-sharing box should show no
+                          contact route at all — routing around her consent
+                          through Mimo's own WhatsApp is exactly what she
+                          declined. */}
+                      {p.community_consent && p.phone_number && (
+                        <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
                           <a
                             href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת Mimo 🌿')}`}
                             target="_blank"
@@ -637,18 +629,8 @@ export default function CommunityPage() {
                             <MessageCircle className="w-3.5 h-3.5" />
                             WhatsApp
                           </a>
-                        ) : (
-                          <a
-                            href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוק${p.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 px-3 py-2 bg-sand-100 text-sand-600 rounded-2xl text-xs font-semibold hover:bg-sand-200 transition-colors"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            חיבור
-                          </a>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
@@ -656,7 +638,7 @@ export default function CommunityPage() {
             </div>
           )
         )}
-        </>)}
+        </>))}
 
       </div>
 

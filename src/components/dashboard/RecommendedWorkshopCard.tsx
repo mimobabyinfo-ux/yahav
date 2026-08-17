@@ -129,8 +129,10 @@ export default function RecommendedWorkshopCard({ onNavigate }: { onNavigate: (p
           </p>
           <p className="font-bold truncate mt-0.5" style={{ fontSize: 17, color: INK_STRONG }}>{match.title}</p>
           <p className="font-semibold mt-0.5" style={{ fontSize: 13, color: INK_SOFT }}>
+            {/* Brenda 17.8.26: no price here. The card's job is "this one
+                fits your baby"; a number turns it into an ad before she
+                has even opened the product. */}
             {ageRangeLabel(match.age_range_start_months!, match.age_range_end_months)}
-            {match.price != null && ` · ${match.price === 0 ? 'חינם' : `₪${match.price}`}`}
           </p>
           {nextCohort && (
             <p className="flex items-center gap-1 font-semibold mt-1" style={{ fontSize: 13, color: INK }}>

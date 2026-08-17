@@ -265,15 +265,24 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
   /**
    * A mother who pays for a community event can land on the thank-you page
    * with no session (Morning opens checkout in a new tab; some phones make
-   * it a private one). `mark_event_paid` then answers 'unauthorized' and
-   * ThankYouPage leaves the pending id in place. The moment she is signed
-   * in — here, on any load — we flush it, so her seat is confirmed without
-   * anyone noticing anything went wrong.
+   * it a private one). `mark_event_paid` then answers 'unauthorized', so
+   * ThankYouPage parks the id under `mimo_paid_event_id` and we flush it
+   * the moment she is signed in.
+   *
+   * BUG FIXED 17.8.26 (Brenda: "there's a bug with the credit, we never
+   * paid and it already said you have a credit"). This used to read
+   * `mimo_pending_event_id` — the key written the instant she TAPS
+   * register, before any payment. A mother who opened the payment page
+   * and closed it left that key behind, and the next app load marked her
+   * paid, gave her a seat she never bought, and on cancellation minted a
+   * real credit out of nothing. Intent is not payment: only the payment
+   * provider's success redirect (the thank-you page) may promote the id
+   * to `mimo_paid_event_id`, and only that key is retried here.
    */
   async function flushPendingEventPayment() {
     let eventId: string | null = null
     try {
-      const stored = localStorage.getItem('mimo_pending_event_id')
+      const stored = localStorage.getItem('mimo_paid_event_id')
       if (stored && /^[0-9a-f-]{36}$/.test(stored)) eventId = stored
     } catch { return /* private mode */ }
     if (!eventId) return
@@ -282,7 +291,7 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       console.error('[auth] pending event payment still unconfirmed:', error ?? data)
       return
     }
-    try { localStorage.removeItem('mimo_pending_event_id') } catch { /* ignore */ }
+    try { localStorage.removeItem('mimo_paid_event_id') } catch { /* ignore */ }
   }
 
   useEffect(() => {

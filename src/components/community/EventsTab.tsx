@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
-import { MapPin, Clock, Users, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft } from 'lucide-react'
+import { MapPin, Clock, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft } from 'lucide-react'
 import { supabase, type CommunityEventRow, type EventAttendee, type MyWaitlist } from '../../lib/supabase'
 import { getBabyAge } from '../../utils/dateUtils'
 import CommunityMemberSheet from './CommunityMemberSheet'
@@ -76,6 +76,15 @@ export default function EventsTab() {
   // "התפנה מקום" and registering auto-converts the entry (DB trigger).
   const [waitlists, setWaitlists] = useState<Record<string, MyWaitlist>>({})
 
+  // Open credit from a cancelled paid event, in shekels. Drives the
+  // "pay with my credit" button — see redeemCredit below.
+  const [creditBalance, setCreditBalance] = useState(0)
+
+  const loadCredit = useCallback(async () => {
+    const { data } = await supabase.rpc('get_my_credit_balance')
+    setCreditBalance(Number(data ?? 0))
+  }, [])
+
   const load = useCallback(async () => {
     const [{ data }, { data: wl }] = await Promise.all([
       supabase.rpc('get_community_events'),
@@ -88,7 +97,7 @@ export default function EventsTab() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load(); loadCredit() }, [load, loadCredit])
 
   function showToast(msg: string) {
     setToast(msg)
@@ -192,6 +201,31 @@ export default function EventsTab() {
     }
   }
 
+  /** Brenda 17.8.26: "I want the credit kept in the app, and if I want to
+   *  register I can use the credit or pay again." So a paid event shows a
+   *  second button when her open balance covers the whole thing. Partial
+   *  redemption is deliberately not offered — Morning cannot produce a
+   *  payment link for the remainder, so half-paying would strand her. */
+  async function redeemCredit(ev: CommunityEventRow) {
+    setBusyId(ev.id)
+    const { data, error } = await supabase.rpc('redeem_credit_for_event', {
+      p_event_id: ev.id,
+      p_guest_names: cleanGuests(ev),
+    })
+    setBusyId(null)
+    if (error) { showToast('שגיאה. נסי שוב'); return }
+    if (data === 'insufficient') { showToast('הזיכוי לא מכסה את כל הסכום'); loadCredit(); return }
+    if (data === 'full') { showToast('האירוע התמלא בדיוק עכשיו 😢'); load(); return }
+    if (data === 'already') { showToast('את כבר רשומה לאירוע 🤎'); load(); return }
+    if (data !== 'redeemed') { showToast('שגיאה. נסי שוב'); return }
+    showToast('שילמנו עם הזיכוי שלך. נתראה שם! 🤎')
+    setGuestDrafts(prev => { const n = { ...prev }; delete n[ev.id]; return n })
+    setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
+    loadCredit()
+    load()
+    if (attendees[ev.id]) loadAttendees(ev.id)
+  }
+
   async function cancel(ev: CommunityEventRow) {
     setBusyId(ev.id)
     const { data, error } = await supabase.rpc('cancel_event_registration', { p_event_id: ev.id })
@@ -203,6 +237,7 @@ export default function EventsTab() {
         ? 'ההרשמה בוטלה. הכסף שמור לך כזיכוי לחודש הקרוב 🤎'
         : 'ההרשמה בוטלה. המקום התפנה למישהי אחרת',
     )
+    loadCredit()
     load()
     if (attendees[ev.id]) loadAttendees(ev.id)
   }
@@ -397,12 +432,11 @@ export default function EventsTab() {
                 <p className="text-xs text-sand-600 mt-0.5">בהנחיית {ev.vendor_name}</p>
               )}
 
-              {/* Spots + social proof */}
+              {/* Scarcity only. Brenda 17.8.26: drop the head count and the
+                  "היי הראשונה!" line — on a new event both of them announce
+                  that nobody is coming, which is the opposite of social
+                  proof. What is left says only how little room is left. */}
               <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <span className="flex items-center gap-1 text-[13px] font-semibold text-sand-500">
-                  <Users className="w-3 h-3" />
-                  {ev.registered_count > 0 ? `${ev.registered_count} נרשמו` : 'היי הראשונה!'}
-                </span>
                 {spotsLeft != null && !isFull && spotsLeft <= 3 && (
                   <span className="text-[13px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: '#A35C3D' }}>
                     {spotsLeft === 1 ? 'מקום אחרון!' : `נותרו ${spotsLeft} מקומות`}
@@ -438,8 +472,10 @@ export default function EventsTab() {
                         onClick={e => { e.stopPropagation(); setOpenAttendee({ attendee: a, eventTitle: ev.title }) }}
                         className="flex items-center gap-1 text-[13px] bg-[#F4EDE1] text-sand-700 px-2.5 py-1 rounded-full font-semibold shadow-sm hover:shadow transition-all"
                       >
-                        <span>{genderEmoji(a.child_gender)}</span>
-                        {(a.mother_name ?? 'אמא').split(' ')[0]}
+                        {/* Brenda 17.8.26: this is the MOTHER, so her full
+                            name and no baby icon. The icon read as if the
+                            baby were the one signed up. */}
+                        {a.mother_name ?? 'אמא'}
                         {(a.guest_names?.length ?? 0) > 0 && (
                           <span className="font-normal" style={{ color: '#8A7A63' }}>
                             +{a.guest_names!.length}
@@ -459,7 +495,7 @@ export default function EventsTab() {
           {isHolding ? (
             <div className="space-y-2">
               <p className="text-center text-[13px] font-bold" style={{ color: '#A35C3D' }}>
-                המקום עוד לא שלך. משלימות תשלום ונתראה שם
+                להשלמת ההרשמה אנא השלימי את התשלום.
               </p>
               <div className="flex gap-2">
                 <a
@@ -475,10 +511,9 @@ export default function EventsTab() {
                 <button
                   onClick={() => cancel(ev)}
                   disabled={busyId === ev.id}
-                  className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-semibold disabled:opacity-40"
-                  title="ביטול"
+                  className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-bold disabled:opacity-40 whitespace-nowrap"
                 >
-                  <X className="w-4 h-4" />
+                  לביטול הרשמה
                 </button>
               </div>
             </div>
@@ -496,10 +531,9 @@ export default function EventsTab() {
               <button
                 onClick={() => setCancelling(cur => cur === ev.id ? null : ev.id)}
                 disabled={busyId === ev.id}
-                className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-semibold disabled:opacity-40"
-                title="ביטול הרשמה"
+                className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-bold disabled:opacity-40 whitespace-nowrap"
               >
-                <X className="w-4 h-4" />
+                לביטול הרשמה
               </button>
               </div>
               {cancelling === ev.id && (
@@ -589,6 +623,16 @@ export default function EventsTab() {
                   return ev.price > 0 ? `אני מגיעה! (₪${ev.price})` : 'אני מגיעה!'
                 })()}
               </button>
+              {ev.price > 0 && creditBalance >= ev.price * (cleanGuests(ev).length + 1) && (
+                <button
+                  onClick={() => redeemCredit(ev)}
+                  disabled={busyId === ev.id || hasBlankGuest(ev)}
+                  className="mt-2 w-full py-2.5 rounded-2xl text-sm font-bold disabled:opacity-40 transition-all"
+                  style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
+                >
+                  לשימוש בזיכוי שלי (₪{creditBalance})
+                </button>
+              )}
             </>
           )}
           {isMine && ev.price > 0 && paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1) && (

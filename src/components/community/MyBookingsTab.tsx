@@ -67,8 +67,14 @@ export default function MyBookingsTab() {
       supabase.rpc('get_community_events'),
       supabase.rpc('get_my_credits'),
     ]).then(([{ data }, { data: cr }]) => {
+      // Brenda 17.8.26: "as long as it says complete-your-payment it
+      // should NOT appear in my bookings". So two conditions, not one:
+      // the status must be a real registration AND nothing may still be
+      // owed on it. A held seat ('pending') and a paid event she has not
+      // actually paid for are both still shopping, not a booking.
       const rows = ((data ?? []) as CommunityEventRow[])
-        .filter(e => e.my_status === 'registered' || e.my_status === 'attended')
+        .filter(e => (e.my_status === 'registered' || e.my_status === 'attended')
+          && !(e.price > 0 && !e.my_paid))
         .sort((a, b) => a.event_date.localeCompare(b.event_date))
       setEvents(rows)
       setCredits((cr ?? []) as MyCredit[])
