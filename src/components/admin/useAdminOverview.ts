@@ -28,6 +28,10 @@ export type AdminOverview = {
   /** Open manual tasks (admin_tasks table, phase 2). */
   manualTasks: ManualTask[]
   counters: { pendingPayment: number; monthRevenue: number; activeRegistrations: number }
+  /** Mothers who said they paid outside the app, awaiting confirmation.
+   *  Drives the אירועים badge — Brenda 17.8.26: "I want it to pop up as a
+   *  1 and then I'll go in." */
+  paymentClaimCount: number
   capacity: CapacityRow[]
   /** עטופים graduates whose baby just reached the מגלים age window. */
   megalim: MegalimCandidatesResult
@@ -235,5 +239,5 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     [upcomingEvents],
   )
 
-  return { loading, tasks, manualTasks, counters, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload: load }
+  return { loading, tasks, manualTasks, counters, paymentClaimCount: paymentClaims.length, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload: load }
 }

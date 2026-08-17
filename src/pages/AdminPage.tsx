@@ -87,7 +87,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
   // Phase 3 (handoff §4): a task click carries its context to the
   // destination — label for the context bar, exact lead ids to
   // filter+pre-select, or the object to open.
-  const [taskContext, setTaskContext] = useState<{ label: string; section: Tab; targetId?: string; leadIds?: string[] } | null>(null)
+  const [taskContext, setTaskContext] = useState<{ label: string; section: Tab; targetId?: string; leadIds?: string[]; view?: 'edit' | 'registrants' } | null>(null)
 
   // Phase 4 (handoff §5.2): a product opens as a PAGE, deep-linkable via
   // ?admin=product&id=<id> (read once on mount, kept in sync best-effort).
@@ -105,7 +105,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
   }
 
   function openTask(t: AdminTask) {
-    setTaskContext({ label: t.title, section: t.section, targetId: t.targetId, leadIds: t.targetLeadIds })
+    setTaskContext({ label: t.title, section: t.section, targetId: t.targetId, leadIds: t.targetLeadIds, view: t.targetView })
     if (t.section === 'workshops' && t.targetId) openProductPage(t.targetId)
     setTab(t.section)
   }
@@ -224,7 +224,12 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'tips'       && <TipsTab />}
         {tab === 'videos'     && <VideosTab />}
         {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <WorkshopsTab onOpenProduct={openProductPage} />)}
-        {tab === 'events'     && <EventsAdminPanel openEditId={taskContext?.section === 'events' ? taskContext.targetId : undefined} />}
+        {tab === 'events'     && (
+          <EventsAdminPanel
+            openEditId={taskContext?.section === 'events' && taskContext.view !== 'registrants' ? taskContext.targetId : undefined}
+            openRegsId={taskContext?.section === 'events' && taskContext.view === 'registrants' ? taskContext.targetId : undefined}
+          />
+        )}
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'partners'   && <PartnersTab />}
@@ -240,7 +245,12 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'users'      && <UsersTabDesktop />}
         {tab === 'leads'      && <LeadsTabDesktop />}
         {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <WorkshopsTabDesktop onOpenProduct={openProductPage} />)}
-        {tab === 'events'     && <EventsAdminPanel openEditId={taskContext?.section === 'events' ? taskContext.targetId : undefined} />}
+        {tab === 'events'     && (
+          <EventsAdminPanel
+            openEditId={taskContext?.section === 'events' && taskContext.view !== 'registrants' ? taskContext.targetId : undefined}
+            openRegsId={taskContext?.section === 'events' && taskContext.view === 'registrants' ? taskContext.targetId : undefined}
+          />
+        )}
         {tab === 'forms'      && <FormsTabDesktop />}
         {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <TipsTab />}

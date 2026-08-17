@@ -34,6 +34,11 @@ export type AdminTask = {
   sourceUpdatedAt: string | null
   /** Phase 3: object id the destination should open (workshop/event/form). */
   targetId?: string
+  /** Which screen of that object. Brenda 17.8.26: the payment-claim task
+   *  dropped her in the event's EDIT form, which has no confirm button
+   *  anywhere on it. 'registrants' opens the list where the decision
+   *  actually lives. Defaults to 'edit', the old behaviour. */
+  targetView?: 'edit' | 'registrants'
   /** Phase 3: exact lead ids the destination should filter+pre-select. */
   targetLeadIds?: string[]
 }
@@ -175,6 +180,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
         actionLabel: 'לאישור התשלום',
         sourceUpdatedAt: list.map(c => c.claimed_at).sort().slice(-1)[0] ?? null,
         targetId: eventId,
+        targetView: 'registrants',
       })
     }
   }

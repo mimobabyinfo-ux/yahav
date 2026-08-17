@@ -104,7 +104,7 @@ function weekdayHe(dateStr: string): string {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'long' })
 }
 
-export default function EventsAdminPanel({ openEditId }: { openEditId?: string } = {}) {
+export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditId?: string; openRegsId?: string } = {}) {
   const [events, setEvents] = useState<CommunityEvent[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [vendors, setVendors] = useState<ServicePartner[]>([])
@@ -195,6 +195,17 @@ export default function EventsAdminPanel({ openEditId }: { openEditId?: string }
     const ev = events.find(x => x.id === openEditId)
     if (ev) { openedFromTask.current = openEditId; openEdit(ev) }
   }, [openEditId, events])
+
+  // Brenda 17.8.26: "when I come from the home screen and tap it, it sends
+  // me to editing the event and not to the payment-confirmation screen."
+  // A payment claim is decided in the registrants list, so that task opens
+  // the list rather than the edit form.
+  const openedRegsFromTask = useRef<string | null>(null)
+  useEffect(() => {
+    if (!openRegsId || events.length === 0 || openedRegsFromTask.current === openRegsId) return
+    const ev = events.find(x => x.id === openRegsId)
+    if (ev) { openedRegsFromTask.current = openRegsId; openRegs(ev) }
+  }, [openRegsId, events]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function openCreate() {
     setDraft({ ...EMPTY_DRAFT, event_date: todayLocalIso() })

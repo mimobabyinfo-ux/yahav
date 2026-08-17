@@ -18,6 +18,9 @@ type Props = {
   /** Partner leads waiting (currently: last-7-days count — partner_leads
    *  has no handled flag yet). */
   partnersWaiting?: number
+  /** Declared Bit/transfer payments awaiting confirmation. Brenda 17.8.26:
+   *  "I want it to pop up as a 1 and then I'll go in." */
+  paymentClaims?: number
 }
 
 // Admin nav — SIX primary items ordered by what gets touched weekly
@@ -44,7 +47,7 @@ const MORE: NavItem[] = [
   { id: 'pregnancy', label: 'מדריכי הריון',   icon: <MapPin className="w-[18px] h-[18px]" /> },
 ]
 
-export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView, unreadForms = 0, unreadRegistrations = 0, taskCount = 0, workshopIssues = 0, partnersWaiting = 0 }: Props) {
+export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView, unreadForms = 0, unreadRegistrations = 0, taskCount = 0, workshopIssues = 0, partnersWaiting = 0, paymentClaims = 0 }: Props) {
   const { signOut, profile } = useAuth()
   // Screen A / A1-5: "עוד" ships COLLAPSED — the overflow group exists
   // to reduce the visible nav, so it must not start expanded. The
@@ -57,6 +60,7 @@ export default function AdminSidebar({ section, onSection, viewAsUser, onToggleU
     if (id === 'registrations') return unreadRegistrations
     if (id === 'workshops') return workshopIssues
     if (id === 'partners') return partnersWaiting
+    if (id === 'events') return paymentClaims
     return 0
   }
 

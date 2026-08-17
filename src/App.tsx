@@ -250,6 +250,7 @@ function AppInner() {
             taskCount={adminOverview.tasks.length + adminOverview.manualTasks.length}
             workshopIssues={adminOverview.tasks.filter(t => t.section === 'workshops').length}
             partnersWaiting={adminOverview.recentPartnerLeads}
+            paymentClaims={adminOverview.paymentClaimCount}
           />
         </div>
 
