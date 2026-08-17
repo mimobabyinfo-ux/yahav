@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Trash2, Check, ArrowRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLogo from '../components/MimoLogo'
-import { CITIES } from '../data/cities'
+import { rankCities, findExactCity } from '../utils/citySearch'
+import NeighborhoodPicker from '../components/community/NeighborhoodPicker'
 import TagSelector from '../components/community/TagSelector'
 
 type Mode = 'mom' | 'pregnant'
@@ -33,27 +34,25 @@ export default function OnboardingPage() {
   const [citySearch, setCitySearch] = useState('')
   const [showCities, setShowCities] = useState(false)
   const [neighborhood, setNeighborhood] = useState('')
-  const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([])
   // Yahav 11.8.26: ask at signup what she's looking for in the
   // community, the same tags the members directory filters on. Asked
   // here, the directory is useful to her from day one instead of after
   // she finds the profile screen.
   const [communityTags, setCommunityTags] = useState<string[]>([])
 
-  // Same ranking as the community page: the city she typed first.
-  const cityMatches = useMemo(() => {
-    const q = citySearch.trim()
-    if (!q) return CITIES
-    return CITIES.filter(c => c.includes(q))
-      .sort((a, b) => (a === q ? 0 : a.startsWith(q) ? 1 : 2) - (b === q ? 0 : b.startsWith(q) ? 1 : 2) || a.localeCompare(b, 'he'))
-  }, [citySearch])
+  // Exact match collapses the list to that one city; see utils/citySearch.
+  const cityMatches = useMemo(() => rankCities(citySearch), [citySearch])
 
-  useEffect(() => {
-    if (!area) { setNeighborhoodOptions([]); return }
-    supabase.rpc('get_neighborhood_suggestions', { p_area: area }).then(({ data }) => {
-      setNeighborhoodOptions(((data ?? []) as { neighborhood: string }[]).map(r => r.neighborhood))
-    })
-  }, [area])
+  // Typing a city in full selects it — she should not have to tap a
+  // one-row list to confirm what she already wrote.
+  function onCityInput(next: string) {
+    setCitySearch(next)
+    const exact = findExactCity(next)
+    setArea(exact ?? '')
+    if (exact !== area) setNeighborhood('')
+    setShowCities(true)
+  }
+
   const [phone, setPhone] = useState('')
   const [showPhone, setShowPhone] = useState(false)
   const [dueDate, setDueDate] = useState('')
@@ -197,24 +196,33 @@ export default function OnboardingPage() {
               </div>
             </div>
 
+            {/* Phone — required. Brenda 17.8.26: it belongs directly under
+                the name, not after the city and community questions. */}
+            <div>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">מספר טלפון <span className="text-red-400">*</span></label>
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                placeholder="050-0000000" required dir="ltr"
+                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
+            </div>
+
             {/* City combobox */}
             <div className="relative">
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">עיר מגורים / יישוב <span className="text-red-400">*</span></label>
               <input
                 type="text"
                 value={citySearch}
-                onChange={e => { setCitySearch(e.target.value); setArea(''); setShowCities(true) }}
+                onChange={e => onCityInput(e.target.value)}
                 onFocus={() => setShowCities(true)}
                 onBlur={() => setTimeout(() => setShowCities(false), 150)}
                 placeholder="חיפוש עיר..."
                 autoComplete="off"
                 className={`w-full px-4 py-3.5 border-2 rounded-2xl focus:outline-none bg-white text-sand-800 ${area ? 'border-mustard-400' : 'border-sand-200 focus:border-mustard-400'}`}
               />
-              {showCities && (
+              {showCities && !(area && cityMatches.length === 1) && (
                 <div className="absolute top-full right-0 left-0 z-50 bg-white border-2 border-mustard-200 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto">
                   {cityMatches.map(c => (
                     <button key={c} type="button"
-                      onMouseDown={() => { setArea(c); setCitySearch(c); setShowCities(false) }}
+                      onMouseDown={() => { setArea(c); setCitySearch(c); setNeighborhood(''); setShowCities(false) }}
                       className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-800 border-b border-sand-50 last:border-0 transition-colors">
                       {c}
                     </button>
@@ -226,42 +234,31 @@ export default function OnboardingPage() {
               )}
             </div>
 
-            {/* Neighbourhood — optional, suggested from other mothers
-                in the same city. */}
+            {/* Neighbourhood — a real list for her city, "אחר" for the rest. */}
             {area && (
-              <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                  שכונה ב{area} <span className="text-sand-400 font-normal">(לא חובה)</span>
-                </label>
-                <input
-                  type="text"
-                  value={neighborhood}
-                  onChange={e => setNeighborhood(e.target.value)}
-                  list="onboarding-neighborhoods"
-                  placeholder="למשל: שכונת גפן"
-                  autoComplete="off"
-                  className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800"
-                />
-                <datalist id="onboarding-neighborhoods">
-                  {neighborhoodOptions.map(n => <option key={n} value={n} />)}
-                </datalist>
-              </div>
+              <NeighborhoodPicker
+                city={area}
+                value={neighborhood}
+                onChange={setNeighborhood}
+                label={`שכונה ב${area} (לא חובה)`}
+              />
             )}
 
             {/* What she's looking for in the community */}
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                מה את מחפשת בקהילה? <span className="text-sand-400 font-normal">(לא חובה)</span>
+                מה ההעדפות החברתיות שלך? <span className="text-sand-400 font-normal">(לא חובה)</span>
               </label>
               <TagSelector value={communityTags} onChange={setCommunityTags} />
-            </div>
-
-            {/* Phone — required */}
-            <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1.5">מספר טלפון <span className="text-red-400">*</span></label>
-              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="050-0000000" required dir="ltr"
-                className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
+              {/* Brenda 17.8.26: the question is for SOCIAL FILTERING only —
+                  finding other mothers, not telling Mimo what to run. The
+                  sub-line is what makes that readable: it names who sees
+                  the answer, so she answers as a profile and not as a wish
+                  list. Keep this wording identical on the community
+                  profile form. */}
+              <p className="text-[11px] text-sand-400 mt-1.5 leading-relaxed">
+                אמהות בסביבה שלך יראו את זה ויוכלו לפנות אלייך
+              </p>
             </div>
 
             {/* Community consent */}

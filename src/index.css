@@ -59,6 +59,55 @@ button:active:not(:disabled) {
 .admin-main-bg { background: #1a1a2e; }
 @media (min-width: 1024px) { .admin-main-bg { background: #f4f4f8; } }
 
+/* Date & time fields.
+   Brenda 17.8.26: "the date of birth runs outside its frame on a phone",
+   and the same on the manual time entry in quick-log. Cause: iOS Safari
+   gives date/time inputs an intrinsic content width of their own and
+   ignores the container until -webkit-appearance is cleared, so the
+   native value paints past the rounded border. Clearing appearance and
+   pinning min/max width makes them behave like every other field.
+   16px also stops iOS from zooming the page when one is tapped. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  font-size: 16px;
+  line-height: 1.25;
+  /* Padding on the native control is generous on its own; trim ours so
+     the value never collides with the border. */
+  padding-inline: 0.75rem;
+}
+/* iOS renders the value in a shadow container that can still overflow —
+   let it shrink with the field. */
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value {
+  text-align: start;
+  min-width: 0;
+  max-width: 100%;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  margin-inline-start: 0;
+  opacity: 0.55;
+}
+
+/* Native selects: same rounded-field look as the text inputs, with our
+   own chevron (appearance:none removes the platform one). */
+select.mimo-select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23957860' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 0.9rem center;
+  background-size: 16px;
+  padding-inline-start: 2.4rem;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 4px;

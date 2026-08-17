@@ -63,7 +63,7 @@ export default function UnclaimedPurchasesCard() {
       } else if (out.email_sent) {
         setNote(`${row.name ?? 'היא'} קיבלה גישה ומייל יצא אליה 🤎`)
       } else {
-        setNote(`${row.name ?? 'היא'} קיבלה גישה — אבל המייל לא יצא. כדאי לכתוב לה.`)
+        setNote(`${row.name ?? 'היא'} קיבלה גישה, אבל המייל לא יצא. כדאי לכתוב לה.`)
       }
       await load()
     } catch (e) {
@@ -78,7 +78,7 @@ export default function UnclaimedPurchasesCard() {
     const digits = row.phone?.replace(/\D/g, '')
     if (!digits) return null
     const intl = digits.startsWith('972') ? digits : '972' + digits.replace(/^0/, '')
-    const msg = `היי ${row.name ?? ''}! ראיתי שהתשלום שלך עבר — פתחתי לך את הגישה לקורס עכשיו. בדקי את המייל 🤎`
+    const msg = `היי ${row.name ?? ''}! ראיתי שהתשלום שלך עבר, ופתחתי לך את הגישה לקורס עכשיו. בדקי את המייל 🤎`
     return `https://wa.me/${intl}?text=${encodeURIComponent(msg)}`
   }
 

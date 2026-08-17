@@ -100,7 +100,7 @@ const COPY: Record<ThanksKind, { title: string; body: (owner: string) => string 
     title: 'הקורס שלך פתוח 🤎',
     body: owner =>
       'התשלום התקבל ופתחנו לך גישה מלאה לקורס.\n' +
-      'שלחנו לך מייל עם קישור כניסה ישיר — ואפשר גם להיכנס מכאן, עכשיו.\n\n' +
+      'שלחנו לך מייל עם קישור כניסה ישיר, ואפשר גם להיכנס מכאן, עכשיו.\n\n' +
       'הקורס בנוי משיעורים קצרים שאפשר לעשות בקצב שלך. אין תאריך התחלה ואין מה לחכות לו.' +
       (owner ? `\nבאהבה, ${owner}` : ''),
   },
@@ -316,7 +316,7 @@ export default function ThankYouPage() {
               style={{ background: '#FDF3E3', border: '1px solid #E7C78A' }}>
               <p className="text-sm font-bold" style={{ color: '#8A6A2F' }}>התשלום התקבל 🤍</p>
               <p className="text-xs leading-relaxed" style={{ color: '#6E5836' }}>
-                לא הצלחנו לאשר את מקומך מהדפדפן הזה. התחברי לאפליקציית מימו והמקום יאושר אוטומטית —
+                לא הצלחנו לאשר את מקומך מהדפדפן הזה. התחברי לאפליקציית מימו והמקום יאושר אוטומטית,
                 או כתבי ל{owner || 'ברנדה'} ונסגור את זה ידנית.
               </p>
               {ownerWa && (
@@ -342,7 +342,7 @@ export default function ThankYouPage() {
               </p>
               <p className="text-xs leading-relaxed" style={{ color: '#6E5836' }}>
                 {mailFailed
-                  ? 'שלחנו לך מייל עם קישור כניסה — אם הוא לא הגיע, פשוט היכנסי לאפליקציה והתחברי עם אותה כתובת מייל.'
+                  ? 'שלחנו לך מייל עם קישור כניסה. אם הוא לא הגיע, פשוט היכנסי לאפליקציה והתחברי עם אותה כתובת מייל.'
                   : 'שלחנו לך מייל עם קישור כניסה ישיר. אפשר גם להיכנס מכאן:'}
               </p>
               {/* ?course opens the course itself, not the app home. She

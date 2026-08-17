@@ -13,7 +13,7 @@ import { COMMUNITY_TAGS, type CommunityTagId } from '../../constants/communityTa
 // list exactly when she is trying to narrow it.
 //
 // We overflow-x-auto rather than wrap so the strip stays one line at
-// 480px even with 9 chips.
+// 480px. Long labels use shortLabel here (see constants/communityTags).
 
 type Props = {
   value: CommunityTagId[]
@@ -27,6 +27,10 @@ export default function CommunityTagFilter({ value, onChange }: Props) {
 
   return (
     <div className="space-y-1">
+      {/* Brenda 17.8.26: she answers "מה ההעדפות החברתיות שלך?" on her
+          profile, so the search side has to ask in the same words —
+          otherwise the two screens read as two different apps. */}
+      <p className="text-[11px] font-semibold px-1" style={{ color: '#A2937D' }}>העדפות חברתיות</p>
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
         <Chip
           active={value.length === 0}
@@ -38,7 +42,7 @@ export default function CommunityTagFilter({ value, onChange }: Props) {
             key={tag.id}
             active={value.includes(tag.id)}
             onClick={() => toggle(tag.id)}
-            label={tag.label}
+            label={tag.shortLabel ?? tag.label}
             emoji={tag.emoji}
           />
         ))}

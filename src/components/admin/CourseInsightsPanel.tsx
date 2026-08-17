@@ -145,7 +145,7 @@ export default function CourseInsightsPanel() {
 
       {/* The exposure question */}
       <div>
-        <p className="text-xs font-bold text-sand-600 mb-2">מה קרה איתן אחרי — האם המוצר עשה את שלו</p>
+        <p className="text-xs font-bold text-sand-600 mb-2">מה קרה איתן אחרי: האם המוצר עשה את שלו</p>
         <div className="space-y-1.5">
           {spread.map(s => (
             <div key={s.label} className="flex items-center gap-2">

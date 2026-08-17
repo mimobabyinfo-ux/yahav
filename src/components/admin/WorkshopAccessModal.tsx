@@ -124,7 +124,7 @@ export default function WorkshopAccessModal({ workshop, onClose }: { workshop: W
     const digits = p?.phone_number?.replace(/\D/g, '')
     if (!digits) return null
     const intl = digits.startsWith('972') ? digits : '972' + digits.replace(/^0/, '')
-    const msg = `היי ${p?.mother_name ?? ''}! 🎉\nהגישה שלך ל${workshop.title} פעילה כעת.\nהיכנסי לאפליקציית Mimo — התכנים שלך במסך הבית 🌸`
+    const msg = `היי ${p?.mother_name ?? ''}! 🎉\nהגישה שלך ל${workshop.title} פעילה כעת.\nהיכנסי לאפליקציית Mimo, התכנים שלך במסך הבית 🌸`
     return `https://wa.me/${intl}?text=${encodeURIComponent(msg)}`
   }
 

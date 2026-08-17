@@ -4117,7 +4117,7 @@ function PerksTab() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<PartnerPerk | null>(null)
   const [showAnalytics, setShowAnalytics] = useState(false)
-  const [form, setForm] = useState({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false, redeem_in_person: false })
+  const [form, setForm] = useState({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false, redeem_in_person: false, valid_days_from_join: '', valid_until: '' })
   // Task A: shared delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<PartnerPerk | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
@@ -4159,6 +4159,9 @@ function PerksTab() {
       logo_url: form.logo_url || null,
       is_featured: form.is_featured,
       redeem_in_person: form.redeem_in_person,
+      // Brenda 17.8.26: perk validity. Empty = no limit.
+      valid_days_from_join: form.valid_days_from_join.trim() ? Number(form.valid_days_from_join) : null,
+      valid_until: form.valid_until || null,
     }
     if (editing) {
       await supabase.from('partner_perks').update(payload).eq('id', editing.id)
@@ -4166,7 +4169,7 @@ function PerksTab() {
       const maxOrder = perks.length > 0 ? Math.max(...perks.map(p => p.display_order)) : 0
       await supabase.from('partner_perks').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false, redeem_in_person: false })
+    setForm({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false, redeem_in_person: false, valid_days_from_join: '', valid_until: '' })
     setEditing(null); setShowForm(false); load()
   }
 
@@ -4250,6 +4253,39 @@ function PerksTab() {
             <input type="checkbox" checked={form.redeem_in_person} onChange={e => setForm(f => ({ ...f, redeem_in_person: e.target.checked }))} className="rounded" />
             מימוש בהצגת הכרטיס הדיגיטלי (עסק פיזי)
           </label>
+
+          {/* Brenda 17.8.26: perk validity. Two independent limits — per
+              mother from her join date, and one hard end date for all.
+              Both empty = the perk never expires. */}
+          <div className="rounded-xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
+            <p className="text-xs font-bold text-sand-600">⏳ תוקף ההטבה (ריק = ללא הגבלה)</p>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-[11px] text-sand-500 mb-1">תקף X ימים מההצטרפות לקהילה</label>
+                <input
+                  type="number" min={1} inputMode="numeric"
+                  value={form.valid_days_from_join}
+                  onChange={e => setForm(f => ({ ...f, valid_days_from_join: e.target.value }))}
+                  placeholder="למשל 30"
+                  className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[11px] text-sand-500 mb-1">בתוקף עד תאריך</label>
+                <input
+                  type="date"
+                  value={form.valid_until}
+                  onChange={e => setForm(f => ({ ...f, valid_until: e.target.value }))}
+                  className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-sand-400 leading-relaxed">
+              כל אמא רואה את ההטבה כל עוד שני התנאים מתקיימים אצלה. "30 ימים מההצטרפות" נספר מהיום שבו היא נרשמה לקהילה, ולכל אמא בנפרד.
+            </p>
+          </div>
+
           <div className="flex gap-2">
             <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold">שמירה</button>
             <button onClick={() => { setShowForm(false); setEditing(null) }} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
@@ -4269,6 +4305,14 @@ function PerksTab() {
                   <span className="text-xs px-1.5 py-0.5 rounded-lg font-semibold" style={p.redeem_in_person ? { background: '#E4EBEF', color: '#3E5966' } : { background: '#F6ECD8', color: '#8A6A2F' }}>
                     {p.redeem_in_person ? 'בהצגת הכרטיס' : 'אונליין'}
                   </span>
+                  {(p.valid_days_from_join != null || p.valid_until) && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-lg font-semibold" style={{ background: '#F3E0D7', color: '#A35C3D' }}>
+                      ⏳ {[
+                        p.valid_days_from_join != null ? `${p.valid_days_from_join} ימים מההצטרפות` : null,
+                        p.valid_until ? `עד ${p.valid_until.split('-').reverse().map(Number).join('.')}` : null,
+                      ].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
                 </div>
                 {p.discount_code && <p className="text-xs text-sand-400">{p.discount_code}</p>}
                 {showAnalytics && (
@@ -4286,7 +4330,7 @@ function PerksTab() {
                 <button onClick={() => toggle(p, 'is_active')} className="text-sand-400 hover:text-mustard-500">
                   {p.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
                 </button>
-                <button onClick={() => { setEditing(p); setForm({ partner_name: p.partner_name, short_description: p.short_description ?? '', full_description: p.full_description ?? '', discount_code: p.discount_code ?? '', action_link: p.action_link ?? '', logo_url: p.logo_url ?? '', is_featured: p.is_featured, redeem_in_person: p.redeem_in_person }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+                <button onClick={() => { setEditing(p); setForm({ partner_name: p.partner_name, short_description: p.short_description ?? '', full_description: p.full_description ?? '', discount_code: p.discount_code ?? '', action_link: p.action_link ?? '', logo_url: p.logo_url ?? '', is_featured: p.is_featured, redeem_in_person: p.redeem_in_person, valid_days_from_join: p.valid_days_from_join != null ? String(p.valid_days_from_join) : '', valid_until: p.valid_until ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
                 <button onClick={() => setPendingDelete(p)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>

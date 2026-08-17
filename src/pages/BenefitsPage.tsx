@@ -3,9 +3,10 @@ import { Search, WalletCards } from 'lucide-react'
 import { supabase, PartnerPerk } from '../lib/supabase'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import { useAuth } from '../contexts/AuthContext'
+import { perkValidity, perkValidityLabel } from '../utils/perkValidity'
 
 export default function BenefitsPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [perks, setPerks] = useState<PartnerPerk[]>([])
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<PartnerPerk | null>(null)
@@ -34,7 +35,10 @@ export default function BenefitsPage() {
     setSelected(perk)
   }
 
-  const filtered = perks.filter(p =>
+  // A perk whose window closed for this mother is not offered at all —
+  // see utils/perkValidity.
+  const joinedAt = profile?.created_at ?? null
+  const filtered = perks.filter(p => perkValidity(p, joinedAt).active).filter(p =>
     !search ||
     p.partner_name.toLowerCase().includes(search.toLowerCase()) ||
     (p.short_description ?? '').toLowerCase().includes(search.toLowerCase())
@@ -74,6 +78,20 @@ export default function BenefitsPage() {
           <span className="text-xs text-mustard-600 font-bold">{perk.discount_code}</span>
         </div>
       )}
+      {(() => {
+        const v = perkValidity(perk, joinedAt)
+        const label = perkValidityLabel(v)
+        if (!label) return null
+        const closing = v.daysLeft != null && v.daysLeft <= 7
+        return (
+          <div
+            className="mt-2 rounded-xl px-2 py-1 inline-block"
+            style={closing ? { background: '#F3E0D7' } : { background: '#EFE9DE' }}
+          >
+            <span className="text-xs font-bold" style={{ color: closing ? '#A35C3D' : '#7B604C' }}>{label}</span>
+          </div>
+        )
+      })()}
       {perk.redeem_in_person && (
         <div className="mt-2 rounded-xl px-2 py-1 inline-flex items-center gap-1" style={{ background: '#E4EBEF' }}>
           <WalletCards className="w-3 h-3" style={{ color: '#3E5966' }} />

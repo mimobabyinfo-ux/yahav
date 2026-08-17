@@ -2,6 +2,7 @@
 import { X, Ticket, Gift } from 'lucide-react'
 import { supabase, type PartnerPerk } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { perkValidity, perkValidityLabel } from '../../utils/perkValidity'
 import MimoLeaf from '../MimoLeaf'
 
 // Digital membership card — shown by a mom at partner businesses to
@@ -47,6 +48,14 @@ export default function MembershipCard({ onClose, event }: Props) {
       .order('display_order')
       .then(({ data }) => setPerks(data ?? []))
   }, [event])
+
+  // Brenda 17.8.26: a perk can be limited to her first N days in the
+  // community. An expired perk must never reach the counter, so it is
+  // filtered out here rather than dimmed.
+  const joinedAt = profile?.created_at ?? null
+  const livePerks = perks
+    .map(p => ({ perk: p, validity: perkValidity(p, joinedAt) }))
+    .filter(x => x.validity.active)
 
   const name = profile?.mother_name ?? 'חברת קהילה'
   const memberSince = profile?.created_at
@@ -112,20 +121,36 @@ export default function MembershipCard({ onClose, event }: Props) {
         </div>
 
         {/* Perks list (membership mode) */}
-        {!event && perks.length > 0 && (
+        {!event && livePerks.length > 0 && (
           <div className="mt-3 bg-white rounded-3xl p-4 shadow-xl max-h-[32vh] overflow-y-auto">
             <p className="font-bold mb-2 flex items-center gap-1.5" style={{ fontSize: 14, color: '#443327' }}>
               <Gift className="w-4 h-4" style={{ color: '#A35C3D' }} /> הטבות בהצגת הכרטיס
             </p>
             <div className="space-y-2">
-              {perks.map(p => (
-                <div key={p.id} className="rounded-2xl p-3" style={{ background: '#FAF7F1' }}>
-                  <p className="font-bold" style={{ fontSize: 14, color: '#443327' }}>{p.partner_name}</p>
-                  {p.short_description && (
-                    <p className="mt-0.5" style={{ fontSize: 13, color: '#7B604C', lineHeight: 1.45 }}>{p.short_description}</p>
-                  )}
-                </div>
-              ))}
+              {livePerks.map(({ perk: p, validity }) => {
+                const label = perkValidityLabel(validity)
+                const closing = validity.daysLeft != null && validity.daysLeft <= 7
+                return (
+                  <div key={p.id} className="rounded-2xl p-3" style={{ background: '#FAF7F1' }}>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-bold" style={{ fontSize: 14, color: '#443327' }}>{p.partner_name}</p>
+                      {label && (
+                        <span
+                          className="font-bold rounded-full flex-shrink-0"
+                          style={closing
+                            ? { fontSize: 11, padding: '3px 8px', background: '#A35C3D', color: '#fff' }
+                            : { fontSize: 11, padding: '3px 8px', background: '#EFE5D2', color: '#8A6A2F' }}
+                        >
+                          {label}
+                        </span>
+                      )}
+                    </div>
+                    {p.short_description && (
+                      <p className="mt-0.5" style={{ fontSize: 13, color: '#7B604C', lineHeight: 1.45 }}>{p.short_description}</p>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

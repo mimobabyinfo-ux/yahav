@@ -30,10 +30,12 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
     onNavigate('community')
   }
 
-  const subtitle =
-    events.length >= 2 ? `${events.length} מפגשים קרובים` :
-    events.length === 1 ? 'מפגש אחד קרוב' :
-    'מפגשים, הרצאות ואימונים, ביחד'
+  // Brenda 17.8.26: no count in the subtitle. "2 מפגשים קרובים" reads as
+  // "only two" on a quiet month — the invitation should not shrink with
+  // the calendar.
+  const subtitle = events.length > 0
+    ? 'מפגשים קרובים'
+    : 'מפגשים, הרצאות ואימונים, ביחד'
 
   return (
     <div className="bg-white" style={{ borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>

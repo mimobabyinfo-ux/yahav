@@ -65,7 +65,7 @@ export default function MyCoursesCard({ onNavigate }: { onNavigate: (page: Page)
             ? titles.join(' · ')
             : activeIds.length > 0
               ? `${activeIds.length} תכנים פתוחים עבורך`
-              : 'תצוגת אדמין — כל התכנים'}
+              : 'תצוגת אדמין: כל התכנים'}
         </span>
         {until && (
           <span className="block text-[11px] mt-0.5" style={{ color: '#8A6A2F' }}>

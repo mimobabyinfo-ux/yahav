@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { useLastEntry } from '../hooks/useLastEntry'
 import { formatTimeSince } from '../utils/timeSince'
+import { activePerks } from '../utils/perkValidity'
 import { getBabyAge } from '../utils/dateUtils'
 import ChildSwitcher from '../components/ChildSwitcher'
 import MyTasksPanel from '../components/MyTasksPanel'
@@ -91,6 +92,8 @@ export default function DashboardPage({ onNavigate }: Props) {
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
   const [selectedPerk, setSelectedPerk] = useState<PartnerPerk | null>(null)
   const [showPerks, setShowPerks] = useState(false)
+  // Perk windows are measured from the day she joined the community.
+  const joinedAt = profile?.created_at ?? null
 
   useEffect(() => {
     supabase.from('global_settings')
@@ -105,9 +108,10 @@ export default function DashboardPage({ onNavigate }: Props) {
           .eq('is_active', true)
           .eq('is_featured', true)
           .order('display_order')
-          .then(({ data: perks }) => setFeaturedPerks(perks ?? []))
+          // Expired perks (see utils/perkValidity) never reach the home strip.
+          .then(({ data: perks }) => setFeaturedPerks(activePerks((perks ?? []) as PartnerPerk[], joinedAt)))
       })
-  }, [])
+  }, [joinedAt])
 
   const openLogPage = (logType: string) => {
     if (logType === 'sleep') onNavigate('log-sleep')

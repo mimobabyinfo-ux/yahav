@@ -331,6 +331,10 @@ export type PartnerPerk = {
   is_featured: boolean
   is_active: boolean
   redeem_in_person: boolean
+  /** Days from the mother's join date the perk stays valid. NULL = forever. */
+  valid_days_from_join: number | null
+  /** Absolute last valid day (YYYY-MM-DD), same for everyone. NULL = no end. */
+  valid_until: string | null
   display_order: number
   created_at: string
   updated_at: string

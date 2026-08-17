@@ -392,7 +392,7 @@ export default function CommunityPage() {
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
                 <Tag className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
-                מה את מחפשת בקהילה?
+                מה ההעדפות החברתיות שלך?
               </label>
               <TagSelector value={tagsInput} onChange={setTagsInput} />
               <p className="text-[13px] text-sand-600 mt-1.5 leading-relaxed">

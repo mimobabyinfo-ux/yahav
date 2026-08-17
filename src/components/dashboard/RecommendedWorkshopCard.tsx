@@ -19,6 +19,15 @@ import type { Page } from '../../App'
 //    brand's celeste so "this one is for your baby" reads as its own
 //    thing.
 
+// Brenda 17.8.26: the celeste was shouting next to the cream cards. She
+// picked the palest of the four options put to her, so the card now sits
+// just off the page background and earns attention from its content
+// rather than its fill. Ink darkened to hold contrast on the light tint.
+const CARD_BG = '#E4EAED'
+const INK_STRONG = '#22333A'
+const INK = '#2A3F49'
+const INK_SOFT = '#465C66'
+
 function cohortDateLabel(c: PublicCohort): string {
   const [, m, d] = c.start_date.split('-')
   const t = c.start_time ? ` · ${c.start_time.slice(0, 5)}` : ''
@@ -88,6 +97,11 @@ export default function RecommendedWorkshopCard({ onNavigate }: { onNavigate: (p
 
   if (!match || !selectedChild) return null
 
+  // Brenda 17.8.26: first name only. children.name is stored as
+  // "first last" (onboarding joins the two fields), and a full name in a
+  // warm one-liner reads like a form, not like her baby.
+  const childFirstName = selectedChild.name.trim().split(/\s+/)[0]
+
   const spotsLeft = nextCohort && nextCohort.capacity != null
     ? nextCohort.capacity - nextCohort.registered_count
     : null
@@ -103,23 +117,23 @@ export default function RecommendedWorkshopCard({ onNavigate }: { onNavigate: (p
     <button
       onClick={openProduct}
       className="w-full text-right transition-all hover:shadow-md active:scale-[0.99]"
-      style={{ background: '#C3CDD2', borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}
+      style={{ background: CARD_BG, borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}
     >
       <div className="flex items-center" style={{ gap: 12 }}>
         <span className="rounded-2xl flex items-center justify-center flex-shrink-0" style={{ width: 46, height: 46, background: '#FFFFFF' }}>
-          <Baby style={{ width: 24, height: 24, color: '#35505C' }} strokeWidth={2} />
+          <Baby style={{ width: 24, height: 24, color: INK }} strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="font-bold" style={{ fontSize: 13, color: '#35505C' }}>
-            מתאים בדיוק לגיל של {selectedChild.name}
+          <p className="font-bold" style={{ fontSize: 13, color: INK }}>
+            מתאים בדיוק לגיל של {childFirstName}
           </p>
-          <p className="font-bold truncate mt-0.5" style={{ fontSize: 17, color: '#2E3F47' }}>{match.title}</p>
-          <p className="font-semibold mt-0.5" style={{ fontSize: 13, color: '#4A6069' }}>
+          <p className="font-bold truncate mt-0.5" style={{ fontSize: 17, color: INK_STRONG }}>{match.title}</p>
+          <p className="font-semibold mt-0.5" style={{ fontSize: 13, color: INK_SOFT }}>
             {ageRangeLabel(match.age_range_start_months!, match.age_range_end_months)}
             {match.price != null && ` · ${match.price === 0 ? 'חינם' : `₪${match.price}`}`}
           </p>
           {nextCohort && (
-            <p className="flex items-center gap-1 font-semibold mt-1" style={{ fontSize: 13, color: '#35505C' }}>
+            <p className="flex items-center gap-1 font-semibold mt-1" style={{ fontSize: 13, color: INK }}>
               <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
               המחזור הקרוב: {cohortDateLabel(nextCohort)}
               {spotsLeft != null && spotsLeft > 0 && spotsLeft <= 3 && (
@@ -130,7 +144,7 @@ export default function RecommendedWorkshopCard({ onNavigate }: { onNavigate: (p
             </p>
           )}
         </div>
-        <ChevronLeft className="w-5 h-5 flex-shrink-0" style={{ color: '#35505C' }} />
+        <ChevronLeft className="w-5 h-5 flex-shrink-0" style={{ color: INK }} />
       </div>
     </button>
   )
