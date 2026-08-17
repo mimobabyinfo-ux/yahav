@@ -99,10 +99,24 @@ export default function EventsTab() {
       })
   }, [])
 
-  /** The credit that would pay for this event, or null. */
+  /** The credit that would pay for this event, or null.
+   *  Mirrors redeem_credit_for_event's choice exactly — soonest to expire,
+   *  then smallest — so the amount on the button is the amount that gets
+   *  spent. A UI that promised one credit and burned another would be
+   *  worse than no button. */
   function creditFor(total: number): MyCredit | null {
     if (total <= 0) return null
-    return credits.find(c => Number(c.amount) >= total) ?? null
+    return credits
+      .filter(c => Number(c.amount) >= total)
+      .sort((a, b) => a.expires_at.localeCompare(b.expires_at) || Number(a.amount) - Number(b.amount))[0] ?? null
+  }
+
+  /** Is a cancellation still early enough to earn the credit back?
+   *  Same rule as cancel_event_registration, so the sheet can tell her the
+   *  truth before she taps instead of after. */
+  function creditStillDue(ev: CommunityEventRow): boolean {
+    const start = new Date(`${ev.event_date}T${(ev.start_time ?? '00:00').slice(0, 5)}:00`)
+    return Date.now() <= start.getTime() - creditHours * 3600_000
   }
 
   const load = useCallback(async () => {
@@ -196,24 +210,27 @@ export default function EventsTab() {
       try { localStorage.setItem('mimo_pending_event_id', ev.id) } catch { /* private mode */ }
       const link = paymentLinkFor(ev, guests.length + 1)
       if (link) window.open(link, '_blank', 'noopener')
-      showToast('המקום שמור לך ל-10 דקות. משלימות תשלום ואת בפנים 🤎')
+      showToast(link
+        ? 'המקום שמור לך ל-10 דקות. משלימות תשלום ואת בפנים 🤎'
+        // No Morning link on the event. Silently holding a seat she cannot
+        // pay for reads as a broken app; say so and point at WhatsApp.
+        : 'המקום שמור לך. אין כאן קישור תשלום, כתבי לנו ונסדר את זה 🤎')
       setGuestDrafts(prev => { const n = { ...prev }; delete n[ev.id]; return n })
       setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
       load()
       return
     }
     if (data === 'registered' || data === 'already' || data === 'updated') {
+      // Only FREE events land here: register_for_event returns 'pending'
+      // for anything priced, handled above. No payment link is opened on
+      // this path — that is what kept sending a paid mother back to
+      // checkout a second time.
       const seats = guests.length + 1
       showToast(
-        data === 'updated' ? 'עדכנו את מי שמגיעה איתך 🤎'
-        : ev.price > 0 ? 'שמרנו לכן מקום! נשאר רק להשלים תשלום 🤎'
+        data === 'already' ? 'את כבר רשומה לאירוע 🤎'
         : seats > 1 ? 'נתראה שם, שתיכן! 🤎'
         : 'נתראה שם! 🤎',
       )
-      const link = paymentLinkFor(ev, seats)
-      if (data !== 'updated' && ev.price > 0 && link) {
-        window.open(link, '_blank', 'noopener')
-      }
       setGuestDrafts(prev => { const n = { ...prev }; delete n[ev.id]; return n })
       setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
       load()
@@ -522,24 +539,43 @@ export default function EventsTab() {
                   : 'להשלמת ההרשמה אנא השלימי את התשלום.'}
               </p>
               <div className="flex gap-2">
-                <a
-                  href={paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1) ?? '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => { try { localStorage.setItem('mimo_pending_event_id', ev.id) } catch { /* private mode */ } }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] transition-all hover:brightness-95"
-                  style={{ background: '#E7C78A' }}
-                >
-                  <ExternalLink className="w-4 h-4" /> להשלמת התשלום
-                </a>
+                {!ev.my_payment_claimed_at && (
+                  <a
+                    href={paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1) ?? '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => { try { localStorage.setItem('mimo_pending_event_id', ev.id) } catch { /* private mode */ } }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] transition-all hover:brightness-95"
+                    style={{ background: '#E7C78A' }}
+                  >
+                    <ExternalLink className="w-4 h-4" /> להשלמת התשלום
+                  </a>
+                )}
                 <button
                   onClick={() => cancel(ev)}
                   disabled={busyId === ev.id}
-                  className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-bold disabled:opacity-40 whitespace-nowrap"
+                  className={`px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-bold disabled:opacity-40 whitespace-nowrap ${ev.my_payment_claimed_at ? 'flex-1' : ''}`}
                 >
                   לביטול הרשמה
                 </button>
               </div>
+              {/* BUG 3: a mother mid-payment could not switch to a credit —
+                  the option only existed before she tapped register. The
+                  RPC always allowed it, the button just was not there. */}
+              {(() => {
+                const credit = creditFor(ev.price * ((ev.my_guests?.length ?? 0) + 1))
+                if (!credit || ev.my_payment_claimed_at) return null
+                return (
+                  <button
+                    onClick={() => redeemCredit(ev)}
+                    disabled={busyId === ev.id}
+                    className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
+                    style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
+                  >
+                    או לשלם עם הזיכוי שלי (₪{Number(credit.amount)})
+                  </button>
+                )
+              })()}
               {/* Bit and cross-device payments never come back through the
                   thank-you page, so the app cannot see them. She says so
                   herself and Brenda confirms it from the admin. */}
@@ -581,10 +617,17 @@ export default function EventsTab() {
                     לא מסתדר לך להגיע?
                   </p>
                   {ev.price > 0 && ev.my_paid && (
-                    <p className="text-[12px] leading-relaxed" style={{ color: '#8C6E63' }}>
-                      הסכום ששילמת יישמר לך כזיכוי <b>באפליקציה</b> לחודש הקרוב, לשימוש באירוע קהילה
-                      אחר באותו מחיר או פחות. הזיכוי ניתן עד {creditHours} שעות לפני האירוע.
-                    </p>
+                    creditStillDue(ev) ? (
+                      <p className="text-[12px] leading-relaxed" style={{ color: '#8C6E63' }}>
+                        הסכום ששילמת יישמר לך כזיכוי <b>באפליקציה</b> לחודש הקרוב, לשימוש באירוע קהילה
+                        אחר באותו מחיר או פחות.
+                      </p>
+                    ) : (
+                      <p className="text-[12px] leading-relaxed font-semibold" style={{ color: '#A35C3D' }}>
+                        הזיכוי ניתן עד {creditHours} שעות לפני האירוע, והמועד עבר. אפשר לבטל,
+                        אבל הפעם בלי זיכוי.
+                      </p>
+                    )
                   )}
                   <button
                     onClick={() => cancel(ev)}
@@ -592,7 +635,7 @@ export default function EventsTab() {
                     className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
                     style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#8C6E63' }}
                   >
-                    {ev.price > 0 && ev.my_paid ? 'ביטול וקבלת זיכוי' : 'ביטול ההרשמה'}
+                    {ev.price > 0 && ev.my_paid && creditStillDue(ev) ? 'ביטול וקבלת זיכוי' : 'ביטול ההרשמה'}
                   </button>
                 </div>
               )}
@@ -670,7 +713,11 @@ export default function EventsTab() {
               })()}
             </>
           )}
-          {isMine && ev.price > 0 && paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1) && (
+          {/* Brenda 17.8.26: this was the "it still asks me to pay after I
+              used a credit" bug — the condition never looked at whether
+              anything was owed. It stays for the one case that needs it:
+              a mother Brenda registered by hand who has not paid yet. */}
+          {isMine && ev.price > 0 && !ev.my_paid && paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1) && (
             <a href={paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1)!} target="_blank" rel="noopener noreferrer"
               className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-2xl text-xs font-bold text-mustard-700 bg-[#F4EDE1]">
               <ExternalLink className="w-3.5 h-3.5" /> להשלמת התשלום
