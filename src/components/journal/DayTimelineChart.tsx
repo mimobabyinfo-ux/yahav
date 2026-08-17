@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import type { DailyLogEntryWithDetails, FeedingDetail, SleepDetail } from '../../lib/supabase'
 import { formatDate, formatDuration } from '../../utils/dateUtils'
@@ -12,16 +12,17 @@ import { ENTRY_COLORS } from '../DailyTimeline'
 // geometry to change:
 //  · ZOOM. The chart used to squeeze 24 hours into a fixed 400px, so a
 //    12-minute feed was two pixels and a busy morning was a smear. Layout
-//    is now px-per-hour rather than percentages, the container scrolls,
-//    and +/− (or a pinch) moves between three levels.
+//    is px-per-hour, the container scrolls, and the value is continuous:
+//    pinch drives it directly, +/− step it.
 //  · A LEGEND. Colour with no key is decoration.
 //  · A clearer NOW line — see below.
 //
 // Cross-midnight rule is unchanged: a sleep that started yesterday and
 // ended today renders on today's column starting at 00:00.
 
-const ZOOM_LEVELS = [20, 44, 88] as const   // px per hour
-const DEFAULT_ZOOM = 0
+const MIN_PX_PER_HOUR = 20    // the whole day just fits the viewport
+const MAX_PX_PER_HOUR = 150   // a single feed is a readable block
+const BUTTON_STEP = 1.6       // what one tap of +/- multiplies by
 const VIEWPORT_MAX_PX = 480
 const MIN_DURATION_BLOCK_PX = 6
 const INSTANT_HEIGHT_PX = 4
@@ -181,10 +182,30 @@ function pad2(n: number): string { return n.toString().padStart(2, '0') }
 export default function DayTimelineChart({ entries, selectedDate }: Props) {
   const segs = buildSegmentsForDay(entries, selectedDate)
 
-  const [zoom, setZoom] = useState<number>(DEFAULT_ZOOM)
-  const pxPerHour = ZOOM_LEVELS[zoom]
+  // Zoom is a continuous px-per-hour, not three fixed steps. Brenda
+  // 17.8.26: "isn't there a way to zoom with my hand, two fingers, not
+  // + and -?" A pinch that snaps between three presets does not feel
+  // like a pinch, so the gesture drives the number directly and the
+  // buttons step it.
+  const [pxPerHour, setPxPerHour] = useState<number>(MIN_PX_PER_HOUR)
   const chartHeight = pxPerHour * 24
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  /** Change zoom while keeping the same clock time under the middle of
+   *  the viewport — otherwise zooming throws her to a different hour. */
+  const zoomTo = useCallback((next: number, focusClientY?: number) => {
+    const el = scrollRef.current
+    const clamped = Math.min(MAX_PX_PER_HOUR, Math.max(MIN_PX_PER_HOUR, next))
+    if (!el) { setPxPerHour(clamped); return }
+    const rect = el.getBoundingClientRect()
+    const focusOffset = focusClientY == null ? el.clientHeight / 2 : focusClientY - rect.top
+    const minutesAtFocus = ((el.scrollTop + focusOffset) / pxPerHour) * 60
+    setPxPerHour(clamped)
+    requestAnimationFrame(() => {
+      const target = (minutesAtFocus / 60) * clamped - focusOffset
+      el.scrollTop = Math.max(0, Math.min(target, clamped * 24 - el.clientHeight))
+    })
+  }, [pxPerHour])
 
   // The now-line ticks. A journal that shows a frozen "now" is a chart;
   // one that moves is a clock you can read your day against.
@@ -209,30 +230,53 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
     const el = scrollRef.current
     if (!el) return
     const target = (anchorMin / 60) * pxPerHour - el.clientHeight / 2
-    el.scrollTop = Math.max(0, Math.min(target, chartHeight - el.clientHeight))
-    // Re-anchor when the day or the zoom changes, not on every tick.
+    el.scrollTop = Math.max(0, Math.min(target, pxPerHour * 24 - el.clientHeight))
+    // Only when the DAY changes. Re-anchoring on zoom would fight the
+    // pinch, which keeps its own focus point.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, pxPerHour])
+  }, [selectedDate])
 
   // ── Pinch to zoom ────────────────────────────────────────────────────
-  const pinchStartRef = useRef<number | null>(null)
-  function touchDistance(t: React.TouchList): number {
-    const dx = t[0].clientX - t[1].clientX
-    const dy = t[0].clientY - t[1].clientY
-    return Math.hypot(dx, dy)
-  }
-  function onTouchStart(e: React.TouchEvent) {
-    if (e.touches.length === 2) pinchStartRef.current = touchDistance(e.touches)
-  }
-  function onTouchMove(e: React.TouchEvent) {
-    if (e.touches.length !== 2 || pinchStartRef.current == null) return
-    const ratio = touchDistance(e.touches) / pinchStartRef.current
-    if (ratio > 1.35 && zoom < ZOOM_LEVELS.length - 1) { setZoom(zoom + 1); pinchStartRef.current = touchDistance(e.touches) }
-    if (ratio < 0.75 && zoom > 0) { setZoom(zoom - 1); pinchStartRef.current = touchDistance(e.touches) }
-  }
-  function onTouchEnd(e: React.TouchEvent) {
-    if (e.touches.length < 2) pinchStartRef.current = null
-  }
+  // Registered natively with { passive: false } rather than through React's
+  // onTouchMove. React attaches touchmove passively, so preventDefault is
+  // ignored there and the BROWSER takes the two-finger gesture and zooms
+  // the whole page — which is why the first version did nothing on a phone.
+  // touch-action: pan-y on the element tells the browser the same thing up
+  // front, so vertical scrolling still works and pinching is ours.
+  const pinchRef = useRef<{ dist: number; px: number } | null>(null)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    const dist = (t: TouchList) =>
+      Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
+
+    function onStart(e: TouchEvent) {
+      if (e.touches.length !== 2) return
+      pinchRef.current = { dist: dist(e.touches), px: pxPerHour }
+    }
+    function onMove(e: TouchEvent) {
+      const start = pinchRef.current
+      if (e.touches.length !== 2 || !start) return
+      e.preventDefault()
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+      zoomTo(start.px * (dist(e.touches) / start.dist), midY)
+    }
+    function onEnd(e: TouchEvent) {
+      if (e.touches.length < 2) pinchRef.current = null
+    }
+
+    el.addEventListener('touchstart', onStart, { passive: false })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd)
+    el.addEventListener('touchcancel', onEnd)
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+      el.removeEventListener('touchcancel', onEnd)
+    }
+  }, [pxPerHour, zoomTo])
 
   // Hour gridlines: every 3h when compressed, every hour once zoomed in.
   const hourStep = pxPerHour >= 44 ? 1 : 3
@@ -243,11 +287,11 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
     <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] overflow-hidden">
       {/* Zoom control */}
       <div className="flex items-center justify-between px-3 pt-3">
-        <span className="text-[11px] font-semibold text-sand-500">ציר הזמן של היום</span>
+        <span className="text-[11px] font-semibold text-sand-500">ציר הזמן של היום · אפשר לצבוט להגדלה</span>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setZoom(z => Math.max(0, z - 1))}
-            disabled={zoom === 0}
+            onClick={() => zoomTo(pxPerHour / BUTTON_STEP)}
+            disabled={pxPerHour <= MIN_PX_PER_HOUR + 0.5}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-sand-600 disabled:opacity-30"
             style={{ background: '#F4EDE1' }}
             aria-label="הקטנה"
@@ -255,8 +299,8 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
             <Minus className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => setZoom(z => Math.min(ZOOM_LEVELS.length - 1, z + 1))}
-            disabled={zoom === ZOOM_LEVELS.length - 1}
+            onClick={() => zoomTo(pxPerHour * BUTTON_STEP)}
+            disabled={pxPerHour >= MAX_PX_PER_HOUR - 0.5}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-sand-600 disabled:opacity-30"
             style={{ background: '#F4EDE1' }}
             aria-label="הגדלה"
@@ -269,10 +313,7 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
       <div
         ref={scrollRef}
         className="overflow-y-auto scroll-hide mt-2"
-        style={{ maxHeight: VIEWPORT_MAX_PX }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
+        style={{ maxHeight: VIEWPORT_MAX_PX, touchAction: 'pan-y' }}
       >
         <div className="grid grid-cols-[34px_1fr]" style={{ height: chartHeight }}>
           {/* Time rail */}
