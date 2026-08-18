@@ -45,6 +45,13 @@ export type UserProfile = {
   family_display_name: string | null
   user_mode: 'pregnant' | 'mom' | null
   due_date: string | null
+  /** When she ticked the terms + privacy box. Null on accounts created
+   *  before 18.8.2026, and on any account that reached the app without
+   *  passing ConsentGate — which is what that gate exists to prevent. */
+  terms_accepted_at: string | null
+  terms_version: string | null
+  /** Separate, opt-in, never assumed — חוק התקשורת סעיף 30א. */
+  marketing_opt_in: boolean
   reminder_water_enabled: boolean
   reminder_water_hours: number
   reminder_vitamins_enabled: boolean

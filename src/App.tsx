@@ -21,6 +21,7 @@ import PublicRegisterPage from './pages/PublicRegisterPage'
 import VendorCheckinPage from './pages/VendorCheckinPage'
 import ThankYouPage from './pages/ThankYouPage'
 import LegalPage from './pages/LegalPage'
+import ConsentGate from './pages/ConsentGate'
 import UserSettingsPage from './pages/UserSettingsPage'
 import SleepPage from './pages/log/SleepPage'
 import TummyTimePage from './pages/log/TummyTimePage'
@@ -199,6 +200,18 @@ function AppInner() {
   }
 
   if (!user) return <LoginPage />
+
+  // Consent before service, for every route in. The tick on the signup
+  // form only guards that form — Google OAuth signs a new person up
+  // through the same call it signs an existing one in, so it never saw
+  // it. Anyone whose account carries no stamp lands here and cannot pass.
+  // A guest holding a share link is looking at someone else's journal,
+  // not opening an account, so they are exempt.
+  const hasConsented = Boolean(
+    user.user_metadata?.terms_accepted_at || profile?.terms_accepted_at,
+  )
+  if (!isGuest && !hasConsented) return <ConsentGate />
+
   if (!profile && !isGuest) return <OnboardingPage />
 
   // Authenticated user settings — accessible from any role except guest
