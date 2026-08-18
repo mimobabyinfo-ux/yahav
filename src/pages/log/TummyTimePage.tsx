@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { formatDate, formatTime } from '../../utils/dateUtils'
+import { formatDate, formatTime, clampDatetimeLocalToNow, nowDatetimeInputValue } from '../../utils/dateUtils'
 import { useActiveTimer } from '../../hooks/useActiveTimer'
 import { useLastEntry } from '../../hooks/useLastEntry'
 import { formatTimeSince } from '../../utils/timeSince'
@@ -139,7 +139,9 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
     setMSaving(true)
     setMError(null)
     try {
-      const startDate = new Date(mStart)
+      // Never store a future entry — `max` on the input is a hint the
+      // browser is free to let a keyboard walk past.
+      const startDate = new Date(clampDatetimeLocalToNow(mStart))
       const durationLabel = `משך: ${buildDurationLabel(secs)}`
       const userNotes = mNotes.trim()
       const finalNotes = userNotes ? `${durationLabel} — ${userNotes}` : durationLabel
@@ -294,7 +296,8 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
           <input
             type="datetime-local"
             value={mStart}
-            onChange={e => setMStart(e.target.value)}
+            max={nowDatetimeInputValue()}
+            onChange={e => setMStart(clampDatetimeLocalToNow(e.target.value))}
             className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
           />
         </div>
@@ -303,7 +306,8 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
           <input
             type="datetime-local"
             value={mEnd}
-            onChange={e => setMEnd(e.target.value)}
+            max={nowDatetimeInputValue()}
+            onChange={e => setMEnd(clampDatetimeLocalToNow(e.target.value))}
             className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
           />
         </div>

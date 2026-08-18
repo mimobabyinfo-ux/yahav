@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import type { DailyLogEntryWithDetails, SleepDetail, FeedingDetail, DiaperDetail } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatTime } from '../utils/dateUtils'
+import { formatTime, formatDate, clampDateTimeToNow } from '../utils/dateUtils'
 import { MILESTONE_CHIPS } from '../constants/milestones'
 import { sleepTypeFromStartTime } from '../utils/sleepTypeFromTime'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
@@ -82,6 +82,11 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
   // (which are still required for the create path).
   const effectiveEntryType = (entry?.entry_type ?? entryType) as EntryType
   const effectiveDate = entry?.entry_date ?? date
+  // Brenda 18.8.26: nothing in the journal may be dated ahead. The
+  // day and week screens now stop at today, and this is the write
+  // side of the same rule.
+  const todayStr = formatDate(new Date())
+  const isTodayEntry = effectiveDate === todayStr
 
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
@@ -328,7 +333,22 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
     try {
       const now = new Date()
       const finalNotes = composeNotes()
-      const entryTimeValue = time || formatTime(now)
+      // Only the CREATE path may be rewritten by the no-future rule.
+      // Editing must never move a field the mother did not touch: an
+      // entry already dated today with a stored time later than the
+      // clock — a night sleep whose row carries the stop day and the
+      // start hour — would otherwise have its time silently reset to
+      // "now" when she saved a change to the notes.
+      const chosen = { date: effectiveDate, time: time || formatTime(now) }
+      const clamped = isEdit ? chosen : clampDateTimeToNow(chosen.date, chosen.time)
+      if (!isEdit && (clamped.date !== chosen.date || clamped.time !== chosen.time)) {
+        setSaveError('אי אפשר לרשום ביומן תאריך או שעה שעוד לא הגיעו')
+        setSaving(false)
+        if (saveButtonRef.current) saveButtonRef.current.disabled = false
+        savingRef.current = false
+        return
+      }
+      const entryTimeValue = clamped.time
 
       if (isEdit && entry) {
         // ── EDIT: UPDATE daily_log_entries + the relevant detail row ──
@@ -426,7 +446,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
         .insert({
           user_id: user.id,
           child_id: selectedChild?.id ?? null,
-          entry_date: effectiveDate,
+          entry_date: clamped.date,
           entry_time: entryTimeValue,
           entry_type: effectiveEntryType,
           notes: finalNotes,
@@ -447,7 +467,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
       } else if (effectiveEntryType === 'sleep') {
         // sleep_type derived from the start time on the entry's date.
         // Combined into a local Date so the hour reflects the user's input.
-        const startDate = new Date(`${effectiveDate}T${time || '00:00'}:00`)
+        const startDate = new Date(`${clamped.date}T${entryTimeValue}:00`)
         await supabase.from('sleep_details').insert({
           log_entry_id: created.id,
           sleep_type: sleepTypeFromStartTime(startDate),
@@ -526,7 +546,8 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
               <input
                 type="time"
                 value={time}
-                onChange={e => setTime(e.target.value)}
+                max={isTodayEntry ? formatTime(new Date()) : undefined}
+                onChange={e => setTime(clampDateTimeToNow(effectiveDate, e.target.value).time)}
                 className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
               />
             </div>
@@ -681,7 +702,8 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                   <input
                     type="time"
                     value={time}
-                    onChange={e => setTime(e.target.value)}
+                    max={isTodayEntry ? formatTime(new Date()) : undefined}
+                    onChange={e => setTime(clampDateTimeToNow(effectiveDate, e.target.value).time)}
                     className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
                   />
                 </div>

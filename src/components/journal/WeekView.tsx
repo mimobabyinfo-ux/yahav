@@ -146,6 +146,14 @@ export default function WeekView({
   const highlights = computeHighlights(entries, weekDates)
   const weekLabel = hebrewWeekRange(weekStart)
 
+  // Brenda 18.8.26: "I shouldn't be able to put a bottle / nursing / food
+  // / sleep in the journal days ahead — only backwards." The day screen
+  // already stopped at today, but the week arrow did not: one tap past
+  // this week, then a tap on a day, and the quick-add bar was writing an
+  // entry for next Tuesday. The week that contains today is the last one.
+  const atCurrentWeek = weekDates.has(formatDate(new Date()))
+  const canGoForward = !atCurrentWeek && weekStart < new Date()
+
   // Swipe between weeks, same gesture and thresholds as the day screen.
   // RTL: swipe left = next week, swipe right = previous.
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
@@ -160,7 +168,8 @@ export default function WeekView({
     const dx = e.changedTouches[0].clientX - start.x
     const dy = e.changedTouches[0].clientY - start.y
     if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return
-    onWeekShift(addDays(weekStart, dx < 0 ? 7 : -7))
+    if (dx < 0) { if (canGoForward) onWeekShift(addDays(weekStart, 7)) }
+    else onWeekShift(addDays(weekStart, -7))
   }
 
   return (
@@ -168,6 +177,7 @@ export default function WeekView({
       <JournalHeader
         onPrev={() => onWeekShift(addDays(weekStart, -7))}
         onNext={() => onWeekShift(addDays(weekStart, 7))}
+        nextDisabled={!canGoForward}
         prevLabel="שבוע קודם"
         nextLabel="שבוע הבא"
         onOpenViews={onOpenViews}

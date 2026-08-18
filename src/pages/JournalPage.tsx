@@ -176,7 +176,12 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   }, [tab, selectedDate, weekStart, fetchEntries, fetchRangeEntries])
 
   function handleDayClick(date: string) {
-    setSelectedDate(date)
+    // The journal records what happened, so today is as far as it goes.
+    // Every route into the day screen passes through here or the view
+    // sheet (which already carries maxDate), so this is the one place a
+    // future date could still slip in.
+    const today = formatDate(new Date())
+    setSelectedDate(date > today ? today : date)
     setTab('day')
   }
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Play, Pause, Plus, Square } from 'lucide-react'
 import { supabase, ActiveTimer } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { formatDate, formatTime } from '../../utils/dateUtils'
+import { formatDate, formatTime, clampDatetimeLocalToNow, nowDatetimeInputValue } from '../../utils/dateUtils'
 import { formatSeconds, timersForChild } from '../../hooks/useActiveTimer'
 import { useLastEntry } from '../../hooks/useLastEntry'
 import { formatTimeSince } from '../../utils/timeSince'
@@ -321,7 +321,9 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
     setMSaving(true)
     setMError(null)
     try {
-      const startDate = new Date(mStart)
+      // Never store a future entry — `max` on the input is a hint the
+      // browser is free to let a keyboard walk past.
+      const startDate = new Date(clampDatetimeLocalToNow(mStart))
       if (Number.isNaN(startDate.getTime())) throw new Error('שעת התחלה לא תקינה')
       const totalSecs = dur.left + dur.right
       const durationMins = totalSecs >= 1 ? parseFloat((totalSecs / 60).toFixed(2)) : null
@@ -580,7 +582,8 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
         <input
           type="datetime-local"
           value={mStart}
-          onChange={e => setMStart(e.target.value)}
+          max={nowDatetimeInputValue()}
+          onChange={e => setMStart(clampDatetimeLocalToNow(e.target.value))}
           className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
         />
       </div>

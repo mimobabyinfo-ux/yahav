@@ -114,8 +114,22 @@ function AppInner() {
     if (isCoursePage) return
     if (profile?.is_admin && !viewAsUser) {
       setCurrentPage('admin')
+    } else {
+      // Brenda 18.8.26: "I signed up and immediately got 'אין גישה
+      // לפאנל הניהול'." She had signed out of the admin account and
+      // signed up in the same tab. currentPage is React state, not a
+      // URL, so it was still 'admin' from the previous account — and
+      // the effect that puts an admin there had no branch for anyone
+      // else, so the first thing a brand-new mother saw was an access
+      // denial. Leaving admin is now part of the same rule that enters
+      // it: not an admin, not on the admin page.
+      setCurrentPage(prev => (prev === 'admin' ? 'dashboard' : prev))
     }
   }, [profile?.is_admin, viewAsUser])
+
+  // The same guarantee at the other end, for the render pass that runs
+  // before the effect above commits: whatever currentPage says, a
+  // non-admin never gets AdminPage.
 
   // Guests land on journal and clean up URL
   useEffect(() => {
@@ -227,6 +241,12 @@ function AppInner() {
 
 
   const renderPage = () => {
+    // A non-admin never renders AdminPage, whatever currentPage says —
+    // see the effect above. This covers the render that happens before
+    // that effect commits, which is the one Brenda saw.
+    if (currentPage === 'admin' && !isAdminMode) {
+      return isPregnant ? <PregnancyDashboard onNavigate={navigate} /> : <DashboardPage onNavigate={navigate} />
+    }
     // Pregnant users get their own dashboard
     if (currentPage === 'dashboard' && isPregnant) {
       return <PregnancyDashboard onNavigate={navigate} />

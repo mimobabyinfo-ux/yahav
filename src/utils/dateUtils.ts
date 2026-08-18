@@ -133,3 +133,45 @@ export function entryTypeEmoji(type: string): string {
   }
   return emojis[type] ?? '•'
 }
+
+// ── "לא קדימה" ────────────────────────────────────────────────────────
+// Brenda 18.8.26: "I shouldn't have the option to put a bottle, nursing,
+// food or sleep in the journal days ahead — only backwards."
+//
+// The date inputs already carried max={today}, but nothing stopped the
+// TIME: on today's date she could pick 23:00 at nine in the morning, and
+// the journal then showed a feed that had not happened yet, ahead of the
+// ones that had. Sleep and nursing use datetime-local, where nothing
+// stopped the date either.
+//
+// These are the shared clamps. They are applied on change (so the field
+// visibly refuses rather than silently rewriting on save) AND again at
+// save time, because `max` on an input is a hint the browser is free to
+// let a keyboard walk past.
+
+/** Today's date in Israel, as the value a <input type="date"> wants. */
+export function todayInputValue(): string {
+  return formatDate(new Date())
+}
+
+/** Now, as the value an <input type="datetime-local"> wants — Israel time. */
+export function nowDatetimeInputValue(): string {
+  return `${formatDate(new Date())}T${formatTime(new Date())}`
+}
+
+/** A date+time pair that cannot be in the future. Only the time needs
+ *  clamping when the date is today; a past date keeps whatever time. */
+export function clampDateTimeToNow(date: string, time: string): { date: string; time: string } {
+  const today = formatDate(new Date())
+  const d = !date || date > today ? today : date
+  if (d !== today) return { date: d, time }
+  const now = formatTime(new Date())
+  return { date: d, time: !time || time > now ? now : time }
+}
+
+/** Same, for a single "YYYY-MM-DDTHH:mm" value. */
+export function clampDatetimeLocalToNow(value: string): string {
+  const now = nowDatetimeInputValue()
+  if (!value) return value
+  return value > now ? now : value
+}

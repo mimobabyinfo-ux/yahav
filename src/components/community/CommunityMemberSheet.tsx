@@ -1,6 +1,7 @@
 import { X, MessageCircle, MapPin } from 'lucide-react'
 import { useOwnerSettings } from '../../hooks/useOwnerSettings'
 import { COMMUNITY_TAGS } from '../../constants/communityTags'
+import { waLink } from '../../utils/phone'
 
 // Phase 4 / C2: bottom-sheet profile view for a community member. Opens
 // when mom taps a card. Matches the LogEntryModal aesthetic — handle
@@ -41,12 +42,11 @@ export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoj
   const { ownerWhatsapp } = useOwnerSettings()
   const firstName = member.mother_name?.split(' ')[0] ?? 'אמא'
   const tags = pickTags(member.community_tags ?? null)
-  const hasDirectWa = !!(member.community_consent && member.phone_number)
-
-  const directWaHref = hasDirectWa
-    ? `https://wa.me/${member.phone_number!.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappGreeting)}`
+  // 0545243363 is not a number wa.me can resolve — see utils/phone.
+  const directWaHref = member.community_consent
+    ? waLink(member.phone_number, whatsappGreeting)
     : null
-  const fallbackHref = `https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(fallbackGreeting)}`
+  const fallbackHref = waLink(ownerWhatsapp, fallbackGreeting) ?? '#'
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center pb-[72px]" dir="rtl">

@@ -7,7 +7,6 @@ import {
 import { supabase, PregnancyChecklistItem, PregnancyWeeklyGuide, UserPregnancyItem, UserReminder } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MyTasksPanel from '../components/MyTasksPanel'
-import DailyTipCard from '../components/dashboard/DailyTipCard'
 import { formatDate } from '../utils/dateUtils'
 import { pregnancyWeek, daysUntilDue } from '../utils/pregnancyWeek'
 import { PREGNANCY_REMINDER_TEMPLATES, PregnancyReminderTemplate } from '../data/pregnancyReminderTemplates'
@@ -584,7 +583,10 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
         <MyTasksPanel />
 
         {/* ── Daily tip (Phase 3 / C2) ── */}
-        <DailyTipCard />
+        {/* Brenda 18.8.26: "take out the tip of the day." The card
+            and its hook stay in the tree (components/dashboard/
+            DailyTipCard + hooks/useDailyTip) and the admin טיפים
+            screen still writes them, so putting it back is one line. */}
 
         {/* ── Weekly Guide Card ── */}
         {guide && week && <WeekGuideCard guide={guide} week={week} items={itemsForWeek(week)} />}

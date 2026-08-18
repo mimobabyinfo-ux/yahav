@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Camera, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { formatDate, formatTime } from '../../utils/dateUtils'
+import { formatDate, formatTime, clampDateTimeToNow, todayInputValue } from '../../utils/dateUtils'
 import { useLastEntry } from '../../hooks/useLastEntry'
 import { formatTimeSince } from '../../utils/timeSince'
 import { compressImage } from '../../utils/imageCompress'
@@ -64,13 +64,25 @@ export default function SolidPage({ onBack, onSaved }: Props) {
     setSaveError(null)
     try {
       const now = new Date()
+      // Never store a future entry, whatever the inputs allowed —
+      // `max` on an input is a hint, not a guarantee. And say so rather
+      // than quietly moving it: silently rewriting 23:50 to 07:00 files
+      // a real event at a time it did not happen, and nothing on screen
+      // would tell her.
+      const chosen = { date: date || formatDate(now), time: time || formatTime(now) }
+      const saved = clampDateTimeToNow(chosen.date, chosen.time)
+      if (saved.date !== chosen.date || saved.time !== chosen.time) {
+        setSaveError('אי אפשר לרשום ביומן תאריך או שעה שעוד לא הגיעו')
+        setSaving(false)
+        return
+      }
       const { data: entry, error } = await supabase
         .from('daily_log_entries')
         .insert({
           user_id: user.id,
           child_id: selectedChild?.id ?? null,
-          entry_date: date || formatDate(now),
-          entry_time: time || formatTime(now),
+          entry_date: saved.date,
+          entry_time: saved.time,
           entry_type: 'feeding',
           notes: content.trim(),
         })
@@ -147,7 +159,7 @@ export default function SolidPage({ onBack, onSaved }: Props) {
             <input
               type="date"
               value={date}
-              max={formatDate(new Date())}
+              max={todayInputValue()}
               onChange={e => setDate(e.target.value)}
               dir="ltr"
               className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
@@ -158,6 +170,7 @@ export default function SolidPage({ onBack, onSaved }: Props) {
             <input
               type="time"
               value={time}
+              max={date === todayInputValue() ? formatTime(new Date()) : undefined}
               onChange={e => setTime(e.target.value)}
               className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
             />

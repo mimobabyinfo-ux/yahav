@@ -3,7 +3,8 @@ import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft, Tag, Wa
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
-import { CITIES } from '../data/cities'
+import { rankCities } from '../utils/citySearch'
+import { waLink } from '../utils/phone'
 import { COMMUNITY_TAGS, tagDef, type CommunityTagId } from '../constants/communityTags'
 import TagSelector from '../components/community/TagSelector'
 import CommunityTagFilter from '../components/community/CommunityTagFilter'
@@ -46,14 +47,6 @@ type PageTab = 'events' | 'bookings' | 'members'
 
 type FilterMode = 'age' | 'area' | 'all'
 type PregnancyFilter = 'all' | 'week' | 'area'
-
-// City-match ranking: the city she typed, then cities that start with
-// it, then anything else containing it. 0 is best.
-function rankCity(city: string, query: string): number {
-  if (city === query) return 0
-  if (city.startsWith(query)) return 1
-  return 2
-}
 
 function ageMonths(dob: string): number {
   return Math.floor((Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
@@ -100,12 +93,12 @@ export default function CommunityPage() {
   // A plain substring match buried the city she typed under every other
   // name containing it. Exact match first, then names that START with
   // what she typed, then the rest.
-  const cityMatches = useMemo(() => {
-    const q = citySearch.trim()
-    if (!q) return CITIES
-    const hits = CITIES.filter(c => c.includes(q))
-    return hits.sort((a, b) => rankCity(a, q) - rankCity(b, q) || a.localeCompare(b, 'he'))
-  }, [citySearch])
+  // Brenda 18.8.26: "the cities still don't work well — you type the
+  // whole city and it doesn't find it." This screen had its own copy of
+  // the matching rule, a plain `includes`, so it never learned any of
+  // the fixes the signup screen got. There is now one implementation,
+  // in utils/citySearch, and both screens call it.
+  const cityMatches = useMemo(() => rankCities(citySearch), [citySearch])
 
   // Neighbourhood inside the city. Brenda 17.8.26 turned this from free
   // text into a real picker — see components/community/NeighborhoodPicker,
@@ -546,7 +539,7 @@ export default function CommunityPage() {
                       {p.community_consent && p.phone_number && (
                         <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
                           <a
-                            href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת הריון של Mimo 🤰🏼')}`}
+                            href={waLink(p.phone_number, 'היי! מצאתי אותך בקהילת הריון של Mimo 🤰🏼') ?? '#'}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors"
@@ -639,7 +632,7 @@ export default function CommunityPage() {
                       {p.community_consent && p.phone_number && (
                         <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
                           <a
-                            href={`https://wa.me/${p.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent('היי! מצאתי אותך בקהילת Mimo 🌿')}`}
+                            href={waLink(p.phone_number, 'היי! מצאתי אותך בקהילת Mimo 🌿') ?? '#'}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors"

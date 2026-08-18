@@ -11,7 +11,6 @@ import ChildSwitcher from '../components/ChildSwitcher'
 import MyTasksPanel from '../components/MyTasksPanel'
 import ActivityTimers from '../components/ActivityTimers'
 import LogEntryModal from '../components/LogEntryModal'
-import DailyTipCard from '../components/dashboard/DailyTipCard'
 import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard'
 import RecommendedWorkshopCard from '../components/dashboard/RecommendedWorkshopCard'
 import MyCoursesCard from '../components/dashboard/MyCoursesCard'
@@ -315,7 +314,10 @@ export default function DashboardPage({ onNavigate }: Props) {
         <MyTasksPanel />
 
         {/* 4 · Daily tip — Tier 2 */}
-        <DailyTipCard />
+        {/* Brenda 18.8.26: "take out the tip of the day." The card
+            and its hook stay in the tree (components/dashboard/
+            DailyTipCard + hooks/useDailyTip) and the admin טיפים
+            screen still writes them, so putting it back is one line. */}
 
         {/* Featured Perks — Tier 2, admin-gated */}
         {showPerks && featuredPerks.length > 0 && (
