@@ -166,7 +166,12 @@ export default function ActivityTimers({
 
   useEffect(() => { loadTimers() }, [loadTimers])
 
+  // The guard matters: without it this ticked once a second for the whole
+  // session even with no timer running, setting a fresh object each time
+  // and re-rendering the tile grid on the home screen and the journal
+  // forever. ActiveTimerBanner already had it; this one did not.
   useEffect(() => {
+    if (activeTimers.length === 0) return
     const interval = setInterval(() => {
       const updates: Record<string, string> = {}
       activeTimers.forEach(t => {

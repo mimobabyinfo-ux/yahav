@@ -98,7 +98,12 @@ export function useTodaysSummary(refetchKey: number = 0): TodaysSummary {
       supabase
         .from('active_timers')
         .select('start_time, child_id')
-        .eq('timer_type', 'sleep'),
+        .eq('timer_type', 'sleep')
+        // Ordered because the user filter is gone: with two people in the
+        // family an unordered [0] would pick an arbitrary row, and a stale
+        // timer left running on a partner's phone could become this baby's
+        // "last sleep".
+        .order('start_time', { ascending: false }),
     ])
 
     // PostgREST embeds return detail tables as arrays even when there's

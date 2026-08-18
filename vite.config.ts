@@ -36,18 +36,24 @@ export default defineConfig({
         // overwritten on every build, and switching the whole PWA to
         // injectManifest just for this is a much bigger change.
         importScripts: ['/push-sw.js'],
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Product and brand images are database-driven and can be large;
+        // precaching them made a first visit on cellular download 2.1 MB
+        // before the app was usable. The app's own JS/CSS/icons still are.
+        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
+        globIgnores: ['**/products/**', '**/brand/**'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',
-            options: { cacheName: 'google-fonts-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } },
+            options: { cacheName: 'google-fonts-cache', expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 } },
           },
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: { cacheName: 'supabase-cache', expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 } },
-          },
+          // Supabase responses are deliberately NOT cached by the service
+          // worker. They were, NetworkFirst for five minutes, and the cache
+          // survived sign-out: on a shared phone — which this app invites,
+          // it has family share links — a second person could be served the
+          // first person's rows. NetworkFirst goes to the network first
+          // anyway, so the only thing the cache bought was offline reads,
+          // which are not worth that.
         ],
       },
     }),

@@ -111,6 +111,14 @@ export default function OnboardingPage() {
         lead_status: 'new_lead',
         user_mode: mode,
         due_date: mode === 'pregnant' ? dueDate || null : null,
+        // Carried over from the tick on the signup screen, where the
+        // consent was actually given. auth.users holds the original stamp;
+        // this copy is what the admin and the CRM read. Deliberately NOT
+        // defaulted to now(): a fabricated timestamp is worse than an
+        // empty column, because it looks like evidence.
+        terms_accepted_at: (user.user_metadata?.terms_accepted_at as string | undefined) ?? null,
+        terms_version: (user.user_metadata?.terms_version as string | undefined) ?? null,
+        marketing_opt_in: user.user_metadata?.marketing_opt_in === true,
       })
       if (profileError) throw profileError
 

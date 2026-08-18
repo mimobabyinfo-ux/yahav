@@ -19,21 +19,36 @@
     <link rel="icon" type="image/png" href="/icons/favicon-64.png" />
     <title>Mimo 🐣</title>
 
-    <!-- Open Graph (for WhatsApp / social link previews) -->
+    <!-- Open Graph. This is the FALLBACK card only. Per-link previews are
+         generated in /middleware.ts, which answers preview crawlers with
+         tags that match the link they were given (journal share vs event
+         registration vs the app itself) — a static file cannot do that,
+         which is why every link used to look the same in WhatsApp. -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="הרשמה לסדנאות מימו" />
-    <meta property="og:description" content="הצטרפי לסדנאות מימו — מלווה אותך בצעדים הראשונים של האימהות" />
-    <meta property="og:image" content="/mimo_logo.png" />
+    <meta property="og:site_name" content="מימו" />
+    <meta property="og:title" content="מימו — האפליקציה לאמהות טריות" />
+    <meta property="og:description" content="יומן יומי לתינוק/ת, מפגשים וקהילה של אמהות. הכול במקום אחד." />
+    <meta property="og:image" content="https://mimo-baby.co.il/mimo_logo.png" />
+    <meta property="og:url" content="https://mimo-baby.co.il/" />
     <meta property="og:locale" content="he_IL" />
     <meta name="twitter:card" content="summary_large_image" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Gveret+Levin&family=Nunito:wght@400;600;700;800;900&family=Varela+Round&family=Coustard:wght@400;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Gveret+Levin&family=Nunito:wght@400;600;700;800;900&family=Varela+Round&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Painted before any JavaScript runs. React replaces the whole of
+         #root on mount, so this needs no cleanup — it exists so a cold
+         start on cellular shows the brand instead of a white screen for
+         the second and a half it takes to download and compile the app. -->
+    <div id="root">
+      <div style="min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#F8F4EC;font-family:Assistant,system-ui,sans-serif">
+        <img src="/mimo_logo.png" alt="מימו" width="132" height="86" style="width:132px;height:auto;opacity:.92" />
+        <p style="margin:0;font-size:13px;color:#9C8A74">רגע, טוענת…</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

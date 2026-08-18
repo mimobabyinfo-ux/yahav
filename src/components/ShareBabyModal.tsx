@@ -1,30 +1,35 @@
 import { useState } from 'react'
 import { X, Copy, Check, MessageCircle, Users } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { SHARE_ROLES, type ShareRole, roleDef } from '../constants/shareRoles'
 
 // Sharing the journal with family.
 //
-// Brenda 17.8.26: "in sharing — drop 'pick a role' and 'create a link'.
-// Leave only 'share with family'."
+// Brenda 17.8.26, first: "drop 'pick a role' and 'create a link', leave
+// only 'share with family'." Then, on seeing it: "you took out אבא, דודה,
+// the name and so on — put that back."
 //
-// It used to be three screens for one outcome: a menu holding a single
-// option, a form asking which relative this is and what to call them, and
-// only then the link. The role was never load-bearing — it decorated the
-// greeting — so every one of those taps bought nothing. Now the modal is
-// the button and the link it produces.
+// Both notes are the same note. What was wrong was the CHAIN — a menu
+// holding a single option, then a form, then the link: three screens for
+// one outcome. The role and the recipient's name were never the problem;
+// they are what makes the WhatsApp message say "היי סבתא!" instead of
+// "היי!". So the chain is gone and the content stayed: one screen with
+// the roles, the optional name, and the button.
 //
-// The invite is created on tap, not on open, so closing the modal without
-// sharing does not leave a live token behind. The mother's `families` row
-// is still lazy-created here on her first invite.
+// The invite is created on tap, not on open, so closing without sharing
+// leaves no live token behind. The mother's `families` row is still
+// lazy-created here on her first invite.
 
 type Stage =
-  | { kind: 'idle' }
-  | { kind: 'creating' }
-  | { kind: 'ready'; token: string }
+  | { kind: 'form' }
+  | { kind: 'ready'; token: string; role: ShareRole | null; recipientName: string }
 
 export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
   const { profile, selectedChild, createFamilyInvite, createFamily, refreshProfile } = useAuth()
-  const [stage, setStage] = useState<Stage>({ kind: 'idle' })
+  const [stage, setStage] = useState<Stage>({ kind: 'form' })
+  const [role, setRole] = useState<ShareRole | null>(null)
+  const [recipientName, setRecipientName] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,25 +40,30 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
   // asked nobody's permission, and she does not want it offered.
 
   async function share() {
-    if (!baby?.id || stage.kind === 'creating') return
-    setStage({ kind: 'creating' })
+    if (!baby?.id || submitting) return
+    setSubmitting(true)
     setError(null)
     try {
+      // Lazy-create the mother's family on her very first invite. Capture
+      // the id from createFamily's return value — reading profile.family_id
+      // after the await still sees the stale closure.
       let familyId = profile?.family_id ?? null
       if (!familyId) {
-        const familyName = profile?.mother_name
-          ? `המשפחה של ${profile.mother_name}`
-          : 'המשפחה שלי'
+        const familyName = profile?.mother_name ? `המשפחה של ${profile.mother_name}` : 'המשפחה שלי'
         familyId = await createFamily(familyName)
         await refreshProfile()
       }
       if (!familyId) throw new Error('no family')
-      const token = await createFamilyInvite(baby.id, { familyId })
+      const name = recipientName.trim()
+      const token = await createFamilyInvite(baby.id, {
+        role: role ?? undefined, recipientName: name, familyId,
+      })
       if (!token) throw new Error('no token')
-      setStage({ kind: 'ready', token })
+      setStage({ kind: 'ready', token, role, recipientName: name })
     } catch {
-      setStage({ kind: 'idle' })
       setError('לא הצלחנו ליצור את הלינק. נסי שוב')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -65,7 +75,7 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100 flex-shrink-0">
           <h3 className="font-bold text-sand-800">
-            {stage.kind === 'ready' ? 'הלינק מוכן' : 'שיתוף יומן'}
+            {stage.kind === 'ready' ? 'הלינק מוכן' : 'שיתוף עם בני משפחה'}
           </h3>
           <button onClick={onClose} className="p-1.5 text-sand-300 hover:text-sand-600" aria-label="סגירה">
             <X className="w-5 h-5" />
@@ -78,6 +88,8 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
               babyName={baby?.name ?? null}
               motherName={profile?.mother_name ?? null}
               token={stage.token}
+              role={stage.role}
+              recipientName={stage.recipientName}
               copied={copied}
               onCopy={(link) => {
                 navigator.clipboard.writeText(link).then(() => {
@@ -91,20 +103,58 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
               בחרי תינוק כדי לשתף את היומן שלו.
             </div>
           ) : (
-            <div className="p-5 space-y-3">
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-sand-600 mb-2">מי מקבל גישה?</label>
+                <div className="flex flex-wrap gap-2">
+                  {SHARE_ROLES.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => setRole(cur => (cur === r.id ? null : r.id))}
+                      className={`px-3 py-2 rounded-full text-sm font-medium border-2 transition-all ${
+                        role === r.id
+                          ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
+                          : 'border-sand-200 text-sand-600 hover:border-sand-300'
+                      }`}
+                    >
+                      <span className="ml-1">{r.emoji}</span>{r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-sand-600 mb-1">
+                  השם של מי שמקבל (אופציונלי)
+                </label>
+                <input
+                  type="text"
+                  value={recipientName}
+                  onChange={e => setRecipientName(e.target.value)}
+                  placeholder="למשל: דני"
+                  maxLength={40}
+                  className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
+                />
+                <p className="text-[11px] text-sand-400 mt-1">
+                  ההודעה תפתח ב"היי {recipientName.trim() || roleDef(role)?.label || '…'}!"
+                </p>
+              </div>
+
+              {error && <p className="text-xs text-red-500 text-center">{error}</p>}
+
               <button
                 onClick={share}
-                disabled={stage.kind === 'creating'}
+                disabled={submitting}
                 className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white text-sm transition-all disabled:opacity-50"
                 style={{ background: '#818267' }}
               >
                 <Users className="w-5 h-5" />
-                {stage.kind === 'creating' ? 'רגע...' : 'שתפי עם בני משפחה'}
+                {submitting ? 'יוצרת לינק…' : 'שתפי עם בני משפחה'}
               </button>
+
               <p className="text-[11px] text-sand-400 text-center leading-relaxed">
                 מי שיקבל את הלינק יראה את היומן של {baby.name} בדיוק כמו שאת רואה אותו.
               </p>
-              {error && <p className="text-xs text-red-500 text-center">{error}</p>}
             </div>
           )}
         </div>
@@ -117,14 +167,17 @@ type ShareLinkProps = {
   babyName: string | null
   motherName: string | null
   token: string
+  role: ShareRole | null
+  recipientName: string
   copied: boolean
   onCopy: (link: string) => void
 }
 
-function ShareLink({ babyName, motherName, token, copied, onCopy }: ShareLinkProps) {
+function ShareLink({ babyName, motherName, token, role, recipientName, copied, onCopy }: ShareLinkProps) {
   const joinLink = `${window.location.origin}?join=${token}`
+  const greeting = recipientName.trim() || roleDef(role)?.label || 'שלום'
   const message = [
-    'היי!',
+    `היי ${greeting}!`,
     `${motherName ?? 'אמא'} משתפת איתך את היומן של ${babyName ?? 'התינוק'} ב-Mimo.`,
     '',
     'לחצו על הלינק כדי להיכנס:',

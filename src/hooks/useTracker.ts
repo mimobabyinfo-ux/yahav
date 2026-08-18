@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -27,7 +27,6 @@ export type EventData = Record<string, string | number | boolean | null>
 
 export function useTracker() {
   const { user } = useAuth()
-  const sessionStart = useRef(Date.now())
 
   const track = useCallback(
     async (event_type: EventType, event_data?: EventData) => {
@@ -48,32 +47,13 @@ export function useTracker() {
     [user]
   )
 
-  // Track session end on tab close / unmount
-  useEffect(() => {
-    if (!user) return
-    const handleUnload = () => {
-      const duration_s = Math.round((Date.now() - sessionStart.current) / 1000)
-      // Use sendBeacon for reliable delivery on page close
-      const payload = JSON.stringify({
-        user_id: user.id,
-        session_id: SESSION_ID,
-        event_type: 'session_end',
-        event_data: { duration_s },
-      })
-      if (typeof navigator.sendBeacon === 'function') {
-        // sendBeacon to Supabase REST requires auth header — fall back to sync XHR
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_activities`
-        const xhr = new XMLHttpRequest()
-        xhr.open('POST', url, false) // synchronous
-        xhr.setRequestHeader('Content-Type', 'application/json')
-        xhr.setRequestHeader('apikey', import.meta.env.VITE_SUPABASE_ANON_KEY)
-        xhr.setRequestHeader('Authorization', `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`)
-        try { xhr.send(payload) } catch { /* best-effort */ }
-      }
-    }
-    window.addEventListener('beforeunload', handleUnload)
-    return () => window.removeEventListener('beforeunload', handleUnload)
-  }, [user])
+  // There used to be a session_end write here, on beforeunload, via a
+  // SYNCHRONOUS XMLHttpRequest — the browser blocked on it every time she
+  // closed the tab or switched away. And it authenticated with the anon
+  // key rather than her token, so RLS rejected it: the app was freezing on
+  // a request that recorded nothing. Removed rather than repaired; a
+  // session_end row is not worth a stalled unload, and session length can
+  // be derived from the page events we already write.
 
   return { track }
 }

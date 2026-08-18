@@ -172,7 +172,12 @@ export function useActiveTimer(type?: string) {
       .single()
     if (data) setTimer(data)
     return data
-  }, [user])
+    // selectedChild MUST be a dependency. Without it this memoised against
+    // the first render — where auth had resolved but the children fetch had
+    // not — and captured child_id: null for the whole session. With one
+    // baby that is invisible; with two, a nap started for the second shows
+    // up on both.
+  }, [user, selectedChild])
 
   // Commit the current segment to accumulated_seconds and clear segment_started_at.
   // No-op if already paused.

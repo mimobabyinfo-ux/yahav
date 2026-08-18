@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { Eye, EyeOff, Mail } from 'lucide-react'
+import { LEGAL_LAST_UPDATED, MARKETING_CONSENT_LABEL, SIGNUP_CONSENT_SUMMARY } from '../constants/legal'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
@@ -15,6 +16,17 @@ function moveSessionToSessionStorage() {
 
 export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
+  // Brenda 18.8.26: "my wife is nervous about the legal side — maybe add
+  // a consent about sharing details at signup." חוק הגנת הפרטיות, after
+  // תיקון 13 (in force 14.8.2025), makes the notice at the moment of
+  // collection the operative duty: what the data is for, who holds it,
+  // that giving it is voluntary, and that she can see and correct it.
+  // So the box is unticked by default and blocks signup until she ticks
+  // it — a pre-ticked box is not consent. Marketing is a SEPARATE and
+  // genuinely optional box, because חוק התקשורת סעיף 30א needs its own
+  // prior consent and bundling the two would invalidate both.
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [marketingOptIn, setMarketingOptIn] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -38,6 +50,13 @@ export default function LoginPage() {
   }, [])
 
   async function handleGoogle() {
+    // The same gate as the email form. Without this the Google button was
+    // a way around the consent entirely — and onboarding would then have
+    // had to invent a timestamp for a tick that never happened.
+    if (mode === 'signup' && !acceptedTerms) {
+      setError('כדי לפתוח חשבון צריך לאשר את תנאי השימוש ומדיניות הפרטיות')
+      return
+    }
     setError('')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -52,7 +71,24 @@ export default function LoginPage() {
     setLoading(true)
     try {
       if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({ email, password })
+        if (!acceptedTerms) {
+          setError('כדי לפתוח חשבון צריך לאשר את תנאי השימוש ומדיניות הפרטיות')
+          setLoading(false)
+          return
+        }
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              // Stamped on the auth user so the consent is evidenced at
+              // the moment it was given, not inferred later.
+              terms_accepted_at: new Date().toISOString(),
+              terms_version: LEGAL_LAST_UPDATED,
+              marketing_opt_in: marketingOptIn,
+            },
+          },
+        })
         if (error) throw error
         // If email confirmation is required, data.session will be null
         if (!data.session) {
@@ -200,6 +236,40 @@ export default function LoginPage() {
               </label>
             )}
 
+            {mode === 'signup' && (
+              <div className="space-y-2.5 rounded-2xl p-3.5" style={{ background: '#FFFFFF', border: '1px solid #E8DFCB' }}>
+                <p className="text-[11px] leading-relaxed" style={{ color: '#7E7160' }}>
+                  <span id="consent-note">{SIGNUP_CONSENT_SUMMARY}</span>
+                </p>
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={e => setAcceptedTerms(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 rounded accent-mustard-500 flex-shrink-0"
+                    aria-describedby="consent-note"
+                  />
+                  <span className="text-[13px] leading-snug" style={{ color: '#5A4B3C' }}>
+                    קראתי ואני מאשרת את{' '}
+                    <a href="/?legal=terms" target="_blank" rel="noopener noreferrer" className="font-bold underline" style={{ color: '#A35C3D' }}>תנאי השימוש</a>
+                    {' '}ואת{' '}
+                    <a href="/?legal=privacy" target="_blank" rel="noopener noreferrer" className="font-bold underline" style={{ color: '#A35C3D' }}>מדיניות הפרטיות</a>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={marketingOptIn}
+                    onChange={e => setMarketingOptIn(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 rounded accent-mustard-500 flex-shrink-0"
+                  />
+                  <span className="text-[13px] leading-snug" style={{ color: '#5A4B3C' }}>
+                    {MARKETING_CONSENT_LABEL}
+                  </span>
+                </label>
+              </div>
+            )}
+
             {error && (
               <div className="rounded-2xl p-3 text-sm text-center" style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>
                 {error}
@@ -208,7 +278,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (mode === 'signup' && !acceptedTerms)}
               className="w-full font-bold py-4 rounded-2xl transition-all disabled:opacity-50"
               style={{
                 background: '#E7C78A',
@@ -256,6 +326,15 @@ export default function LoginPage() {
               {mode === 'login' ? 'הרשמה' : 'כניסה'}
             </button>
           </p>
+
+          {/* Reachable from every entry point, signed in or not. The
+              accessibility statement has to be findable from the service
+              itself, not only from inside it. */}
+          <nav className="flex justify-center gap-3 mt-3 text-[11px]" aria-label="מסמכים">
+            <a href="/?legal=privacy" className="underline" style={{ color: '#9C8A74' }}>פרטיות</a>
+            <a href="/?legal=terms" className="underline" style={{ color: '#9C8A74' }}>תנאי שימוש</a>
+            <a href="/?legal=accessibility" className="underline" style={{ color: '#9C8A74' }}>נגישות</a>
+          </nav>
         </div>}
       </div>
     </div>

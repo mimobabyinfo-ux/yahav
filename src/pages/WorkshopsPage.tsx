@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useMemo } from 'react'
-import { ExternalLink, MessageCircle, ShoppingBag, Star, X, Sparkles, CreditCard, CalendarDays, GraduationCap } from 'lucide-react'
+import { ExternalLink, MessageCircle, ShoppingBag, Star, X, CreditCard, CalendarDays, GraduationCap } from 'lucide-react'
 import { supabase, Workshop, type PublicCohort } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
@@ -323,15 +323,12 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
     <div className="min-h-screen pb-28" dir="rtl">
       {/* Brand header — cream, matching the rest of the app */}
       <div className="px-5 pt-8 pb-5">
-        <div className="max-w-sm mx-auto flex items-start justify-between">
-          {/* Brenda 17.8.26: plain "מוצרים". "מיוחדים" and "נבחרו במיוחד
-              עבורך" both promise a curation the page does not do. */}
-          <div>
-            <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>מוצרים</h1>
-          </div>
-          <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: '#F6ECD8' }}>
-            <Sparkles className="w-5 h-5" style={{ color: '#8A6A2F' }} />
-          </div>
+        {/* Brenda 17.8.26: plain "מוצרים" — "מיוחדים" and "נבחרו במיוחד
+            עבורך" both promise a curation the page does not do. Then, on
+            seeing it: "take out the star on the left." With the subtitle
+            gone the badge was decorating an empty row. */}
+        <div className="max-w-sm mx-auto">
+          <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>מוצרים</h1>
         </div>
 
         {/* Tab switcher */}

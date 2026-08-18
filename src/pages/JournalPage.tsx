@@ -193,10 +193,10 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
       </div>
 
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
-        {/* Guest banner. Brenda 17.8.26 took the role picker out of
-            sharing, so new invites carry no role and the greeting is just
-            the baby's name. Invites made before today still have one and
-            still get named. */}
+        {/* Guest banner. The role is optional on an invite — she may or
+            may not have picked אבא / סבתא / a name when she shared — so
+            the greeting degrades: the recipient's name if there is one,
+            else the role, else just the baby's name. */}
         {isGuest && selectedChild && (() => {
           const roleLabelMap: Record<string, { emoji: string; label: string }> = {
             father:  { emoji: '👨🏼',    label: 'אבא' },

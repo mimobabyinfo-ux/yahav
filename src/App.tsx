@@ -20,6 +20,7 @@ import PublicPartnerPage from './pages/PublicPartnerPage'
 import PublicRegisterPage from './pages/PublicRegisterPage'
 import VendorCheckinPage from './pages/VendorCheckinPage'
 import ThankYouPage from './pages/ThankYouPage'
+import LegalPage from './pages/LegalPage'
 import UserSettingsPage from './pages/UserSettingsPage'
 import SleepPage from './pages/log/SleepPage'
 import TummyTimePage from './pages/log/TummyTimePage'
@@ -62,6 +63,12 @@ const checkinToken = new URLSearchParams(window.location.search).get('checkin')
 const isCoursePage = new URLSearchParams(window.location.search).has('course')
 const courseWorkshopId = new URLSearchParams(window.location.search).get('course') || null
 const isThanksPage = new URLSearchParams(window.location.search).has('thanks')
+// ?legal=privacy|terms|accessibility — the three documents Israeli law
+// expects a consumer service to publish. Public by necessity: the signup
+// screen links to them before there is an account to render a shell for.
+const legalDocParam = new URLSearchParams(window.location.search).get('legal')
+const legalDoc = (['privacy', 'terms', 'accessibility'] as const)
+  .find(d => d === legalDocParam) ?? null
 const isSettingsPage = new URLSearchParams(window.location.search).has('settings')
 
 const FORMS_LS_KEY = 'forms_last_seen'
@@ -168,6 +175,7 @@ function AppInner() {
     if (section === 'registrations') clearRegistrationsBadge()
   }
 
+  if (legalDoc) return <LegalPage doc={legalDoc} />
   if (publicFormId) return <PublicFormPage formId={publicFormId} />
   if (publicBabyToken) return <PublicBabyPage token={publicBabyToken} />
   if (joinToken && !user) return <GuestJoinPage token={joinToken} />

@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react'
-import { ArrowRight, LogOut, Plus, Check, X, Pencil } from 'lucide-react'
+import { ArrowRight, LogOut, Plus, Check, X, Pencil, ChevronLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
@@ -430,6 +430,32 @@ export default function UserSettingsPage() {
           <h2 className="text-sm font-bold text-sand-700">מצב לילה</h2>
           <p className="text-[13px] text-sand-600 leading-relaxed">מסך בית כהה ושקט לרישום באמצע הלילה. במצב אוטומטי הוא נדלק בין 21:00 ל־06:00.</p>
           <NightModeSelector />
+        </section>
+
+        {/* המסמכים. חוק הגנת הפרטיות מחייב שהיא תוכל לעיין ולתקן, ותקנות
+            הנגישות מחייבות שהצהרת הנגישות תהיה נגישה מהשירות עצמו — לכן
+            הם כאן, לא רק במסך ההרשמה. */}
+        <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
+          <h2 className="text-sm font-bold text-sand-700">מידע משפטי</h2>
+          <div className="flex flex-col">
+            {([
+              ['privacy', 'מדיניות פרטיות'],
+              ['terms', 'תנאי שימוש'],
+              ['accessibility', 'הצהרת נגישות'],
+            ] as const).map(([id, label]) => (
+              <a
+                key={id}
+                href={`/?legal=${id}`}
+                className="flex items-center justify-between py-2.5 text-sm border-b last:border-b-0 border-[#E8DFCB] text-sand-700 hover:text-sand-800"
+              >
+                <span>{label}</span>
+                <ChevronLeft className="w-4 h-4 text-sand-500" />
+              </a>
+            ))}
+          </div>
+          <p className="text-[11px] leading-relaxed text-sand-500">
+            למחיקת החשבון והמידע שנשמר עלייך, או לעיון ותיקון של הפרטים, כתבי אלינו: mimobaby.info@gmail.com
+          </p>
         </section>
 
         {/* יציאה */}
