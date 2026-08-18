@@ -22,6 +22,7 @@ export default function SolidPage({ onBack, onSaved }: Props) {
   // matching the legacy behavior so timeline rendering shows it identically.
   const [content, setContent] = useState('')
   const [time, setTime] = useState(() => formatTime(new Date()))
+  const [date, setDate] = useState(() => formatDate(new Date()))
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [refetchTick, setRefetchTick] = useState(0)
@@ -68,7 +69,7 @@ export default function SolidPage({ onBack, onSaved }: Props) {
         .insert({
           user_id: user.id,
           child_id: selectedChild?.id ?? null,
-          entry_date: formatDate(now),
+          entry_date: date || formatDate(now),
           entry_time: time || formatTime(now),
           entry_type: 'feeding',
           notes: content.trim(),
@@ -137,14 +138,30 @@ export default function SolidPage({ onBack, onSaved }: Props) {
           />
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">שעה</label>
-          <input
-            type="time"
-            value={time}
-            onChange={e => setTime(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
-          />
+        {/* Date as well as time. Brenda's earlier note about backdating a
+            bottle applies here too: a nappy changed at 23:50 and logged at
+            00:10 was filed on the wrong day, at the wrong end of it. */}
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">תאריך</label>
+            <input
+              type="date"
+              value={date}
+              max={formatDate(new Date())}
+              onChange={e => setDate(e.target.value)}
+              dir="ltr"
+              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">שעה</label>
+            <input
+              type="time"
+              value={time}
+              onChange={e => setTime(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
+            />
+          </div>
         </div>
 
         <div>

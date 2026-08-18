@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Play, Square, Pause } from 'lucide-react'
 import { formatSeconds } from '../../hooks/useActiveTimer'
 
@@ -13,7 +14,7 @@ type Props = {
   running: boolean
   /** True when running but the current segment is paused. */
   paused?: boolean
-  onStart: () => void
+  onStart: () => void | Promise<void>
   onPause: () => void
   onResume: () => void
   onStop: () => void
@@ -108,17 +109,33 @@ export default function TimerControls({
   // ── Idle (no session) ──────────────────────────────────────────────────
   if (!showStartButton) return null
 
+  return <StartButton onStart={onStart} accent={accent} label={startLabel} />
+}
+
+/** Starting a timer INSERTs a row, and the button had no guard. A double
+ *  tap — routine on a slow phone, one-handed, at three in the morning —
+ *  created two rows: the page shows one, the banner shows two pills
+ *  counting, and stopping one leaves the other running to become a
+ *  duplicate entry for the same nap. The button disables itself for the
+ *  round trip and re-enables if it failed, so a genuine retry is possible. */
+function StartButton({ onStart, accent, label }: { onStart: () => void; accent: string; label: string }) {
+  const [starting, setStarting] = useState(false)
   return (
     <div className="flex flex-col items-center gap-4">
       <button
-        onClick={onStart}
-        className="w-full max-w-xs flex items-center justify-center gap-2 py-4 rounded-2xl text-white font-bold shadow-md transition-all"
+        onClick={async () => {
+          if (starting) return
+          setStarting(true)
+          try { await onStart() } finally { setStarting(false) }
+        }}
+        disabled={starting}
+        className="w-full max-w-xs flex items-center justify-center gap-2 py-4 rounded-2xl text-white font-bold shadow-md transition-all disabled:opacity-60"
         style={{
           background: `linear-gradient(135deg, ${accent}, ${accent}dd)`,
         }}
       >
         <Play className="w-5 h-5 fill-current" />
-        {startLabel}
+        {label}
       </button>
     </div>
   )

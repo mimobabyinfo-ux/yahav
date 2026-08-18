@@ -39,6 +39,26 @@ function todayLocalIso(): string {
 
 const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏼' : g === 'girl' ? '👧🏼' : '👶🏼'
 
+/** Park the event she is about to pay for, with the time she tapped.
+ *
+ *  This is INTENT, not payment. ThankYouPage promotes it only if the
+ *  provider's success redirect arrives within INTENT_TTL_MS and is not
+ *  carrying a different product — a stale key from an abandoned checkout
+ *  used to be treated as proof of payment by the next thank-you page she
+ *  ever landed on, whatever she had bought, which minted a free seat and
+ *  then a real credit when she cancelled it.
+ */
+export const PENDING_EVENT_KEY = 'mimo_pending_event_id'
+export const PENDING_EVENT_AT_KEY = 'mimo_pending_event_at'
+export const INTENT_TTL_MS = 45 * 60 * 1000
+
+function rememberPaymentIntent(eventId: string) {
+  try {
+    localStorage.setItem(PENDING_EVENT_KEY, eventId)
+    localStorage.setItem(PENDING_EVENT_AT_KEY, String(Date.now()))
+  } catch { /* private mode */ }
+}
+
 export default function EventsTab() {
   const [events, setEvents] = useState<CommunityEventRow[]>([])
   // Entry-ticket modal for a registered event (digital card).
@@ -188,16 +208,33 @@ export default function EventsTab() {
 
   async function register(ev: CommunityEventRow) {
     const guests = cleanGuests(ev)
+
+    // Safari on iOS only lets a tab open while the tap is still being
+    // handled. Waiting for the RPC and then calling window.open lost that
+    // permission, so on an iPhone — most of this audience — she tapped
+    // "אני מגיעה!", no payment page appeared, and the toast cheerfully
+    // told her the seat was held pending a payment she was never shown.
+    // So the tab is opened NOW, empty, and pointed at the link once the
+    // server answers; if the seat is not held after all, it is closed.
+    // NOTE: no 'noopener' here. The spec says window.open returns null
+    // when noopener is set, so the handle would always be null and this
+    // whole mechanism would silently do nothing — while still leaving an
+    // about:blank tab behind and then opening a SECOND one after the
+    // await. opener is severed manually instead.
+    const payTab = ev.price > 0 ? window.open('', '_blank') : null
+    if (payTab) { try { payTab.opener = null } catch { /* cross-origin */ } }
+
     setBusyId(ev.id)
     const { data, error } = await supabase.rpc('register_for_event', {
       p_event_id: ev.id,
       p_guest_names: guests,
     })
     setBusyId(null)
-    if (error) { showToast('שגיאה. נסי שוב'); return }
+    if (error) { payTab?.close(); showToast('שגיאה. נסי שוב'); return }
     if (data === 'full') {
       // With guests this is usually "not enough room for all of you"
       // rather than "the event filled up", so say which one it is.
+      payTab?.close()
       showToast(guests.length > 0 ? 'אין מספיק מקומות לכולכן 😢' : 'האירוע התמלא בדיוק עכשיו 😢')
       load()
       return
@@ -207,9 +244,11 @@ export default function EventsTab() {
       // ten minutes, which is the length of a checkout, and only the
       // return from the thank-you page makes her registered. The id is
       // left where the thank-you page will look for it.
-      try { localStorage.setItem('mimo_pending_event_id', ev.id) } catch { /* private mode */ }
+      rememberPaymentIntent(ev.id)
       const link = paymentLinkFor(ev, guests.length + 1)
-      if (link) window.open(link, '_blank', 'noopener')
+      if (link && payTab) payTab.location.href = link
+      else if (link) window.open(link, '_blank', 'noopener')
+      else payTab?.close()
       showToast(link
         ? 'המקום שמור לך ל-10 דקות. משלימות תשלום ואת בפנים 🤎'
         // No Morning link on the event. Silently holding a seat she cannot
@@ -220,7 +259,17 @@ export default function EventsTab() {
       load()
       return
     }
+    if (data === 'unauthorized' || data === 'not_found') {
+      // Session expired, or the event was unpublished while she looked at
+      // it. Both used to fall off the end of this function: no toast, no
+      // reload, and an about:blank tab left open.
+      payTab?.close()
+      showToast(data === 'unauthorized' ? 'צריך להתחבר מחדש' : 'האירוע כבר לא זמין')
+      load()
+      return
+    }
     if (data === 'registered' || data === 'already' || data === 'updated') {
+      payTab?.close()
       // Only FREE events land here: register_for_event returns 'pending'
       // for anything priced, handled above. No payment link is opened on
       // this path — that is what kept sending a paid mother back to
@@ -534,7 +583,7 @@ export default function EventsTab() {
                     href={paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1) ?? '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => { try { localStorage.setItem('mimo_pending_event_id', ev.id) } catch { /* private mode */ } }}
+                    onClick={() => rememberPaymentIntent(ev.id)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] transition-all hover:brightness-95"
                     style={{ background: '#E7C78A' }}
                   >

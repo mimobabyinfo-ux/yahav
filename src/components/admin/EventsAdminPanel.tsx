@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react'
-import { Plus, Pencil, Trash2, X, MessageCircle, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown, Link2, Copy, RefreshCw, ExternalLink, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, XCircle, UserPlus, MessageCircle, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown, Link2, Copy, RefreshCw, ExternalLink, Check } from 'lucide-react'
 import { supabase, type CommunityEvent, type ServicePartner } from '../../lib/supabase'
 import ConfirmDialog from './ConfirmDialog'
 import { getBabyAge } from '../../utils/dateUtils'
@@ -323,6 +323,74 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
     setRegs((data ?? []) as unknown as RegistrantRow[])
     setRegsWaitlist((wl ?? []) as unknown as WaitlistRow[])
     setRegsLoading(false)
+  }
+
+  // ── Brenda 18.8.26: "do I have all the control I need? The main thing
+  //    in the app, at least at the start, is community registration."
+  //
+  //    Three things she could not do at all, each of which happens in a
+  //    normal week: register a mother who paid by transfer or signed up
+  //    over the phone; cancel someone's registration and say where the
+  //    money went; and assign a payment the Morning webhook could not
+  //    place. Delete was the only tool, and it erased the payment record
+  //    without giving anything back. All three go through admin RPCs that
+  //    reuse the same invariants as the mother-facing ones.
+  const [addOpen, setAddOpen] = useState(false)
+  const [addSearch, setAddSearch] = useState('')
+  const [addResults, setAddResults] = useState<{ id: string; mother_name: string | null; email: string; phone_number: string | null }[]>([])
+  const [addPick, setAddPick] = useState<{ id: string; mother_name: string | null; email: string } | null>(null)
+  // Unticked by default: a pre-ticked box on a form she just opened is
+  // the app asserting a payment nobody confirmed.
+  const [addPaid, setAddPaid] = useState(false)
+  const [addAmount, setAddAmount] = useState('')
+  const [addBusy, setAddBusy] = useState(false)
+  // Which registrant is showing the cancel choices, if any.
+  const [cancelReg, setCancelReg] = useState<string | null>(null)
+
+  useEffect(() => {
+    // PostgREST's .or() is a comma-separated grammar, so a comma or a
+    // bracket typed into the box does not search for that character — it
+    // ends the clause. "כהן, שרה" returned a 400.
+    const q = addSearch.trim().replace(/[,()*\\]/g, ' ').trim()
+    if (q.length < 2) { setAddResults([]); return }
+    const t = setTimeout(() => {
+      supabase.from('user_profiles')
+        .select('id, mother_name, email, phone_number')
+        .or(`mother_name.ilike.%${q}%,email.ilike.%${q}%,phone_number.ilike.%${q}%`)
+        .limit(8)
+        .then(({ data }) => setAddResults(data ?? []))
+    }, 250)
+    return () => clearTimeout(t)
+  }, [addSearch])
+
+  async function addRegistrant() {
+    if (!regsEvent || !addPick || addBusy) return
+    setAddBusy(true)
+    const { data, error } = await supabase.rpc('admin_register_for_event', {
+      p_event_id: regsEvent.id,
+      p_user_id: addPick.id,
+      p_guest_names: [],
+      // A free event renders no checkbox, so it must not carry one.
+      p_paid: regsEvent.price > 0 ? addPaid : false,
+      p_amount: addAmount.trim() ? Number(addAmount) : null,
+      p_note: null,
+    })
+    setAddBusy(false)
+    if (error || data !== 'ok') { alert(`לא הצלחנו להוסיף: ${error?.message ?? data}`); return }
+    setAddOpen(false); setAddPick(null); setAddSearch(''); setAddAmount('')
+    openRegs(regsEvent); load()
+  }
+
+  /** outcome: 'none' | 'credit' | 'refund' — see admin_cancel_registration. */
+  async function adminCancel(reg: RegistrantRow, outcome: 'none' | 'credit' | 'refund') {
+    if (!regsEvent) return
+    const { data, error } = await supabase.rpc('admin_cancel_registration', {
+      p_event_id: regsEvent.id, p_user_id: reg.user_id, p_outcome: outcome, p_note: null,
+    })
+    if (error) { alert(`לא הצלחנו לבטל: ${error.message}`); return }
+    setCancelReg(null)
+    if (data === 'cancelled_refund_due') alert('ההרשמה בוטלה. נוספה לך משימה להחזיר את הכסף ב-Morning.')
+    openRegs(regsEvent); load()
   }
 
   // Simple waitlist admin actions: remove from line, or convert (adds a
@@ -920,6 +988,87 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
               <button onClick={() => setRegsEvent(null)}><X className="w-5 h-5 text-sand-400" /></button>
             </div>
             <div className="p-5 space-y-2">
+              {/* Register a mother by hand. There was no way to do this at
+                  all, and it is a normal week: she paid by transfer, or
+                  signed up on the phone, or is the friend of someone who
+                  already registered. Capacity is not enforced — Brenda
+                  adding someone IS the decision to make room. */}
+              {!regsLoading && (
+                addOpen ? (
+                  <div className="rounded-2xl p-3 space-y-2.5 mb-1" style={{ background: '#FAF7F1', border: '1px solid #E8DFCB' }}>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[13px] font-bold" style={{ color: '#5E4938' }}>הוספת נרשמת</p>
+                      <button onClick={() => { setAddOpen(false); setAddPick(null); setAddSearch('') }}>
+                        <X className="w-4 h-4 text-sand-400" />
+                      </button>
+                    </div>
+                    {addPick ? (
+                      <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 border border-sand-200">
+                        <span className="flex-1 text-[13px] font-semibold text-sand-800">
+                          {addPick.mother_name || addPick.email}
+                        </span>
+                        <button onClick={() => setAddPick(null)} className="text-[12px] font-bold text-sand-500 underline">
+                          החלפה
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          value={addSearch}
+                          onChange={e => setAddSearch(e.target.value)}
+                          placeholder="חיפוש לפי שם, מייל או טלפון"
+                          className="w-full px-3 py-2 rounded-xl text-[13px] border-2 border-sand-200 focus:outline-none focus:border-mustard-400"
+                        />
+                        {addResults.length > 0 && (
+                          <div className="space-y-1 max-h-44 overflow-y-auto">
+                            {addResults.map(u => (
+                              <button key={u.id} onClick={() => setAddPick(u)}
+                                className="w-full text-right rounded-xl bg-white px-3 py-2 border border-sand-200 hover:border-mustard-300">
+                                <span className="block text-[13px] font-semibold text-sand-800">{u.mother_name || '(בלי שם)'}</span>
+                                <span className="block text-[12px] text-sand-500">{u.email}{u.phone_number ? ` · ${u.phone_number}` : ''}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {addSearch.trim().length >= 2 && addResults.length === 0 && (
+                          <p className="text-[12px] text-sand-500">
+                            לא נמצאה. אפשר להוסיף רק מישהי שכבר פתחה חשבון באפליקציה.
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {regsEvent.price > 0 && (
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-2 text-[13px] text-sand-700 cursor-pointer">
+                          <input type="checkbox" checked={addPaid} onChange={e => setAddPaid(e.target.checked)}
+                            className="w-4 h-4 rounded accent-mustard-500" />
+                          שילמה
+                        </label>
+                        {addPaid && (
+                          <input
+                            value={addAmount}
+                            onChange={e => setAddAmount(e.target.value.replace(/[^\d.]/g, ''))}
+                            placeholder={`₪${regsEvent.price}`}
+                            inputMode="decimal"
+                            className="w-24 px-3 py-1.5 rounded-xl text-[13px] border-2 border-sand-200 focus:outline-none focus:border-mustard-400"
+                          />
+                        )}
+                      </div>
+                    )}
+                    <button onClick={addRegistrant} disabled={!addPick || addBusy}
+                      className="w-full py-2 rounded-xl text-[13px] font-bold text-white disabled:opacity-40"
+                      style={{ background: '#818267' }}>
+                      {addBusy ? 'מוסיפה…' : 'הוספה לרשימה'}
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setAddOpen(true); setAddPick(null); setAddSearch(''); setAddAmount(''); setAddPaid(false) }}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[13px] font-bold mb-1"
+                    style={{ background: '#F6ECD8', color: '#8A6A2F' }}>
+                    <UserPlus className="w-4 h-4" /> הוספת נרשמת ידנית
+                  </button>
+                )
+              )}
               {regsLoading ? (
                 <div className="text-center py-8">
                   <div className="w-7 h-7 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
@@ -948,6 +1097,15 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                             {r.paid && r.paid_amount != null && ` · שילמה ₪${Number(r.paid_amount)}`}
                             {r.substitute_name && ` · במקומה מגיעה ${r.substitute_name}`}
                           </p>
+                          {/* guest_names was fetched, counted into the seat
+                              maths, and never shown — so the room was fuller
+                              than the list of names and Brenda could not see
+                              who the extra person was. */}
+                          {(r.guest_names?.length ?? 0) > 0 && (
+                            <p className="text-[13px]" style={{ color: '#8A6A2F' }}>
+                              מגיעה עם {(r.guest_names ?? []).join(', ')}
+                            </p>
+                          )}
                           {/* A declared payment we could not observe. It sits
                               here until Brenda confirms it — never auto-
                               approved, or a claim becomes a free seat. */}
@@ -981,12 +1139,60 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                             <MessageCircle className="w-4 h-4" />
                           </a>
                         )}
+                        {!cancelled && (
+                          <button onClick={e => { e.stopPropagation(); setCancelReg(cur => cur === r.id ? null : r.id) }}
+                            className="p-2 rounded-xl text-sand-400 hover:bg-mustard-50 hover:text-mustard-700 transition-colors"
+                            title="ביטול ההרשמה">
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        )}
                         <button onClick={e => { e.stopPropagation(); setRegToDelete(cur => cur === r.id ? null : r.id) }}
                           className="p-2 rounded-xl text-sand-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                           title="מחיקת ההרשמה">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                      {/* Cancelling is not deleting. Deleting erases the fact
+                          that she paid; cancelling releases the seat and
+                          makes Brenda say where the money went. */}
+                      {cancelReg === r.id && (
+                        <div className="mt-2 rounded-2xl p-3 space-y-2" onClick={e => e.stopPropagation()} style={{ background: '#FAF7F1' }}>
+                          <p className="text-[13px] font-bold" style={{ color: '#5E4938' }}>
+                            ביטול ההרשמה של {name}
+                            {r.paid && r.paid_amount != null && ` · שילמה ₪${Number(r.paid_amount)}`}
+                          </p>
+                          {r.paid && Number(r.paid_amount ?? 0) > 0 ? (
+                            <>
+                              <p className="text-[12px]" style={{ color: '#8C6E63' }}>
+                                מה קורה עם הכסף? החזר כספי מגיע לה בביטול כדין; זיכוי הוא מסלול נוח נוסף.
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                <button onClick={() => adminCancel(r, 'refund')}
+                                  className="flex-1 py-2 rounded-xl text-[12px] font-bold text-white" style={{ background: '#A35C3D' }}>
+                                  ביטול + החזר כספי
+                                </button>
+                                <button onClick={() => adminCancel(r, 'credit')}
+                                  className="flex-1 py-2 rounded-xl text-[12px] font-bold" style={{ background: '#E7C78A', color: '#4A3A28' }}>
+                                  ביטול + זיכוי
+                                </button>
+                                <button onClick={() => adminCancel(r, 'none')}
+                                  className="px-3 py-2 rounded-xl text-[12px] font-bold bg-white text-sand-600 border border-sand-200">
+                                  בלי החזר
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <button onClick={() => adminCancel(r, 'none')}
+                              className="w-full py-2 rounded-xl text-[12px] font-bold text-white" style={{ background: '#818267' }}>
+                              ביטול ההרשמה
+                            </button>
+                          )}
+                          <button onClick={() => setCancelReg(null)}
+                            className="w-full py-1.5 rounded-xl text-[12px] font-semibold text-sand-500">
+                            סגירה
+                          </button>
+                        </div>
+                      )}
                       {regToDelete === r.id && (
                         <div className="flex items-center gap-2 mt-2 rounded-2xl px-3 py-2" style={{ background: '#FDF3F1' }}>
                           <p className="flex-1 text-[13px] font-semibold" style={{ color: '#A35C3D' }}>

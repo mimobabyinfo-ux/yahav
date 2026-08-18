@@ -74,7 +74,6 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
     try {
       const totalSecs = elapsedSeconds()
       const startedAt = new Date(timer.start_time)
-      const now = new Date()
       // Tummy entries encode duration in `notes` (legacy convention from
       // LogEntryModal). If the mom also typed her own notes, prepend the
       // duration label so both pieces of information are preserved.
@@ -89,7 +88,14 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
         .insert({
           user_id: user.id,
           child_id: selectedChild?.id ?? null,
-          entry_date: formatDate(now),
+          // The entry belongs to the day the timer STARTED, not the day
+          // it was stopped. Pairing formatDate(now) with the start time
+          // put every night sleep on tomorrow at yesterday's clock time —
+          // a 20:30 sleep stopped at 06:30 vanished from the night it
+          // happened and drew a block in tomorrow's future. Everything
+          // downstream (the chart, the daily summary, "time since") reads
+          // entry_date as the start date.
+          entry_date: formatDate(startedAt),
           entry_time: formatTime(startedAt),
           entry_type: 'tummy_time',
           notes: finalNotes,

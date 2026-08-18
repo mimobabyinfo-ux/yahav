@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, type Workshop, type WorkshopCohort, type CommunityEvent, type HomeAnnouncement } from '../../lib/supabase'
-import { deriveAdminTasks, applyDismissals, type AdminTask, type ManualTask, type TaskLead, type LinkedFormDef, type LinkedSubmission, type PaymentClaim } from './adminTasks'
+import { deriveAdminTasks, applyDismissals, type AdminTask, type ManualTask, type TaskLead, type LinkedFormDef, type LinkedSubmission, type PaymentClaim, type UnmatchedPayment } from './adminTasks'
 import { deriveMegalimCandidates, type MegalimCandidatesResult, type ProfileDob } from './megalimCandidates'
 
 // One shared fetch for the admin home screen + sidebar badges — called
@@ -62,16 +62,22 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
   const [dismissals, setDismissals] = useState<Map<string, string>>(new Map())
   // Declared Bit/transfer payments awaiting Brenda's confirmation.
   const [paymentClaims, setPaymentClaims] = useState<PaymentClaim[]>([])
+  const [eventWaiting, setEventWaiting] = useState<Map<string, number>>(new Map())
+  const [eventSeatsTaken, setEventSeatsTaken] = useState<Map<string, number>>(new Map())
+  const [unmatchedPayments, setUnmatchedPayments] = useState<UnmatchedPayment[]>([])
 
   const load = useCallback(async () => {
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-    const [ws, cs, evs, toks, lds, evRegs, claims, anns, pls, mts, dms, dobs] = await Promise.all([
+    const [ws, cs, evs, toks, lds, evRegs, claims, anns, pls, mts, dms, dobs, wls, hooks] = await Promise.all([
       supabase.from('workshops').select('*').order('display_order'),
       supabase.from('workshop_cohorts').select('*').order('start_date'),
       supabase.from('community_events').select('*').order('event_date'),
       supabase.from('event_checkin_tokens').select('event_id'),
       supabase.from('registration_leads').select('id, name, phone, email, status, created_at, selected_workshop_id, cohort_id'),
-      supabase.from('event_registrations').select('event_id, status'),
+      // guest_names too: the room fills by SEATS, not by rows. The home
+      // screen used to count rows while the Events tab counted seats, so
+      // the same event showed two different numbers.
+      supabase.from('event_registrations').select('event_id, status, guest_names'),
       supabase.from('event_registrations')
         .select('event_id, payment_claimed_at, community_events(title), user_profiles(mother_name)')
         .not('payment_claimed_at', 'is', null)
@@ -83,6 +89,16 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
       // Second source for a baby's age, behind the questionnaire: app
       // users who filled their profile.
       supabase.from('user_profiles').select('normalized_phone, baby_name, baby_dob').not('baby_dob', 'is', null),
+      supabase.from('event_waitlist').select('event_id').eq('status', 'waiting'),
+      // Money that arrived and could not be given a seat. The webhook has
+      // logged every delivery since 17.8; nothing read it until now, so a
+      // payment could land with no registration and no signal at all.
+      supabase.from('morning_webhook_log')
+        .select('id, received_at, payer_name, payer_email, total, detail, outcome')
+        .neq('outcome', 'digital_course')
+        .gte('received_at', new Date(Date.now() - 30 * 86400000).toISOString())
+        .order('received_at', { ascending: false })
+        .limit(50),
     ])
     const wsList = (ws.data ?? []) as Workshop[]
     setWorkshops(wsList)
@@ -92,13 +108,47 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     const leadRows = (lds.data ?? []) as (TaskLead & { cohort_id: string | null })[]
     setLeads(leadRows)
     setLeadCohortIds(new Map(leadRows.map(l => [l.id, l.cohort_id])))
+    // Two different questions, so two different counts.
+    //  · taken  — how full the room is NOW. Must agree with the server's
+    //    event_seats_taken (registered + attended), or the "מלא" task
+    //    fires at a different moment than the app actually stops taking
+    //    registrations.
+    //  · signed — how many signed up, ever. Includes no_show, because a
+    //    woman who registered and did not turn up still registered. The
+    //    nightly auto-noshow job flips whole past events to no_show, and
+    //    counting only the first set made every event the vendor forgot to
+    //    check in read as "nobody signed up".
     const evCount = new Map<string, number>()
-    for (const r of (evRegs.data ?? []) as { event_id: string; status: string }[]) {
+    const evSigned = new Map<string, number>()
+    for (const r of (evRegs.data ?? []) as { event_id: string; status: string; guest_names: string[] | null }[]) {
+      const seats = 1 + (r.guest_names?.length ?? 0)
       if (r.status === 'registered' || r.status === 'attended') {
-        evCount.set(r.event_id, (evCount.get(r.event_id) ?? 0) + 1)
+        evCount.set(r.event_id, (evCount.get(r.event_id) ?? 0) + seats)
+      }
+      if (r.status === 'registered' || r.status === 'attended' || r.status === 'no_show') {
+        evSigned.set(r.event_id, (evSigned.get(r.event_id) ?? 0) + seats)
       }
     }
-    setEventRegCounts(evCount)
+    setEventRegCounts(evSigned)
+    setEventSeatsTaken(evCount)
+    const wlCount = new Map<string, number>()
+    for (const w of (wls.data ?? []) as { event_id: string }[]) {
+      wlCount.set(w.event_id, (wlCount.get(w.event_id) ?? 0) + 1)
+    }
+    setEventWaiting(wlCount)
+    setUnmatchedPayments(((hooks.data ?? []) as {
+      id: string; received_at: string; payer_name: string | null
+      payer_email: string | null; total: number | null; detail: string | null
+    }[]).filter(h => {
+      const d = h.detail ?? ''
+      // Only deliveries where nobody got a seat. price_mismatch is
+      // appended to CONFIRMED rows too — the seat was assigned, the amount
+      // just looked odd — so matching on it flagged successful payments as
+      // lost ones. A confirmed or already-handled delivery is not a task.
+      if (d.startsWith('confirmed') || d.startsWith('created') || d.startsWith('already')) return false
+      return d.includes('no_seat_match') || d.includes('ambiguous') ||
+             d.includes('no_account_for_payer') || d.includes('no_matching_lead')
+    }))
     setPaymentClaims(((claims.data ?? []) as unknown as {
       event_id: string; payment_claimed_at: string
       community_events: { title: string } | null
@@ -146,12 +196,18 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
       linkedFormDefs: formDefs,
       linkedSubmissions: formSubs,
       paymentClaims,
+      eventSeats: new Map(events.map(e => [e.id, {
+        taken: eventSeatsTaken.get(e.id) ?? 0,
+        capacity: e.capacity ?? null,
+      }])),
+      eventWaiting,
+      unmatchedPayments,
       today: todayIsrael(),
       nowMs: Date.now(),
     })
     // Persisted "טופל": hidden until the source row changes again.
     return applyDismissals(derived, dismissals)
-  }, [loading, workshops, cohorts, events, checkinEventIds, leads, formDefs, formSubs, dismissals])
+  }, [loading, workshops, cohorts, events, checkinEventIds, leads, formDefs, formSubs, dismissals, paymentClaims, eventSeatsTaken, eventWaiting, unmatchedPayments])
 
   const counters = useMemo(() => {
     const today = todayIsrael()

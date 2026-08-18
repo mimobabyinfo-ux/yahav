@@ -179,7 +179,12 @@ function AppInner() {
   if (legalDoc) return <LegalPage doc={legalDoc} />
   if (publicFormId) return <PublicFormPage formId={publicFormId} />
   if (publicBabyToken) return <PublicBabyPage token={publicBabyToken} />
-  if (joinToken && !user) return <GuestJoinPage token={joinToken} />
+  // `!loading` is load-bearing: on the very first render user is always
+  // null because the session has not been restored yet. Without it, a
+  // mother who already has an account and taps a share link was handed to
+  // GuestJoinPage, which signs in anonymously — replacing her real
+  // session with a read-only guest one.
+  if (joinToken && !loading && !user) return <GuestJoinPage token={joinToken} />
   if (isPartnerPage) return <PublicPartnerPage />
   if (isRegisterPage) return <PublicRegisterPage />
   if (isOfferPage) return <PublicRegisterPage />
@@ -323,7 +328,11 @@ function AppInner() {
 
   return (
     <div className={`min-h-screen ${isLogPage ? '' : 'pb-20'}`}>
-      <ActiveTimerBanner onNavigate={setCurrentPage} refetchKey={timerVersion} />
+      {/* navigate(), not setCurrentPage — the bookkeeping that remembers
+          where a log page was opened from lives in navigate. Tapping the
+          running-timer pill from the journal and pressing back was
+          dropping her on the home screen. */}
+      <ActiveTimerBanner onNavigate={navigate} refetchKey={timerVersion} />
       <div key={currentPage} className="page-enter">{renderPage()}</div>
       {!isLogPage && (
         <>

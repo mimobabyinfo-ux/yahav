@@ -106,7 +106,6 @@ export default function SleepPage({ onBack, onSaved }: Props) {
     try {
       const totalSecs = elapsedSeconds()
       const startedAt = new Date(timer.start_time)
-      const now = new Date()
       const durationForLog = totalSecs >= 1 ? parseFloat((totalSecs / 60).toFixed(2)) : null
 
       const { data: entry, error } = await supabase
@@ -114,7 +113,14 @@ export default function SleepPage({ onBack, onSaved }: Props) {
         .insert({
           user_id: user.id,
           child_id: selectedChild?.id ?? null,
-          entry_date: formatDate(now),
+          // The entry belongs to the day the timer STARTED, not the day
+          // it was stopped. Pairing formatDate(now) with the start time
+          // put every night sleep on tomorrow at yesterday's clock time —
+          // a 20:30 sleep stopped at 06:30 vanished from the night it
+          // happened and drew a block in tomorrow's future. Everything
+          // downstream (the chart, the daily summary, "time since") reads
+          // entry_date as the start date.
+          entry_date: formatDate(startedAt),
           entry_time: formatTime(startedAt),
           entry_type: 'sleep',
           notes: notes.trim() || null,

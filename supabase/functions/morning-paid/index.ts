@@ -113,9 +113,10 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "GET") {
     return json({
-      ok: true, alive: true, version: 10,
+      ok: true, alive: true, version: 11,
       handles: ["community_event", "digital_course"],
       seat_match: ["payer_hold", "single_live_hold", "payer_new"],
+      shared_product_ids: true,
       hold_window_min: HOLD_WINDOW_MIN,
       logs_to: "morning_webhook_log",
       secret_configured: !!expected,
@@ -188,34 +189,27 @@ Deno.serve(async (req: Request) => {
   // -- A - community event ----------------------------------------------
   if (productId) {
     const { data: evs } = await admin
-      .from("community_events").select("id, title, price, morning_product_id_pair")
+      .from("community_events").select("id, title, price")
       .or(`morning_product_id.eq.${productId},morning_product_id_pair.eq.${productId}`)
-      .limit(2)
 
-    if (evs && evs.length > 1) {
-      console.error("[morning-paid] product id is on more than one event:", productId)
-      await record("unmatched", `ambiguous_product_id:${evs.map(e => e.title).join(" / ")}`)
-      return json({ ok: false, reason: "ambiguous_product_id", product_id: productId }, 409)
-    }
-
-    const ev = evs?.[0]
-    if (ev?.id) {
-      // A total that is neither the price nor twice it means the link in
-      // Morning is not the link Brenda thinks it is. Confirm the seat
-      // anyway - she was charged, she is coming - but shout about it.
-      const price = Number(ev.price ?? 0)
-      const priceOff = paidTotal != null && price > 0
-        && paidTotal !== price && paidTotal !== price * 2
-      const flag = priceOff ? ` !price_mismatch(paid ${paidTotal} vs ${price})` : ""
-
+    const candidates = evs ?? []
+    if (candidates.length > 0) {
+      // ONE LINK, SEVERAL EVENTS. Brenda runs a standing deposit link and a
+      // standing double-deposit link and hangs every meeting at that price
+      // on them, which is the sane way to run Morning - a new product per
+      // event would be a new link to paste every week. So a product id no
+      // longer identifies an event by itself; it narrows the field, and the
+      // held seat decides. v10 treated this as a fatal ambiguity and
+      // refused every payment that came in on a shared link.
       const payer = await findPayerAccount()
 
       const since = new Date(Date.now() - HOLD_WINDOW_MIN * 60_000).toISOString()
       const nowIso = new Date().toISOString()
+      const ids = candidates.map(e => e.id)
       const { data: holds } = await admin
         .from("event_registrations")
-        .select("user_id, status, updated_at, hold_expires_at")
-        .eq("event_id", ev.id)
+        .select("event_id, user_id, status, updated_at, hold_expires_at")
+        .in("event_id", ids)
         .in("status", ["pending", "registered"])
         .eq("paid", false)
         .order("updated_at", { ascending: false })
@@ -224,62 +218,88 @@ Deno.serve(async (req: Request) => {
       const live = unpaid.filter(h =>
         h.updated_at >= since && (!h.hold_expires_at || h.hold_expires_at > nowIso))
 
+      const titleOf = (id: string) => candidates.find(e => e.id === id)?.title ?? id
+      const priceOf = (id: string) => Number(candidates.find(e => e.id === id)?.price ?? 0)
+      const scope = candidates.map(e => e.title).join(" / ")
+
+      let eventId: string | null = null
       let userId: string | null = null
       let via = ""
 
       // 1 - the payer is the registrant. The clean case, and the only one
       //     that survives several holds being open at once.
-      if (payer && unpaid.some(h => h.user_id === payer.id)) {
-        userId = payer.id
-        via = `payer_hold_${payer.via}`
+      const mine = payer ? unpaid.filter(h => h.user_id === payer.id) : []
+      if (mine.length === 1) {
+        eventId = mine[0].event_id
+        userId = payer!.id
+        via = `payer_hold_${payer!.via}`
+      } else if (mine.length > 1) {
+        console.error("[morning-paid] payer holds seats on several events at this price:", scope)
+        await record("community_event", `ambiguous_payer_holds(${mine.length}):${scope}`)
+        return json({
+          ok: true, matched: false, kind: "community_event",
+          reason: "ambiguous_payer_holds", holds: mine.length, email,
+        })
       }
 
       // 2 - somebody else paid for a seat held moments ago. One live hold
       //     and one payment for its product is one purchase.
       if (!userId && live.length === 1) {
+        eventId = live[0].event_id
         userId = live[0].user_id
         via = "single_live_hold"
       }
 
       // 3 - several people are mid-checkout. Guessing here is how the Bit
-      //     bug happened. Refuse and let Brenda assign it.
+      //     bug happened. Refuse and let Brenda assign it by hand.
       if (!userId && live.length > 1) {
-        console.error("[morning-paid] several live holds, cannot tell whose:", ev.title)
-        await record("community_event", `ambiguous_holds(${live.length}):${ev.title}${flag}`)
+        console.error("[morning-paid] several live holds, cannot tell whose:", scope)
+        await record("community_event", `ambiguous_holds(${live.length}):${scope}`)
         return json({
           ok: true, matched: false, kind: "community_event",
-          reason: "ambiguous_holds", event_id: ev.id, holds: live.length, email,
+          reason: "ambiguous_holds", holds: live.length, email,
         })
       }
 
       // 4 - nobody is mid-checkout and we know the payer: a link paid cold.
-      if (!userId && live.length === 0 && payer) {
+      //     Only possible when the link belongs to exactly one event; on a
+      //     shared link there is nothing to say which meeting she meant.
+      if (!userId && live.length === 0 && payer && candidates.length === 1) {
+        eventId = candidates[0].id
         userId = payer.id
         via = `payer_new_${payer.via}`
       }
 
-      if (!userId) {
-        console.log("[morning-paid] event payment, cannot tell whose seat:", email, payerPhone, ev.title)
-        await record("community_event", `no_seat_match:${ev.title}${flag}`)
+      if (!userId || !eventId) {
+        console.log("[morning-paid] event payment, cannot tell whose seat:", email, payerPhone, scope)
+        await record("community_event", `no_seat_match:${scope}`)
         return json({
           ok: true, matched: false, kind: "community_event",
-          reason: "no_seat_match", event_id: ev.id, email,
+          reason: "no_seat_match", candidates: candidates.length, email,
         })
       }
 
+      // A total that is neither the price nor twice it means the link in
+      // Morning is not the link Brenda thinks it is. Confirm the seat
+      // anyway - she was charged, she is coming - but shout about it.
+      const price = priceOf(eventId)
+      const priceOff = paidTotal != null && price > 0
+        && paidTotal !== price && paidTotal !== price * 2
+      const flag = priceOff ? ` !price_mismatch(paid ${paidTotal} vs ${price})` : ""
+
       const { data: result, error: confErr } = await admin.rpc("confirm_event_payment_for_user", {
-        p_event_id: ev.id, p_user_id: userId, p_amount: paidTotal,
+        p_event_id: eventId, p_user_id: userId, p_amount: paidTotal,
       })
       if (confErr) {
         console.error("[morning-paid] confirm failed:", confErr.message)
         await record("community_event", `confirm_failed:${confErr.message}`)
         return json({ ok: false, kind: "community_event", reason: "confirm_failed", detail: confErr.message }, 500)
       }
-      console.log("[morning-paid] event payment confirmed:", ev.title, via, result)
-      await record("community_event", `${result}:${ev.title} (via ${via})${flag}`)
+      console.log("[morning-paid] event payment confirmed:", titleOf(eventId), via, result)
+      await record("community_event", `${result}:${titleOf(eventId)} (via ${via})${flag}`)
       return json({
         ok: true, matched: true, kind: "community_event",
-        event_id: ev.id, matched_via: via, result, price_mismatch: priceOff,
+        event_id: eventId, matched_via: via, result, price_mismatch: priceOff,
       })
     }
   }

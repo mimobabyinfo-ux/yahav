@@ -149,9 +149,17 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
     setChildren(list)
     const guestChildId = sessionStorage.getItem('guestChildId')
     const preferred = guestChildId ? list.find(c => c.id === guestChildId) : null
-    if (!selectedChild) {
-      setSelectedChild(preferred ?? list[0] ?? null)
-    }
+    // The functional form matters. This runs from onAuthStateChange, which
+    // is registered once and therefore closes over the FIRST render's
+    // selectedChild — always null. Reading the state variable here meant
+    // the guard was always true, so every hourly token refresh silently
+    // reset a mother of twins back to her first baby, and everything she
+    // logged afterwards went to the wrong child. Reading the live value
+    // inside the updater keeps a deliberate choice.
+    setSelectedChild(cur => {
+      if (cur && list.some(c => c.id === cur.id)) return cur
+      return preferred ?? list[0] ?? null
+    })
   }
 
   async function createFamily(name: string): Promise<string | null> {
@@ -189,6 +197,15 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
   }
 
   async function redeemFamilyInvite(token: string): Promise<boolean> {
+    // Never trade a real account for a guest one. App gates the guest
+    // route on `!user`, but that is a render-time check against state that
+    // can still be loading — and AuthContext gives up waiting after five
+    // seconds, so on a slow cold start a signed-in mother could reach
+    // here. Signing in anonymously at that point would replace her own
+    // session with a read-only guest view of someone else's journal.
+    const { data: existing } = await supabase.auth.getSession()
+    if (existing.session?.user?.email) return false
+
     // Look up the token (anon RLS allows this). Phase 4 / C1: also
     // filter out revoked invites — mom can kill access from the
     // management page by stamping revoked_at.

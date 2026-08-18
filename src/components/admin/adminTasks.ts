@@ -22,6 +22,18 @@ export type PaymentClaim = {
   claimed_at: string
 }
 
+/** A Morning payment that arrived and could not be given a seat. The
+ *  webhook logs every delivery; until now nothing in the app read that
+ *  table, so money could land with no registration and total silence. */
+export type UnmatchedPayment = {
+  id: string
+  received_at: string
+  payer_name: string | null
+  payer_email: string | null
+  total: number | null
+  detail: string | null
+}
+
 export type AdminTask = {
   key: string
   title: string          // one line — carries the number and the object
@@ -82,6 +94,16 @@ export type AdminTaskInput = {
    *  only she can make, so it belongs on the home screen, not buried in an
    *  event's registrant list. */
   paymentClaims: PaymentClaim[]
+  /** Brenda 18.8.26: "the main thing in the app is community
+   *  registration." Nothing here ever told her how a registration was
+   *  actually going — not that an event was nearly empty two days out,
+   *  not that it had filled, not that women were waiting. Seats, not
+   *  rows: a mother bringing a friend takes two. */
+  eventSeats: Map<string, { taken: number; capacity: number | null }>
+  /** Event id → how many mothers are waiting on it. */
+  eventWaiting: Map<string, number>
+  /** Morning payments the webhook could not attach to anyone. */
+  unmatchedPayments: UnmatchedPayment[]
   /** Israel-calendar today as YYYY-MM-DD (passed in for testability). */
   today: string
   /** Epoch ms "now" (passed in for testability). */
@@ -153,7 +175,7 @@ export function buildFilledIndex(defs: Map<string, LinkedFormDef>, subs: LinkedS
 }
 
 export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
-  const { workshops, cohorts, events, checkinEventIds, leads, linkedFormDefs, linkedSubmissions, paymentClaims, today, nowMs } = input
+  const { workshops, cohorts, events, checkinEventIds, leads, linkedFormDefs, linkedSubmissions, paymentClaims, eventSeats, eventWaiting, unmatchedPayments, today, nowMs } = input
   const tasks: AdminTask[] = []
 
   const workshopIdsWithCohorts = new Set(cohorts.map(c => c.workshop_id))
@@ -275,6 +297,75 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
       targetId: formId,
       targetLeadIds: info.leadIds,
     })
+  }
+
+  // 4b · Money arrived and nobody got a seat. Highest severity there is:
+  //      she has been paid and the payer has nothing to show for it.
+  for (const u of unmatchedPayments) {
+    tasks.push({
+      key: `unmatched_payment:${u.id}`,
+      title: `תשלום שהגיע ולא שויך${u.total != null ? ` · ₪${u.total}` : ''}`,
+      facts: [
+        u.payer_name || u.payer_email || 'משלמת לא מזוהה',
+        new Date(u.received_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
+      ].filter(Boolean),
+      severity: 'high',
+      section: 'events',
+      actionLabel: 'לאירועים',
+      sourceUpdatedAt: u.received_at,
+    })
+  }
+
+  // 4c · How the registration is actually going. Three shapes, one loop.
+  const in3 = addDays(today, 3)
+  for (const ev of events) {
+    if (!ev.is_active || ev.event_date < today) continue
+    const seats = eventSeats.get(ev.id)
+    const waiting = eventWaiting.get(ev.id) ?? 0
+
+    if (waiting > 0) {
+      tasks.push({
+        key: `event_waitlist:${ev.id}`,
+        title: `${waiting === 1 ? 'אמא אחת ממתינה' : `${waiting} אמהות ממתינות`} ל"${ev.title}"`,
+        facts: [ddmm(ev.event_date)],
+        severity: 'mid',
+        section: 'events',
+        actionLabel: 'לרשימה',
+        sourceUpdatedAt: ev.updated_at ?? null,
+        targetId: ev.id,
+        targetView: 'registrants',
+      })
+    }
+
+    if (seats?.capacity && seats.taken >= seats.capacity) {
+      tasks.push({
+        key: `event_full:${ev.id}`,
+        title: `"${ev.title}" מלא`,
+        facts: [ddmm(ev.event_date), `${seats.taken}/${seats.capacity}`],
+        severity: 'mid',
+        section: 'events',
+        actionLabel: 'לרשימה',
+        sourceUpdatedAt: ev.updated_at ?? null,
+        targetId: ev.id,
+        targetView: 'registrants',
+      })
+    } else if (
+      seats?.capacity && ev.event_date <= in3 &&
+      seats.taken < Math.ceil(seats.capacity * 0.5)
+    ) {
+      // Three days out and under half full is the last moment a push can
+      // still change the outcome.
+      tasks.push({
+        key: `event_underfilled:${ev.id}`,
+        title: `"${ev.title}" בעוד ימים ספורים ורק ${seats.taken} נרשמו`,
+        facts: [ddmm(ev.event_date), `מתוך ${seats.capacity} מקומות`],
+        severity: 'high',
+        section: 'events',
+        actionLabel: 'לאירוע',
+        sourceUpdatedAt: ev.updated_at ?? null,
+        targetId: ev.id,
+      })
+    }
   }
 
   // 5 · Upcoming event (14 days) with no vendor at all.

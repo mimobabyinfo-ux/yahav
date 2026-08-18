@@ -34,12 +34,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [signupSent, setSignupSent] = useState(false)
-  const [subtitle, setSubtitle] = useState('מרכז התפתחות לתינוקות')
+  // Brenda 18.8.26: "when I open the app it first says מרכז התפתחות
+  // לתינוקות and then it changes to בית עוטף ומלטף."
+  //
+  // It was seeded with one tagline and then overwritten by the real one
+  // from global_settings a moment later, so the first thing a mother read
+  // about the brand was a line the brand no longer uses. Start empty and
+  // hold the space: the tagline appears once, correct, without the row
+  // jumping. The fallback is only for a failed fetch, and it now matches
+  // what is actually in global_settings.
+  const [subtitle, setSubtitle] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.from('global_settings').select('setting_value')
       .eq('setting_key', 'app_subtitle').limit(1)
-      .then(({ data }) => { const v = data?.[0]?.setting_value; if (v) setSubtitle(v) })
+      .then(({ data }) => setSubtitle(data?.[0]?.setting_value || 'בית עוטף ומלטף'))
 
     // Restore remembered email (Remember-Me)
     const saved = localStorage.getItem(REMEMBERED_EMAIL_KEY)
@@ -149,9 +158,17 @@ export default function LoginPage() {
         )}
 
 
-        {/* Subtitle */}
-        <p style={{ color: '#818267', fontSize: '0.95rem', marginTop: '-12px' }}>
-          {subtitle}
+        {/* Subtitle. The row keeps its height while the value is in
+            flight, so the card below does not jump when it lands. */}
+        <p
+          style={{
+            color: '#818267', fontSize: '0.95rem', marginTop: '-12px',
+            minHeight: '1.4em',
+            opacity: subtitle ? 1 : 0,
+            transition: 'opacity .25s ease',
+          }}
+        >
+          {subtitle ?? '\u00A0'}
         </p>
 
         {/* Card */}

@@ -30,6 +30,7 @@ export default function DiaperPage({ onBack, onSaved }: Props) {
   const diaperType: DiaperType | null =
     dry ? 'dry' : wet && dirty ? 'both' : wet ? 'wet' : dirty ? 'dirty' : null
   const [time, setTime] = useState(() => formatTime(new Date()))
+  const [date, setDate] = useState(() => formatDate(new Date()))
   const [notes, setNotes] = useState('')
   const [photo, setPhoto] = useState<Blob | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
@@ -70,7 +71,7 @@ export default function DiaperPage({ onBack, onSaved }: Props) {
         .insert({
           user_id: user.id,
           child_id: selectedChild?.id ?? null,
-          entry_date: formatDate(now),
+          entry_date: date || formatDate(now),
           entry_time: time || formatTime(now),
           entry_type: 'diaper',
           notes: notes.trim() || null,
@@ -166,14 +167,30 @@ export default function DiaperPage({ onBack, onSaved }: Props) {
           </button>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">שעה</label>
-          <input
-            type="time"
-            value={time}
-            onChange={e => setTime(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
-          />
+        {/* Date as well as time. Brenda's earlier note about backdating a
+            bottle applies here too: a nappy changed at 23:50 and logged at
+            00:10 was filed on the wrong day, at the wrong end of it. */}
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">תאריך</label>
+            <input
+              type="date"
+              value={date}
+              max={formatDate(new Date())}
+              onChange={e => setDate(e.target.value)}
+              dir="ltr"
+              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">שעה</label>
+            <input
+              type="time"
+              value={time}
+              onChange={e => setTime(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
+            />
+          </div>
         </div>
 
         <div>

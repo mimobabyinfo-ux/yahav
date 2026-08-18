@@ -237,7 +237,7 @@ export default function CommunityPage() {
   return (
     <div className="min-h-screen p-4 pb-28 relative" dir="rtl">
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
-        <span className="text-[250px] opacity-5">{isPregnant ? '🤰🏼' : '👩‍👩‍👧🏼'}</span>
+        <span className="text-[250px] opacity-5">{isPregnant ? '🤰🏼' : '👩‍👩‍👧'}</span>
       </div>
 
       <div className="relative z-10 max-w-sm mx-auto space-y-4">

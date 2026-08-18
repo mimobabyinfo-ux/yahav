@@ -197,14 +197,20 @@ export default function ActivityTimers({
         ? `${totalSecs} שניות`
         : `${Math.round(totalSecs / 60)} דקות`
       const startedAt = new Date(timer.start_time)
-      const now = new Date()
 
       const { data: entry } = await supabase
         .from('daily_log_entries')
         .insert({
           user_id: user.id,
           child_id: selectedChild?.id ?? null,
-          entry_date: formatDate(now),
+          // The entry belongs to the day the timer STARTED, not the day
+          // it was stopped. Pairing formatDate(now) with the start time
+          // put every night sleep on tomorrow at yesterday's clock time —
+          // a 20:30 sleep stopped at 06:30 vanished from the night it
+          // happened and drew a block in tomorrow's future. Everything
+          // downstream (the chart, the daily summary, "time since") reads
+          // entry_date as the start date.
+          entry_date: formatDate(startedAt),
           entry_time: formatTime(startedAt),
           entry_type: timer.timer_type,
           notes: timer.timer_type === 'tummy_time' && totalSecs

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLogo from '../components/MimoLogo'
@@ -62,11 +62,16 @@ export default function ConsentGate() {
       // OnboardingPage carries these same three fields over from the auth
       // metadata when it creates it.
       if (profile) {
+        // Deliberately not fatal. The auth stamp above has already landed
+        // and is what lifts this gate, so throwing here would unmount the
+        // screen before she could read the error — she would be let in
+        // while the column the admin reads as evidence stayed empty.
+        // Log it, let her through, and let the next profile write catch up.
         const { error: updateError } = await supabase
           .from('user_profiles')
           .update({ terms_accepted_at: now, terms_version: LEGAL_LAST_UPDATED, marketing_opt_in: marketing })
           .eq('id', user.id)
-        if (updateError) throw updateError
+        if (updateError) console.error('[consent] profile stamp failed:', updateError.message)
         await refreshProfile()
       }
       setDone(true)
@@ -75,6 +80,16 @@ export default function ConsentGate() {
       setSaving(false)
     }
   }
+
+  // Lifting the gate depends on supabase emitting USER_UPDATED. If that
+  // never reaches this tab, a brand-new mother would sit on a spinner on
+  // her very first screen with nothing to tap. Give up after five seconds
+  // and put the form back rather than trap her.
+  useEffect(() => {
+    if (!done) return
+    const t = setTimeout(() => { setDone(false); setSaving(false) }, 5000)
+    return () => clearTimeout(t)
+  }, [done])
 
   // Held between the write landing and the auth context catching up, so
   // the gate does not flash back for a moment after she taps.

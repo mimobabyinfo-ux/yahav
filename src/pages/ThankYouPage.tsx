@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 import { pixelTrack } from '../utils/metaPixel'
+import { PENDING_EVENT_KEY, PENDING_EVENT_AT_KEY, INTENT_TTL_MS } from '../components/community/EventsTab'
 
 // ?thanks — where Morning sends her back after a successful payment.
 //
@@ -150,10 +151,38 @@ export default function ThankYouPage() {
   const [mailFailed, setMailFailed] = useState(false)
 
   useEffect(() => {
+    // Whose payment is this thank-you page for?
+    //
+    // The stored id is INTENT — written when she tapped register, not when
+    // she paid — and this page is the success redirect for EVERY product
+    // Morning sells. So an abandoned event checkout used to be cashed in
+    // by the next thing she bought: buy the course weeks later, land here,
+    // and the event was silently marked paid. Cancel it and the app minted
+    // a real credit for money that never arrived.
+    //
+    // Two guards, both necessary:
+    //  · the intent expires (a checkout is minutes, not days), and
+    //  · ?thanks=<workshop> means this redirect belongs to that workshop,
+    //    so an event intent is not what came back.
+    //
+    // 'simple' is the exception and it matters: the settings screen tells
+    // Brenda to point the community-event deposit at /?thanks=simple, so
+    // treating any key as "a different product" would have disabled the
+    // event backstop on the one path that uses it most.
     let eventId: string | null = null
     try {
-      const storedEvent = localStorage.getItem('mimo_pending_event_id')
-      if (storedEvent && /^[0-9a-f-]{36}$/.test(storedEvent)) eventId = storedEvent
+      const storedEvent = localStorage.getItem(PENDING_EVENT_KEY)
+      const storedAt = Number(localStorage.getItem(PENDING_EVENT_AT_KEY) ?? '0')
+      const fresh = storedAt > 0 && Date.now() - storedAt < INTENT_TTL_MS
+      const genericThanks = !workshopKey || workshopKey === 'simple'
+      if (storedEvent && /^[0-9a-f-]{36}$/.test(storedEvent) && fresh && genericThanks) {
+        eventId = storedEvent
+      } else if (storedEvent && !fresh) {
+        // Abandoned checkout. Drop it rather than let it wait for a
+        // thank-you page to attach itself to.
+        localStorage.removeItem(PENDING_EVENT_KEY)
+        localStorage.removeItem(PENDING_EVENT_AT_KEY)
+      }
     } catch { /* private mode */ }
 
     if (eventId) {
@@ -174,13 +203,15 @@ export default function ThankYouPage() {
           // retries that one, and only that one, once she signs in.
           try {
             localStorage.setItem('mimo_paid_event_id', id)
-            localStorage.removeItem('mimo_pending_event_id')
+            localStorage.removeItem(PENDING_EVENT_KEY)
+            localStorage.removeItem(PENDING_EVENT_AT_KEY)
           } catch { /* private mode */ }
           setEventUnconfirmed(true)
           return
         }
         try {
-          localStorage.removeItem('mimo_pending_event_id')
+          localStorage.removeItem(PENDING_EVENT_KEY)
+          localStorage.removeItem(PENDING_EVENT_AT_KEY)
           localStorage.removeItem('mimo_paid_event_id')
         } catch { /* ignore */ }
         // 'over_capacity' means her hold ran out mid-checkout and the
