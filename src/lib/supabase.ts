@@ -151,6 +151,8 @@ export type Video = {
   tags: string[] | null
   display_order: number
   is_active: boolean
+  /** Shown in the community "מדריכים" tab — the only videos non-pro users may read. */
+  is_tutorial: boolean
   created_at: string
   updated_at: string
 }

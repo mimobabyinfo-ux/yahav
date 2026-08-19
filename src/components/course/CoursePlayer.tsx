@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { supabase, Workshop, WorkshopContent } from '../../lib/supabase'
 import type { EventType, EventData } from '../../hooks/useTracker'
-import { signedMediaUrl } from '../../utils/signedMedia'
+import InlineVideo from '../InlineVideo'
 
 /**
  * Digital-course player.
@@ -32,8 +32,6 @@ type Props = {
 }
 
 type Module = { name: string; lessons: WorkshopContent[] }
-
-const FALLBACK_RATIO = 9 / 16
 
 export default function CoursePlayer({
   workshop, items, userId, ownerName, ownerWhatsapp, onBack, track,
@@ -124,7 +122,7 @@ export default function CoursePlayer({
         </div>
 
         <div className="p-4 space-y-5 max-w-sm mx-auto">
-          {lesson.url && lesson.type === 'video' && <LessonVideo url={lesson.url} onPlay={() => track('video_start', { item_id: lesson.id })} />}
+          {lesson.url && lesson.type === 'video' && <InlineVideo url={lesson.url} onPlay={() => track('video_start', { item_id: lesson.id })} />}
 
           {lesson.description && (
             <p className="text-sm text-sand-500 leading-relaxed">{lesson.description}</p>
@@ -269,53 +267,6 @@ export default function CoursePlayer({
           <MessageCircle className="w-4 h-4" />
           שאלי את {ownerName}
         </a>
-      </div>
-    </div>
-  )
-}
-
-/**
- * The footage is filmed on a phone (9:16). A fixed-height box cropped it;
- * `object-contain` inside an aspect-ratio box shows the whole frame. The
- * real ratio is read from the file on loadedmetadata, so a landscape clip
- * uploaded later sizes itself correctly instead of letterboxing.
- *
- * maxWidth is derived from maxHeight so a tall video can never push past
- * ~70vh and force the page to scroll to see the baby's feet.
- */
-function LessonVideo({ url, onPlay }: { url: string; onPlay: () => void }) {
-  const [ratio, setRatio] = useState(FALLBACK_RATIO)
-  // Signed at play time, expires within the hour. See utils/signedMedia.
-  const [src, setSrc] = useState<string | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    signedMediaUrl(url).then(u => { if (!cancelled) setSrc(u) })
-    return () => { cancelled = true }
-  }, [url])
-
-  return (
-    <div className="flex justify-center">
-      <div
-        className="relative w-full overflow-hidden rounded-2xl bg-black"
-        style={{ aspectRatio: String(ratio), maxHeight: '70vh', maxWidth: `calc(70vh * ${ratio})` }}
-      >
-        {!src && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-7 h-7 border-2 border-white/30 border-t-white/80 rounded-full animate-spin" />
-          </div>
-        )}
-        <video
-          src={src ?? undefined}
-          controls
-          playsInline
-          preload="metadata"
-          onPlay={onPlay}
-          onLoadedMetadata={e => {
-            const v = e.currentTarget
-            if (v.videoWidth > 0 && v.videoHeight > 0) setRatio(v.videoWidth / v.videoHeight)
-          }}
-          className="absolute inset-0 w-full h-full object-contain"
-        />
       </div>
     </div>
   )

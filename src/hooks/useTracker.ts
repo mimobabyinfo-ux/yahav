@@ -22,6 +22,8 @@ export type EventType =
   // Digital course: which lesson she opened, and which she marked done.
   | 'lesson_open'
   | 'lesson_complete'
+  // Community tutorials: which app-explainer clip she opened.
+  | 'tutorial_open'
 
 export type EventData = Record<string, string | number | boolean | null>
 

@@ -13,6 +13,7 @@ import CommunityMemberSheet from '../components/community/CommunityMemberSheet'
 import EventsTab from '../components/community/EventsTab'
 import MyBookingsTab from '../components/community/MyBookingsTab'
 import MembershipCard from '../components/community/MembershipCard'
+import TutorialsTab from '../components/community/TutorialsTab'
 
 type CommunityProfile = {
   id: string
@@ -43,7 +44,7 @@ type PregnantProfile = {
 // Top-level page tabs: community events ("הקהילה של מימו") vs the
 // member directory. Events is the default tab; the dashboard teaser
 // deep-links here via sessionStorage('mimo_community_tab').
-type PageTab = 'events' | 'bookings' | 'members'
+type PageTab = 'events' | 'bookings' | 'members' | 'tutorials'
 
 type FilterMode = 'age' | 'area' | 'all'
 type PregnancyFilter = 'all' | 'week' | 'area'
@@ -72,7 +73,10 @@ export default function CommunityPage() {
   const [pageTab, setPageTab] = useState<PageTab>(() => {
     const stored = sessionStorage.getItem('mimo_community_tab')
     sessionStorage.removeItem('mimo_community_tab')
-    return stored === 'members' ? 'members' : stored === 'bookings' ? 'bookings' : 'events'
+    return stored === 'members' ? 'members'
+      : stored === 'bookings' ? 'bookings'
+      : stored === 'tutorials' ? 'tutorials'
+      : 'events'
   })
 
   // Mom-mode state
@@ -272,16 +276,17 @@ export default function CommunityPage() {
         {/* Page tabs — underlined: these switch WORLDS (events/members),
             unlike the list/calendar pair which is just a rendering of
             the events (IA handoff §3). */}
-        <div className="flex" style={{ gap: 26, borderBottom: '1px solid #E4DAD0' }}>
+        <div className="flex overflow-x-auto" style={{ gap: 26, borderBottom: '1px solid #E4DAD0', scrollbarWidth: 'none' }}>
           {([
-            ['events',   'אירועים'],
-            ['bookings', 'ההזמנות שלי'],
-            ['members',  'חברות'],
+            ['events',    'אירועים'],
+            ['bookings',  'ההזמנות שלי'],
+            ['members',   'חברות'],
+            ['tutorials', 'מדריכים'],
           ] as [PageTab, string][]).map(([v, label]) => (
             <button
               key={v}
               onClick={() => setPageTab(v)}
-              className="transition-all"
+              className="transition-all flex-shrink-0"
               style={pageTab === v
                 ? { fontWeight: 700, fontSize: 18, color: '#443327', padding: '0 0 12px', borderBottom: '3px solid #C8A460', marginBottom: -1 }
                 : { fontWeight: 600, fontSize: 18, color: '#7B604C', padding: '0 0 12px' }}
@@ -297,6 +302,9 @@ export default function CommunityPage() {
         {/* ── ההזמנות שלי — what she already signed up for, with the
              calendar file. Same RPC as the events tab, filtered to her. */}
         {pageTab === 'bookings' && <MyBookingsTab />}
+
+        {/* ── מדריכים — short app-explainer clips for the community group ── */}
+        {pageTab === 'tutorials' && <TutorialsTab />}
 
         {/* Brenda 17.8.26: "when you tap edit profile there's no reason to
             see all the members underneath — it should be separate, and

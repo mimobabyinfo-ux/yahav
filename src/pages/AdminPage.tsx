@@ -3150,7 +3150,7 @@ function VideosTab() {
   const [deletingBusy, setDeletingBusy] = useState(false)
   const [tasks, setTasks] = useState<HomeworkTask[]>([])
   const [newTask, setNewTask] = useState('')
-  const [form, setForm] = useState({ title: '', description: '', video_url: '', thumbnail_url: '', duration_minutes: '', category_id: '' })
+  const [form, setForm] = useState({ title: '', description: '', video_url: '', thumbnail_url: '', duration_minutes: '', category_id: '', is_tutorial: false })
   const [uploadingVideo, setUploadingVideo] = useState(false)
   const [uploadingThumb, setUploadingThumb] = useState(false)
 
@@ -3205,6 +3205,7 @@ function VideosTab() {
       thumbnail_url: form.thumbnail_url || null,
       duration_minutes: form.duration_minutes ? parseInt(form.duration_minutes) : null,
       category_id: form.category_id || null,
+      is_tutorial: form.is_tutorial,
     }
     if (editing) {
       await supabase.from('videos').update(payload).eq('id', editing.id)
@@ -3212,7 +3213,7 @@ function VideosTab() {
       const maxOrder = videos.length > 0 ? Math.max(...videos.map(v => v.display_order)) : 0
       await supabase.from('videos').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ title: '', description: '', video_url: '', thumbnail_url: '', duration_minutes: '', category_id: '' })
+    setForm({ title: '', description: '', video_url: '', thumbnail_url: '', duration_minutes: '', category_id: '', is_tutorial: false })
     setEditing(null); setShowForm(false); setTasks([]); load()
   }
 
@@ -3257,7 +3258,12 @@ function VideosTab() {
   return (
     <div className="space-y-3">
       <button
-        onClick={() => { setShowForm(true); setEditing(null); setTasks([]) }}
+        onClick={() => {
+          // Reset, so a new video never inherits the last edited one's
+          // fields — "מדריך קהילה" especially, which decides who sees it.
+          setForm({ title: '', description: '', video_url: '', thumbnail_url: '', duration_minutes: '', category_id: '', is_tutorial: false })
+          setShowForm(true); setEditing(null); setTasks([])
+        }}
         className="w-full flex items-center justify-center gap-2 bg-mustard-500 text-white font-semibold py-3 rounded-2xl hover:bg-mustard-600 transition-colors"
       >
         <Plus className="w-4 h-4" />
@@ -3307,6 +3313,25 @@ function VideosTab() {
             </select>
           </div>
 
+          {/* The one switch that decides whether a clip is visible to
+              members: marked = it appears in the community's מדריכים tab
+              for every signed-in mother. Unmarked videos stay restricted
+              to pro/admin, as they always were. */}
+          <label className="flex items-start gap-2.5 p-3 rounded-xl cursor-pointer" style={{ background: '#F6ECD8', border: '1px solid #E7C78A' }}>
+            <input
+              type="checkbox"
+              checked={form.is_tutorial}
+              onChange={e => setForm(f => ({ ...f, is_tutorial: e.target.checked }))}
+              className="mt-0.5 w-4 h-4 accent-mustard-500"
+            />
+            <span>
+              <span className="block text-xs font-bold text-[#4A3A28]">מדריך קהילה</span>
+              <span className="block text-[11px] text-[#7B604C] leading-snug">
+                יוצג לכל המשתמשות בטאב "מדריכים" בעמוד הקהילה
+              </span>
+            </span>
+          </label>
+
           {/* Homework tasks (only when editing) */}
           {editing && (
             <div>
@@ -3340,6 +3365,11 @@ function VideosTab() {
               <p className="font-semibold text-sand-800 text-sm truncate">{v.title}</p>
               {v.description && <p className="text-xs text-sand-400 truncate">{v.description}</p>}
               {v.duration_minutes && <p className="text-xs text-sand-400">{v.duration_minutes} דק'</p>}
+              {v.is_tutorial && (
+                <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#F6ECD8', color: '#7B604C' }}>
+                  מדריך קהילה
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1">
               <button onClick={() => reorder(idx, 'up')} className="p-1 text-sand-300 hover:text-sand-600"><ChevronUp className="w-3.5 h-3.5" /></button>
@@ -3347,7 +3377,7 @@ function VideosTab() {
               <button onClick={() => toggle(v)} className="text-sand-400 hover:text-mustard-500">
                 {v.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
               </button>
-              <button onClick={() => { setEditing(v); setForm({ title: v.title, description: v.description ?? '', video_url: v.video_url ?? '', thumbnail_url: v.thumbnail_url ?? '', duration_minutes: v.duration_minutes?.toString() ?? '', category_id: v.category_id ?? '' }); setShowForm(false); loadTasks(v.id) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+              <button onClick={() => { setEditing(v); setForm({ title: v.title, description: v.description ?? '', video_url: v.video_url ?? '', thumbnail_url: v.thumbnail_url ?? '', duration_minutes: v.duration_minutes?.toString() ?? '', category_id: v.category_id ?? '', is_tutorial: v.is_tutorial }); setShowForm(false); loadTasks(v.id) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
               <button onClick={() => setPendingDelete(v)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
