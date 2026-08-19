@@ -46,10 +46,13 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
     void trackAction('navigate')
   }
 
+  // The sheet sits ABOVE the bottom nav (z-50) rather than under it. While it
+  // shared z-50 the nav painted over the last rows and swallowed whatever sat
+  // there: the third branch, the discount code.
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" dir="rtl">
+    <div className="fixed inset-0 z-[70] flex items-end justify-center" dir="rtl">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl max-h-[85vh] overflow-y-auto">
+      <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-start justify-between p-5 pb-0">
           <button
@@ -60,7 +63,12 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
           </button>
         </div>
 
-        <div className="p-5 pt-3 pb-8 space-y-4">
+        {/* The extra bottom padding keeps the last button clear of the iPhone
+            home indicator now that the sheet reaches the screen edge. */}
+        <div
+          className="p-5 pt-3 space-y-4"
+          style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' }}
+        >
           {/* Logo + Partner name */}
           <div className="flex items-center gap-4">
             {perk.logo_url ? (
