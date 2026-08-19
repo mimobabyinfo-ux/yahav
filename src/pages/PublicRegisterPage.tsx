@@ -2,7 +2,6 @@
 import { supabase, Workshop, type WorkshopOffer, type PublicCohort } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 import { initPixel, pixelTrack } from '../utils/metaPixel'
-import CourseSalesSections from '../components/course/CourseSalesSections'
 import { Instagram, Facebook } from 'lucide-react'
 
 // Mimo social profiles — shown as quiet icons at the bottom of the
@@ -438,25 +437,17 @@ export default function PublicRegisterPage() {
           <p className="text-sand-500 text-sm">{subtitle}</p>
         </div>
 
-        {/* A campaign lands here with ?register=<product>. A digital course
-            gets the full sales page above the form — one page that sells
-            and collects, on the same origin as the thank-you page. */}
-        {isDigitalCourse && lockedWorkshop ? (
-          <CourseSalesSections
-            workshop={lockedWorkshop}
-            onCta={() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          />
-        ) : (
-          <>
-            <h1 className="text-center text-xl font-bold text-sand-800 mb-1">
-              {lockedWorkshop ? lockedWorkshop.title : hero}
-            </h1>
-            {lockedWorkshop?.price != null && (
-              <p className="text-center text-sand-500 text-sm mb-6">₪{lockedWorkshop.price}</p>
-            )}
-            {lockedWorkshop?.price == null && <div className="mb-6" />}
-          </>
+        {/* One page sells, one page collects. The sales copy lives on
+            lp.mimo-baby.co.il/course — this page is the short checkout
+            step for EVERY product, digital course included. Duplicating
+            the pitch here is what made the funnel feel repetitive. */}
+        <h1 className="text-center text-xl font-bold text-sand-800 mb-1">
+          {lockedWorkshop ? lockedWorkshop.title : hero}
+        </h1>
+        {lockedWorkshop?.price != null && (
+          <p className="text-center text-sand-500 text-sm mb-6">₪{lockedWorkshop.price}</p>
         )}
+        {lockedWorkshop?.price == null && <div className="mb-6" />}
 
         {/* Task B: special-offer banner — only when the form is in
             offer mode. Shows the offer label so the user can verify
