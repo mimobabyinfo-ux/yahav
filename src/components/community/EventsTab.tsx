@@ -1,18 +1,19 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
 import { MapPin, Clock, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft } from 'lucide-react'
-import { supabase, type CommunityEventRow, type EventAttendee, type MyWaitlist, type MyCredit } from '../../lib/supabase'
-import { getBabyAge } from '../../utils/dateUtils'
-import CommunityMemberSheet from './CommunityMemberSheet'
+import { supabase, type CommunityEventRow, type MyWaitlist, type MyCredit } from '../../lib/supabase'
 import { MimoLeafPair } from '../MimoLeaf'
 import MembershipCard from './MembershipCard'
 
 // "הקהילה של מימו" — user-facing community events. Two views:
 // רשימה (monthly-grouped cards + month chips) and יומן (month calendar
 // grid with prev/next navigation). One-tap register/cancel through
-// SECURITY DEFINER RPCs (capacity enforced server-side). "מי מגיעה"
-// attendees are tappable — each opens the same CommunityMemberSheet
-// used by the members directory, so moms can connect with each other
-// before the event (direct WhatsApp only with community_consent).
+// SECURITY DEFINER RPCs (capacity enforced server-side).
+//
+// Brenda 19.8.26: "לא לאפשר לראות מי מגיעה לכל אירוע — זה גם מראה כשזה
+// ריק וגם מראה כמות נרשמות". The "מי מגיעה" list was the last place the
+// head count leaked: on a new event it announced that nobody had signed
+// up, and on a full one it counted the room. Registrants are now an
+// admin-only view (EventsAdminPanel + the vendor check-in page).
 
 const MONTHS_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 
@@ -37,7 +38,6 @@ function todayLocalIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏼' : g === 'girl' ? '👧🏼' : '👶🏼'
 
 /** Park the event she is about to pay for, with the time she tapped.
  *
@@ -65,7 +65,6 @@ export default function EventsTab() {
   const [ticketEvent, setTicketEvent] = useState<CommunityEventRow | null>(null)
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [attendees, setAttendees] = useState<Record<string, EventAttendee[]>>({})
   const [busyId, setBusyId] = useState<string | null>(null)
   // Which event is showing the "how do you want to leave" sheet, and
   // the name typed into it.
@@ -80,9 +79,6 @@ export default function EventsTab() {
     return { y: t.getFullYear(), m: t.getMonth() + 1 }
   })
   const [calSelectedId, setCalSelectedId] = useState<string | null>(null)
-  // Tapped attendee — opens the community profile bottom-sheet
-  const [openAttendee, setOpenAttendee] = useState<{ attendee: EventAttendee; eventTitle: string } | null>(null)
-
   // Guests a mother is bringing, per event, while she is still editing.
   // Yahav 12.8.26: community events have no questionnaire and no WhatsApp
   // group, so bringing a partner or a friend is only a name and a seat.
@@ -158,15 +154,8 @@ export default function EventsTab() {
     setTimeout(() => setToast(null), 2500)
   }
 
-  async function loadAttendees(eventId: string) {
-    const { data } = await supabase.rpc('get_event_attendees', { p_event_id: eventId })
-    setAttendees(prev => ({ ...prev, [eventId]: (data ?? []) as EventAttendee[] }))
-  }
-
   function toggleExpand(ev: CommunityEventRow) {
-    const next = expandedId === ev.id ? null : ev.id
-    setExpandedId(next)
-    if (next && !attendees[ev.id]) loadAttendees(ev.id)
+    setExpandedId(expandedId === ev.id ? null : ev.id)
   }
 
   /** Names she is bringing: her unsaved edits first, else what is stored. */
@@ -283,7 +272,6 @@ export default function EventsTab() {
       setGuestDrafts(prev => { const n = { ...prev }; delete n[ev.id]; return n })
       setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
       load()
-      if (attendees[ev.id]) loadAttendees(ev.id)
     }
   }
 
@@ -309,7 +297,6 @@ export default function EventsTab() {
     setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
     loadCredit()
     load()
-    if (attendees[ev.id]) loadAttendees(ev.id)
   }
 
   async function cancel(ev: CommunityEventRow) {
@@ -327,7 +314,6 @@ export default function EventsTab() {
     )
     loadCredit()
     load()
-    if (attendees[ev.id]) loadAttendees(ev.id)
   }
 
   async function joinWaitlist(ev: CommunityEventRow) {
@@ -467,7 +453,6 @@ export default function EventsTab() {
       ? new Date(myOffer).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
       : null
     const expanded = expandedId === ev.id
-    const names = attendees[ev.id]
 
     return (
       <div key={ev.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
@@ -527,7 +512,8 @@ export default function EventsTab() {
             </div>
           </div>
 
-          {/* Expanded: description + who's coming (tappable profiles) */}
+          {/* Expanded: description + location link. No registrant list —
+              see the note at the top of the file. */}
           {expanded && (
             <div className="mt-3 pt-3 border-t border-sand-200 space-y-2">
               {ev.description && (
@@ -539,30 +525,6 @@ export default function EventsTab() {
                   className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-600">
                   <ExternalLink className="w-3 h-3" /> ניווט למיקום
                 </a>
-              )}
-              {names && names.length > 0 && (
-                <div>
-                  <p className="text-[13px] font-bold text-sand-500 mb-1">מי מגיעה? 🤎 <span className="font-normal text-sand-600">(לחצי להכיר)</span></p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {names.map(a => (
-                      <button
-                        key={a.user_id}
-                        onClick={e => { e.stopPropagation(); setOpenAttendee({ attendee: a, eventTitle: ev.title }) }}
-                        className="flex items-center gap-1 text-[13px] bg-[#F4EDE1] text-sand-700 px-2.5 py-1 rounded-full font-semibold shadow-sm hover:shadow transition-all"
-                      >
-                        {/* Brenda 17.8.26: this is the MOTHER, so her full
-                            name and no baby icon. The icon read as if the
-                            baby were the one signed up. */}
-                        {a.mother_name ?? 'אמא'}
-                        {(a.guest_names?.length ?? 0) > 0 && (
-                          <span className="font-normal" style={{ color: '#8A7A63' }}>
-                            +{a.guest_names!.length}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               )}
             </div>
           )}
@@ -902,7 +864,7 @@ export default function EventsTab() {
                         const mine = ev.my_status === 'registered' || ev.my_status === 'attended'
                         return (
                           <button key={ev.id}
-                            onClick={() => { setCalSelectedId(cur => cur === ev.id ? null : ev.id); setExpandedId(ev.id); if (!attendees[ev.id]) loadAttendees(ev.id) }}
+                            onClick={() => { setCalSelectedId(cur => cur === ev.id ? null : ev.id); setExpandedId(ev.id) }}
                             title={ev.title}
                             className={`w-full text-sm leading-none py-0.5 rounded-lg transition-all ${calSelectedId === ev.id ? 'bg-mustard-100 ring-2 ring-mustard-300' : 'hover:bg-[#EFE6D6]'} ${mine ? 'ring-1 ring-musgo-300' : ''}`}>
                             {ev.emoji ?? '🎉'}
@@ -921,25 +883,6 @@ export default function EventsTab() {
             : <p className="text-center text-xs text-sand-600">לחצי על אירוע ביומן כדי לראות פרטים ולהירשם 👆</p>}
         </div>
       )}
-
-      {/* Attendee profile bottom-sheet — same component as the members directory */}
-      {openAttendee && (() => {
-        const a = openAttendee.attendee
-        const firstName = (a.mother_name ?? 'אמא').split(' ')[0]
-        const secondary = a.child_dob
-          ? `אמא ל${a.child_gender === 'girl' ? 'תינוקת' : 'תינוק'} (${getBabyAge(a.child_dob)})`
-          : 'אמא בקהילה'
-        return (
-          <CommunityMemberSheet
-            member={a}
-            avatarEmoji={genderEmoji(a.child_gender)}
-            secondaryLine={secondary}
-            whatsappGreeting={`היי ${firstName}! ראיתי שאת רשומה ל"${openAttendee.eventTitle}" וגם אני מגיעה! 🎉`}
-            fallbackGreeting={`היי! רציתי להתחבר עם אמא שנרשמה ל"${openAttendee.eventTitle}" 🎉`}
-            onClose={() => setOpenAttendee(null)}
-          />
-        )
-      })()}
 
       {/* Event ticket — the member's entry card for a closed community event */}
       {ticketEvent && (

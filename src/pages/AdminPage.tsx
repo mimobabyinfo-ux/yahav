@@ -30,6 +30,7 @@ import { perkBranches, branchCountLabel, type PerkBranch } from '../utils/perkBr
 import MimoLeaf from '../components/MimoLeaf'
 import AdminHome from '../components/admin/AdminHome'
 import ProductPage from '../components/admin/ProductPage'
+import GiftCardsPanel from '../components/admin/GiftCardsPanel'
 import type { AdminOverview } from '../components/admin/useAdminOverview'
 import type { AdminTask } from '../components/admin/adminTasks'
 import { ChevronRight as CtxBack } from 'lucide-react'
@@ -224,7 +225,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <TipsTab />}
         {tab === 'videos'     && <VideosTab />}
-        {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <WorkshopsTab onOpenProduct={openProductPage} />)}
+        {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <><GiftCardsPanel /><WorkshopsTab onOpenProduct={openProductPage} /></>)}
         {tab === 'events'     && (
           <EventsAdminPanel
             openEditId={taskContext?.section === 'events' && taskContext.view !== 'registrants' ? taskContext.targetId : undefined}
@@ -245,7 +246,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTabDesktop />}
         {tab === 'leads'      && <LeadsTabDesktop />}
-        {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <WorkshopsTabDesktop onOpenProduct={openProductPage} />)}
+        {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <><GiftCardsPanel /><WorkshopsTabDesktop onOpenProduct={openProductPage} /></>)}
         {tab === 'events'     && (
           <EventsAdminPanel
             openEditId={taskContext?.section === 'events' && taskContext.view !== 'registrants' ? taskContext.targetId : undefined}

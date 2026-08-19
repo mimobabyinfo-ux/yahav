@@ -110,6 +110,10 @@ export default function CommunityPage() {
   const [bioInput, setBioInput] = useState('')
   const [tagsInput, setTagsInput] = useState<string[]>([])
   const [consentChecked, setConsentChecked] = useState(false)
+  // Brenda 19.8.26: appearing in the directory and sharing a phone number
+  // are two different decisions. This is the first one; consentChecked is
+  // still only about the number.
+  const [visibleChecked, setVisibleChecked] = useState(true)
   const [savingProfile, setSavingProfile] = useState(false)
   const [saveError, setSaveError] = useState('')
 
@@ -135,6 +139,7 @@ export default function CommunityPage() {
       setBioInput(profile.community_bio ?? '')
       setTagsInput(profile.community_tags ?? [])
       setConsentChecked(profile.community_consent ?? false)
+      setVisibleChecked(profile.community_visible ?? true)
     }
   }, [profile])
 
@@ -168,12 +173,28 @@ export default function CommunityPage() {
         community_bio: bioInput.trim() || null,
         community_tags: tagsInput,
         community_consent: consentChecked,
+        community_visible: visibleChecked,
       })
       .eq('id', user.id)
     setSavingProfile(false)
     if (error) { setSaveError('שגיאה בשמירה. נסי שוב'); return }
     setRegisteredInSession(true)
     setEditMode(false)
+    refreshProfile()
+    if (isPregnant) loadPregnant()
+    else loadMoms()
+  }
+
+  // One-tap flip of the directory switch, without opening the whole form.
+  // Used by the "you are hidden" banner so coming back is a single tap.
+  async function setVisibility(next: boolean) {
+    if (!user) return
+    setVisibleChecked(next)
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ community_visible: next })
+      .eq('id', user.id)
+    if (error) { setVisibleChecked(!next); return }
     refreshProfile()
     if (isPregnant) loadPregnant()
     else loadMoms()
@@ -401,6 +422,40 @@ export default function CommunityPage() {
               </p>
             </div>
 
+            {/* Brenda 19.8.26: "לתת אופציה לאמא האם לראות אותה בקהילה או
+                לא — בלי קשר לווטסאפ". Two separate decisions, so two
+                separate controls, and this one comes first: it decides
+                whether she is in the directory at all, while the box
+                below only decides whether her number is shown. */}
+            <div className="rounded-2xl p-3.5" style={{ background: '#FAF6EF', border: '1px solid #EFE4D3' }}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-sand-800">להופיע ברשימת החברות</p>
+                  <p className="text-xs text-sand-600 leading-relaxed mt-0.5">
+                    {visibleChecked
+                      ? 'אמהות אחרות בקהילה יכולות לראות את הפרופיל שלך'
+                      : 'הפרופיל שלך מוסתר. את עדיין רואה את כולן ויכולה להירשם לאירועים'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={visibleChecked}
+                  onClick={() => setVisibleChecked(v => !v)}
+                  className="relative flex-shrink-0 rounded-full transition-all"
+                  style={{
+                    width: 48, height: 28,
+                    background: visibleChecked ? '#818267' : '#DCD2C4',
+                  }}
+                >
+                  <span
+                    className="absolute top-1 bg-white rounded-full shadow transition-all"
+                    style={{ width: 20, height: 20, right: visibleChecked ? 24 : 4 }}
+                  />
+                </button>
+              </div>
+            </div>
+
             <label className="flex items-start gap-3 cursor-pointer">
               <div
                 onClick={() => setConsentChecked(v => !v)}
@@ -433,6 +488,27 @@ export default function CommunityPage() {
             </div>
           </div>
         ) : (<>
+
+        {/* Hidden-from-the-directory notice. She can still browse and
+            still register for events — only her own card is off the
+            list — and coming back is one tap, not a trip through the
+            whole profile form. */}
+        {profile?.community_visible === false && (
+          <div className="rounded-3xl p-4 shadow-sm flex items-center justify-between gap-3"
+            style={{ background: '#FAF6EF', border: '1px solid #EFE4D3' }}>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-sand-800">את מוסתרת מרשימת החברות</p>
+              <p className="text-xs text-sand-600 mt-0.5">אף אחת לא רואה את הפרופיל שלך כרגע</p>
+            </div>
+            <button
+              onClick={() => setVisibility(true)}
+              className="flex-shrink-0 px-3.5 py-2 rounded-2xl text-xs font-bold text-[#4A3A28]"
+              style={{ background: '#E7C78A' }}
+            >
+              להופיע שוב
+            </button>
+          </div>
+        )}
 
         {/* Filters */}
         {isPregnant ? (

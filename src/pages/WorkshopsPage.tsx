@@ -1,10 +1,13 @@
-﻿import { useEffect, useState, useMemo } from 'react'
-import { ExternalLink, MessageCircle, ShoppingBag, Star, X, CreditCard, CalendarDays, GraduationCap } from 'lucide-react'
+﻿import { useCallback, useEffect, useState, useMemo } from 'react'
+import { ExternalLink, MessageCircle, ShoppingBag, Star, X, CreditCard, CalendarDays, GraduationCap, Gift } from 'lucide-react'
 import { supabase, Workshop, type PublicCohort } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { useWorkshopCategories, categoryLabel } from '../hooks/useWorkshopCategories'
 import { formatDate } from '../utils/dateUtils'
+import GiftCardModal from '../components/giftcard/GiftCardModal'
+import GiftCardSendForm from '../components/giftcard/GiftCardSendForm'
+import type { GiftCard } from '../components/giftcard/giftCard'
 import type { Page } from '../App'
 
 type WorkshopExt = Workshop & { whatsapp_number?: string }
@@ -259,6 +262,11 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
     } catch { return null }
   })
   const [category, setCategory] = useState(isPregnant ? 'הריון' : 'all')
+  // גיפט קארד — the buy sheet, and the cards she already bought (a gift
+  // she paid for but never sent is money sitting in limbo, so it lives in
+  // הרכישות שלי until it reaches someone).
+  const [giftOpen, setGiftOpen] = useState(false)
+  const [giftCards, setGiftCards] = useState<GiftCard[]>([])
   const [tab, setTab] = useState<'store' | 'purchases'>('store')
   // Upcoming cohorts for ALL displayed products (one RPC call).
   const [cohorts, setCohorts] = useState<PublicCohort[]>([])
@@ -300,6 +308,13 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
     return m
   }, [cohorts])
 
+  const loadGiftCards = useCallback(() => {
+    if (!user) return
+    supabase.rpc('get_my_gift_cards').then(({ data }) => setGiftCards((data ?? []) as GiftCard[]))
+  }, [user])
+
+  useEffect(() => { loadGiftCards() }, [loadGiftCards])
+
   useEffect(() => {
     if (!user) return
     supabase
@@ -314,6 +329,10 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
   const activeCategories = categories.filter(c =>
     workshops.some(w => w.workshop_type === c.name)
   )
+
+  // Whatever Brenda ticked on the product form. No products ticked = no
+  // gift card entry at all, rather than an empty picker.
+  const giftableProducts = workshops.filter(w => w.gift_card_enabled)
 
   const filtered = category === 'all'
     ? workshops
@@ -345,7 +364,7 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
             className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'purchases' ? 'shadow-sm' : ''}`}
             style={tab === 'purchases' ? { background: '#E7C78A', color: '#4A3A28' } : { color: '#7B604C' }}
           >
-            הרכישות שלי {purchases.length > 0 && `(${purchases.length})`}
+            הרכישות שלי {purchases.length + giftCards.length > 0 && `(${purchases.length + giftCards.length})`}
           </button>
         </div>
 
@@ -371,6 +390,28 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
       <div className="max-w-sm mx-auto px-4 pt-4 space-y-3">
         {tab === 'store' ? (
           <>
+            {/* גיפט קארד — Brenda 19.8.26. Sits above the products because
+                it is a different intent: buying for someone else, not for
+                yourself, and nobody goes looking for it inside a category. */}
+            {giftableProducts.length > 0 && (
+              <button
+                onClick={() => setGiftOpen(true)}
+                className="w-full text-right rounded-3xl shadow-sm p-4 flex items-center gap-3 active:scale-[0.98] transition-all hover:shadow-md"
+                style={{ background: '#F6ECD8', border: '1px solid #E7C78A' }}
+              >
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0" style={{ background: '#FFFFFF' }}>
+                  🎁
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm" style={{ color: '#3D2E20' }}>גיפט קארד</p>
+                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: '#7B604C' }}>
+                    מתנה לחברה — סדנה או ליווי, נשלח אליה במייל
+                  </p>
+                </div>
+                <Gift className="w-5 h-5 flex-shrink-0" style={{ color: '#B98F4E' }} />
+              </button>
+            )}
+
             {loading ? (
               <div className="text-center py-12">
                 <div className="w-8 h-8 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin mx-auto" />
@@ -473,14 +514,45 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
           </>
         ) : (
           /* Purchases tab */
-          purchases.length === 0 ? (
+          purchases.length === 0 && giftCards.length === 0 ? (
             <div className="text-center py-16 space-y-3">
               <ShoppingBag className="w-12 h-12 text-sand-200 mx-auto" />
               <p className="text-sand-600 text-sm">עדיין אין רכישות</p>
               <p className="text-xs text-sand-500">רכישות שתבצעי יופיעו כאן</p>
             </div>
           ) : (
-            purchases.map(p => (
+            <>
+            {/* Gift cards she bought. A 'paid' card with no recipient is
+                the one that matters — the gift is paid for and nobody
+                knows about it yet. */}
+            {giftCards.filter(g => g.status !== 'cancelled').map(g => (
+              <div key={g.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-bold text-sand-800 flex items-center gap-1.5">🎁 גיפט קארד</p>
+                      <p className="text-xs text-sand-600 mt-0.5">{g.workshop_title}</p>
+                      <p className="text-[11px] text-sand-500 mt-0.5" dir="ltr" style={{ textAlign: 'right' }}>{g.code}</p>
+                    </div>
+                    <span className="text-sm font-bold flex-shrink-0" style={{ color: '#B98F4E' }}>₪{g.amount}</span>
+                  </div>
+
+                  {g.status === 'pending' ? (
+                    <p className="text-xs rounded-2xl py-2.5 px-3 leading-relaxed"
+                      style={{ background: '#FDF3E3', color: '#6E5836' }}>
+                      עדיין לא אישרנו את התשלום. ברגע שהוא יאושר תוכלי לשלוח את המתנה מכאן.
+                    </p>
+                  ) : g.status === 'redeemed' ? (
+                    <p className="text-xs rounded-2xl py-2.5 px-3" style={{ background: '#F1F3EA', color: '#4A5C31' }}>
+                      המתנה מומשה 🤍
+                    </p>
+                  ) : (
+                    <GiftCardSendForm card={g} onSent={loadGiftCards} compact />
+                  )}
+                </div>
+              </div>
+            ))}
+            {purchases.map(p => (
               <div key={p.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
                 {p.workshops.image_url && (
                   <img src={p.workshops.image_url} alt={p.workshops.title} className="w-full h-32 object-cover" />
@@ -517,10 +589,20 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
                   </a>
                 </div>
               </div>
-            ))
+            ))}
+            </>
           )
         )}
       </div>
+
+      {giftOpen && (
+        <GiftCardModal
+          products={giftableProducts}
+          cohortsByWorkshop={cohortsByWorkshop}
+          ownerWhatsapp={ownerWhatsapp}
+          onClose={() => setGiftOpen(false)}
+        />
+      )}
 
       {selected && <ProductModal ws={selected} onClose={() => setSelected(null)} ownerWhatsapp={ownerWhatsapp} cohorts={cohortsByWorkshop.get(selected.id) ?? []} />}
     </div>

@@ -32,6 +32,11 @@ export type UserProfile = {
   neighborhood: string | null
   phone_number: string | null
   community_consent: boolean
+  /** Brenda 19.8.26: a SECOND, independent switch — does she appear in the
+   *  member directory at all. community_consent only ever governed her
+   *  phone number, so a mother who wanted to be listed without handing out
+   *  her number had nothing to tick. Default true. */
+  community_visible: boolean
   community_bio: string | null
   // Phase 4 / C2: preset tags mom can pick to surface in the community
   // filter (coffee/park/workout/...). Empty array = no preference, mom
@@ -188,6 +193,10 @@ export type Workshop = {
    *  payment link. When set, a payment that has no registration behind it
    *  (a raw link sent over WhatsApp) still opens an account. */
   morning_product_id: string | null
+  /** Brenda 19.8.26: can this product be bought as a GIFT for someone else
+   *  (store → גיפט קארד). Data, not code — the picker is whatever is
+   *  ticked here. */
+  gift_card_enabled: boolean
   next_workshop_id: string | null
   public_registration: boolean
   // Phase 5 / A2 Part 2: optional questionnaire linked to this workshop

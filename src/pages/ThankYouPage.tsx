@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 import { pixelTrack } from '../utils/metaPixel'
 import { PENDING_EVENT_KEY, PENDING_EVENT_AT_KEY, INTENT_TTL_MS } from '../components/community/EventsTab'
+import GiftCardSendForm from '../components/giftcard/GiftCardSendForm'
+import { readGiftIntent, clearGiftIntent, type GiftCard } from '../components/giftcard/giftCard'
 
 // ?thanks — where Morning sends her back after a successful payment.
 //
@@ -147,6 +149,11 @@ export default function ThankYouPage() {
   const [eventUnconfirmed, setEventUnconfirmed] = useState(false)
   // Digital course: the lead that just paid, and how the claim went.
   const [paidLeadId, setPaidLeadId] = useState<string | null>(null)
+  // גיפט קארד: the card she just paid for, ready to be sent to a friend.
+  // Brenda 19.8.26 — the mail goes out only after the payment is confirmed,
+  // so this form is the FIRST place a gift can leave the building.
+  const [giftCard, setGiftCard] = useState<GiftCard | null>(null)
+  const [giftUnconfirmed, setGiftUnconfirmed] = useState(false)
   const [accessOpened, setAccessOpened] = useState(false)
   const [mailFailed, setMailFailed] = useState(false)
 
@@ -218,6 +225,28 @@ export default function ThankYouPage() {
         // seat went to someone else. She is registered anyway: a woman
         // who has already paid is never the one turned away.
         if (data === 'over_capacity') console.warn('[thank-you] over capacity, Brenda should be told')
+      })
+    }
+
+    // A gift card checkout that just came back. Same intent rules as an
+    // event: only THIS page may act on the stored id, and only inside the
+    // TTL — an abandoned checkout must never be cashed in later.
+    const giftId = readGiftIntent()
+    if (giftId) {
+      supabase.rpc('mark_gift_card_paid', { p_gift_card_id: giftId }).then(({ data, error }) => {
+        if (error || data === 'unauthorized' || data === 'not_yours') {
+          // She landed here without a session (Morning opens payment in a
+          // new, sometimes private, tab). The money arrived; we just cannot
+          // touch her card from here. Leave the intent alone — it expires —
+          // and point her at הרכישות שלי, where the same form lives.
+          setGiftUnconfirmed(true)
+          return
+        }
+        clearGiftIntent()
+        supabase.rpc('get_my_gift_cards').then(({ data: cards }) => {
+          const card = ((cards ?? []) as GiftCard[]).find(c => c.id === giftId) ?? null
+          setGiftCard(card)
+        })
       })
     }
 
@@ -319,8 +348,16 @@ export default function ThankYouPage() {
   // A community event is never a workshop, so it never gets the
   // WhatsApp-group copy. She is already inside the community.
   const kind: ThanksKind = eventPaid ? 'simple' : (ctx?.kind ?? 'group')
-  const title = settings[KEYS[kind].title] || COPY[kind].title
-  const body = settings[KEYS[kind].body] || COPY[kind].body(owner)
+  // A gift is not a registration: nobody is coming to a workshop and no
+  // WhatsApp group is waiting. The product's own success URL still lands
+  // here, so the copy is overridden rather than routed elsewhere.
+  const isGift = giftCard != null || giftUnconfirmed
+  const title = isGift
+    ? 'התשלום התקבל, המתנה מוכנה 🎁'
+    : settings[KEYS[kind].title] || COPY[kind].title
+  const body = isGift
+    ? 'נשאר רק לשלוח אותה לחברה — היא תקבל מייל ממימו עם כל הפרטים.'
+    : settings[KEYS[kind].body] || COPY[kind].body(owner)
   const firstName = (ctx?.lead_name ?? '').trim().split(' ')[0]
   const meeting = (kind === 'group' || kind === 'meetup') ? cohortLine(ctx ?? { found: false }) : null
 
@@ -344,11 +381,28 @@ export default function ThankYouPage() {
             {firstName ? `${firstName}, ${title}` : title}
           </h1>
 
-          {ctx?.title && (
-            <p className="text-sm font-bold" style={{ color: '#8A6A2F' }}>{ctx.title}</p>
+          {(giftCard?.workshop_title ?? ctx?.title) && (
+            <p className="text-sm font-bold" style={{ color: '#8A6A2F' }}>
+              {giftCard ? `גיפט קארד · ${giftCard.workshop_title}` : ctx?.title}
+            </p>
           )}
 
           <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-line">{body}</p>
+
+          {giftCard && (
+            <GiftCardSendForm card={giftCard} onSent={() => { /* stays on screen */ }} />
+          )}
+
+          {giftUnconfirmed && (
+            <div className="rounded-2xl py-3 px-3.5 text-right space-y-2"
+              style={{ background: '#FDF3E3', border: '1px solid #E7C78A' }}>
+              <p className="text-sm font-bold" style={{ color: '#8A6A2F' }}>המתנה שמורה לך 🤍</p>
+              <p className="text-xs leading-relaxed" style={{ color: '#6E5836' }}>
+                התחברי לאפליקציית מימו ← מוצרים ← הרכישות שלי, ושם אפשר לשלוח אותה לחברה.
+                אם משהו לא עובד, כתבי ל{owner || 'ברנדה'} ונסדר את זה.
+              </p>
+            </div>
+          )}
 
           {/* Paid, but the seat could not be confirmed from this browser
               (no session — private tab, or a new device). Say so instead of
@@ -407,7 +461,7 @@ export default function ThankYouPage() {
             {/* A group workshop gets the community group. A 1:1 or a
                 physical product gets Brenda directly — there is no
                 group to join and saying otherwise confuses people. */}
-            {kind === 'group' && settings.whatsapp_community_link && (
+            {!isGift && kind === 'group' && settings.whatsapp_community_link && (
               <a
                 href={settings.whatsapp_community_link}
                 target="_blank"
@@ -418,7 +472,7 @@ export default function ThankYouPage() {
                 💬 הצטרפי לקהילת מימו בוואטסאפ
               </a>
             )}
-            {kind !== 'group' && kind !== 'simple' && kind !== 'course' && ownerWa && (
+            {!isGift && kind !== 'group' && kind !== 'simple' && kind !== 'course' && ownerWa && (
               <a
                 href={waHref(ownerWa, kind === 'product' ? waProductText : waPrivateText)}
                 target="_blank"

@@ -44,7 +44,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
   const [savedFlash, setSavedFlash] = useState(false)
   const [showCohortsManager, setShowCohortsManager] = useState(false)
 
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, gift_card_enabled: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '' })
 
   const load = useCallback(async () => {
     const [{ data: w }, { data: all }, { data: cs }, { data: leads }, { data: fs }] = await Promise.all([
@@ -75,6 +75,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
         whatsapp_number: (ws as unknown as { whatsapp_number?: string }).whatsapp_number ?? '',
         next_workshop_id: ws.next_workshop_id ?? '', workshop_type: ws.workshop_type ?? '',
         public_registration: ws.public_registration ?? false,
+        gift_card_enabled: ws.gift_card_enabled ?? false,
         linked_form_id: ws.linked_form_id ?? '', feedback_form_id: ws.feedback_form_id ?? '',
         age_from: ws.age_range_start_months?.toString() ?? '', age_to: ws.age_range_end_months?.toString() ?? '',
       })
@@ -114,6 +115,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
       next_workshop_id: form.next_workshop_id || null,
       workshop_type: form.workshop_type || null,
       public_registration: form.public_registration,
+      gift_card_enabled: form.gift_card_enabled,
       linked_form_id: form.linked_form_id || null,
       feedback_form_id: form.feedback_form_id || null,
       age_range_start_months: form.age_from !== '' ? parseFloat(form.age_from) : null,
@@ -244,6 +246,12 @@ export default function ProductPage({ workshopId, onBack }: Props) {
             <label className="flex items-center gap-2 cursor-pointer pt-1">
               <input type="checkbox" checked={form.public_registration} onChange={e => setForm(f => ({ ...f, public_registration: e.target.checked }))} className="w-4 h-4 accent-mustard-500" />
               <span className="text-sm font-semibold" style={{ color: '#5E4938' }}>מופיע בעמוד ההרשמה הציבורי</span>
+            </label>
+            {/* Brenda 19.8.26 — which products can be given as a gift.
+                The store's גיפט קארד picker is exactly this list. */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.gift_card_enabled} onChange={e => setForm(f => ({ ...f, gift_card_enabled: e.target.checked }))} className="w-4 h-4 accent-mustard-500" />
+              <span className="text-sm font-semibold" style={{ color: '#5E4938' }}>🎁 אפשר לרכוש כגיפט קארד</span>
             </label>
           </div>
           <div className="space-y-3">
