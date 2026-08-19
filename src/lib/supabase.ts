@@ -342,6 +342,8 @@ export type PartnerPerk = {
   valid_days_from_join: number | null
   /** Absolute last valid day (YYYY-MM-DD), same for everyone. NULL = no end. */
   valid_until: string | null
+  /** Branch list from jsonb — parse with utils/perkBranches. [] = no branches. */
+  branches: unknown
   display_order: number
   created_at: string
   updated_at: string
@@ -351,7 +353,7 @@ export type PerkAnalytic = {
   id: string
   perk_id: string
   user_id: string | null
-  action_type: 'view' | 'copy_code' | 'visit_link'
+  action_type: 'view' | 'copy_code' | 'visit_link' | 'navigate'
   created_at: string
 }
 

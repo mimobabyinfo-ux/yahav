@@ -1,7 +1,8 @@
-import { X, Copy, ExternalLink, Check } from 'lucide-react'
+import { X, Copy, ExternalLink, Check, Navigation, MapPin } from 'lucide-react'
 import { useState } from 'react'
 import { supabase, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { perkBranches, branchMapUrl, type PerkBranch } from '../utils/perkBranches'
 
 type Props = {
   perk: PartnerPerk
@@ -12,7 +13,9 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
   const { user } = useAuth()
   const [copied, setCopied] = useState(false)
 
-  async function trackAction(action: 'view' | 'copy_code' | 'visit_link') {
+  const branches = perkBranches(perk.branches)
+
+  async function trackAction(action: 'view' | 'copy_code' | 'visit_link' | 'navigate') {
     await supabase.from('perk_analytics').insert({
       perk_id: perk.id,
       user_id: user?.id ?? null,
@@ -32,6 +35,15 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
     if (!perk.action_link) return
     await trackAction('visit_link')
     window.open(perk.action_link, '_blank', 'noopener')
+  }
+
+  function handleNavigate(branch: PerkBranch) {
+    const url = branchMapUrl(branch)
+    if (!url) return
+    // Open first, track afterwards: Safari blocks a window.open that runs
+    // after an await, and losing her tap is worse than losing the stat.
+    window.open(url, '_blank', 'noopener')
+    void trackAction('navigate')
   }
 
   return (
@@ -74,6 +86,46 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
           {perk.full_description && (
             <div className="bg-sand-50 rounded-2xl p-4">
               <p className="text-sm text-sand-700 leading-relaxed">{perk.full_description}</p>
+            </div>
+          )}
+
+          {/* Branches: tap one to navigate there. A partner with three
+              cafes should not force her to copy an address by hand. */}
+          {branches.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold flex items-center gap-1.5" style={{ color: '#7B604C' }}>
+                <MapPin className="w-3.5 h-3.5" style={{ color: '#A35C3D' }} />
+                {branches.length > 1 ? 'הסניפים המשתתפים' : 'המיקום'}
+              </p>
+              {branches.map((b, i) => {
+                const url = branchMapUrl(b)
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleNavigate(b)}
+                    disabled={!url}
+                    className="w-full flex items-center justify-between gap-3 rounded-2xl p-3 text-right transition-all hover:shadow-md disabled:opacity-60"
+                    style={{ background: '#FAF7F1' }}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm truncate" style={{ color: '#443327' }}>
+                        {b.name || b.address}
+                      </p>
+                      {b.name && b.address && (
+                        <p className="text-xs truncate" style={{ color: '#7B604C' }}>{b.address}</p>
+                      )}
+                    </div>
+                    {url && (
+                      <span
+                        className="flex items-center gap-1 flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-bold text-white"
+                        style={{ background: '#A35C3D' }}
+                      >
+                        <Navigation className="w-3.5 h-3.5" /> ניווט
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           )}
 

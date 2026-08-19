@@ -1,8 +1,9 @@
 ﻿import { useEffect, useState } from 'react'
-import { X, Ticket, Gift } from 'lucide-react'
+import { X, Ticket, Gift, Navigation } from 'lucide-react'
 import { supabase, type PartnerPerk } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { perkValidity, perkValidityLabel } from '../../utils/perkValidity'
+import { perkBranches, branchMapUrl, type PerkBranch } from '../../utils/perkBranches'
 import MimoLeaf from '../MimoLeaf'
 
 // Digital membership card — shown by a mom at partner businesses to
@@ -56,6 +57,19 @@ export default function MembershipCard({ onClose, event }: Props) {
   const livePerks = perks
     .map(p => ({ perk: p, validity: perkValidity(p, joinedAt) }))
     .filter(x => x.validity.active)
+
+  // Brenda 19.8.26: the card is what she has open on the way to the
+  // business, so the branches belong here too, one tap from navigation.
+  function navigateTo(perkId: string, branch: PerkBranch) {
+    const url = branchMapUrl(branch)
+    if (!url) return
+    window.open(url, '_blank', 'noopener')
+    void supabase.from('perk_analytics').insert({
+      perk_id: perkId,
+      user_id: profile?.id ?? null,
+      action_type: 'navigate',
+    })
+  }
 
   const name = profile?.mother_name ?? 'חברת קהילה'
   const memberSince = profile?.created_at
@@ -148,6 +162,25 @@ export default function MembershipCard({ onClose, event }: Props) {
                     {p.short_description && (
                       <p className="mt-0.5" style={{ fontSize: 13, color: '#7B604C', lineHeight: 1.45 }}>{p.short_description}</p>
                     )}
+                    {(() => {
+                      const list = perkBranches(p.branches)
+                      if (list.length === 0) return null
+                      return (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {list.map((b, i) => (
+                            <button
+                              key={i}
+                              onClick={() => navigateTo(p.id, b)}
+                              className="inline-flex items-center gap-1 rounded-full font-bold"
+                              style={{ fontSize: 12, padding: '4px 10px', background: '#F1E8E2', color: '#A35C3D' }}
+                            >
+                              <Navigation className="w-3 h-3" />
+                              {b.name || b.address}
+                            </button>
+                          ))}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )
               })}

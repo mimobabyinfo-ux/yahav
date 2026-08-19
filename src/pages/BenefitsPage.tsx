@@ -1,9 +1,10 @@
 ﻿import { useEffect, useState } from 'react'
-import { Search, WalletCards } from 'lucide-react'
+import { Search, WalletCards, MapPin } from 'lucide-react'
 import { supabase, PartnerPerk } from '../lib/supabase'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import { useAuth } from '../contexts/AuthContext'
 import { perkValidity, perkValidityLabel } from '../utils/perkValidity'
+import { perkBranches, branchCountLabel } from '../utils/perkBranches'
 
 export default function BenefitsPage() {
   const { user, profile } = useAuth()
@@ -98,6 +99,20 @@ export default function BenefitsPage() {
           <span className="text-xs font-bold" style={{ color: '#3E5966' }}>בהצגת הכרטיס</span>
         </div>
       )}
+      {/* Branches hint: a mom scanning the grid should see there is
+          somewhere to go before she opens the perk. */}
+      {(() => {
+        const list = perkBranches(perk.branches)
+        if (list.length === 0) return null
+        const label = list.length === 1 ? (list[0].name || list[0].address) : branchCountLabel(list.length)
+        if (!label) return null
+        return (
+          <div className="mt-2 rounded-xl px-2 py-1 inline-flex items-center gap-1" style={{ background: '#F1E8E2' }}>
+            <MapPin className="w-3 h-3" style={{ color: '#A35C3D' }} />
+            <span className="text-xs font-bold truncate" style={{ color: '#A35C3D' }}>{label}</span>
+          </div>
+        )
+      })()}
     </button>
   )
 

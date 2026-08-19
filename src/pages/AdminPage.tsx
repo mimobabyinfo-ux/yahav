@@ -26,6 +26,7 @@ import EventsAdminPanel from '../components/admin/EventsAdminPanel'
 import HomeAnnouncementsPanel from '../components/admin/HomeAnnouncementsPanel'
 import CategoryManagerModal from '../components/admin/CategoryManagerModal'
 import { useWorkshopCategories } from '../hooks/useWorkshopCategories'
+import { perkBranches, branchCountLabel, type PerkBranch } from '../utils/perkBranches'
 import MimoLeaf from '../components/MimoLeaf'
 import AdminHome from '../components/admin/AdminHome'
 import ProductPage from '../components/admin/ProductPage'
@@ -4127,7 +4128,7 @@ function PerksTab() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<PartnerPerk | null>(null)
   const [showAnalytics, setShowAnalytics] = useState(false)
-  const [form, setForm] = useState({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false, redeem_in_person: false, valid_days_from_join: '', valid_until: '' })
+  const [form, setForm] = useState({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false, redeem_in_person: false, valid_days_from_join: '', valid_until: '', branches: [] as PerkBranch[] })
   // Task A: shared delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<PartnerPerk | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
@@ -4172,6 +4173,11 @@ function PerksTab() {
       // Brenda 17.8.26: perk validity. Empty = no limit.
       valid_days_from_join: form.valid_days_from_join.trim() ? Number(form.valid_days_from_join) : null,
       valid_until: form.valid_until || null,
+      // Brenda 19.8.26: branches to navigate to. A row with nothing in it
+      // is dropped rather than saved as an empty pin.
+      branches: form.branches
+        .map(b => ({ name: b.name?.trim() ?? '', address: b.address?.trim() ?? '', link: b.link?.trim() ?? '' }))
+        .filter(b => b.name || b.address || b.link),
     }
     if (editing) {
       await supabase.from('partner_perks').update(payload).eq('id', editing.id)
@@ -4179,8 +4185,19 @@ function PerksTab() {
       const maxOrder = perks.length > 0 ? Math.max(...perks.map(p => p.display_order)) : 0
       await supabase.from('partner_perks').insert({ ...payload, display_order: maxOrder + 1, is_active: true })
     }
-    setForm({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false, redeem_in_person: false, valid_days_from_join: '', valid_until: '' })
+    setForm({ partner_name: '', short_description: '', full_description: '', discount_code: '', action_link: '', logo_url: '', is_featured: false, redeem_in_person: false, valid_days_from_join: '', valid_until: '', branches: [] })
     setEditing(null); setShowForm(false); load()
+  }
+
+  // Branch rows (Brenda 19.8.26). Order here is the order the moms see.
+  function addBranch() {
+    setForm(f => ({ ...f, branches: [...f.branches, { name: '', address: '', link: '' }] }))
+  }
+  function updateBranch(idx: number, patch: Partial<PerkBranch>) {
+    setForm(f => ({ ...f, branches: f.branches.map((b, i) => (i === idx ? { ...b, ...patch } : b)) }))
+  }
+  function removeBranch(idx: number) {
+    setForm(f => ({ ...f, branches: f.branches.filter((_, i) => i !== idx) }))
   }
 
   async function performDelete() {
@@ -4296,6 +4313,58 @@ function PerksTab() {
             </p>
           </div>
 
+          {/* Brenda 19.8.26: branches. Each row becomes a tappable
+              "ניווט" button for the moms, in this order. */}
+          <div className="rounded-xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-sand-600">📍 סניפים לניווט (ריק = בלי מיקום)</p>
+              <button onClick={addBranch} className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: '#F1E8E2', color: '#A35C3D' }}>
+                + סניף
+              </button>
+            </div>
+
+            {form.branches.length === 0 && (
+              <p className="text-[11px] text-sand-400 leading-relaxed">
+                לעסק עם כמה סניפים מוסיפים שורה לכל סניף. האמהות רואות את הרשימה בהטבה ובכרטיס החברות, ולחיצה על סניף פותחת ניווט אליו.
+              </p>
+            )}
+
+            {form.branches.map((b, i) => (
+              <div key={i} className="bg-white rounded-xl p-2 space-y-2 border border-sand-200">
+                <div className="flex gap-2">
+                  <input
+                    value={b.name ?? ''}
+                    onChange={e => updateBranch(i, { name: e.target.value })}
+                    placeholder="שם הסניף (רש״י)"
+                    className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
+                  />
+                  <button onClick={() => removeBranch(i)} className="px-2 text-sand-400 hover:text-red-500" aria-label="הסרת סניף">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <input
+                  value={b.address ?? ''}
+                  onChange={e => updateBranch(i, { address: e.target.value })}
+                  placeholder="כתובת מלאה (רש״י 12, רמת גן)"
+                  className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
+                />
+                <input
+                  value={b.link ?? ''}
+                  onChange={e => updateBranch(i, { link: e.target.value })}
+                  placeholder="לינק ניווט מדויק (רשות)"
+                  dir="ltr"
+                  className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
+                />
+              </div>
+            ))}
+
+            {form.branches.length > 0 && (
+              <p className="text-[11px] text-sand-400 leading-relaxed">
+                בלי לינק, הניווט נפתח לפי הכתובת בגוגל מפות (ומשם אפשר להמשיך לוויז). לינק מדביקים רק אם הכתובת מפילה על נקודה לא נכונה.
+              </p>
+            )}
+          </div>
+
           <div className="flex gap-2">
             <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold">שמירה</button>
             <button onClick={() => { setShowForm(false); setEditing(null) }} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
@@ -4315,6 +4384,11 @@ function PerksTab() {
                   <span className="text-xs px-1.5 py-0.5 rounded-lg font-semibold" style={p.redeem_in_person ? { background: '#E4EBEF', color: '#3E5966' } : { background: '#F6ECD8', color: '#8A6A2F' }}>
                     {p.redeem_in_person ? 'בהצגת הכרטיס' : 'אונליין'}
                   </span>
+                  {perkBranches(p.branches).length > 0 && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-lg font-semibold" style={{ background: '#F1E8E2', color: '#A35C3D' }}>
+                      📍 {branchCountLabel(perkBranches(p.branches).length)}
+                    </span>
+                  )}
                   {(p.valid_days_from_join != null || p.valid_until) && (
                     <span className="text-xs px-1.5 py-0.5 rounded-lg font-semibold" style={{ background: '#F3E0D7', color: '#A35C3D' }}>
                       ⏳ {[
@@ -4340,7 +4414,7 @@ function PerksTab() {
                 <button onClick={() => toggle(p, 'is_active')} className="text-sand-400 hover:text-mustard-500">
                   {p.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
                 </button>
-                <button onClick={() => { setEditing(p); setForm({ partner_name: p.partner_name, short_description: p.short_description ?? '', full_description: p.full_description ?? '', discount_code: p.discount_code ?? '', action_link: p.action_link ?? '', logo_url: p.logo_url ?? '', is_featured: p.is_featured, redeem_in_person: p.redeem_in_person, valid_days_from_join: p.valid_days_from_join != null ? String(p.valid_days_from_join) : '', valid_until: p.valid_until ?? '' }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
+                <button onClick={() => { setEditing(p); setForm({ partner_name: p.partner_name, short_description: p.short_description ?? '', full_description: p.full_description ?? '', discount_code: p.discount_code ?? '', action_link: p.action_link ?? '', logo_url: p.logo_url ?? '', is_featured: p.is_featured, redeem_in_person: p.redeem_in_person, valid_days_from_join: p.valid_days_from_join != null ? String(p.valid_days_from_join) : '', valid_until: p.valid_until ?? '', branches: perkBranches(p.branches) }); setShowForm(false) }} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
                 <button onClick={() => setPendingDelete(p)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
