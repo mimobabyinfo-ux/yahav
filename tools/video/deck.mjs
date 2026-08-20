@@ -124,6 +124,9 @@ await wait(600)
 
 // ── the shots ────────────────────────────────────────────────────────────────
 for (let i = 0; i < deck.slides.length; i++) {
+  // A slide can carry its own hold (set by timing.mjs from the narration),
+  // otherwise the deck's default applies.
+  const hold = deck.slides[i].hold ?? HOLD
   await page.evaluate(([i, cap, hold]) => {
     const shots = document.querySelectorAll('.shot')
     shots.forEach((el, k) => {
@@ -142,8 +145,8 @@ for (let i = 0; i < deck.slides.length; i++) {
     const c = document.getElementById('cap')
     c.classList.remove('on')
     setTimeout(() => { c.textContent = cap; c.classList.add('on') }, 150)
-  }, [i, deck.slides[i].cap, HOLD])
-  await wait(HOLD)
+  }, [i, deck.slides[i].cap, hold])
+  await wait(hold)
 }
 
 // ── closing card ─────────────────────────────────────────────────────────────
