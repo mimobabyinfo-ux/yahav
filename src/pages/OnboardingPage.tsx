@@ -55,6 +55,11 @@ export default function OnboardingPage() {
 
   const [phone, setPhone] = useState('')
   const [showPhone, setShowPhone] = useState(false)
+  // Brenda 19.8.26: "אני רוצה שגם בהרשמה יופיע לי הכפתור הזה" — the
+  // directory switch belongs where she first fills in the profile, not
+  // only where she edits it. Same control and same copy as the community
+  // profile form; the two screens must not drift.
+  const [showInDirectory, setShowInDirectory] = useState(true)
   const [dueDate, setDueDate] = useState('')
   const [babies, setBabies] = useState<Baby[]>([emptyBaby()])
   const [loading, setLoading] = useState(false)
@@ -108,6 +113,7 @@ export default function OnboardingPage() {
         community_tags: communityTags,
         phone_number: phone.trim() || null,
         community_consent: showPhone,
+        community_visible: showInDirectory,
         lead_status: 'new_lead',
         user_mode: mode,
         due_date: mode === 'pregnant' ? dueDate || null : null,
@@ -272,6 +278,34 @@ export default function OnboardingPage() {
               <p className="text-[11px] text-sand-400 mt-1.5 leading-relaxed">
                 אמהות בסביבה שלך יראו את זה ויוכלו לפנות אלייך
               </p>
+            </div>
+
+            {/* Appear in the directory at all — the first decision, and
+                separate from the phone number below it. */}
+            <div className="rounded-2xl p-3.5 mt-3" style={{ background: '#FAF6EF', border: '1px solid #EFE4D3' }}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-sand-800">להופיע ברשימת החברות</p>
+                  <p className="text-xs text-sand-600 leading-relaxed mt-0.5">
+                    {showInDirectory
+                      ? 'אמהות אחרות בקהילה יכולות לראות את הפרופיל שלך'
+                      : 'הפרופיל שלך מוסתר. את עדיין רואה את כולן ויכולה להירשם לאירועים'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={showInDirectory}
+                  onClick={() => setShowInDirectory(v => !v)}
+                  className="relative flex-shrink-0 rounded-full transition-all"
+                  style={{ width: 48, height: 28, background: showInDirectory ? '#818267' : '#DCD2C4' }}
+                >
+                  <span
+                    className="absolute top-1 bg-white rounded-full shadow transition-all"
+                    style={{ width: 20, height: 20, right: showInDirectory ? 24 : 4 }}
+                  />
+                </button>
+              </div>
             </div>
 
             {/* Community consent */}
