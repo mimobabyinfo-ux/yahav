@@ -11,8 +11,8 @@ const dir = resolve(dirname(deckPath))
 const OUT = resolve(dir, 'out')
 mkdirSync(OUT, { recursive: true })
 
-const HOLD = deck.hold ?? 3600      // ms a slide stays up
-const FADE = 520                    // ms cross-fade
+const HOLD = deck.hold ?? 3200      // ms a slide stays up
+const FADE = 240                    // ms cross-fade, short on purpose
 
 const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
 <style>
@@ -34,9 +34,11 @@ const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-
   #stage { position: absolute; inset: 0; }
   .shot {
     position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: center;
-    padding-top: 34px; opacity: 0; transition: opacity ${FADE}ms ease;
+    padding-top: 34px; opacity: 0; transform: translateX(-54px);
+    transition: opacity ${FADE}ms cubic-bezier(.4,0,.2,1), transform ${FADE}ms cubic-bezier(.4,0,.2,1);
   }
-  .shot.on { opacity: 1; }
+  .shot.on { opacity: 1; transform: translateX(0); }
+  .shot.out { opacity: 0; transform: translateX(46px); }
   .shot .bg {
     position: absolute; inset: -60px; background-size: cover; background-position: center;
     filter: blur(46px) brightness(.72) saturate(.9);
@@ -54,7 +56,7 @@ const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-
     background: rgba(28,21,15,.93); color: #fff; border-radius: 28px; padding: 24px 38px;
     font-size: 42px; line-height: 1.32; font-weight: 800; text-align: center;
     box-shadow: 0 16px 44px rgba(0,0,0,.4); opacity: 0; transform: translateY(16px);
-    transition: opacity .42s ease, transform .42s ease; max-width: 992px;
+    transition: opacity .26s ease, transform .26s ease; max-width: 992px;
   }
   #cap.on { opacity: 1; transform: translateY(0); }
   #card {
@@ -122,13 +124,25 @@ await wait(600)
 
 // ── the shots ────────────────────────────────────────────────────────────────
 for (let i = 0; i < deck.slides.length; i++) {
-  await page.evaluate(([i, cap]) => {
+  await page.evaluate(([i, cap, hold]) => {
     const shots = document.querySelectorAll('.shot')
-    shots.forEach((el, k) => el.classList.toggle('on', k === i))
+    shots.forEach((el, k) => {
+      if (k === i) { el.classList.remove('out'); el.classList.add('on') }
+      else if (el.classList.contains('on')) { el.classList.remove('on'); el.classList.add('out') }
+    })
+    // A still frame reads as a stuck video, so a shot keeps drifting for as
+    // long as it is up. The direction alternates, so the motion never pulses.
+    const frame = shots[i].querySelector('.frame')
+    const inward = i % 2 === 0
+    frame.getAnimations().forEach(a => a.cancel())
+    frame.animate(
+      [{ transform: `scale(${inward ? 1 : 1.035})` }, { transform: `scale(${inward ? 1.035 : 1})` }],
+      { duration: hold + 500, easing: 'linear', fill: 'forwards' },
+    )
     const c = document.getElementById('cap')
     c.classList.remove('on')
-    setTimeout(() => { c.textContent = cap; c.classList.add('on') }, 240)
-  }, [i, deck.slides[i].cap])
+    setTimeout(() => { c.textContent = cap; c.classList.add('on') }, 150)
+  }, [i, deck.slides[i].cap, HOLD])
   await wait(HOLD)
 }
 
