@@ -71,3 +71,20 @@ does, then mux the audio in:
 ```bash
 ffmpeg -i out/yoman.mp4 -i voice.m4a -c:v copy -c:a aac -shortest out/yoman-final.mp4
 ```
+
+## The brand on the cards
+
+`brand/` holds what the clips need from Mimo's branding kit: the logo lifted
+out of the branding PDF (white keyed to transparency) and the two typefaces
+from its typography page that are actually distributable, Gveret Levin for
+Hebrew and Coustard for Latin. FB Gorme Narrow is licensed and not here, so
+body text falls back to the system sans.
+
+The opening and closing cards use all of it: logo, title in Gveret Levin in
+ROJO TIERRA #A35C3D, a rule in AMARILLO PATITO #E7C78A, subtitle in VERDE
+MUSGO #818267, on a cream ground. A deck can point elsewhere with
+`"brand": { "logo": ..., "hebrew": ..., "latin": ... }`; missing files just
+drop back to plain type.
+
+Palette, from the kit: ROJO TIERRA A35C3D, ARENA C6BDA0, VERDE MUSGO 818267,
+CELESTE C3CDD2, ROSA POLVO EADEDD, AMARILLO PATITO E7C78A, BEIGE DCD4C8.

@@ -1,5 +1,5 @@
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs'
-import { writeFileSync, renameSync, mkdirSync } from 'node:fs'
+import { writeFileSync, renameSync, mkdirSync, statSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
 // A deck is a page name, a subtitle, and an ordered list of {img, cap}.
@@ -12,10 +12,23 @@ const OUT = resolve(dir, 'out')
 mkdirSync(OUT, { recursive: true })
 
 const HOLD = deck.hold ?? 3200      // ms a slide stays up
+
+// The brand: the real logo lifted from the branding PDF, and the two fonts
+// from its typography page that are actually distributable (Gveret Levin for
+// Hebrew, Coustard for Latin). Everything is optional; without it the cards
+// fall back to plain type.
+const brand = {
+  logo: deck.brand?.logo ?? 'brand/logo.png',
+  hebrew: deck.brand?.hebrew ?? 'brand/gveret-levin.woff2',
+  latin: deck.brand?.latin ?? 'brand/coustard.woff2',
+}
+const has = f => { try { return statSync(resolve(dir, f)).isFile() } catch { return false } }
 const FADE = 240                    // ms cross-fade, short on purpose
 
 const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
 <style>
+  ${has(brand.hebrew) ? `@font-face { font-family: "Mimo He"; src: url("${brand.hebrew}") format("woff2"); }` : ''}
+  ${has(brand.latin) ? `@font-face { font-family: "Mimo La"; src: url("${brand.latin}") format("woff2"); }` : ''}
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     width: 1080px; height: 1920px; overflow: hidden; background: #F5F1EB;
@@ -28,9 +41,9 @@ const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-
     background: linear-gradient(#F5F1EBEE, #F5F1EB00);
   }
   #head.on { opacity: 1; }
-  #head .name { font-size: 38px; font-weight: 900; color: #4A3A28; }
+  #head .name { font-family: "Mimo He", "Nunito", sans-serif; font-size: 44px; color: #A35C3D; }
   #head .dot { width: 10px; height: 10px; border-radius: 50%; background: #E7C78A; }
-  #head .page { font-size: 32px; font-weight: 800; color: #A98B62; }
+  #head .page { font-size: 32px; font-weight: 800; color: #818267; }
   #stage { position: absolute; inset: 0; }
   .shot {
     position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: center;
@@ -60,19 +73,20 @@ const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-
   }
   #cap.on { opacity: 1; transform: translateY(0); }
   #card {
-    position: fixed; inset: 0; background: #F6ECD8; z-index: 9;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+    position: fixed; inset: 0; background: #F4EFE6; z-index: 9;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px;
     opacity: 1; transition: opacity .5s ease;
   }
   #card.off { opacity: 0; }
-  #card .t { font-size: 108px; font-weight: 900; color: #4A3A28; }
-  #card .rule { width: 120px; height: 7px; border-radius: 7px; background: #E7C78A; }
-  #card .s { font-size: 44px; font-weight: 700; color: #7B604C; text-align: center; max-width: 840px; line-height: 1.4; }
+  #card .logo { width: 560px; margin-bottom: 18px; }
+  #card .t { font-family: "Mimo He", "Nunito", sans-serif; font-size: 126px; color: #A35C3D; line-height: 1; }
+  #card .rule { width: 132px; height: 7px; border-radius: 7px; background: #E7C78A; }
+  #card .s { font-size: 44px; font-weight: 700; color: #818267; text-align: center; max-width: 860px; line-height: 1.4; }
 </style></head><body>
 <div id="head"><span class="name">מימו</span><span class="dot"></span><span class="page"></span></div>
 <div id="stage"></div>
 <div id="capwrap"><div id="cap"></div></div>
-<div id="card"><div class="t"></div><div class="rule"></div><div class="s"></div></div>
+<div id="card">${has(brand.logo) ? `<img class="logo" src="${brand.logo}" alt="">` : ''}<div class="t"></div><div class="rule"></div><div class="s"></div></div>
 </body></html>`
 
 writeFileSync(resolve(dir, '_deck.html'), html)
