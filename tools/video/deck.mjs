@@ -137,18 +137,21 @@ await page.evaluate(() => {
 await wait(600)
 
 // ── the shots ────────────────────────────────────────────────────────────────
-for (let i = 0; i < deck.slides.length; i++) {
-  // A slide can carry its own hold (set by timing.mjs from the narration),
-  // otherwise the deck's default applies.
-  const hold = deck.slides[i].hold ?? HOLD
-  await page.evaluate(([i, cap, hold]) => {
-    const shots = document.querySelectorAll('.shot')
+// The whole show runs inside the page on one timeline. Driving it from
+// Node instead cost 0.6 to 0.9 seconds per slide in round trips, which the
+// narration then landed behind.
+await page.evaluate(async ([slides, defaultHold]) => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms))
+  const shots = document.querySelectorAll('.shot')
+  const cap = document.getElementById('cap')
+  for (let i = 0; i < slides.length; i++) {
+    const hold = slides[i].hold ?? defaultHold
     shots.forEach((el, k) => {
       if (k === i) { el.classList.remove('out'); el.classList.add('on') }
       else if (el.classList.contains('on')) { el.classList.remove('on'); el.classList.add('out') }
     })
     // A still frame reads as a stuck video, so a shot keeps drifting for as
-    // long as it is up. The direction alternates, so the motion never pulses.
+    // long as it is up. The direction alternates, so it never pulses.
     const frame = shots[i].querySelector('.frame')
     const inward = i % 2 === 0
     frame.getAnimations().forEach(a => a.cancel())
@@ -156,12 +159,11 @@ for (let i = 0; i < deck.slides.length; i++) {
       [{ transform: `scale(${inward ? 1 : 1.035})` }, { transform: `scale(${inward ? 1.035 : 1})` }],
       { duration: hold + 500, easing: 'linear', fill: 'forwards' },
     )
-    const c = document.getElementById('cap')
-    c.classList.remove('on')
-    setTimeout(() => { c.textContent = cap; c.classList.add('on') }, 150)
-  }, [i, deck.slides[i].cap, hold])
-  await wait(hold)
-}
+    cap.classList.remove('on')
+    setTimeout(() => { cap.textContent = slides[i].cap; cap.classList.add('on') }, 150)
+    await sleep(hold)
+  }
+}, [deck.slides, HOLD])
 
 // ── closing card ─────────────────────────────────────────────────────────────
 await page.evaluate(([t, s]) => {

@@ -7,7 +7,27 @@ import { resolve, join } from 'node:path'
 import { tmpdir } from 'node:os'
 
 const FFMPEG = process.env.FFMPEG || 'ffmpeg'
-const LEAD_MS = Number(process.env.LEAD_MS || 3200)   // title card, see deck.mjs
+
+// Where the first slide actually lands in the encoded file. The page's own
+// timeline is exact, but recording starts a moment before the show does, so
+// the offset is measured from the video rather than assumed: the caption bar
+// changes completely on every slide, so a scene detect cropped to that strip
+// gives a clean list of slide starts.
+function firstSlideMs(video) {
+  let out = ''
+  try {
+    execFileSync(FFMPEG, ['-i', video, '-vf',
+      "crop=1000:230:40:1560,select='gt(scene,0.06)',showinfo", '-f', 'null', '-'],
+      { stdio: ['ignore', 'ignore', 'pipe'] })
+  } catch (e) { out = e.stderr?.toString() ?? '' }
+  const times = [...out.matchAll(/pts_time:([0-9.]+)/g)].map(m => parseFloat(m[1]))
+  // Drop the first frame and cluster what is left; the first cluster after
+  // the opening card is slide one, and the caption lands 150ms after it.
+  const events = times.filter(t => t > 0.5)
+  if (!events.length) return null
+  const first = events[0]
+  return Math.max(0, Math.round(first * 1000) - 150)
+}
 
 const [deckPath, audioDir, videoIn, videoOut] = process.argv.slice(2)
 if (!deckPath || !audioDir || !videoIn || !videoOut) {
@@ -34,7 +54,9 @@ const silence = (ms, name) => {
   return p
 }
 
-if (LEAD_MS > 0) parts.push(silence(LEAD_MS, 'lead.m4a'))
+const lead = firstSlideMs(videoIn) ?? Number(process.env.LEAD_MS || 3200)
+console.log(`first slide at ${(lead / 1000).toFixed(2)}s`)
+if (lead > 0) parts.push(silence(lead, 'lead.m4a'))
 deck.slides.forEach((s, i) => {
   const clip = resolve(audioDir, s.audio)
   const norm = join(work, `v${i}.m4a`)
