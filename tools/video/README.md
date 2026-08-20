@@ -88,3 +88,23 @@ drop back to plain type.
 
 Palette, from the kit: ROJO TIERRA A35C3D, ARENA C6BDA0, VERDE MUSGO 818267,
 CELESTE C3CDD2, ROSA POLVO EADEDD, AMARILLO PATITO E7C78A, BEIGE DCD4C8.
+
+## assemble.mjs — why the clips are built from stills
+
+Filming the page with Playwright came out about 14% longer than the show it
+recorded, and the stretch was not even, so the narration walked off its
+slides. `assemble.mjs` screenshots every state instead and hands the stills
+to ffmpeg with exact durations, cross-dissolves, and a slow drift per slide.
+The timeline is then arithmetic, and it writes `<slug>-timings.json` saying
+where each slide lands.
+
+```bash
+node assemble.mjs deck-yoman.json                                   # out/yoman.mp4 + timings
+node narrate.mjs deck-yoman.json narration/yoman out/yoman.mp4 out/yoman-final.mp4
+node verify.mjs out/yoman-final.mp4 out/yoman-timings.json          # proves the sync
+```
+
+`verify.mjs` prints, per slide, when the picture lands and when the voice
+starts. Positive numbers only: the voice must never arrive before its slide.
+`deck.mjs` (the screen-recording path) is kept for reference but is not what
+produces the clips.

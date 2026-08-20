@@ -53,8 +53,8 @@ const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-
   .shot.on { opacity: 1; transform: translateX(0); }
   .shot.out { opacity: 0; transform: translateX(46px); }
   .shot .bg {
-    position: absolute; inset: -60px; background-size: cover; background-position: center;
-    filter: blur(46px) brightness(.72) saturate(.9);
+    position: absolute; inset: 0;
+    background: radial-gradient(120% 90% at 50% 12%, #EFE7DA 0%, #DCD4C8 60%, #CFC5B5 100%);
   }
   .frame {
     position: relative; height: 1596px; border-radius: 30px; overflow: hidden;
@@ -111,7 +111,6 @@ await page.evaluate(async ([slides, pageName]) => {
     wrap.className = 'shot'
     const bg = document.createElement('div')
     bg.className = 'bg'
-    bg.style.backgroundImage = `url("${s.img}")`
     const frame = document.createElement('div')
     frame.className = 'frame'
     const im = new Image()

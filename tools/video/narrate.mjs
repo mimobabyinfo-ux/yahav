@@ -2,7 +2,7 @@
 // when its slide appears, which is what timing.mjs already arranged, so the
 // track here is silence for the title card, then clip, breath, clip, breath.
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { resolve, join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -14,12 +14,9 @@ const FFMPEG = process.env.FFMPEG || 'ffmpeg'
 // changes completely on every slide, so a scene detect cropped to that strip
 // gives a clean list of slide starts.
 function firstSlideMs(video) {
-  let out = ''
-  try {
-    execFileSync(FFMPEG, ['-i', video, '-vf',
-      "crop=1000:230:40:1560,select='gt(scene,0.06)',showinfo", '-f', 'null', '-'],
-      { stdio: ['ignore', 'ignore', 'pipe'] })
-  } catch (e) { out = e.stderr?.toString() ?? '' }
+  const out = spawnSync(FFMPEG, ['-i', video, '-vf',
+    "crop=1000:230:40:1560,select='gt(scene,0.06)',showinfo", '-f', 'null', '-'],
+    { encoding: 'utf8' }).stderr ?? ''
   const times = [...out.matchAll(/pts_time:([0-9.]+)/g)].map(m => parseFloat(m[1]))
   // Drop the first frame and cluster what is left; the first cluster after
   // the opening card is slide one, and the caption lands 150ms after it.
@@ -41,6 +38,15 @@ if (!deck.slides.every(s => s.audio && s.hold)) {
   process.exit(1)
 }
 
+// assemble.mjs writes the exact moment each slide lands. Use it when it is
+// there; only fall back to measuring the file when it is not.
+let starts = null
+const timingsPath = videoIn.replace(/\.mp4$/, '-timings.json')
+try {
+  const t = JSON.parse(readFileSync(timingsPath, 'utf8'))
+  if (t.slides?.length === deck.slides.length) starts = t.slides.map(s => s.startMs)
+} catch { /* no timings file, measure instead */ }
+
 const work = mkdtempSync(join(tmpdir(), 'narrate-'))
 const ff = args => execFileSync(FFMPEG, args, { stdio: ['ignore', 'ignore', 'inherit'] })
 
@@ -54,23 +60,29 @@ const silence = (ms, name) => {
   return p
 }
 
-const lead = firstSlideMs(videoIn) ?? Number(process.env.LEAD_MS || 3200)
-console.log(`first slide at ${(lead / 1000).toFixed(2)}s`)
-if (lead > 0) parts.push(silence(lead, 'lead.m4a'))
+if (!starts) {
+  const lead = firstSlideMs(videoIn) ?? Number(process.env.LEAD_MS || 3200)
+  starts = []
+  let t = lead
+  deck.slides.forEach(s => { starts.push(t); t += s.hold })
+  console.log(`measured first slide at ${(lead / 1000).toFixed(2)}s`)
+} else {
+  console.log(`timings from ${timingsPath.split('/').pop()}`)
+}
+
+let cursor = 0
 deck.slides.forEach((s, i) => {
+  const gap = starts[i] - cursor
+  if (gap > 20) { parts.push(silence(gap, `g${i}.m4a`)); cursor += gap }
   const clip = resolve(audioDir, s.audio)
   const norm = join(work, `v${i}.m4a`)
   ff(['-y', '-i', clip, '-ac', '2', '-ar', '44100', '-c:a', 'aac', '-b:a', '128k', norm])
   parts.push(norm)
-  // The breath is whatever timing.mjs added on top of the recording.
-  const pad = s.hold - Math.round(durationOf(clip))
-  if (pad > 20) parts.push(silence(pad, `p${i}.m4a`))
+  cursor += Math.round(durationOf(clip))
 })
 
 function durationOf(file) {
-  let out = ''
-  try { execFileSync(FFMPEG, ['-i', file], { stdio: ['ignore', 'ignore', 'pipe'] }) }
-  catch (e) { out = e.stderr?.toString() ?? '' }
+  const out = spawnSync(FFMPEG, ['-i', file], { encoding: 'utf8' }).stderr ?? ''
   const m = out.match(/Duration: (\d+):(\d+):(\d+\.\d+)/)
   return m ? (+m[1] * 3600 + +m[2] * 60 + parseFloat(m[3])) * 1000 : 0
 }
