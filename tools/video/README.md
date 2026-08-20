@@ -47,3 +47,27 @@ A clip is a list of `beat()` blocks, each one tap plus a caption. A beat
 whose selector no longer matches prints `!!` and is skipped, so the take
 survives; the fix is a selector, not a re-shoot. Captions live next to the
 taps they explain — keep them one short line, no em dashes.
+
+## deck.mjs — the clips built from Yahav's own screenshots
+
+The Playwright scripts above drive the app; `deck.mjs` does not touch the app
+at all. It takes a JSON deck (`deck-bait.json`, `deck-yoman.json`,
+`deck-kehila.json`, `deck-mutzarim.json`) listing real phone screenshots in
+order, each with one caption, and renders them as a 1080x1920 clip: title
+card, one screenshot per beat with the caption under it, end card.
+
+```bash
+node deck.mjs deck-yoman.json      # writes out/yoman-raw.webm
+```
+
+The screenshots themselves are not in the repo. Point each deck's `img`
+paths at wherever the current set lives, keeping the same folder-per-page
+layout (`bait/01.jpg`, `yoman/01.jpg`, ...).
+
+`hold` sets how long every slide stays up. When a narration recording exists,
+give each slide its own hold so the picture changes exactly where the voice
+does, then mux the audio in:
+
+```bash
+ffmpeg -i out/yoman.mp4 -i voice.m4a -c:v copy -c:a aac -shortest out/yoman-final.mp4
+```
