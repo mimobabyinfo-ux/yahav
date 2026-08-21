@@ -18,14 +18,24 @@
   #frame { position: relative; height: 1596px; border-radius: 30px; overflow: hidden; box-shadow: 0 20px 60px rgba(74,58,40,.32); background: #fff; }
   #frame img { display: block; height: 100%; width: auto; }
   /* Spotlight: the screen goes soft and dim, and the one thing being talked
-     about stays sharp inside a lens cut out of the same picture. */
-  #base.dim { filter: blur(9px) brightness(.55) saturate(.75); }
+     about stays sharp inside a lens cut out of the same picture. Every slide
+     opens on the whole screen first, so the viewer sees where they are before
+     anything is singled out. */
+  #base.dim { filter: blur(8px) brightness(.58) saturate(.78); }
   #lens {
-    display: none; position: absolute; overflow: hidden; border-radius: 18px;
-    box-shadow: 0 0 0 5px #E7A33D, 0 0 0 12px rgba(231,163,61,.28), 0 18px 44px rgba(0,0,0,.4);
+    display: none; position: absolute; overflow: hidden; border-radius: 34px;
+    box-shadow: 0 0 0 6px #E7A33D, 0 0 0 15px rgba(231,163,61,.22),
+                0 0 46px 10px rgba(231,163,61,.3), 0 18px 44px rgba(0,0,0,.35);
   }
+  #lens.round { border-radius: 50%; }
   #lens.on { display: block; }
   #lens img { position: absolute; height: 1596px; width: auto; max-width: none; }
+  /* Privacy: other mothers' names never leave the screenshot legible. */
+  .mask {
+    position: absolute; border-radius: 12px; z-index: 3;
+    backdrop-filter: blur(16px) saturate(.6);
+    background: rgba(236,230,220,.34);
+  }
   #cap {
     position: absolute; left: 44px; right: 44px; bottom: 56px; margin: 0 auto; width: fit-content;
     max-width: 992px; background: rgba(28,21,15,.93); color: #fff; border-radius: 28px;
@@ -43,7 +53,7 @@
   #card .s { font-size: 44px; font-weight: 700; color: #818267; text-align: center; max-width: 860px; line-height: 1.4; }
 </style></head><body>
 <div id="head"><img src="brand/logo.png" alt=""><span class="page"></span></div>
-<div id="shot"><div id="frame"><img id="base" alt=""><div id="lens"><img id="lenspic" alt=""></div></div></div>
+<div id="shot"><div id="frame"><img id="base" alt=""><div id="lens"><img id="lenspic" alt=""></div><div id="masks"></div></div></div>
 <div id="cap"></div>
 <div id="card"><img class="logo" src="brand/logo.png" alt=""><div class="t"></div><div class="rule"></div><div class="s"></div></div>
 </body></html>

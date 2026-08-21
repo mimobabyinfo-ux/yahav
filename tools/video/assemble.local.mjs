@@ -51,14 +51,24 @@ const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-
   #frame { position: relative; height: 1596px; border-radius: 30px; overflow: hidden; box-shadow: 0 20px 60px rgba(74,58,40,.32); background: #fff; }
   #frame img { display: block; height: 100%; width: auto; }
   /* Spotlight: the screen goes soft and dim, and the one thing being talked
-     about stays sharp inside a lens cut out of the same picture. */
-  #base.dim { filter: blur(9px) brightness(.55) saturate(.75); }
+     about stays sharp inside a lens cut out of the same picture. Every slide
+     opens on the whole screen first, so the viewer sees where they are before
+     anything is singled out. */
+  #base.dim { filter: blur(8px) brightness(.58) saturate(.78); }
   #lens {
-    display: none; position: absolute; overflow: hidden; border-radius: 18px;
-    box-shadow: 0 0 0 5px #E7A33D, 0 0 0 12px rgba(231,163,61,.28), 0 18px 44px rgba(0,0,0,.4);
+    display: none; position: absolute; overflow: hidden; border-radius: 34px;
+    box-shadow: 0 0 0 6px #E7A33D, 0 0 0 15px rgba(231,163,61,.22),
+                0 0 46px 10px rgba(231,163,61,.3), 0 18px 44px rgba(0,0,0,.35);
   }
+  #lens.round { border-radius: 50%; }
   #lens.on { display: block; }
   #lens img { position: absolute; height: 1596px; width: auto; max-width: none; }
+  /* Privacy: other mothers' names never leave the screenshot legible. */
+  .mask {
+    position: absolute; border-radius: 12px; z-index: 3;
+    backdrop-filter: blur(16px) saturate(.6);
+    background: rgba(236,230,220,.34);
+  }
   #cap {
     position: absolute; left: 44px; right: 44px; bottom: 56px; margin: 0 auto; width: fit-content;
     max-width: 992px; background: rgba(28,21,15,.93); color: #fff; border-radius: 28px;
@@ -76,7 +86,7 @@ const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-
   #card .s { font-size: 44px; font-weight: 700; color: #818267; text-align: center; max-width: 860px; line-height: 1.4; }
 </style></head><body>
 <div id="head">${has(brand.logo) ? `<img src="${brand.logo}" alt="">` : ''}<span class="page"></span></div>
-<div id="shot"><div id="frame"><img id="base" alt=""><div id="lens"><img id="lenspic" alt=""></div></div></div>
+<div id="shot"><div id="frame"><img id="base" alt=""><div id="lens"><img id="lenspic" alt=""></div><div id="masks"></div></div></div>
 <div id="cap"></div>
 <div id="card">${has(brand.logo) ? `<img class="logo" src="${brand.logo}" alt="">` : ''}<div class="t"></div><div class="rule"></div><div class="s"></div></div>
 </body></html>`
@@ -101,43 +111,75 @@ await shot('card-in.png')
 
 await page.evaluate(() => document.getElementById('card').classList.remove('on'))
 
-// A slide can be two pictures: an optional `pre` (where to tap) and then the
-// screen it opens. Both carry the same sentence.
+// A slide is up to three pictures: an optional `pre` (where to tap), then
+// the whole screen with nothing singled out, and then the same screen with
+// the spotlight on. Yahav: "show what you see first, then focus on the part
+// you are explaining."
+const REVEAL = 1100
+
+async function paint(img, cap, focus, masks) {
+  await page.evaluate(async ([img, cap, focus, masks]) => {
+    const base = document.getElementById('base')
+    const lens = document.getElementById('lens')
+    const lensPic = document.getElementById('lenspic')
+    const maskBox = document.getElementById('masks')
+    if (base.getAttribute('src') !== img) {
+      await new Promise(res => { base.onload = res; base.onerror = res; base.src = img })
+    }
+    document.getElementById('cap').textContent = cap
+    const w = base.clientWidth, h = base.clientHeight
+
+    maskBox.innerHTML = ''
+    for (const m of masks ?? []) {
+      const el = document.createElement('div')
+      el.className = 'mask'
+      el.style.left = (m.x * w) + 'px'
+      el.style.top = (m.y * h) + 'px'
+      el.style.width = (m.w * w) + 'px'
+      el.style.height = (m.h * h) + 'px'
+      maskBox.appendChild(el)
+    }
+
+    if (!focus) {
+      base.classList.remove('dim')
+      lens.classList.remove('on')
+      return
+    }
+    // Breathing room around the region, so a ring never cuts through a word.
+    const padX = 0.022, padY = 0.011
+    const fx = Math.max(0, focus.x - padX), fy = Math.max(0, focus.y - padY)
+    const fw = Math.min(1 - fx, focus.w + padX * 2), fh = Math.min(1 - fy, focus.h + padY * 2)
+    lensPic.src = img
+    lens.classList.toggle('round', focus.shape === 'circle')
+    lens.style.left = (fx * w) + 'px'
+    lens.style.top = (fy * h) + 'px'
+    lens.style.width = (fw * w) + 'px'
+    lens.style.height = (fh * h) + 'px'
+    lensPic.style.left = (-fx * w) + 'px'
+    lensPic.style.top = (-fy * h) + 'px'
+    base.classList.add('dim')
+    lens.classList.add('on')
+    await new Promise(res => { lensPic.complete ? res() : (lensPic.onload = res) })
+  }, [img, cap, focus ?? null, masks ?? null])
+  await page.waitForTimeout(140)
+}
+
 const frames = []
+let shownImg = null
 for (let i = 0; i < deck.slides.length; i++) {
   const s = deck.slides[i]
   const hold = s.hold ?? deck.hold ?? 3200
   const steps = []
-  if (s.pre) steps.push({ img: s.pre.img, focus: s.pre.focus, dur: Math.min(s.pre.ms ?? 1600, hold - 800) })
-  steps.push({ img: s.img, focus: s.focus, dur: hold - (steps[0]?.dur ?? 0) })
+  if (s.pre) steps.push({ img: s.pre.img, focus: s.pre.focus, dur: Math.min(s.pre.ms ?? 1600, hold - 900) })
+  // The reveal: this screen, whole, before anything is singled out.
+  const reveal = s.focus && s.img !== shownImg ? Math.min(REVEAL, hold * 0.35) : 0
+  if (reveal) steps.push({ img: s.img, focus: null, dur: reveal })
+  steps.push({ img: s.img, focus: s.focus, dur: hold - steps.reduce((a, b) => a + b.dur, 0) })
+  shownImg = s.img
+
   for (let k = 0; k < steps.length; k++) {
     const st = steps[k]
-    await page.evaluate(async ([img, cap, focus]) => {
-      const base = document.getElementById('base')
-      const lens = document.getElementById('lens')
-      const lensPic = document.getElementById('lenspic')
-      await new Promise(res => { base.onload = res; base.onerror = res; base.src = img })
-      document.getElementById('cap').textContent = cap
-      if (!focus) {
-        base.classList.remove('dim')
-        lens.classList.remove('on')
-        return
-      }
-      // The lens holds a second copy of the picture, shifted so the chosen
-      // region shows through at its natural size.
-      const w = base.clientWidth, h = base.clientHeight
-      lensPic.src = img
-      lens.style.left = (focus.x * w) + 'px'
-      lens.style.top = (focus.y * h) + 'px'
-      lens.style.width = (focus.w * w) + 'px'
-      lens.style.height = (focus.h * h) + 'px'
-      lensPic.style.left = (-focus.x * w) + 'px'
-      lensPic.style.top = (-focus.y * h) + 'px'
-      base.classList.add('dim')
-      lens.classList.add('on')
-      await new Promise(res => { lensPic.complete ? res() : (lensPic.onload = res) })
-    }, [st.img, s.cap, st.focus ?? null])
-    await page.waitForTimeout(140)
+    await paint(st.img, s.cap, st.focus, s.masks)
     const name = `s${String(i + 1).padStart(2, '0')}${steps.length > 1 ? String.fromCharCode(97 + k) : ''}.png`
     await shot(name)
     frames.push({ file: name, dur: st.dur / 1000, slide: i, first: k === 0 })
