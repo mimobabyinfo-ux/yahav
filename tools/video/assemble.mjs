@@ -48,8 +48,17 @@ const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-
   #head img { height: 54px; }
   #head .page { font-size: 32px; font-weight: 800; color: #6E6C56; }
   #shot { position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 34px; }
-  #frame { height: 1596px; border-radius: 30px; overflow: hidden; box-shadow: 0 20px 60px rgba(74,58,40,.32); background: #fff; }
+  #frame { position: relative; height: 1596px; border-radius: 30px; overflow: hidden; box-shadow: 0 20px 60px rgba(74,58,40,.32); background: #fff; }
   #frame img { display: block; height: 100%; width: auto; }
+  /* Spotlight: the screen goes soft and dim, and the one thing being talked
+     about stays sharp inside a lens cut out of the same picture. */
+  #base.dim { filter: blur(9px) brightness(.55) saturate(.75); }
+  #lens {
+    display: none; position: absolute; overflow: hidden; border-radius: 18px;
+    box-shadow: 0 0 0 5px #E7A33D, 0 0 0 12px rgba(231,163,61,.28), 0 18px 44px rgba(0,0,0,.4);
+  }
+  #lens.on { display: block; }
+  #lens img { position: absolute; height: 1596px; width: auto; max-width: none; }
   #cap {
     position: absolute; left: 44px; right: 44px; bottom: 56px; margin: 0 auto; width: fit-content;
     max-width: 992px; background: rgba(28,21,15,.93); color: #fff; border-radius: 28px;
@@ -67,7 +76,7 @@ const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-
   #card .s { font-size: 44px; font-weight: 700; color: #818267; text-align: center; max-width: 860px; line-height: 1.4; }
 </style></head><body>
 <div id="head">${has(brand.logo) ? `<img src="${brand.logo}" alt="">` : ''}<span class="page"></span></div>
-<div id="shot"><div id="frame"><img id="pic" alt=""></div></div>
+<div id="shot"><div id="frame"><img id="base" alt=""><div id="lens"><img id="lenspic" alt=""></div></div></div>
 <div id="cap"></div>
 <div id="card">${has(brand.logo) ? `<img class="logo" src="${brand.logo}" alt="">` : ''}<div class="t"></div><div class="rule"></div><div class="s"></div></div>
 </body></html>`
@@ -91,15 +100,48 @@ await page.waitForTimeout(250)
 await shot('card-in.png')
 
 await page.evaluate(() => document.getElementById('card').classList.remove('on'))
+
+// A slide can be two pictures: an optional `pre` (where to tap) and then the
+// screen it opens. Both carry the same sentence.
+const frames = []
 for (let i = 0; i < deck.slides.length; i++) {
   const s = deck.slides[i]
-  await page.evaluate(async ([img, cap]) => {
-    const pic = document.getElementById('pic')
-    await new Promise(res => { pic.onload = res; pic.onerror = res; pic.src = img })
-    document.getElementById('cap').textContent = cap
-  }, [s.img, s.cap])
-  await page.waitForTimeout(120)
-  await shot(`s${String(i + 1).padStart(2, '0')}.png`)
+  const hold = s.hold ?? deck.hold ?? 3200
+  const steps = []
+  if (s.pre) steps.push({ img: s.pre.img, focus: s.pre.focus, dur: Math.min(s.pre.ms ?? 1600, hold - 800) })
+  steps.push({ img: s.img, focus: s.focus, dur: hold - (steps[0]?.dur ?? 0) })
+  for (let k = 0; k < steps.length; k++) {
+    const st = steps[k]
+    await page.evaluate(async ([img, cap, focus]) => {
+      const base = document.getElementById('base')
+      const lens = document.getElementById('lens')
+      const lensPic = document.getElementById('lenspic')
+      await new Promise(res => { base.onload = res; base.onerror = res; base.src = img })
+      document.getElementById('cap').textContent = cap
+      if (!focus) {
+        base.classList.remove('dim')
+        lens.classList.remove('on')
+        return
+      }
+      // The lens holds a second copy of the picture, shifted so the chosen
+      // region shows through at its natural size.
+      const w = base.clientWidth, h = base.clientHeight
+      lensPic.src = img
+      lens.style.left = (focus.x * w) + 'px'
+      lens.style.top = (focus.y * h) + 'px'
+      lens.style.width = (focus.w * w) + 'px'
+      lens.style.height = (focus.h * h) + 'px'
+      lensPic.style.left = (-focus.x * w) + 'px'
+      lensPic.style.top = (-focus.y * h) + 'px'
+      base.classList.add('dim')
+      lens.classList.add('on')
+      await new Promise(res => { lensPic.complete ? res() : (lensPic.onload = res) })
+    }, [st.img, s.cap, st.focus ?? null])
+    await page.waitForTimeout(140)
+    const name = `s${String(i + 1).padStart(2, '0')}${steps.length > 1 ? String.fromCharCode(97 + k) : ''}.png`
+    await shot(name)
+    frames.push({ file: name, dur: st.dur / 1000, slide: i, first: k === 0 })
+  }
 }
 
 await page.evaluate(([t, s]) => {
@@ -114,11 +156,7 @@ await browser.close()
 // ── ffmpeg: stills → clip ────────────────────────────────────────────────────
 const segs = [
   { file: 'card-in.png', dur: CARD_IN, drift: false },
-  ...deck.slides.map((s, i) => ({
-    file: `s${String(i + 1).padStart(2, '0')}.png`,
-    dur: (s.hold ?? deck.hold ?? 3200) / 1000,
-    drift: true,
-  })),
+  ...frames.map(f => ({ ...f, drift: true })),
   { file: 'card-out.png', dur: CARD_OUT, drift: false },
 ]
 
@@ -160,14 +198,19 @@ if (r.status !== 0) {
 
 // Slide n is fully on screen once its dissolve finishes; that is where its
 // sentence belongs. Written out for narrate.mjs so nothing has to be guessed.
+// A sentence starts when its slide's FIRST picture lands, which is the `pre`
+// when there is one.
 const timings = {
   slug: deck.slug,
   fade: FADE,
-  slides: deck.slides.map((s, i) => ({
-    cap: s.cap,
-    startMs: Math.round((starts[i + 1] + FADE) * 1000),
-    holdMs: s.hold ?? deck.hold ?? 3200,
-  })),
+  slides: deck.slides.map((s, i) => {
+    const segIdx = 1 + frames.findIndex(f => f.slide === i && f.first)
+    return {
+      cap: s.cap,
+      startMs: Math.round((starts[segIdx] + FADE) * 1000),
+      holdMs: s.hold ?? deck.hold ?? 3200,
+    }
+  }),
 }
 writeFileSync(join(OUT, deck.slug + '-timings.json'), JSON.stringify(timings, null, 2) + '\n')
 console.log(`${deck.slug}.mp4  ${(starts[starts.length - 1] + segs[segs.length - 1].dur).toFixed(1)}s`)
