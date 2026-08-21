@@ -3,6 +3,7 @@ import { ExternalLink, MessageCircle, ShoppingBag, Star, X, CreditCard, Calendar
 import { supabase, Workshop, type PublicCohort } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
+import { useTracker } from '../hooks/useTracker'
 import { useWorkshopCategories, categoryLabel } from '../hooks/useWorkshopCategories'
 import { formatDate } from '../utils/dateUtils'
 import GiftCardModal from '../components/giftcard/GiftCardModal'
@@ -116,6 +117,7 @@ function recordStorePurchase(
 // ── Product detail modal ──────────────────────────────────────────────────────
 function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt; onClose: () => void; ownerWhatsapp: string; cohorts: PublicCohort[] }) {
   const { profile } = useAuth()
+  const { track } = useTracker()
   // Pre-select the first cohort that still has room, so the register
   // CTA works with zero extra taps.
   const [selectedCohort, setSelectedCohort] = useState<string>(() =>
@@ -201,6 +203,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt
              records the lead + cohort, then continues to payment */
           <a
             href={registerHref}
+            onClick={() => track('product_pay_click', { workshop_id: ws.id, title: ws.title, route: 'register' })}
             className="flex-1 flex flex-col items-center justify-center font-bold py-2.5 rounded-2xl text-sm transition-all"
             style={{ background: '#C8A460', color: '#33281B' }}
           >
@@ -212,7 +215,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt
             href={ws.payment_link}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => recordStorePurchase(ws, profile, selectedCohort)}
+            onClick={() => { track('product_pay_click', { workshop_id: ws.id, title: ws.title, route: 'payment_link' }); recordStorePurchase(ws, profile, selectedCohort) }}
             className="flex-1 flex items-center justify-center gap-2 font-bold py-3.5 rounded-2xl text-sm transition-all"
             style={{ background: '#C8A460', color: '#33281B' }}
           >
@@ -243,6 +246,7 @@ type PurchasedRow = {
 
 export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page) => void } = {}) {
   const { profile, user } = useAuth()
+  const { track } = useTracker()
   const { ownerWhatsapp } = useOwnerSettings()
   const { categories } = useWorkshopCategories()
   const isPregnant = profile?.user_mode === 'pregnant'
@@ -250,6 +254,13 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
   const [purchases, setPurchases] = useState<PurchasedRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<WorkshopExt | null>(null)
+
+  /** Opening a product sheet is the store's real signal — a page_view on
+   *  מוצרים only says she walked past the shelf. */
+  function openProduct(ws: WorkshopExt) {
+    setSelected(ws)
+    track('product_open', { workshop_id: ws.id, title: ws.title, price: ws.price ?? null })
+  }
 
   // Deep link from the home screen's age-matched card: it stashes the
   // product id, we open that product's sheet instead of dropping her
@@ -294,7 +305,7 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
   useEffect(() => {
     if (!pendingProductId || workshops.length === 0) return
     const ws = workshops.find(w => w.id === pendingProductId)
-    if (ws) setSelected(ws)
+    if (ws) openProduct(ws)
     setPendingProductId(null)
   }, [pendingProductId, workshops])
 
@@ -395,7 +406,7 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
                 yourself, and nobody goes looking for it inside a category. */}
             {giftableProducts.length > 0 && (
               <button
-                onClick={() => setGiftOpen(true)}
+                onClick={() => { setGiftOpen(true); track('gift_card_open') }}
                 className="w-full text-right rounded-3xl shadow-sm p-4 flex items-center gap-3 active:scale-[0.98] transition-all hover:shadow-md"
                 style={{ background: '#F6ECD8', border: '1px solid #E7C78A' }}
               >
@@ -426,7 +437,7 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
                 const isFeatured = ws.display_order === 1
                 const wsCohorts = cohortsByWorkshop.get(ws.id) ?? []
                 return (
-                  <div key={ws.id} className="bg-white rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => setSelected(ws)}>
+                  <div key={ws.id} className="bg-white rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => openProduct(ws)}>
                     <div className="flex gap-3 p-4">
                       <div className="flex-1 min-w-0 space-y-2">
                         {ws.workshop_type && (
@@ -493,7 +504,7 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
                       {wsCohorts.length > 0 && ws.public_registration ? (
                         /* Cohort-based product — open the modal to pick a
                            cohort before continuing to registration */
-                        <button onClick={() => setSelected(ws)}
+                        <button onClick={() => openProduct(ws)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28]"
                           style={{ background: '#E7C78A' }}>
                           <CalendarDays className="w-4 h-4" /> לבחירת מחזור והרשמה

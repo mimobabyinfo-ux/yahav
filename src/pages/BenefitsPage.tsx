@@ -3,11 +3,13 @@ import { Search, WalletCards, MapPin } from 'lucide-react'
 import { supabase, PartnerPerk } from '../lib/supabase'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import { useAuth } from '../contexts/AuthContext'
+import { useTracker } from '../hooks/useTracker'
 import { perkValidity, perkValidityLabel } from '../utils/perkValidity'
 import { perkBranches, branchCountLabel } from '../utils/perkBranches'
 
 export default function BenefitsPage() {
   const { user, profile } = useAuth()
+  const { track } = useTracker()
   const [perks, setPerks] = useState<PartnerPerk[]>([])
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<PartnerPerk | null>(null)
@@ -33,6 +35,10 @@ export default function BenefitsPage() {
       user_id: user?.id ?? null,
       action_type: 'view',
     })
+    // Mirrored into user_activities as well, so opening a perk appears in
+    // the admin's "what did they actually do" list next to events and
+    // products. perk_analytics stays the per-perk source of truth.
+    track('perk_open', { perk_id: perk.id, partner: perk.partner_name })
     setSelected(perk)
   }
 

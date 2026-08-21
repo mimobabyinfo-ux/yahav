@@ -2,6 +2,7 @@
 import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft, Tag, WalletCards } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useTracker } from '../hooks/useTracker'
 import { getBabyAge } from '../utils/dateUtils'
 import { rankCities } from '../utils/citySearch'
 import { waLink } from '../utils/phone'
@@ -59,6 +60,10 @@ function pregnancyWeek(dueDate: string): number {
 
 export default function CommunityPage() {
   const { selectedChild, profile, user, refreshProfile } = useAuth()
+  // קהילה is the most-visited screen in the app (53 of 56 mothers in the
+  // first three days) and until now that was ALL the admin could see. The
+  // sub-tab and the profile opens are what say which part of it works.
+  const { track } = useTracker()
   const isPregnant = profile?.user_mode === 'pregnant'
 
   // Brenda 17.8.26: "add some kind of balance tab at the top". Credit is
@@ -301,7 +306,7 @@ export default function CommunityPage() {
           ] as [PageTab, string][]).map(([v, label]) => (
             <button
               key={v}
-              onClick={() => setPageTab(v)}
+              onClick={() => { setPageTab(v); track('community_tab', { tab: v }) }}
               className="transition-all"
               style={pageTab === v
                 ? { fontWeight: 700, fontSize: 18, color: '#443327', padding: '0 0 12px', borderBottom: '3px solid #C8A460', marginBottom: -1 }
@@ -582,8 +587,8 @@ export default function CommunityPage() {
                     key={p.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setOpenMember({ kind: 'pregnant', member: p })}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMember({ kind: 'pregnant', member: p }) } }}
+                    onClick={() => { setOpenMember({ kind: 'pregnant', member: p }); track('member_open', { kind: 'pregnant' }) }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMember({ kind: 'pregnant', member: p }); track('member_open', { kind: 'pregnant' }) } }}
                     className="bg-white rounded-3xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start gap-3">
@@ -663,8 +668,8 @@ export default function CommunityPage() {
                     key={p.child_id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setOpenMember({ kind: 'mom', member: p })}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMember({ kind: 'mom', member: p }) } }}
+                    onClick={() => { setOpenMember({ kind: 'mom', member: p }); track('member_open', { kind: 'mom' }) }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMember({ kind: 'mom', member: p }); track('member_open', { kind: 'mom' }) } }}
                     className="bg-white rounded-3xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start gap-3">

@@ -22,6 +22,20 @@ export type EventType =
   // Digital course: which lesson she opened, and which she marked done.
   | 'lesson_open'
   | 'lesson_complete'
+  // Brenda 21.8.26: "אני רוצה לדעת מה האמהות עשו באפליקציה". Until now the
+  // only thing ever written was page_view, so the admin could see that a
+  // mother reached קהילה and nothing about what she did once she was
+  // there. These are the moments that actually answer the question —
+  // deliberately few, and each one a decision she made, not a screen she
+  // passed through.
+  | 'event_open'          // opened a community event card
+  | 'event_register'      // registered for one
+  | 'community_tab'       // אירועים / ההזמנות שלי / חברות
+  | 'member_open'         // opened another mother's profile
+  | 'product_open'        // opened a product sheet in the store
+  | 'product_pay_click'   // went out to pay / to the registration page
+  | 'gift_card_open'      // opened the gift card sheet
+  | 'perk_open'           // opened a partner perk
 
 export type EventData = Record<string, string | number | boolean | null>
 
@@ -37,12 +51,12 @@ export function useTracker() {
         session_id: SESSION_ID,
         event_type,
         event_data: event_data ?? null,
-      }).then(() => {
-        // Also update last_active on the profile (debounced by ignoring errors)
-        supabase.from('user_profiles')
-          .update({ last_active: new Date().toISOString() })
-          .eq('id', user.id)
       })
+      // last_active is NOT written from here any more. This update ran on
+      // every event and failed silently for every mother — 0 of 57
+      // profiles ever got a value. It is now a trigger on user_activities
+      // (migration last_active_from_activity_trigger), which cannot fail
+      // quietly and costs the client nothing.
     },
     [user]
   )

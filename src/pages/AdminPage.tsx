@@ -31,6 +31,7 @@ import MimoLeaf from '../components/MimoLeaf'
 import AdminHome from '../components/admin/AdminHome'
 import ProductPage from '../components/admin/ProductPage'
 import GiftCardsPanel from '../components/admin/GiftCardsPanel'
+import AppUsagePanel from '../components/admin/AppUsagePanel'
 import type { AdminOverview } from '../components/admin/useAdminOverview'
 import type { AdminTask } from '../components/admin/adminTasks'
 import { ChevronRight as CtxBack } from 'lucide-react'
@@ -222,7 +223,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
       <div className="lg:hidden max-w-sm mx-auto px-4 pt-4 space-y-4">
         {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTab />}
-        {tab === 'insights'   && <InsightsTab />}
+        {tab === 'insights'   && <><AppUsagePanel /><InsightsTab /></>}
         {tab === 'tips'       && <TipsTab />}
         {tab === 'videos'     && <VideosTab />}
         {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <><GiftCardsPanel /><WorkshopsTab onOpenProduct={openProductPage} /></>)}
@@ -254,7 +255,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
           />
         )}
         {tab === 'forms'      && <FormsTabDesktop />}
-        {tab === 'insights'   && <InsightsTab />}
+        {tab === 'insights'   && <><AppUsagePanel /><InsightsTab /></>}
         {tab === 'tips'       && <TipsTab />}
         {tab === 'videos'     && <VideosTab />}
         {tab === 'perks'      && <PerksTab />}

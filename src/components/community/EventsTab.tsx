@@ -1,8 +1,10 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
 import { MapPin, Clock, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft } from 'lucide-react'
 import { supabase, type CommunityEventRow, type MyWaitlist, type MyCredit } from '../../lib/supabase'
+import { useTracker } from '../../hooks/useTracker'
 import { MimoLeafPair } from '../MimoLeaf'
 import MembershipCard from './MembershipCard'
+import EventRemindersCard from './EventRemindersCard'
 
 // "הקהילה של מימו" — user-facing community events. Two views:
 // רשימה (monthly-grouped cards + month chips) and יומן (month calendar
@@ -60,6 +62,10 @@ function rememberPaymentIntent(eventId: string) {
 }
 
 export default function EventsTab() {
+  // Brenda 21.8.26 wants to know what a mother actually does in here, not
+  // just that she reached the tab: which events she opened, and which of
+  // those turned into a registration.
+  const { track } = useTracker()
   const [events, setEvents] = useState<CommunityEventRow[]>([])
   // Entry-ticket modal for a registered event (digital card).
   const [ticketEvent, setTicketEvent] = useState<CommunityEventRow | null>(null)
@@ -70,6 +76,11 @@ export default function EventsTab() {
   // the name typed into it.
   const [cancelling, setCancelling] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  // Brenda 21.8.26 chose to ask for notification permission "ברגע שיש
+  // למה" — the second after she registers for something, not from a
+  // settings screen she will never open. Until now the opt-in lived
+  // inside ההזמנות שלי and only 3 mothers out of 57 had ever found it.
+  const [justRegistered, setJustRegistered] = useState(false)
   // Month chips (list view) — null = show all months
   const [monthFilter, setMonthFilter] = useState<string | null>(null)
   // רשימה / יומן view toggle + calendar month navigation
@@ -155,7 +166,9 @@ export default function EventsTab() {
   }
 
   function toggleExpand(ev: CommunityEventRow) {
-    setExpandedId(expandedId === ev.id ? null : ev.id)
+    const opening = expandedId !== ev.id
+    setExpandedId(opening ? ev.id : null)
+    if (opening) track('event_open', { event_id: ev.id, title: ev.title, price: ev.price })
   }
 
   /** Names she is bringing: her unsaved edits first, else what is stored. */
@@ -233,6 +246,8 @@ export default function EventsTab() {
       // ten minutes, which is the length of a checkout, and only the
       // return from the thank-you page makes her registered. The id is
       // left where the thank-you page will look for it.
+      track('event_register', { event_id: ev.id, title: ev.title, price: ev.price, paid: true })
+      setJustRegistered(true)
       rememberPaymentIntent(ev.id)
       const link = paymentLinkFor(ev, guests.length + 1)
       if (link && payTab) payTab.location.href = link
@@ -259,6 +274,10 @@ export default function EventsTab() {
     }
     if (data === 'registered' || data === 'already' || data === 'updated') {
       payTab?.close()
+      if (data !== 'already') {
+        track('event_register', { event_id: ev.id, title: ev.title, price: ev.price, paid: false })
+        setJustRegistered(true)
+      }
       // Only FREE events land here: register_for_event returns 'pending'
       // for anything priced, handled above. No payment link is opened on
       // this path — that is what kept sending a paid mother back to
@@ -759,6 +778,16 @@ export default function EventsTab() {
 
   return (
     <div className="space-y-4">
+      {/* Asked at the only moment it makes sense: she has just taken a
+          seat, so "shall we remind you the day before?" is an answer to a
+          question she already has. EventRemindersCard renders nothing at
+          all when push is unsupported or already on. */}
+      {justRegistered && (
+        <div className="rounded-3xl p-4 space-y-2.5 animate-rise" style={{ background: '#FFFFFF', border: '1px solid #E7C78A' }}>
+          <p className="font-bold text-sm" style={{ color: '#6E5836' }}>נרשמת, מחכות לך 🤎</p>
+          <EventRemindersCard />
+        </div>
+      )}
       {toast && (
         <div className="fixed top-5 right-1/2 translate-x-1/2 z-50 bg-sand-800 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-xl">
           {toast}
