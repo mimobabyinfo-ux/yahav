@@ -416,7 +416,7 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm" style={{ color: '#3D2E20' }}>גיפט קארד</p>
                   <p className="text-xs mt-0.5 leading-relaxed" style={{ color: '#7B604C' }}>
-                    מתנה לחברה — סדנה או ליווי, נשלח אליה במייל
+                    מתנה לחברה: סדנה או ליווי, נשלח אליה במייל
                   </p>
                 </div>
                 <Gift className="w-5 h-5 flex-shrink-0" style={{ color: '#B98F4E' }} />

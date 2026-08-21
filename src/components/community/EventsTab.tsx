@@ -440,7 +440,7 @@ export default function EventsTab() {
         </div>
         {ev.price > 0 && seats > 1 && !paymentIsExact(ev, seats) && (
           <p className="text-[13px] font-semibold leading-snug" style={{ color: '#8C6E63' }}>
-            קישור התשלום הוא לאחת, אז צריך לעבור בו {seats} פעמים — סה״כ ₪{ev.price * seats}.
+            קישור התשלום הוא לאחת, אז צריך לעבור בו {seats} פעמים, סה״כ ₪{ev.price * seats}.
           </p>
         )}
         {saveLabel && (

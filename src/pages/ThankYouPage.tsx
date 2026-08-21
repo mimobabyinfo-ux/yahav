@@ -356,7 +356,7 @@ export default function ThankYouPage() {
     ? 'התשלום התקבל, המתנה מוכנה 🎁'
     : settings[KEYS[kind].title] || COPY[kind].title
   const body = isGift
-    ? 'נשאר רק לשלוח אותה לחברה — היא תקבל מייל ממימו עם כל הפרטים.'
+    ? 'נשאר רק לשלוח אותה לחברה. היא תקבל מייל ממימו עם כל הפרטים.'
     : settings[KEYS[kind].body] || COPY[kind].body(owner)
   const firstName = (ctx?.lead_name ?? '').trim().split(' ')[0]
   const meeting = (kind === 'group' || kind === 'meetup') ? cohortLine(ctx ?? { found: false }) : null

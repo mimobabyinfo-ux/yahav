@@ -68,14 +68,14 @@ export default function GiftCardModal({
           <div className="text-4xl">🎁</div>
           <h2 className="font-bold text-xl mt-2" style={{ color: '#443327' }}>גיפט קארד</h2>
           <p className="text-xs mt-1" style={{ color: '#7B604C' }}>
-            מתנה לחברה — היא תקבל מייל ותתאם את המועד שמתאים לה
+            מתנה לחברה. היא תקבל מייל ותתאם את המועד שמתאים לה
           </p>
         </div>
 
         <div className="overflow-y-auto flex-1 min-h-0 p-5 space-y-5">
           <div>
             <p className="text-xs font-bold text-sand-700 mb-2 flex items-center gap-1.5">
-              <Gift className="w-3.5 h-3.5" /> מה מתנים?
+              <Gift className="w-3.5 h-3.5" /> אנא בחרי מוצר
             </p>
             <div className="space-y-2">
               {products.map(p => {
@@ -125,7 +125,7 @@ export default function GiftCardModal({
                 })}
               </div>
               <p className="text-[11px] mt-2 leading-relaxed" style={{ color: '#8A7A63' }}>
-                המחזור נשמר כהעדפה בלבד ולא תופס מקום — החברה תתאם את המועד המדויק מול ברנדה.
+                המחזור נשמר כהעדפה בלבד ולא תופס מקום. החברה תתאם את המועד המדויק מול ברנדה.
               </p>
             </div>
           )}

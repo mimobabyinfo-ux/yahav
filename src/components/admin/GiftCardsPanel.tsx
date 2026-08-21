@@ -134,7 +134,7 @@ export default function GiftCardsPanel() {
                 </p>
               )}
               {c.send_error && (
-                <p className="text-xs mt-1 text-red-500">המייל נכשל — אפשר לנסות שוב</p>
+                <p className="text-xs mt-1 text-red-500">המייל נכשל. אפשר לנסות שוב</p>
               )}
 
               <div className="flex flex-wrap gap-2 mt-3">
@@ -183,7 +183,7 @@ export default function GiftCardsPanel() {
           ))}
           <p className="text-[11px] pt-1" style={{ color: '#8A7A63' }}>
             <Gift className="w-3 h-3 inline ml-1" />
-            גיפט קארד לא תופס מקום במחזור — כשהחברה יוצרת קשר, רשמי אותה ידנית וסמני "מומש".
+            גיפט קארד לא תופס מקום במחזור. כשהחברה יוצרת קשר, רשמי אותה ידנית וסמני "מומש".
           </p>
         </div>
       )}

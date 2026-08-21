@@ -184,7 +184,7 @@ export default function AppUsagePanel() {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h2 className="font-bold" style={{ fontSize: 18, color: '#443327' }}>מה האמהות עושות באפליקציה</h2>
-            <p className="text-xs mt-0.5" style={{ color: '#7B604C' }}>בלי החשבון שלך — רק אמהות</p>
+            <p className="text-xs mt-0.5" style={{ color: '#7B604C' }}>בלי החשבון שלך, רק אמהות</p>
           </div>
           <div className="flex gap-1.5">
             {[7, 30, 90].map(d => (
@@ -274,7 +274,7 @@ export default function AppUsagePanel() {
           <p className="text-[11px] mb-2" style={{ color: '#8A7A63' }}>מה הן עשו, לא רק לאן הגיעו</p>
           {usage.actions.length === 0
             ? <p className="text-xs py-6 leading-relaxed text-center" style={{ color: '#8A7A63' }}>
-                עדיין אין פעולות מתועדות. המדידה הזו נוספה ב-21.8 — הנתונים יתחילו להצטבר מהעדכון הבא של האפליקציה.
+                עדיין אין פעולות מתועדות. המדידה הזו נוספה ב-21.8. הנתונים יתחילו להצטבר מהעדכון הבא של האפליקציה.
               </p>
             : usage.actions.map(a => (
                 <BarRow key={a.action}
@@ -331,7 +331,7 @@ export default function AppUsagePanel() {
               const name = r.mother_name?.trim() || r.email || 'אמא'
               const first = name.split(' ')[0]
               const wa = waLink(r.phone_number,
-                `היי ${first}! רק רציתי להזכיר שיש לך את אפליקציית מימו — נכנס בה משהו חדש שיכול לעניין אותך 🤍`)
+                `היי ${first}! רק רציתי להזכיר שיש לך את אפליקציית מימו, ונכנס בה משהו חדש שיכול לעניין אותך 🤍`)
               return (
                 <div key={r.user_id} className="rounded-2xl p-3 flex items-center gap-3"
                   style={{ background: '#FAF8F4', border: '1px solid #EFE7DC' }}>

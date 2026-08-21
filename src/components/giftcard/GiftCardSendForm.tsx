@@ -119,7 +119,7 @@ export default function GiftCardSendForm({
 
       {!compact && (
         <p className="text-[11px] text-center" style={{ color: '#8A7A63' }}>
-          אפשר גם לשלוח מאוחר יותר — המתנה שמורה לך במוצרים ← הרכישות שלי
+          אפשר גם לשלוח מאוחר יותר, המתנה שמורה לך במוצרים ← הרכישות שלי
         </p>
       )}
     </div>
