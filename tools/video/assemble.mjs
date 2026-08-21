@@ -211,7 +211,7 @@ segs.forEach((s, i) => {
   // alternating direction. The cards stay put.
   const frames = Math.max(2, Math.round(s.dur * FPS))
   parts.push(s.drift
-    ? `[${i}:v]scale=2160:-2,zoompan=z='${i % 2 ? 1.035 : 1}${i % 2 ? '-' : '+'}0.035*on/${frames}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=${FPS},setsar=1[v${i}]`
+    ? `[${i}:v]scale=2160:-2,zoompan=z='${i % 2 ? 1.012 : 1}${i % 2 ? '-' : '+'}0.012*on/${frames}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=${FPS},setsar=1[v${i}]`
     : `[${i}:v]scale=1080:1920,fps=${FPS},setsar=1[v${i}]`)
 })
 
