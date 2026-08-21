@@ -170,16 +170,16 @@ for (let i = 0; i < deck.slides.length; i++) {
   const s = deck.slides[i]
   const hold = s.hold ?? deck.hold ?? 3200
   const steps = []
-  if (s.pre) steps.push({ img: s.pre.img, focus: s.pre.focus, dur: Math.min(s.pre.ms ?? 1600, hold - 900) })
+  if (s.pre) steps.push({ img: s.pre.img, focus: s.pre.focus, masks: s.pre.masks, dur: Math.min(s.pre.ms ?? 1600, hold - 900) })
   // The reveal: this screen, whole, before anything is singled out.
-  const reveal = s.focus && s.img !== shownImg ? Math.min(REVEAL, hold * 0.35) : 0
-  if (reveal) steps.push({ img: s.img, focus: null, dur: reveal })
-  steps.push({ img: s.img, focus: s.focus, dur: hold - steps.reduce((a, b) => a + b.dur, 0) })
+  const reveal = s.focus && s.img !== shownImg ? Math.min(REVEAL, hold * 0.35) : 0   // no focus, no reveal step
+  if (reveal) steps.push({ img: s.img, focus: null, masks: s.masks, dur: reveal })
+  steps.push({ img: s.img, focus: s.focus, masks: s.masks, dur: hold - steps.reduce((a, b) => a + b.dur, 0) })
   shownImg = s.img
 
   for (let k = 0; k < steps.length; k++) {
     const st = steps[k]
-    await paint(st.img, s.cap, st.focus, s.masks)
+    await paint(st.img, s.cap, st.focus, st.masks)
     const name = `s${String(i + 1).padStart(2, '0')}${steps.length > 1 ? String.fromCharCode(97 + k) : ''}.png`
     await shot(name)
     frames.push({ file: name, dur: st.dur / 1000, slide: i, first: k === 0 })
