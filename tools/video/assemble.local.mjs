@@ -12,8 +12,8 @@ import { dirname, resolve, join } from 'node:path'
 const FFMPEG = process.env.FFMPEG || 'ffmpeg'
 const CHROME = process.env.CHROME_PATH || undefined
 const FADE = 0.28          // seconds of cross-dissolve
-const CARD_IN = 3.2        // opening card
-const CARD_OUT = 3.0       // closing card
+const CARD_IN = 2.4        // opening card
+const CARD_OUT = 2.2       // closing card
 const FPS = 30
 
 const deckPath = process.argv[2]
@@ -115,7 +115,12 @@ await page.evaluate(() => document.getElementById('card').classList.remove('on')
 // the whole screen with nothing singled out, and then the same screen with
 // the spotlight on. Yahav: "show what you see first, then focus on the part
 // you are explaining."
-const REVEAL = 1100
+// Short, because it runs BEFORE the sentence rather than under it. At 1100ms
+// under the sentence the spotlight landed after Yahav had already said what it
+// points at, which read as the picture lagging the voice.
+const REVEAL = 400        // on a screen change mid-video: a beat, not a pause
+const REVEAL_FIRST = 1300 // opening the page: "show what you see, then focus"
+const BREATH = Number(process.env.BREATH_MS || 420)   // must match prep.mjs
 
 async function paint(img, cap, focus, masks) {
   await page.evaluate(async ([img, cap, focus, masks]) => {
@@ -164,30 +169,48 @@ async function paint(img, cap, focus, masks) {
   await page.waitForTimeout(140)
 }
 
+// Which slides open on a screen the last one was not showing. Those get the
+// reveal; a `pre` already is one, so it never gets a second.
+const revealOf = []
+{
+  let seen = null
+  deck.slides.forEach((s, i) => {
+    const want = !s.pre && s.focus && s.img !== seen
+    // The page opening is the reveal Yahav asked for, so it gets room to
+    // read. The ones mid-video are only a beat between two screens.
+    revealOf.push(want ? (i === 0 ? REVEAL_FIRST : REVEAL) : 0)
+    seen = s.img
+  })
+}
+
 const frames = []
-let shownImg = null
 for (let i = 0; i < deck.slides.length; i++) {
   const s = deck.slides[i]
   const hold = s.hold ?? deck.hold ?? 3200
   const steps = []
   if (s.pre) steps.push({ img: s.pre.img, focus: s.pre.focus, masks: s.pre.masks, dur: Math.min(s.pre.ms ?? 1600, hold - 900) })
   // The reveal: this screen, whole, before anything is singled out.
-  const reveal = s.focus && s.img !== shownImg ? Math.min(REVEAL, hold * 0.35) : 0   // no focus, no reveal step
-  if (reveal) steps.push({ img: s.img, focus: null, masks: s.masks, dur: reveal })
+  if (revealOf[i]) steps.push({ img: s.img, focus: null, masks: s.masks, dur: revealOf[i] })
+
+  // The sentence starts on the `pre` when there is one — he is describing the
+  // tap — so the `pre` is inside its hold. The reveal is not: it runs first,
+  // and it is paid for out of the breath at the end of the slide before, so
+  // the gap between two sentences stays about what it was.
+  const spent = s.pre ? steps[0].dur : 0
+  const borrow = Math.min(revealOf[i + 1] ?? 0, Math.max(0, BREATH - 120))
   // Every cross-dissolve overlaps its neighbour, so a segment only occupies
   // dur - FADE of the finished timeline. Pay that back here, otherwise a slide
   // is on screen for less time than its hold asks and the sentence recorded
   // for it runs past the picture.
   const fadeCost = (steps.length + 1) * FADE * 1000
-  steps.push({ img: s.img, focus: s.focus, masks: s.masks, dur: hold + fadeCost - steps.reduce((a, b) => a + b.dur, 0) })
-  shownImg = s.img
+  steps.push({ img: s.img, focus: s.focus, masks: s.masks, dur: hold + fadeCost - spent - borrow })
 
   for (let k = 0; k < steps.length; k++) {
     const st = steps[k]
     await paint(st.img, s.cap, st.focus, st.masks)
     const name = `s${String(i + 1).padStart(2, '0')}${steps.length > 1 ? String.fromCharCode(97 + k) : ''}.png`
     await shot(name)
-    frames.push({ file: name, dur: st.dur / 1000, slide: i, first: k === 0 })
+    frames.push({ file: name, dur: st.dur / 1000, slide: i, first: k === 0, marked: !!st.focus })
   }
 }
 
@@ -252,9 +275,15 @@ const timings = {
   fade: FADE,
   slides: deck.slides.map((s, i) => {
     const segIdx = 1 + frames.findIndex(f => f.slide === i && f.first)
+    const mi = frames.findIndex(f => f.slide === i && f.marked)
+    const voiceIdx = mi >= 0 ? 1 + mi : segIdx
     return {
       cap: s.cap,
       startMs: Math.round((starts[segIdx] + FADE) * 1000),
+      // Where the sentence belongs: the first picture that marks something.
+      // With a reveal in front, that is after it, so the spotlight is already
+      // up when he starts talking about it.
+      voiceMs: Math.round((starts[voiceIdx] + FADE) * 1000),
       holdMs: s.hold ?? deck.hold ?? 3200,
     }
   }),

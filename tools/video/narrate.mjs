@@ -44,7 +44,7 @@ let starts = null
 const timingsPath = videoIn.replace(/\.mp4$/, '-timings.json')
 try {
   const t = JSON.parse(readFileSync(timingsPath, 'utf8'))
-  if (t.slides?.length === deck.slides.length) starts = t.slides.map(s => s.startMs)
+  if (t.slides?.length === deck.slides.length) starts = t.slides.map(s => s.voiceMs ?? s.startMs)
 } catch { /* no timings file, measure instead */ }
 
 const work = mkdtempSync(join(tmpdir(), 'narrate-'))

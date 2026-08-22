@@ -21,7 +21,7 @@ const cluster = (times, gap = 0.5) => times.reduce((acc, t) => {
 let slides = null
 try {
   const t = JSON.parse(readFileSync(timingsArg ?? video.replace(/\.mp4$/, '-timings.json'), 'utf8'))
-  slides = t.slides.map(s => s.startMs / 1000)
+  slides = t.slides.map(s => (s.voiceMs ?? s.startMs) / 1000)
 } catch {
   const capOut = run([ '-i', video, '-vf',
     "crop=1000:230:40:1560,select='gt(scene,0.06)',showinfo", '-f', 'null', '-' ])

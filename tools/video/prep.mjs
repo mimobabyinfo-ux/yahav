@@ -15,7 +15,7 @@ import { resolve, join } from 'node:path'
 
 const FFMPEG = process.env.FFMPEG || 'ffmpeg'
 const BREATH = Number(process.env.BREATH_MS || 420)     // pause after a sentence
-const MIN_HOLD = Number(process.env.MIN_HOLD_MS || 2300) // shortest a caption may live
+const MIN_HOLD = Number(process.env.MIN_HOLD_MS || 1900) // shortest a caption may live
 const LEAD = 120        // silence kept before the first word
 const TAIL = 220        // silence kept after the last word
 const NOISE = '-38dB'
