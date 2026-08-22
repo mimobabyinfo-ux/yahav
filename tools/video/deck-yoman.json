@@ -183,18 +183,6 @@
       "audio": "15.m4a"
     },
     {
-      "img": "shots/yoman/03.jpg",
-      "cap": "ולמטה, סיכום יומי בצבעים",
-      "focus": {
-        "x": 0.03,
-        "y": 0.648,
-        "w": 0.94,
-        "h": 0.255
-      },
-      "hold": 4920,
-      "audio": "16.m4a"
-    },
-    {
       "img": "shots/yoman/04.jpg",
       "cap": "בסיכום בוחרים שינה, האכלה, מוצקים או חיתולים, ולכמה זמן אחורה",
       "focus": {
@@ -203,8 +191,8 @@
         "w": 0.92,
         "h": 0.145
       },
-      "hold": 1910,
-      "audio": "17.m4a"
+      "hold": 6430,
+      "audio": "16.m4a"
     },
     {
       "img": "shots/yoman/10.jpg",
@@ -216,7 +204,7 @@
         "h": 0.238
       },
       "hold": 3920,
-      "audio": "18.m4a"
+      "audio": "17.m4a"
     },
     {
       "img": "shots/yoman/08.jpg",
@@ -228,7 +216,7 @@
         "h": 0.425
       },
       "hold": 3620,
-      "audio": "19.m4a"
+      "audio": "18.m4a"
     },
     {
       "img": "shots/yoman/15.jpg",
@@ -241,7 +229,7 @@
         "shape": "circle"
       },
       "hold": 2840,
-      "audio": "20.m4a"
+      "audio": "19.m4a"
     },
     {
       "img": "shots/yoman/01.jpg",
@@ -253,7 +241,7 @@
         "h": 0.125
       },
       "hold": 3360,
-      "audio": "21.m4a"
+      "audio": "20.m4a"
     },
     {
       "img": "shots/yoman/01.jpg",
@@ -265,7 +253,7 @@
         "h": 0.09
       },
       "hold": 3410,
-      "audio": "22.m4a"
+      "audio": "21.m4a"
     }
   ]
 }
