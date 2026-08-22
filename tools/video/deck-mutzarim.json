@@ -15,7 +15,8 @@
         "w": 0.92,
         "h": 0.145
       },
-      "hold": 5642
+      "hold": 4620,
+      "audio": "01.m4a"
     },
     {
       "img": "shots/mutzarim/03.jpg",
@@ -26,27 +27,30 @@
         "w": 0.9,
         "h": 0.295
       },
-      "hold": 3828
+      "hold": 2300,
+      "audio": "02.m4a"
     },
     {
       "img": "shots/mutzarim/05.jpg",
       "cap": "נכנסים לסדנה ורואים בדיוק מה יש בה ולאיזה גיל היא מתאימה",
-      "hold": 4900
+      "hold": 2898
     },
     {
       "img": "shots/mutzarim/02.jpg",
       "cap": "רשימה מלאה של מה לומדים בכל מפגש",
-      "hold": 3185
+      "hold": 2300,
+      "audio": "04.m4a"
     },
     {
       "img": "shots/mutzarim/02.jpg",
       "cap": "בוחרים מחזור שנוח, ורואים כמה מקומות נשארו בו",
-      "hold": 4114
+      "hold": 2300
     },
     {
       "img": "shots/mutzarim/02.jpg",
       "cap": "ומשם להרשמה ותשלום, או וואטסאפ לשאלה לפני",
-      "hold": 3828
+      "hold": 3920,
+      "audio": "06.m4a"
     },
     {
       "img": "shots/mutzarim/01.jpg",
@@ -57,7 +61,8 @@
         "w": 0.9,
         "h": 0.245
       },
-      "hold": 5500
+      "hold": 4720,
+      "audio": "07.m4a"
     },
     {
       "img": "shots/mutzarim/04.jpg",
@@ -68,7 +73,8 @@
         "w": 0.9,
         "h": 0.225
       },
-      "hold": 5357
+      "hold": 5520,
+      "audio": "08.m4a"
     }
   ]
 }
