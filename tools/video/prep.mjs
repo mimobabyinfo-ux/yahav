@@ -109,22 +109,35 @@ present.forEach((name, gi) => {
   let acc = 0
   for (let i = 0; i < n - 1; i++) { acc += chars[i]; targets.push(Math.round(span * acc / sum)) }
 
-  // Take the pause closest to each target, never out of order, never so close
-  // to its neighbour that a slide would flash by.
-  const cuts = []
-  const used = new Set()
-  targets.forEach(t => {
-    let best = -1, bestD = Infinity
-    inner.forEach((g, i) => {
-      if (used.has(i)) return
-      const lo = cuts.length ? Math.max(...cuts) : 0
-      if (g.at <= lo + 700 || g.at >= span - 700) return
-      const d = Math.abs(g.at - t)
-      if (d < bestD) { bestD = d; best = i }
-    })
-    if (best >= 0) { used.add(best); cuts.push(inner[best].at) }
-  })
-  cuts.sort((a, b) => a - b)
+  // Choosing where to cut is a trade-off. The breath between two sentences is
+  // usually the longest pause in the clip — but a sentence that reads out a
+  // list pauses almost as long inside itself, so length alone picks the wrong
+  // one. The even-pace guess alone is worse: it once cut 0.8s into the next
+  // sentence and left it playing over the slide before, which is heard as the
+  // voice running ahead of the picture.
+  //
+  // So score every combination of pauses on both: how far the pieces land from
+  // the lengths their captions ask for, against how long the pauses are. Few
+  // enough candidates that trying all of them is free.
+  const cand = inner.filter(g => g.at > 700 && g.at < span - 700)
+  const WIDTH_WEIGHT = 6      // a pause 100ms longer is worth 600ms of imbalance
+  let cuts = []
+  if (n > 1 && cand.length) {
+    const exp = chars.map(c => span * c / sum)
+    let bestCost = Infinity
+    const combos = (start, pick) => {
+      if (pick.length === n - 1) {
+        const bounds = [0, ...pick.map(g => g.at), span]
+        let cost = 0
+        for (let k = 0; k < n; k++) cost += Math.abs((bounds[k + 1] - bounds[k]) - exp[k])
+        cost -= WIDTH_WEIGHT * pick.reduce((a, g) => a + g.width, 0)
+        if (cost < bestCost) { bestCost = cost; cuts = pick.map(g => g.at) }
+        return
+      }
+      for (let k = start; k < cand.length; k++) combos(k + 1, [...pick, cand[k]])
+    }
+    combos(0, [])
+  }
 
   // One piece of audio per cut. Slides with no piece of their own sit under
   // the piece that started before them and split its time by caption length.

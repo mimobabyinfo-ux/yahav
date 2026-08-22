@@ -29,18 +29,30 @@ try {
     .map(m => parseFloat(m[1])).filter(t => t > 0.5))
 }
 
-const silOut = run(['-i', video, '-af', 'silencedetect=noise=-45dB:d=0.35', '-f', 'null', '-'])
-const speech = [...silOut.matchAll(/silence_end: ([0-9.]+)/g)].map(m => parseFloat(m[1]))
+// Where speech actually begins after each quiet stretch. A tighter threshold
+// than before: the gaps between his sentences are about 0.4s, so the old
+// 0.35s window merged neighbouring sentences into one detection and the check
+// passed on videos that were audibly out of step.
+const silOut = run(['-i', video, '-af', 'silencedetect=noise=-40dB:d=0.18', '-f', 'null', '-'])
+const onsets = [...silOut.matchAll(/silence_end: ([0-9.]+)/g)].map(m => parseFloat(m[1]))
 
-console.log('slide → speech starts (seconds)')
-let worst = 0
+console.log('slide → picture / voice (seconds)')
+let worst = 0, worstAt = 0
+const used = new Set()
 slides.forEach((t, i) => {
-  const next = speech.find(s => s >= t - 0.6)
-  if (next === undefined) return
-  const gap = next - t
-  if (gap < worst) worst = gap
-  console.log(`  ${String(i + 1).padStart(2)}  picture ${t.toFixed(2)}  voice ${next.toFixed(2)}  ${gap >= 0 ? '+' : ''}${gap.toFixed(2)}`)
+  // Match in order, so one sentence cannot be credited to two slides.
+  let best = -1, bestD = Infinity
+  onsets.forEach((o, k) => {
+    if (used.has(k)) return
+    const d = Math.abs(o - t)
+    if (d < bestD) { bestD = d; best = k }
+  })
+  if (best < 0 || bestD > 1.2) { console.log(`  ${String(i + 1).padStart(2)}  picture ${t.toFixed(2)}  (no speech found near it)`); return }
+  used.add(best)
+  const gap = onsets[best] - t
+  if (gap < worst) { worst = gap; worstAt = i + 1 }
+  console.log(`  ${String(i + 1).padStart(2)}  picture ${t.toFixed(2)}  voice ${onsets[best].toFixed(2)}  ${gap >= 0 ? '+' : ''}${gap.toFixed(2)}`)
 })
-console.log(worst < -0.25
-  ? `\nFAIL: voice runs ahead of the picture by ${(-worst).toFixed(2)}s somewhere`
+console.log(worst < -0.15
+  ? `\nFAIL: on slide ${worstAt} the voice arrives ${(-worst).toFixed(2)}s before its picture`
   : '\nOK: every sentence starts on or after its slide')
