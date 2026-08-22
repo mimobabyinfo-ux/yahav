@@ -25,7 +25,11 @@ const GAP = 0.22        // a pause this long counts as a sentence break
 // slides it speaks for; see README for how the yoman mapping was established.
 const GROUPS = {
   bait:     [1, 1, 1, 1, 2, 1, 1],
-  yoman:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 1],
+  // 19 recordings for 21 slides. He skipped sentence 4 while recording but kept
+  // numbering the files in sequence, so every file from 4 on was one sentence
+  // ahead of the slide it was given. Its slide is gone from the deck; the two
+  // doubles are his own "14+15" and the one he labelled 19.
+  yoman:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1],
   kehila:   [3, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1],
   mutzarim: [1, 4, 1, 1, 1],
 }

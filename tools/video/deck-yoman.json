@@ -15,8 +15,8 @@
         "w": 0.94,
         "h": 0.39
       },
-      "hold": 3620,
-      "audio": "01.m4a"
+      "audio": "01.m4a",
+      "hold": 3620
     },
     {
       "img": "shots/yoman/15.jpg",
@@ -28,8 +28,8 @@
         "h": 0.05,
         "shape": "circle"
       },
-      "hold": 4020,
-      "audio": "02.m4a"
+      "audio": "02.m4a",
+      "hold": 4020
     },
     {
       "img": "shots/yoman/17.jpg",
@@ -40,21 +40,8 @@
         "w": 0.92,
         "h": 0.2
       },
-      "hold": 3520,
-      "audio": "03.m4a"
-    },
-    {
-      "img": "shots/yoman/14.jpg",
-      "cap": "הטיימר ממשיך לרוץ גם כשעוברים מסך",
-      "focus": {
-        "x": 0.025,
-        "y": 0.812,
-        "w": 0.29,
-        "h": 0.056,
-        "shape": "circle"
-      },
-      "hold": 4520,
-      "audio": "04.m4a"
+      "audio": "03.m4a",
+      "hold": 3520
     },
     {
       "img": "shots/yoman/11.jpg",
@@ -65,8 +52,8 @@
         "w": 0.86,
         "h": 0.18
       },
-      "hold": 5020,
-      "audio": "05.m4a"
+      "audio": "04.m4a",
+      "hold": 4520
     },
     {
       "img": "shots/yoman/09.jpg",
@@ -77,8 +64,8 @@
         "w": 0.92,
         "h": 0.275
       },
-      "hold": 3820,
-      "audio": "06.m4a"
+      "audio": "05.m4a",
+      "hold": 5020
     },
     {
       "img": "shots/yoman/13.jpg",
@@ -89,8 +76,8 @@
         "w": 0.92,
         "h": 0.285
       },
-      "hold": 4220,
-      "audio": "07.m4a"
+      "audio": "06.m4a",
+      "hold": 3820
     },
     {
       "img": "shots/yoman/12.jpg",
@@ -101,8 +88,8 @@
         "w": 0.88,
         "h": 0.23
       },
-      "hold": 4620,
-      "audio": "08.m4a"
+      "audio": "07.m4a",
+      "hold": 4220
     },
     {
       "img": "shots/yoman/07.jpg",
@@ -113,8 +100,8 @@
         "w": 0.88,
         "h": 0.155
       },
-      "hold": 2980,
-      "audio": "09.m4a"
+      "audio": "08.m4a",
+      "hold": 4620
     },
     {
       "img": "shots/yoman/07.jpg",
@@ -125,8 +112,8 @@
         "w": 0.88,
         "h": 0.082
       },
-      "hold": 5720,
-      "audio": "10.m4a"
+      "audio": "09.m4a",
+      "hold": 2980
     },
     {
       "img": "shots/yoman/06.jpg",
@@ -137,8 +124,8 @@
         "w": 0.88,
         "h": 0.24
       },
-      "hold": 4820,
-      "audio": "11.m4a"
+      "audio": "10.m4a",
+      "hold": 5720
     },
     {
       "img": "shots/yoman/05.jpg",
@@ -149,14 +136,14 @@
         "w": 0.88,
         "h": 0.105
       },
-      "hold": 4220,
-      "audio": "12.m4a"
+      "audio": "11.m4a",
+      "hold": 4820
     },
     {
       "img": "shots/yoman/02.jpg",
       "cap": "והערה חופשית, לכל מה שרוצים לזכור",
-      "hold": 3520,
-      "audio": "13.m4a"
+      "audio": "12.m4a",
+      "hold": 4220
     },
     {
       "img": "shots/yoman/03.jpg",
@@ -167,8 +154,8 @@
         "w": 0.94,
         "h": 0.375
       },
-      "hold": 2830,
-      "audio": "14.m4a"
+      "audio": "13.m4a",
+      "hold": 3520
     },
     {
       "img": "shots/yoman/03.jpg",
@@ -179,8 +166,20 @@
         "w": 0.94,
         "h": 0.07
       },
-      "hold": 3370,
-      "audio": "15.m4a"
+      "audio": "14.m4a",
+      "hold": 2760
+    },
+    {
+      "img": "shots/yoman/03.jpg",
+      "cap": "ולמטה, סיכום יומי בצבעים",
+      "focus": {
+        "x": 0.03,
+        "y": 0.648,
+        "w": 0.94,
+        "h": 0.255
+      },
+      "audio": "15.m4a",
+      "hold": 3410
     },
     {
       "img": "shots/yoman/04.jpg",
@@ -191,8 +190,8 @@
         "w": 0.92,
         "h": 0.145
       },
-      "hold": 6430,
-      "audio": "16.m4a"
+      "audio": "16.m4a",
+      "hold": 6500
     },
     {
       "img": "shots/yoman/10.jpg",
@@ -203,8 +202,8 @@
         "w": 0.92,
         "h": 0.238
       },
-      "hold": 3920,
-      "audio": "17.m4a"
+      "audio": "17.m4a",
+      "hold": 3920
     },
     {
       "img": "shots/yoman/08.jpg",
@@ -215,8 +214,8 @@
         "w": 0.94,
         "h": 0.425
       },
-      "hold": 3620,
-      "audio": "18.m4a"
+      "audio": "18.m4a",
+      "hold": 3620
     },
     {
       "img": "shots/yoman/15.jpg",
@@ -228,8 +227,8 @@
         "h": 0.055,
         "shape": "circle"
       },
-      "hold": 2840,
-      "audio": "19.m4a"
+      "audio": "19.m4a",
+      "hold": 2850
     },
     {
       "img": "shots/yoman/01.jpg",
@@ -240,8 +239,8 @@
         "w": 0.9,
         "h": 0.125
       },
-      "hold": 3360,
-      "audio": "20.m4a"
+      "audio": "20.m4a",
+      "hold": 3420
     },
     {
       "img": "shots/yoman/01.jpg",
@@ -252,8 +251,8 @@
         "w": 0.88,
         "h": 0.09
       },
-      "hold": 3410,
-      "audio": "21.m4a"
+      "audio": "21.m4a",
+      "hold": 3410
     }
   ]
 }
