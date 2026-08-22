@@ -174,7 +174,12 @@ for (let i = 0; i < deck.slides.length; i++) {
   // The reveal: this screen, whole, before anything is singled out.
   const reveal = s.focus && s.img !== shownImg ? Math.min(REVEAL, hold * 0.35) : 0   // no focus, no reveal step
   if (reveal) steps.push({ img: s.img, focus: null, masks: s.masks, dur: reveal })
-  steps.push({ img: s.img, focus: s.focus, masks: s.masks, dur: hold - steps.reduce((a, b) => a + b.dur, 0) })
+  // Every cross-dissolve overlaps its neighbour, so a segment only occupies
+  // dur - FADE of the finished timeline. Pay that back here, otherwise a slide
+  // is on screen for less time than its hold asks and the sentence recorded
+  // for it runs past the picture.
+  const fadeCost = (steps.length + 1) * FADE * 1000
+  steps.push({ img: s.img, focus: s.focus, masks: s.masks, dur: hold + fadeCost - steps.reduce((a, b) => a + b.dur, 0) })
   shownImg = s.img
 
   for (let k = 0; k < steps.length; k++) {

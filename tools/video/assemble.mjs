@@ -174,7 +174,7 @@ for (let i = 0; i < deck.slides.length; i++) {
   // The reveal: this screen, whole, before anything is singled out.
   const reveal = s.focus && s.img !== shownImg ? Math.min(REVEAL, hold * 0.35) : 0   // no focus, no reveal step
   if (reveal) steps.push({ img: s.img, focus: null, masks: s.masks, dur: reveal })
-  steps.push({ img: s.img, focus: s.focus, masks: s.masks, dur: hold - steps.reduce((a, b) => a + b.dur, 0) })
+  steps.push({ img: s.img, focus: s.focus, masks: s.masks, dur: hold + (steps.length + 1) * FADE * 1000 - steps.reduce((a, b) => a + b.dur, 0) })
   shownImg = s.img
 
   for (let k = 0; k < steps.length; k++) {

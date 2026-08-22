@@ -33,8 +33,8 @@ if (!deckPath || !audioDir || !videoIn || !videoOut) {
 }
 
 const deck = JSON.parse(readFileSync(deckPath, 'utf8'))
-if (!deck.slides.every(s => s.audio && s.hold)) {
-  console.error('run timing.mjs on this deck first')
+if (!deck.slides.every(s => s.hold) || !deck.slides.some(s => s.audio)) {
+  console.error('run prep.mjs on this deck first')
   process.exit(1)
 }
 
@@ -72,8 +72,12 @@ if (!starts) {
 
 let cursor = 0
 deck.slides.forEach((s, i) => {
+  // A slide with no clip of its own is still being spoken over by the clip
+  // that started before it, so it only moves the cursor along.
+  if (!s.audio) return
   const gap = starts[i] - cursor
   if (gap > 20) { parts.push(silence(gap, `g${i}.m4a`)); cursor += gap }
+  else if (gap < -40) console.warn(`slide ${i + 1}: the sentence before it runs ${-gap}ms long`)
   const clip = resolve(audioDir, s.audio)
   const norm = join(work, `v${i}.m4a`)
   ff(['-y', '-i', clip, '-ac', '2', '-ar', '44100', '-c:a', 'aac', '-b:a', '128k', norm])
