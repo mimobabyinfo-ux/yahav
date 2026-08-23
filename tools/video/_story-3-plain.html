@@ -1,0 +1,73 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+<style>
+  @font-face { font-family: "Mimo He"; src: url("brand/gveret-levin.woff2") format("woff2"); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1920px; overflow: hidden; position: relative;
+    background: radial-gradient(120% 90% at 50% 10%, #EFE7DA 0%, #DCD4C8 60%, #CFC5B5 100%);
+    font-family: "Nunito", "Arial Hebrew", "DejaVu Sans", sans-serif;
+    color: #3B2E22;
+  }
+
+  /* Top: the mark, then what the story is about. Clear of the status bar. */
+  header { position: absolute; top: 190px; left: 0; right: 0; text-align: center; }
+  header img { width: 320px; }
+  h1 {
+    font-family: "Mimo He", "Nunito", sans-serif; font-weight: 400;
+    font-size: 96px; line-height: 1; color: #A35C3D; margin-top: 38px;
+  }
+  .rule { width: 132px; height: 7px; border-radius: 7px; background: #E7C78A; margin: 26px auto 0; }
+
+  #gallery {
+    position: absolute; top: 515px; left: 0; right: 0;
+    display: flex; justify-content: center; align-items: flex-start;
+  }
+  .phone { position: relative; }
+  .phone .frame {
+    border-radius: 34px; overflow: hidden; background: #fff;
+    box-shadow: 0 26px 64px rgba(74,58,40,.34);
+    border: 5px solid #fff;
+  }
+  .phone.fwd .frame { box-shadow: 0 34px 78px rgba(74,58,40,.42); }
+  .phone img { display: block; width: 100%; height: auto; }
+
+  #labels {
+    position: absolute; top: 1395px; left: 0; right: 0;
+    display: flex; justify-content: center;
+  }
+  #labels .l { text-align: center; }
+  #labels .n {
+    font-family: "Mimo He", "Nunito", sans-serif; font-size: 58px;
+    line-height: 1; color: #A35C3D;
+  }
+  #labels .d { margin-top: 14px; font-size: 27px; font-weight: 700; color: #6B5847; }
+
+  /* The invitation. One line only — everything below it stays empty so the
+     sticker never lands on top of type. */
+  #ask {
+    position: absolute; top: 1540px; left: 0; right: 0; text-align: center;
+    font-size: 42px; font-weight: 800; color: #4A3A28;
+  }
+</style></head><body>
+
+<header>
+  <img src="brand/logo.png" alt="">
+  <h1>אפליקציית מימו</h1>
+  <div class="rule"></div>
+</header>
+
+<div id="gallery">
+  <div class="phone" style="width:322px;margin-left:-26px;margin-right:0px;margin-top:96px;z-index:1"><div class="frame"><img src="shots/yoman/15.jpg"></div></div>
+  <div class="phone fwd" style="width:396px;margin-left:-26px;margin-right:-26px;margin-top:0px;z-index:2"><div class="frame"><img src="shots/bait/08.jpg"></div></div>
+  <div class="phone" style="width:322px;margin-left:0px;margin-right:-26px;margin-top:96px;z-index:1"><div class="frame"><img src="shots/kehila/13.jpg"></div></div>
+</div>
+
+<div id="labels">
+  <div class="l" style="width:322px;margin-left:-26px;margin-right:0px"><div class="n">יומן</div><div class="d">האכלות, שינה וחיתולים</div></div>
+  <div class="l" style="width:396px;margin-left:-26px;margin-right:-26px"><div class="n">בית</div><div class="d">הכל במקום אחד</div></div>
+  <div class="l" style="width:322px;margin-left:0px;margin-right:-26px"><div class="n">קהילה</div><div class="d">מפגשים והרשמה</div></div>
+</div>
+
+
+
+</body></html>

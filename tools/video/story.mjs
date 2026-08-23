@@ -1,10 +1,11 @@
-// One still for Instagram stories: the three pages side by side, the way an
-// app store shows a gallery. Same palette, fonts and phone frames as the
-// videos, so a story and a clip read as the same brand.
+// Stills for Instagram stories: the app's pages side by side, the way an app
+// store shows a gallery. Same palette, fonts and phone frames as the videos,
+// so a story and a clip read as the same brand.
 //
 //   CHROME_PATH=... node story.mjs [out-dir]
 //
-// Two versions come out of one run:
+// Four files come out of one run — three pages or all four, each with and
+// without the question:
 //   -ask    asks a question and leaves the bottom third empty, because that is
 //           where the questions sticker goes and anything drawn there would
 //           end up underneath it.
@@ -19,22 +20,58 @@ const dir = dirname(fileURLToPath(import.meta.url))
 const outDir = process.argv[2] || dir
 const has = f => { try { return statSync(resolve(dir, f)).isFile() } catch { return false } }
 
-// The opening screen of each video: each one shows its page with its own tab
-// lit in the bottom bar, which is what makes the three read as one app.
-// Right to left, as the page reads. Home sits in the middle, forward and a
-// little higher, so it is the screen the eye lands on.
-const PHONES = [
-  { img: 'shots/yoman/15.jpg',  name: 'יומן',  line: 'האכלות, שינה וחיתולים' },
-  { img: 'shots/bait/08.jpg',   name: 'בית',   line: 'הכל במקום אחד' },
-  { img: 'shots/kehila/13.jpg', name: 'קהילה', line: 'מפגשים והרשמה' },
-]
+// The opening screen of each video. Each one shows its page with its own tab
+// lit in the bottom bar, which is what makes them read as one app.
+const PAGE = {
+  bait:     { img: 'shots/bait/08.jpg',     name: 'בית',    line: 'הכל במקום אחד' },
+  yoman:    { img: 'shots/yoman/15.jpg',    name: 'יומן',   line: 'האכלות, שינה וחיתולים' },
+  kehila:   { img: 'shots/kehila/13.jpg',   name: 'קהילה',  line: 'מפגשים והרשמה' },
+  mutzarim: { img: 'shots/mutzarim/03.jpg', name: 'מוצרים', line: 'סדנאות ומוצרים' },
+}
+
+// How a row is built: each phone's width, how far down it sits, and who
+// overlaps whom. `lap` is how much each neighbouring pair overlaps, split
+// evenly across the boundary — the labels reuse the very same boxes, so every
+// label is centred on its phone by construction rather than by eye.
+const ROWS = {
+  // Three pages: home in the middle, forward and a little higher, so it is the
+  // screen the eye lands on.
+  three: {
+    order: ['yoman', 'bait', 'kehila'],
+    w: [322, 396, 322], rise: [96, 0, 96], z: [1, 2, 1], lap: 52,
+    name: 58, line: 27,
+    geo: { header: 100, gallery: 425, labels: 1305, ask: 1450 },
+  },
+  // Four pages: there is no true middle, so the row is symmetric and follows
+  // the app's own tab order. The inner two stand forward to keep some depth.
+  four: {
+    order: ['bait', 'yoman', 'kehila', 'mutzarim'],
+    w: [256, 312, 312, 256], rise: [70, 0, 0, 70], z: [1, 2, 2, 1], lap: 44,
+    name: 50, line: 23,
+    geo: { header: 200, gallery: 521, labels: 1266, ask: 1420 },
+  },
+}
 
 const VARIANTS = [
-  { slug: 'ask',   h1: 'מה יש באפליקציה?', ask: 'יש לך שאלה על האפליקציה?', drop: 0 },
-  { slug: 'plain', h1: 'אפליקציית מימו',   ask: null,                        drop: 90 },
+  { slug: '3-ask',   row: 'three', h1: 'מה יש באפליקציה?', ask: 'יש לך שאלה על האפליקציה?', drop: 0 },
+  { slug: '3-plain', row: 'three', h1: 'אפליקציית מימו',   ask: null,                        drop: 90 },
+  { slug: '4-ask',   row: 'four',  h1: 'מה יש באפליקציה?', ask: 'יש לך שאלה על האפליקציה?', drop: 0 },
+  { slug: '4-plain', row: 'four',  h1: 'אפליקציית מימו',   ask: null,                        drop: 200 },
 ]
 
-const buildHtml = v => `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+// Half the overlap on each side of every boundary, so the outer edges of the
+// row stay flush and only the seams pull in.
+const box = (r, i) => {
+  const n = r.w.length
+  const ml = i < n - 1 ? -r.lap / 2 : 0
+  const mr = i > 0 ? -r.lap / 2 : 0
+  return `width:${r.w[i]}px;margin-left:${ml}px;margin-right:${mr}px`
+}
+
+const buildHtml = v => {
+  const r = ROWS[v.row]
+  const g = r.geo
+  return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
 <style>
   @font-face { font-family: "Mimo He"; src: url("brand/gveret-levin.woff2") format("woff2"); }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -46,7 +83,7 @@ const buildHtml = v => `<!doctype html><html lang="he" dir="rtl"><head><meta cha
   }
 
   /* Top: the mark, then what the story is about. Clear of the status bar. */
-  header { position: absolute; top: ${100 + v.drop}px; left: 0; right: 0; text-align: center; }
+  header { position: absolute; top: ${g.header + v.drop}px; left: 0; right: 0; text-align: center; }
   header img { width: 320px; }
   h1 {
     font-family: "Mimo He", "Nunito", sans-serif; font-weight: 400;
@@ -54,10 +91,8 @@ const buildHtml = v => `<!doctype html><html lang="he" dir="rtl"><head><meta cha
   }
   .rule { width: 132px; height: 7px; border-radius: 7px; background: #E7C78A; margin: 26px auto 0; }
 
-  /* The gallery. The middle phone stands forward and a little higher, so the
-     eye lands on the journal — the screen a mother opens every day. */
   #gallery {
-    position: absolute; top: ${425 + v.drop}px; left: 0; right: 0;
+    position: absolute; top: ${g.gallery + v.drop}px; left: 0; right: 0;
     display: flex; justify-content: center; align-items: flex-start;
   }
   .phone { position: relative; }
@@ -66,33 +101,24 @@ const buildHtml = v => `<!doctype html><html lang="he" dir="rtl"><head><meta cha
     box-shadow: 0 26px 64px rgba(74,58,40,.34);
     border: 5px solid #fff;
   }
+  .phone.fwd .frame { box-shadow: 0 34px 78px rgba(74,58,40,.42); }
   .phone img { display: block; width: 100%; height: auto; }
 
-  /* Scoped to .phone: the labels below reuse these two class names, and an
-     unscoped rule handed them the phones' 96px drop. */
-  .phone.side { width: 322px; margin-top: 96px; z-index: 1; }
-  .phone.mid  { width: 396px; margin: 0 -52px; z-index: 2; }
-  .phone.mid .frame { box-shadow: 0 34px 78px rgba(74,58,40,.42); }
-
-  /* Same widths and the same overlap as the gallery, so every label is dead
-     centre under its own phone rather than merely near it. */
   #labels {
-    position: absolute; top: ${1305 + v.drop}px; left: 0; right: 0;
+    position: absolute; top: ${g.labels + v.drop}px; left: 0; right: 0;
     display: flex; justify-content: center;
   }
   #labels .l { text-align: center; }
-  #labels .l.side { width: 322px; }
-  #labels .l.mid  { width: 396px; margin: 0 -52px; }
   #labels .n {
-    font-family: "Mimo He", "Nunito", sans-serif; font-size: 58px;
+    font-family: "Mimo He", "Nunito", sans-serif; font-size: ${r.name}px;
     line-height: 1; color: #A35C3D;
   }
-  #labels .d { margin-top: 14px; font-size: 27px; font-weight: 700; color: #6B5847; }
+  #labels .d { margin-top: 14px; font-size: ${r.line}px; font-weight: 700; color: #6B5847; }
 
   /* The invitation. One line only — everything below it stays empty so the
      sticker never lands on top of type. */
   #ask {
-    position: absolute; top: ${1450 + v.drop}px; left: 0; right: 0; text-align: center;
+    position: absolute; top: ${g.ask + v.drop}px; left: 0; right: 0; text-align: center;
     font-size: 42px; font-weight: 800; color: #4A3A28;
   }
 </style></head><body>
@@ -104,18 +130,17 @@ const buildHtml = v => `<!doctype html><html lang="he" dir="rtl"><head><meta cha
 </header>
 
 <div id="gallery">
-  <div class="phone side"><div class="frame"><img src="${PHONES[0].img}"></div></div>
-  <div class="phone mid"><div class="frame"><img src="${PHONES[1].img}"></div></div>
-  <div class="phone side"><div class="frame"><img src="${PHONES[2].img}"></div></div>
+  ${r.order.map((k, i) => `<div class="phone${r.z[i] > 1 ? ' fwd' : ''}" style="${box(r, i)};margin-top:${r.rise[i]}px;z-index:${r.z[i]}"><div class="frame"><img src="${PAGE[k].img}"></div></div>`).join('\n  ')}
 </div>
 
 <div id="labels">
-  ${PHONES.map((p, i) => `<div class="l ${i === 1 ? 'mid' : 'side'}"><div class="n">${p.name}</div><div class="d">${p.line}</div></div>`).join('')}
+  ${r.order.map((k, i) => `<div class="l" style="${box(r, i)}"><div class="n">${PAGE[k].name}</div><div class="d">${PAGE[k].line}</div></div>`).join('\n  ')}
 </div>
 
 ${v.ask ? `<div id="ask">${v.ask}</div>` : ''}
 
 </body></html>`
+}
 
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined })
 const page = await (await browser.newContext({ viewport: { width: 1080, height: 1920 } })).newPage()
@@ -125,7 +150,7 @@ for (const v of VARIANTS) {
   writeFileSync(htmlPath, buildHtml(v))
   await page.goto('file://' + htmlPath)
   await page.evaluate(() => document.fonts.ready)
-  const file = resolve(outDir, `story-3-pages-${v.slug}.png`)
+  const file = resolve(outDir, `story-${v.slug}.png`)
   await page.screenshot({ path: file })
   console.log('wrote', file)
 }

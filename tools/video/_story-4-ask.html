@@ -10,7 +10,7 @@
   }
 
   /* Top: the mark, then what the story is about. Clear of the status bar. */
-  header { position: absolute; top: 100px; left: 0; right: 0; text-align: center; }
+  header { position: absolute; top: 200px; left: 0; right: 0; text-align: center; }
   header img { width: 320px; }
   h1 {
     font-family: "Mimo He", "Nunito", sans-serif; font-weight: 400;
@@ -18,10 +18,8 @@
   }
   .rule { width: 132px; height: 7px; border-radius: 7px; background: #E7C78A; margin: 26px auto 0; }
 
-  /* The gallery. The middle phone stands forward and a little higher, so the
-     eye lands on the journal — the screen a mother opens every day. */
   #gallery {
-    position: absolute; top: 425px; left: 0; right: 0;
+    position: absolute; top: 521px; left: 0; right: 0;
     display: flex; justify-content: center; align-items: flex-start;
   }
   .phone { position: relative; }
@@ -30,33 +28,24 @@
     box-shadow: 0 26px 64px rgba(74,58,40,.34);
     border: 5px solid #fff;
   }
+  .phone.fwd .frame { box-shadow: 0 34px 78px rgba(74,58,40,.42); }
   .phone img { display: block; width: 100%; height: auto; }
 
-  /* Scoped to .phone: the labels below reuse these two class names, and an
-     unscoped rule handed them the phones' 96px drop. */
-  .phone.side { width: 322px; margin-top: 96px; z-index: 1; }
-  .phone.mid  { width: 396px; margin: 0 -52px; z-index: 2; }
-  .phone.mid .frame { box-shadow: 0 34px 78px rgba(74,58,40,.42); }
-
-  /* Same widths and the same overlap as the gallery, so every label is dead
-     centre under its own phone rather than merely near it. */
   #labels {
-    position: absolute; top: 1305px; left: 0; right: 0;
+    position: absolute; top: 1266px; left: 0; right: 0;
     display: flex; justify-content: center;
   }
   #labels .l { text-align: center; }
-  #labels .l.side { width: 322px; }
-  #labels .l.mid  { width: 396px; margin: 0 -52px; }
   #labels .n {
-    font-family: "Mimo He", "Nunito", sans-serif; font-size: 58px;
+    font-family: "Mimo He", "Nunito", sans-serif; font-size: 50px;
     line-height: 1; color: #A35C3D;
   }
-  #labels .d { margin-top: 14px; font-size: 27px; font-weight: 700; color: #6B5847; }
+  #labels .d { margin-top: 14px; font-size: 23px; font-weight: 700; color: #6B5847; }
 
   /* The invitation. One line only — everything below it stays empty so the
      sticker never lands on top of type. */
   #ask {
-    position: absolute; top: 1450px; left: 0; right: 0; text-align: center;
+    position: absolute; top: 1420px; left: 0; right: 0; text-align: center;
     font-size: 42px; font-weight: 800; color: #4A3A28;
   }
 </style></head><body>
@@ -68,13 +57,17 @@
 </header>
 
 <div id="gallery">
-  <div class="phone side"><div class="frame"><img src="shots/yoman/15.jpg"></div></div>
-  <div class="phone mid"><div class="frame"><img src="shots/bait/08.jpg"></div></div>
-  <div class="phone side"><div class="frame"><img src="shots/kehila/13.jpg"></div></div>
+  <div class="phone" style="width:256px;margin-left:-22px;margin-right:0px;margin-top:70px;z-index:1"><div class="frame"><img src="shots/bait/08.jpg"></div></div>
+  <div class="phone fwd" style="width:312px;margin-left:-22px;margin-right:-22px;margin-top:0px;z-index:2"><div class="frame"><img src="shots/yoman/15.jpg"></div></div>
+  <div class="phone fwd" style="width:312px;margin-left:-22px;margin-right:-22px;margin-top:0px;z-index:2"><div class="frame"><img src="shots/kehila/13.jpg"></div></div>
+  <div class="phone" style="width:256px;margin-left:0px;margin-right:-22px;margin-top:70px;z-index:1"><div class="frame"><img src="shots/mutzarim/03.jpg"></div></div>
 </div>
 
 <div id="labels">
-  <div class="l side"><div class="n">יומן</div><div class="d">האכלות, שינה וחיתולים</div></div><div class="l mid"><div class="n">בית</div><div class="d">הכל במקום אחד</div></div><div class="l side"><div class="n">קהילה</div><div class="d">מפגשים והרשמה</div></div>
+  <div class="l" style="width:256px;margin-left:-22px;margin-right:0px"><div class="n">בית</div><div class="d">הכל במקום אחד</div></div>
+  <div class="l" style="width:312px;margin-left:-22px;margin-right:-22px"><div class="n">יומן</div><div class="d">האכלות, שינה וחיתולים</div></div>
+  <div class="l" style="width:312px;margin-left:-22px;margin-right:-22px"><div class="n">קהילה</div><div class="d">מפגשים והרשמה</div></div>
+  <div class="l" style="width:256px;margin-left:0px;margin-right:-22px"><div class="n">מוצרים</div><div class="d">סדנאות ומוצרים</div></div>
 </div>
 
 <div id="ask">יש לך שאלה על האפליקציה?</div>
