@@ -118,7 +118,7 @@ export default function AgeGuideCard() {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center"
+          className="fixed inset-0 z-[60] flex items-end sm:items-center sm:justify-center"
           style={{ background: 'rgba(40,30,22,.45)' }}
           onClick={() => setOpen(false)}
         >
@@ -129,7 +129,7 @@ export default function AgeGuideCard() {
               background: '#FBF8F4',
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
-              maxHeight: '92vh',
+              maxHeight: '88vh',
             }}
             onClick={e => e.stopPropagation()}
           >
@@ -155,9 +155,19 @@ export default function AgeGuideCard() {
               </button>
             </div>
 
-            <div className="overflow-y-auto" style={{ padding: 18, gap: 10, display: 'flex', flexDirection: 'column' }}>
+            <div
+              className="overflow-y-auto"
+              style={{
+                padding: 18,
+                paddingBottom: 'calc(18px + env(safe-area-inset-bottom, 0px))',
+                gap: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
               {stage.intro && (
-                <p className="leading-relaxed" style={{ fontSize: 14, color: '#5C4A3A' }}>{stage.intro}</p>
+                <p className="leading-relaxed" style={{ fontSize: 14, color: '#5C4A3A', flexShrink: 0 }}>{stage.intro}</p>
               )}
 
               {topics.map(t => {
@@ -171,6 +181,7 @@ export default function AgeGuideCard() {
                       borderRadius: 20,
                       border: consult ? '1px solid #E7DCC9' : '1px solid transparent',
                       overflow: 'hidden',
+                      flexShrink: 0,
                     }}
                   >
                     <button
@@ -214,7 +225,7 @@ export default function AgeGuideCard() {
                 )
               })}
 
-              <p className="leading-relaxed" style={{ fontSize: 11.5, color: '#A9937A', paddingTop: 4 }}>
+              <p className="leading-relaxed" style={{ fontSize: 11.5, color: '#A9937A', paddingTop: 4, flexShrink: 0 }}>
                 התוכן כאן הוא מידע כללי ותומך, מתוך חומרי הקורס של מימו. הוא אינו ייעוץ רפואי ואינו תחליף לרופא, לאחות טיפת חלב או לאיש מקצוע.
               </p>
             </div>
