@@ -226,18 +226,26 @@ Deno.serve(async (req: Request) => {
   if (lead.status !== "paid") return json({ ok: false, reason: "lead_not_paid", status: lead.status }, 409)
   if (!lead.email)            return json({ ok: false, reason: "lead_has_no_email" }, 422)
 
-  // 2 - what did she actually buy? A product carrying structured lesson
-  // content is a course; everything else is a room she booked a place in.
+  // 2 - what did she actually buy?
+  //
+  // This used to be inferred from the product having sectioned content in
+  // workshop_content. That inference broke the moment עטופים and מגלים got
+  // their session summaries loaded into the app: a workshop with chapters
+  // would have started reading as a course, and its mothers would have been
+  // dropped on a content screen instead of the home screen - the exact
+  // outcome this whole flow exists to avoid.
+  //
+  // workshops.thanks_template is the app's own explicit marker for "this
+  // product behaves like a self-serve course", it is editable from the
+  // admin, and it does not move when content is added.
   let kind: Kind = "workshop"
   let title = "מימו"
   if (lead.selected_workshop_id) {
-    const [{ data: w }, { data: contentRows }] = await Promise.all([
-      admin.from("workshops").select("title").eq("id", lead.selected_workshop_id).maybeSingle(),
-      admin.from("workshop_content").select("id")
-        .eq("workshop_id", lead.selected_workshop_id).not("section", "is", null).limit(1),
-    ])
+    const { data: w } = await admin
+      .from("workshops").select("title, thanks_template")
+      .eq("id", lead.selected_workshop_id).maybeSingle()
     if (w?.title) title = w.title
-    if ((contentRows ?? []).length > 0) kind = "course"
+    if (w?.thanks_template === "course") kind = "course"
   }
 
   // 3 - her user

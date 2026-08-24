@@ -310,12 +310,19 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, reason: "no_email_in_payload" }, 422)
   }
 
-  const { data: contentRows } = await admin
-    .from("workshop_content").select("workshop_id").not("section", "is", null)
-  const courseIds = [...new Set((contentRows ?? []).map((r: { workshop_id: string }) => r.workshop_id))]
-  // courseIds is no longer a gate on WHO gets claimed - it only decides
-  // whether a lead can be conjured from a product id below. A location with
-  // no course products still has workshops whose buyers need an account.
+  // Which products may have a lead CONJURED for them from a bare product id
+  // (see below). Only self-serve digital courses qualify: they have no
+  // cohort, so a lead with nothing but an email is still a complete record.
+  // A workshop invented this way would be a seat in a room with no meeting
+  // attached, which is worse than no record at all.
+  //
+  // This used to be "any product with sectioned content in workshop_content".
+  // Loading the עטופים and מגלים session summaries into the app would have
+  // quietly pulled both of them into this list. thanks_template is the
+  // explicit marker instead, and it does not move when content is added.
+  const { data: courseRows } = await admin
+    .from("workshops").select("id").eq("thanks_template", "course")
+  const courseIds = (courseRows ?? []).map((r: { id: string }) => r.id)
 
   const since = new Date(Date.now() - 14 * 864e5).toISOString()
   const { data: leads, error: leadErr } = await admin

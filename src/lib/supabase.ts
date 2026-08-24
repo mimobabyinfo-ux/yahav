@@ -462,6 +462,24 @@ export type PregnancyWeeklyGuide = {
   created_at: string
 }
 
+export type BabyAgeGuide = {
+  id: string
+  title: string
+  subtitle: string | null
+  age_start_days: number
+  age_end_days: number
+  development: string | null
+  senses: string | null
+  communication: string | null
+  feeding_sleep: string | null
+  reflexes: string | null
+  what_to_do: string | null
+  red_flags: string | null
+  display_order: number
+  is_active: boolean
+  created_at: string
+}
+
 export type UserPregnancyItem = {
   id: string
   user_id: string

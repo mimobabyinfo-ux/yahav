@@ -14,6 +14,7 @@ import LogEntryModal from '../components/LogEntryModal'
 import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard'
 import RecommendedWorkshopCard from '../components/dashboard/RecommendedWorkshopCard'
 import MyCoursesCard from '../components/dashboard/MyCoursesCard'
+import AgeGuideCard from '../components/dashboard/AgeGuideCard'
 import HomeAnnouncementsBanner from '../components/dashboard/HomeAnnouncementsBanner'
 import MimoLeaf from '../components/MimoLeaf'
 import PerkDetailsModal from '../components/PerkDetailsModal'
@@ -297,6 +298,12 @@ export default function DashboardPage({ onNavigate }: Props) {
         {/* The way in to a purchased course. The pro area has no nav tab,
             so this card is a mother's only route to content she paid for. */}
         <MyCoursesCard onNavigate={onNavigate} />
+
+        {/* What her baby's age looks like right now, from Brenda's own
+            course material. Sits above the product recommendation on
+            purpose: the guide is what she came for, the recommendation is
+            what it happens to lead to. */}
+        <AgeGuideCard />
 
         {/* Age-matched product recommendation — what fits the baby's age
             right now, without digging through the store */}
