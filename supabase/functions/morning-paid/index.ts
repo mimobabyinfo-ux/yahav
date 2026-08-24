@@ -13,6 +13,25 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
  *   { id, channel: "payment-link", productId, description, total,
  *     payer: { name, phone, email }, transactions: [...] }
  *
+ * -- ANSWER FIRST, WORK AFTER (v15, 24.8.26) ----------------------------
+ * Everything below the token check now runs in the BACKGROUND and Morning
+ * gets its 200 immediately. This is not a nicety, it is what keeps the
+ * webhook alive.
+ *
+ * v14 did the matching, the seat confirmation and the whole
+ * claim-course-purchase round trip - GHL included - while Morning waited
+ * on the socket. GHL is slow enough that Morning gave up mid-call, counted
+ * a failure and retried on a widening backoff: the same 1-shekel test
+ * delivery landed five times overnight at 60, 90, 120 and 150 minute
+ * intervals, each one logged as a clean success on our side. After enough
+ * consecutive "failures" Morning switched the endpoint to לא פעיל, and
+ * from 05:58 on 24.8 it stopped delivering anything at all. Two real
+ * payments that day never arrived and two mothers got nothing.
+ *
+ * So: the token is still checked synchronously (a bad token deserves a
+ * real 401), and everything else is fire-and-forget. Outcomes live in
+ * morning_webhook_log, which is the only place worth reading anyway.
+ *
  * -- WHOSE SEAT IS THIS? -------------------------------------------------
  * The hard part is not the payment, it is the person. Brenda's Bit test on
  * 17.8 proved why: she registered on one account and Bit reported a
@@ -65,6 +84,18 @@ function json(body: unknown, status = 200) {
   })
 }
 
+/**
+ * Keep the isolate alive for work that outlives the response. Without
+ * waitUntil the runtime may tear us down the moment we answer Morning.
+ */
+function background(p: Promise<unknown>) {
+  const rt = (globalThis as unknown as {
+    EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void }
+  }).EdgeRuntime
+  const guarded = p.catch((e) => console.error("[morning-paid] background failed:", String(e)))
+  if (rt && typeof rt.waitUntil === "function") rt.waitUntil(guarded)
+}
+
 function sameToken(a: string, b: string): boolean {
   if (a.length !== b.length) return false
   let diff = 0
@@ -104,43 +135,11 @@ function scanForEmail(v: unknown, depth = 0): string | null {
   return null
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS })
-
-  const url = new URL(req.url)
-  const expected = Deno.env.get("MORNING_WEBHOOK_TOKEN")
-  const given = url.searchParams.get("token") ?? ""
-
-  if (req.method === "GET") {
-    return json({
-      ok: true, alive: true, version: 11,
-      handles: ["community_event", "digital_course"],
-      seat_match: ["payer_hold", "single_live_hold", "payer_new"],
-      shared_product_ids: true,
-      hold_window_min: HOLD_WINDOW_MIN,
-      logs_to: "morning_webhook_log",
-      secret_configured: !!expected,
-      token_supplied: given.length > 0,
-      token_valid: !!expected && given.length > 0 && sameToken(given, expected),
-    })
-  }
-
-  if (req.method !== "POST") return json({ ok: false, reason: "method_not_allowed" }, 405)
-  if (!expected) return json({ ok: false, reason: "webhook_not_configured" }, 503)
-  if (!sameToken(given, expected)) {
-    console.error("[morning-paid] rejected: bad token")
-    return json({ ok: false, reason: "bad_token" }, 401)
-  }
-
-  let payload: MorningPayload
-  try { payload = await req.json() } catch {
-    const text = await req.text().catch(() => "")
-    console.error("[morning-paid] non-json body:", text.slice(0, 2000))
-    return json({ ok: false, reason: "bad_json" }, 400)
-  }
-
-  console.log("[morning-paid] payload:", JSON.stringify(payload).slice(0, 4000))
-
+/**
+ * Everything that used to happen while Morning waited. Returns nothing:
+ * the record of what happened is morning_webhook_log plus the console.
+ */
+async function process(payload: MorningPayload): Promise<void> {
   const email = (payload?.payer?.email ?? scanForEmail(payload) ?? "").trim().toLowerCase()
   const payerName  = (payload?.payer?.name ?? "").trim()
   const payerPhone = (payload?.payer?.phone ?? "").trim()
@@ -236,10 +235,7 @@ Deno.serve(async (req: Request) => {
       } else if (mine.length > 1) {
         console.error("[morning-paid] payer holds seats on several events at this price:", scope)
         await record("community_event", `ambiguous_payer_holds(${mine.length}):${scope}`)
-        return json({
-          ok: true, matched: false, kind: "community_event",
-          reason: "ambiguous_payer_holds", holds: mine.length, email,
-        })
+        return
       }
 
       // 2 - somebody else paid for a seat held moments ago. One live hold
@@ -255,10 +251,7 @@ Deno.serve(async (req: Request) => {
       if (!userId && live.length > 1) {
         console.error("[morning-paid] several live holds, cannot tell whose:", scope)
         await record("community_event", `ambiguous_holds(${live.length}):${scope}`)
-        return json({
-          ok: true, matched: false, kind: "community_event",
-          reason: "ambiguous_holds", holds: live.length, email,
-        })
+        return
       }
 
       // 4 - nobody is mid-checkout and we know the payer: a link paid cold.
@@ -273,10 +266,7 @@ Deno.serve(async (req: Request) => {
       if (!userId || !eventId) {
         console.log("[morning-paid] event payment, cannot tell whose seat:", email, payerPhone, scope)
         await record("community_event", `no_seat_match:${scope}`)
-        return json({
-          ok: true, matched: false, kind: "community_event",
-          reason: "no_seat_match", candidates: candidates.length, email,
-        })
+        return
       }
 
       // A total that is neither the price nor twice it means the link in
@@ -293,21 +283,18 @@ Deno.serve(async (req: Request) => {
       if (confErr) {
         console.error("[morning-paid] confirm failed:", confErr.message)
         await record("community_event", `confirm_failed:${confErr.message}`)
-        return json({ ok: false, kind: "community_event", reason: "confirm_failed", detail: confErr.message }, 500)
+        return
       }
       console.log("[morning-paid] event payment confirmed:", titleOf(eventId), via, result)
       await record("community_event", `${result}:${titleOf(eventId)} (via ${via})${flag}`)
-      return json({
-        ok: true, matched: true, kind: "community_event",
-        event_id: eventId, matched_via: via, result, price_mismatch: priceOff,
-      })
+      return
     }
   }
 
   // -- B - digital course -------------------------------------------------
   if (!email) {
     await record("unmatched", "no_email_in_payload")
-    return json({ ok: false, reason: "no_email_in_payload" }, 422)
+    return
   }
 
   // Which products may have a lead CONJURED for them from a bare product id
@@ -339,7 +326,7 @@ Deno.serve(async (req: Request) => {
     .order("created_at", { ascending: false }).limit(1)
   if (leadErr) {
     await record("unmatched", `lead_query_failed:${leadErr.message}`)
-    return json({ ok: false, reason: "lead_query_failed", detail: leadErr.message }, 500)
+    return
   }
 
   let leadId: string | null = leads?.[0]?.id ?? null
@@ -363,9 +350,12 @@ Deno.serve(async (req: Request) => {
 
   if (!leadId) {
     await record("unmatched", "no_matching_lead_or_event")
-    return json({ ok: true, matched: false, reason: "no_matching_lead", product_id: productId })
+    return
   }
 
+  // mark_lead_paid flips status to 'paid'. The DB trigger
+  // registration_leads_welcome_on_paid deliberately skips service_role
+  // callers, which is us, so the claim call below is still ours to make.
   const { error: paidErr } = await admin.rpc("mark_lead_paid", { p_lead_id: leadId })
   if (paidErr) console.error("[morning-paid] mark_lead_paid failed:", paidErr.message)
 
@@ -374,7 +364,54 @@ Deno.serve(async (req: Request) => {
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lead_id: leadId }) },
   )
   const claim = await claimRes.json().catch(() => null)
+  console.log("[morning-paid] claim result:", JSON.stringify(claim))
 
-  await record("digital_course", createdLead ? "created_lead" : "matched_lead")
-  return json({ ok: true, matched: true, kind: "digital_course", lead_id: leadId, created_lead: createdLead, claim })
+  await record(
+    "digital_course",
+    `${createdLead ? "created_lead" : "matched_lead"} claim:${claim?.channel ?? "none"}${claim?.sent ? "" : " !not_sent"}`,
+  )
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS })
+
+  const url = new URL(req.url)
+  const expected = Deno.env.get("MORNING_WEBHOOK_TOKEN")
+  const given = url.searchParams.get("token") ?? ""
+
+  if (req.method === "GET") {
+    return json({
+      ok: true, alive: true, version: 15,
+      handles: ["community_event", "digital_course", "workshop"],
+      seat_match: ["payer_hold", "single_live_hold", "payer_new"],
+      shared_product_ids: true,
+      responds: "immediately, work runs in background",
+      hold_window_min: HOLD_WINDOW_MIN,
+      logs_to: "morning_webhook_log",
+      secret_configured: !!expected,
+      token_supplied: given.length > 0,
+      token_valid: !!expected && given.length > 0 && sameToken(given, expected),
+    })
+  }
+
+  if (req.method !== "POST") return json({ ok: false, reason: "method_not_allowed" }, 405)
+  if (!expected) return json({ ok: false, reason: "webhook_not_configured" }, 503)
+  if (!sameToken(given, expected)) {
+    console.error("[morning-paid] rejected: bad token")
+    return json({ ok: false, reason: "bad_token" }, 401)
+  }
+
+  let payload: MorningPayload
+  try { payload = await req.json() } catch {
+    const text = await req.text().catch(() => "")
+    console.error("[morning-paid] non-json body:", text.slice(0, 2000))
+    return json({ ok: false, reason: "bad_json" }, 400)
+  }
+
+  console.log("[morning-paid] payload:", JSON.stringify(payload).slice(0, 4000))
+
+  // Answer Morning now. Anything slower than this - GHL above all - is
+  // what got the endpoint switched off on 24.8.
+  background(process(payload))
+  return json({ ok: true, queued: true })
 })

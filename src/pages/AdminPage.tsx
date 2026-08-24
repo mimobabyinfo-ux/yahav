@@ -1,10 +1,10 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Home as HomeIcon, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Lightbulb, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
+import { Home as HomeIcon, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Baby, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
-import { supabase, UserProfile, DailyTip, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent, type WorkshopCohort, type VendorAdminInfo } from '../lib/supabase'
+import { supabase, UserProfile, type AgeStage, type AgeStageTopic, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent, type WorkshopCohort, type VendorAdminInfo } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { BUYING_SUBCATEGORIES } from '../data/buyingSubcategories'
 import type { AdminSection } from '../App'
@@ -71,7 +71,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'leads',     label: 'לידים',         icon: <Phone className="w-3.5 h-3.5" /> },
   { id: 'insights',  label: 'תובנות',        icon: <BarChart2 className="w-3.5 h-3.5" /> },
   { id: 'videos',    label: 'סרטונים',       icon: <Video className="w-3.5 h-3.5" /> },
-  { id: 'tips',      label: 'טיפים',         icon: <Lightbulb className="w-3.5 h-3.5" /> },
+  { id: 'tips',      label: 'מדריך גיל',      icon: <Baby className="w-3.5 h-3.5" /> },
   { id: 'perks',     label: 'הטבות',         icon: <Gift className="w-3.5 h-3.5" /> },
   { id: 'pregnancy', label: 'מדריכי הריון',   icon: <MapPin className="w-3.5 h-3.5" /> },
   { id: 'settings',  label: 'הגדרות',        icon: <Settings className="w-3.5 h-3.5" /> },
@@ -224,7 +224,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTab />}
         {tab === 'insights'   && <><AppUsagePanel /><InsightsTab /></>}
-        {tab === 'tips'       && <TipsTab />}
+        {tab === 'tips'       && <AgeStagesTab />}
         {tab === 'videos'     && <VideosTab />}
         {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <><GiftCardsPanel /><WorkshopsTab onOpenProduct={openProductPage} /></>)}
         {tab === 'events'     && (
@@ -256,7 +256,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         )}
         {tab === 'forms'      && <FormsTabDesktop />}
         {tab === 'insights'   && <><AppUsagePanel /><InsightsTab /></>}
-        {tab === 'tips'       && <TipsTab />}
+        {tab === 'tips'       && <AgeStagesTab />}
         {tab === 'videos'     && <VideosTab />}
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
@@ -2823,323 +2823,405 @@ function FunnelBlock({ funnel }: { funnel: FunnelRow }) {
   )
 }
 
-// ─── Tips Tab ────────────────────────────────────────────────────────────────
-// Phase 3 / C2: tips now carry an optional title, an article link, a target
-// audience ('mom' or 'pregnancy'), and either a baby-age range (in days)
-// or a pregnancy-week range. The dashboard's DailyTipCard queries by these
-// fields + picks one deterministically per day.
+// ─── Age Stages Tab ───────────────────────────────────────────────────────────
+// Replaces the old טיפים screen. Yahav 24.8.26: "אני חושב שזה צריך להחליף
+// את הטיפים כי זה כל המטרה של זה לשנות אותו", and separately: "חשוב מאוד -
+// שיהיה לנו שליטה באדמין לכל פרק זמן והתוכן ששייך אליו."
+//
+// Two levels, mirroring the mother's view exactly:
+//   age_stages        — one row per age range. Owns the home-card headline.
+//   age_stage_topics  — the openable topics inside a stage, drag-ordered.
+//
+// A topic with kind='consult' is the red-flag topic. It renders differently
+// on both sides (softer, never alarming) but is edited like any other, so
+// Brenda can retune the wording herself without anyone touching code.
+//
+// Deletes are guarded by an inline confirm rather than window.confirm, same
+// pattern as the rest of this file.
 
-type TipDraft = {
-  title: string
-  tip_text: string
-  article_link: string
-  tip_for: 'mom' | 'pregnancy'
-  age_range_start_days: string  // string so the input controls them; coerced on save
-  age_range_end_days: string
-  pregnancy_week_start: string
-  pregnancy_week_end: string
-}
-
-const EMPTY_DRAFT: TipDraft = {
+const EMPTY_STAGE_DRAFT = {
   title: '',
-  tip_text: '',
-  article_link: '',
-  tip_for: 'mom',
-  age_range_start_days: '0',
-  age_range_end_days: '730',
-  pregnancy_week_start: '',
-  pregnancy_week_end: '',
+  age_start_days: '',
+  age_end_days: '',
+  headline: '',
+  intro: '',
 }
 
-function tipToDraft(t: DailyTip): TipDraft {
-  return {
-    title: t.title ?? '',
-    tip_text: t.tip_text,
-    article_link: t.article_link ?? '',
-    tip_for: (t.tip_for ?? 'mom') as 'mom' | 'pregnancy',
-    age_range_start_days: t.age_range_start_days != null ? String(t.age_range_start_days) : '0',
-    age_range_end_days: t.age_range_end_days != null ? String(t.age_range_end_days) : '730',
-    pregnancy_week_start: t.pregnancy_week_start != null ? String(t.pregnancy_week_start) : '',
-    pregnancy_week_end: t.pregnancy_week_end != null ? String(t.pregnancy_week_end) : '',
-  }
+const EMPTY_TOPIC_DRAFT = {
+  kind: 'topic' as 'topic' | 'consult',
+  emoji: '',
+  title: '',
+  teaser: '',
+  body: '',
 }
 
-function describeRange(tip: DailyTip): string {
-  if (tip.tip_for === 'pregnancy') {
-    const a = tip.pregnancy_week_start ?? '?'
-    const b = tip.pregnancy_week_end ?? '?'
-    return `הריון · שבוע ${a}–${b}`
-  }
-  const a = tip.age_range_start_days ?? 0
-  const b = tip.age_range_end_days ?? 730
-  const labelA = formatAgeDays(a)
-  const labelB = formatAgeDays(b)
-  return `אמהות · ${labelA} – ${labelB}`
+function formatStageRange(start: number, end: number): string {
+  const m = (d: number) => Math.round(d / 30.4)
+  return `${m(start)} עד ${m(end)} חודשים`
 }
 
-function formatAgeDays(days: number): string {
-  if (days < 14) return `${days} ימים`
-  if (days < 60) return `${Math.round(days / 7)} שבועות`
-  return `${Math.round(days / 30)} חודשים`
-}
+function AgeStagesTab() {
+  const [stages, setStages] = useState<AgeStage[]>([])
+  const [topicsByStage, setTopicsByStage] = useState<Record<string, AgeStageTopic[]>>({})
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
-function TipsTab() {
-  const [tips, setTips] = useState<DailyTip[]>([])
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [draft, setDraft] = useState<TipDraft>(EMPTY_DRAFT)
-  const [filter, setFilter] = useState<'all' | 'mom' | 'pregnancy'>('all')
-  // Task A: shared delete confirmation (replaces the inline window.confirm).
-  const [pendingDelete, setPendingDelete] = useState<DailyTip | null>(null)
-  const [deletingBusy, setDeletingBusy] = useState(false)
+  // Stage editing
+  const [stageForm, setStageForm] = useState<string | 'new' | null>(null)
+  const [stageDraft, setStageDraft] = useState(EMPTY_STAGE_DRAFT)
 
-  const load = useCallback(() => {
-    supabase.from('daily_tips').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => setTips((data ?? []) as DailyTip[]))
+  // Topic editing — key is the stage id, value the topic id or 'new'
+  const [topicForm, setTopicForm] = useState<{ stageId: string; topicId: string | 'new' } | null>(null)
+  const [topicDraft, setTopicDraft] = useState(EMPTY_TOPIC_DRAFT)
+
+  const [saving, setSaving] = useState(false)
+  const [pendingDeleteStage, setPendingDeleteStage] = useState<AgeStage | null>(null)
+  const [pendingDeleteTopic, setPendingDeleteTopic] = useState<AgeStageTopic | null>(null)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }))
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const [{ data: s }, { data: t }] = await Promise.all([
+      supabase.from('age_stages').select('*').order('display_order'),
+      supabase.from('age_stage_topics').select('*').order('display_order'),
+    ])
+    const stageRows = (s ?? []) as AgeStage[]
+    const topicRows = (t ?? []) as AgeStageTopic[]
+    const grouped: Record<string, AgeStageTopic[]> = {}
+    for (const row of topicRows) {
+      ;(grouped[row.stage_id] ??= []).push(row)
+    }
+    setStages(stageRows)
+    setTopicsByStage(grouped)
+    setLoading(false)
   }, [])
   useEffect(() => { load() }, [load])
 
-  function resetForm() {
-    setDraft(EMPTY_DRAFT)
-    setEditingId(null)
-    setShowForm(false)
+  // ── stage CRUD ──
+  function openStageEdit(s: AgeStage) {
+    setStageForm(s.id)
+    setStageDraft({
+      title: s.title,
+      age_start_days: String(s.age_start_days),
+      age_end_days: String(s.age_end_days),
+      headline: s.headline ?? '',
+      intro: s.intro ?? '',
+    })
   }
 
-  async function save() {
-    if (!draft.tip_text.trim()) return
+  function openStageAdd() {
+    setStageForm('new')
+    setStageDraft(EMPTY_STAGE_DRAFT)
+  }
 
-    // Coerce numeric inputs; clamp where the CHECK constraints care.
-    const ageStart = parseInt(draft.age_range_start_days, 10)
-    const ageEnd = parseInt(draft.age_range_end_days, 10)
-    const wkStart = draft.pregnancy_week_start ? parseInt(draft.pregnancy_week_start, 10) : null
-    const wkEnd = draft.pregnancy_week_end ? parseInt(draft.pregnancy_week_end, 10) : null
-
+  async function saveStage() {
+    if (!stageDraft.title.trim() || stageDraft.age_start_days === '' || stageDraft.age_end_days === '') return
+    setSaving(true)
     const payload = {
-      title: draft.title.trim() || null,
-      tip_text: draft.tip_text.trim(),
-      article_link: draft.article_link.trim() || null,
-      tip_for: draft.tip_for,
-      age_range_start_days: draft.tip_for === 'mom' && Number.isFinite(ageStart) ? Math.max(0, ageStart) : null,
-      age_range_end_days: draft.tip_for === 'mom' && Number.isFinite(ageEnd) ? Math.max(0, ageEnd) : null,
-      pregnancy_week_start: draft.tip_for === 'pregnancy' && wkStart != null && Number.isFinite(wkStart)
-        ? Math.min(42, Math.max(1, wkStart)) : null,
-      pregnancy_week_end: draft.tip_for === 'pregnancy' && wkEnd != null && Number.isFinite(wkEnd)
-        ? Math.min(42, Math.max(1, wkEnd)) : null,
+      title: stageDraft.title.trim(),
+      age_start_days: parseInt(stageDraft.age_start_days, 10),
+      age_end_days: parseInt(stageDraft.age_end_days, 10),
+      headline: stageDraft.headline.trim(),
+      intro: stageDraft.intro.trim() || null,
     }
+    if (stageForm === 'new') {
+      const nextOrder = stages.length ? Math.max(...stages.map(s => s.display_order)) + 1 : 1
+      await supabase.from('age_stages').insert({ ...payload, display_order: nextOrder, is_active: true })
+    } else if (stageForm) {
+      await supabase.from('age_stages').update(payload).eq('id', stageForm)
+    }
+    setSaving(false)
+    setStageForm(null)
+    load()
+  }
 
-    if (editingId) {
-      await supabase.from('daily_tips').update(payload).eq('id', editingId)
+  async function toggleStage(s: AgeStage) {
+    await supabase.from('age_stages').update({ is_active: !s.is_active }).eq('id', s.id)
+    setStages(prev => prev.map(x => (x.id === s.id ? { ...x, is_active: !x.is_active } : x)))
+  }
+
+  async function confirmDeleteStage() {
+    if (!pendingDeleteStage) return
+    await supabase.from('age_stages').delete().eq('id', pendingDeleteStage.id)
+    setPendingDeleteStage(null)
+    load()
+  }
+
+  // ── topic CRUD ──
+  function openTopicEdit(t: AgeStageTopic) {
+    setTopicForm({ stageId: t.stage_id, topicId: t.id })
+    setTopicDraft({
+      kind: (t.kind ?? 'topic') as 'topic' | 'consult',
+      emoji: t.emoji ?? '',
+      title: t.title,
+      teaser: t.teaser ?? '',
+      body: t.body,
+    })
+  }
+
+  function openTopicAdd(stageId: string) {
+    setTopicForm({ stageId, topicId: 'new' })
+    setTopicDraft(EMPTY_TOPIC_DRAFT)
+  }
+
+  async function saveTopic() {
+    if (!topicForm || !topicDraft.title.trim() || !topicDraft.body.trim()) return
+    setSaving(true)
+    const payload = {
+      kind: topicDraft.kind,
+      emoji: topicDraft.emoji.trim() || null,
+      title: topicDraft.title.trim(),
+      teaser: topicDraft.teaser.trim() || null,
+      body: topicDraft.body.trim(),
+    }
+    if (topicForm.topicId === 'new') {
+      const existing = topicsByStage[topicForm.stageId] ?? []
+      const nextOrder = existing.length ? Math.max(...existing.map(t => t.display_order)) + 1 : 1
+      await supabase.from('age_stage_topics').insert({
+        ...payload, stage_id: topicForm.stageId, display_order: nextOrder, is_active: true,
+      })
     } else {
-      await supabase.from('daily_tips').insert({ ...payload, is_active: true })
+      await supabase.from('age_stage_topics').update(payload).eq('id', topicForm.topicId)
     }
-    resetForm()
+    setSaving(false)
+    setTopicForm(null)
     load()
   }
 
-  async function performDelete() {
-    if (!pendingDelete) return
-    setDeletingBusy(true)
-    await supabase.from('daily_tips').delete().eq('id', pendingDelete.id)
-    setDeletingBusy(false)
-    setPendingDelete(null)
+  async function toggleTopic(t: AgeStageTopic) {
+    await supabase.from('age_stage_topics').update({ is_active: !t.is_active }).eq('id', t.id)
+    setTopicsByStage(prev => ({
+      ...prev,
+      [t.stage_id]: (prev[t.stage_id] ?? []).map(x => (x.id === t.id ? { ...x, is_active: !x.is_active } : x)),
+    }))
+  }
+
+  async function confirmDeleteTopic() {
+    if (!pendingDeleteTopic) return
+    await supabase.from('age_stage_topics').delete().eq('id', pendingDeleteTopic.id)
+    setPendingDeleteTopic(null)
     load()
   }
 
-  async function toggle(tip: DailyTip) {
-    await supabase.from('daily_tips').update({ is_active: !tip.is_active }).eq('id', tip.id)
-    load()
+  async function onTopicDragEnd(stageId: string, e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const list = topicsByStage[stageId] ?? []
+    const from = list.findIndex(t => t.id === active.id)
+    const to = list.findIndex(t => t.id === over.id)
+    if (from < 0 || to < 0) return
+    const next = arrayMove(list, from, to)
+    setTopicsByStage(prev => ({ ...prev, [stageId]: next }))
+    await Promise.all(next.map((t, i) => supabase.from('age_stage_topics').update({ display_order: i + 1 }).eq('id', t.id)))
   }
 
-  function startEdit(tip: DailyTip) {
-    setEditingId(tip.id)
-    setDraft(tipToDraft(tip))
-    setShowForm(true)
-  }
+  const inputCls = 'w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400'
 
-  function startCreate() {
-    setEditingId(null)
-    setDraft(EMPTY_DRAFT)
-    setShowForm(true)
-  }
-
-  const visible = tips.filter(t => filter === 'all' || (t.tip_for ?? 'mom') === filter)
+  if (loading) return <p className="text-center text-sand-400 text-sm py-8">טוען...</p>
 
   return (
     <div className="space-y-3">
-      <button
-        onClick={startCreate}
-        className="w-full flex items-center justify-center gap-2 bg-mustard-500 text-white font-semibold py-3 rounded-2xl hover:bg-mustard-600 transition-colors"
-      >
-        <Plus className="w-4 h-4" />
-        טיפ חדש
-      </button>
-
-      {/* Filter chips */}
-      <div className="flex gap-2">
-        {([
-          { id: 'all' as const, label: `הכל (${tips.length})` },
-          { id: 'mom' as const, label: `אמהות (${tips.filter(t => (t.tip_for ?? 'mom') === 'mom').length})` },
-          { id: 'pregnancy' as const, label: `הריון (${tips.filter(t => t.tip_for === 'pregnancy').length})` },
-        ]).map(opt => (
-          <button
-            key={opt.id}
-            onClick={() => setFilter(opt.id)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all ${
-              filter === opt.id
-                ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
-                : 'border-sand-200 text-sand-600'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div className="bg-white rounded-3xl p-5 shadow-sm">
+        <h2 className="font-bold text-sand-800 text-base mb-1">מדריך גיל</h2>
+        <p className="text-xs text-sand-500 leading-relaxed">
+          מה שאמא רואה בדף הבית לפי הגיל של התינוק שלה. כל שלב הוא טווח גיל, ובתוכו נושאים שהיא יכולה לפתוח.
+          המשפט של השלב הוא מה שמופיע על הכרטיס עצמו.
+        </p>
+        <button onClick={openStageAdd}
+          className="mt-3 px-4 py-2.5 rounded-2xl text-white font-bold text-sm inline-flex items-center gap-1.5"
+          style={{ background: '#E7C78A' }}>
+          <Plus className="w-4 h-4" /> שלב חדש
+        </button>
       </div>
 
-      {showForm && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-          {/* Audience toggle */}
+      {stageForm && (
+        <div className="bg-white rounded-3xl p-5 shadow-sm space-y-3">
+          <h3 className="font-bold text-sand-800 text-sm">{stageForm === 'new' ? 'שלב חדש' : 'עריכת שלב'}</h3>
           <div>
-            <label className="block text-xs font-semibold text-sand-600 mb-2">למי</label>
-            <div className="flex gap-2">
-              {(['mom', 'pregnancy'] as const).map(t => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setDraft(d => ({ ...d, tip_for: t }))}
-                  className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all border-2 ${
-                    draft.tip_for === t
-                      ? 'border-mustard-500 bg-mustard-50 text-mustard-700'
-                      : 'border-sand-200 text-sand-600'
-                  }`}
-                >
-                  {t === 'mom' ? 'לאמהות' : 'להריון'}
-                </button>
-              ))}
+            <label className="text-xs text-sand-500 mb-1 block">שם השלב</label>
+            <input value={stageDraft.title} onChange={e => setStageDraft(d => ({ ...d, title: e.target.value }))}
+              placeholder="ארבעה עד שישה חודשים" className={inputCls} />
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="text-xs text-sand-500 mb-1 block">מגיל (ימים)</label>
+              <input type="number" value={stageDraft.age_start_days}
+                onChange={e => setStageDraft(d => ({ ...d, age_start_days: e.target.value }))}
+                placeholder="122" className={inputCls} />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-sand-500 mb-1 block">עד גיל (ימים)</label>
+              <input type="number" value={stageDraft.age_end_days}
+                onChange={e => setStageDraft(d => ({ ...d, age_end_days: e.target.value }))}
+                placeholder="182" className={inputCls} />
             </div>
           </div>
-
           <div>
-            <label className="block text-xs font-semibold text-sand-600 mb-1">כותרת (אופציונלי)</label>
-            <input
-              type="text"
-              value={draft.title}
-              onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
-              placeholder="כותרת קצרה ומזמינה"
-              className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
-            />
+            <label className="text-xs text-sand-500 mb-1 block">משפט הכרטיס (מה שרואים בדף הבית)</label>
+            <textarea rows={2} value={stageDraft.headline}
+              onChange={e => setStageDraft(d => ({ ...d, headline: e.target.value }))}
+              placeholder="בין ארבעה לשישה חודשים הכל מתארגן. הנה מה שקורה בתנועה, בחושים ובשפה."
+              className={inputCls + ' resize-none'} />
           </div>
-
           <div>
-            <label className="block text-xs font-semibold text-sand-600 mb-1">תוכן</label>
-            <textarea
-              value={draft.tip_text}
-              onChange={e => setDraft(d => ({ ...d, tip_text: e.target.value }))}
-              placeholder="כתבי טיפ יומי..."
-              rows={4}
-              className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none"
-            />
+            <label className="text-xs text-sand-500 mb-1 block">פסקת פתיחה (בתוך המדריך, אופציונלי)</label>
+            <textarea rows={3} value={stageDraft.intro}
+              onChange={e => setStageDraft(d => ({ ...d, intro: e.target.value }))}
+              className={inputCls + ' resize-none'} />
           </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-sand-600 mb-1">קישור למאמר (אופציונלי)</label>
-            <input
-              type="url"
-              value={draft.article_link}
-              onChange={e => setDraft(d => ({ ...d, article_link: e.target.value }))}
-              placeholder="https://..."
-              className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
-            />
-          </div>
-
-          {draft.tip_for === 'mom' ? (
-            <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1">טווח גיל (בימים)</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  value={draft.age_range_start_days}
-                  onChange={e => setDraft(d => ({ ...d, age_range_start_days: e.target.value }))}
-                  className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
-                />
-                <span className="text-xs text-sand-400">עד</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={draft.age_range_end_days}
-                  onChange={e => setDraft(d => ({ ...d, age_range_end_days: e.target.value }))}
-                  className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
-                />
-              </div>
-              <p className="text-[13px] text-sand-400 mt-1">
-                ≈ {formatAgeDays(parseInt(draft.age_range_start_days, 10) || 0)} – {formatAgeDays(parseInt(draft.age_range_end_days, 10) || 0)}
-              </p>
-            </div>
-          ) : (
-            <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1">טווח שבוע הריון (1–42)</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="1"
-                  max="42"
-                  value={draft.pregnancy_week_start}
-                  onChange={e => setDraft(d => ({ ...d, pregnancy_week_start: e.target.value }))}
-                  className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
-                  placeholder="התחלה"
-                />
-                <span className="text-xs text-sand-400">עד</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="42"
-                  value={draft.pregnancy_week_end}
-                  onChange={e => setDraft(d => ({ ...d, pregnancy_week_end: e.target.value }))}
-                  className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm"
-                  placeholder="סיום"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-2 pt-1">
-            <button onClick={save} className="flex-1 bg-mustard-500 text-white py-2 rounded-xl text-sm font-semibold">שמירה</button>
-            <button onClick={resetForm} className="px-4 py-2 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
+          <div className="flex gap-2">
+            <button onClick={saveStage} disabled={saving || !stageDraft.title.trim()}
+              className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
+              style={{ background: '#E7C78A' }}>{saving ? '...' : 'שמירה'}</button>
+            <button onClick={() => setStageForm(null)}
+              className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
           </div>
         </div>
       )}
 
-      {visible.map(tip => (
-        <div key={tip.id} className={`bg-white rounded-2xl p-4 shadow-sm ${!tip.is_active ? 'opacity-50' : ''}`}>
-          <p className="text-[13px] font-bold text-mustard-600 mb-1.5 uppercase tracking-wide">{describeRange(tip)}</p>
-          {tip.title && <p className="text-sm font-bold text-sand-800 leading-snug mb-1">{tip.title}</p>}
-          <p className="text-sm text-sand-700 leading-relaxed mb-2">{tip.tip_text}</p>
-          {tip.article_link && (
-            <a href={tip.article_link} target="_blank" rel="noopener noreferrer" className="text-[13px] text-mustard-700 underline mb-2 inline-block">קישור למאמר ←</a>
-          )}
-          <div className="flex items-center justify-between mt-2">
-            <button onClick={() => toggle(tip)} className="text-sand-400 hover:text-mustard-500">
-              {tip.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
-            </button>
-            <div className="flex gap-2">
-              <button onClick={() => startEdit(tip)} className="p-1.5 text-sand-400 hover:text-mustard-500"><Pencil className="w-4 h-4" /></button>
-              <button onClick={() => setPendingDelete(tip)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+      {stages.map(s => {
+        const topics = topicsByStage[s.id] ?? []
+        const isOpen = expanded === s.id
+        const activeCount = topics.filter(t => t.is_active).length
+        return (
+          <div key={s.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
+            <div className="p-4 flex items-start gap-2">
+              <button onClick={() => setExpanded(isOpen ? null : s.id)} className="flex-1 text-right min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={`font-bold text-sm ${s.is_active ? 'text-sand-800' : 'text-sand-400 line-through'}`}>{s.title}</span>
+                  <span className="text-[11px] text-sand-400">{formatStageRange(s.age_start_days, s.age_end_days)}</span>
+                </div>
+                <p className="text-xs text-sand-500 mt-1 leading-relaxed line-clamp-2">{s.headline || 'אין עדיין משפט כרטיס'}</p>
+                <p className="text-[11px] text-sand-400 mt-1">{activeCount} נושאים פעילים</p>
+              </button>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button onClick={() => toggleStage(s)} title={s.is_active ? 'כיבוי' : 'הפעלה'}>
+                  {s.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5 text-sand-300" />}
+                </button>
+                <button onClick={() => openStageEdit(s)} title="עריכה"><Pencil className="w-4 h-4 text-sand-400" /></button>
+                <button onClick={() => setPendingDeleteStage(s)} title="מחיקה"><Trash2 className="w-4 h-4 text-red-300" /></button>
+                <button onClick={() => setExpanded(isOpen ? null : s.id)}>
+                  {isOpen ? <ChevronUp className="w-4 h-4 text-sand-400" /> : <ChevronDown className="w-4 h-4 text-sand-400" />}
+                </button>
+              </div>
+            </div>
+
+            {isOpen && (
+              <div className="px-4 pb-4 space-y-2 border-t border-sand-100 pt-3">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={e => onTopicDragEnd(s.id, e)}>
+                  <SortableContext items={topics.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                    {topics.map(t => (
+                      <SortableRow key={t.id} id={t.id}>
+                        {dragHandle => (
+                          <div className={`flex items-start gap-2 rounded-2xl p-3 ${t.kind === 'consult' ? 'bg-sand-50 border border-sand-200' : 'bg-sand-50/60'}`}>
+                            {dragHandle}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                {t.emoji && <span className="text-base leading-none">{t.emoji}</span>}
+                                <span className={`font-bold text-sm ${t.is_active ? 'text-sand-800' : 'text-sand-400 line-through'}`}>{t.title}</span>
+                                {t.kind === 'consult' && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sand-200 text-sand-600 font-bold">מתי להתייעץ</span>}
+                              </div>
+                              {t.teaser && <p className="text-xs text-sand-500 mt-0.5">{t.teaser}</p>}
+                              <p className="text-[11px] text-sand-400 mt-1">{t.body.length} תווים</p>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button onClick={() => toggleTopic(t)} title={t.is_active ? 'כיבוי' : 'הפעלה'}>
+                                {t.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5 text-sand-300" />}
+                              </button>
+                              <button onClick={() => openTopicEdit(t)} title="עריכה"><Pencil className="w-4 h-4 text-sand-400" /></button>
+                              <button onClick={() => setPendingDeleteTopic(t)} title="מחיקה"><Trash2 className="w-4 h-4 text-red-300" /></button>
+                            </div>
+                          </div>
+                        )}
+                      </SortableRow>
+                    ))}
+                  </SortableContext>
+                </DndContext>
+
+                {topicForm?.stageId === s.id ? (
+                  <div className="bg-white rounded-2xl p-4 border-2 border-mustard-200 space-y-3">
+                    <div className="flex gap-2">
+                      <div className="w-20">
+                        <label className="text-xs text-sand-500 mb-1 block">אמוג'י</label>
+                        <input value={topicDraft.emoji} onChange={e => setTopicDraft(d => ({ ...d, emoji: e.target.value }))}
+                          className="w-full px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-xl text-center focus:outline-none focus:border-mustard-400" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs text-sand-500 mb-1 block">כותרת</label>
+                        <input value={topicDraft.title} onChange={e => setTopicDraft(d => ({ ...d, title: e.target.value }))}
+                          placeholder="תנועה וגוף" className={inputCls} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-sand-500 mb-1 block">שורת הצצה (מופיעה מתחת לכותרת לפני שפותחים)</label>
+                      <input value={topicDraft.teaser} onChange={e => setTopicDraft(d => ({ ...d, teaser: e.target.value }))}
+                        placeholder="ההתהפכות הראשונה" className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-sand-500 mb-1 block">סוג</label>
+                      <div className="flex gap-2">
+                        {(['topic', 'consult'] as const).map(k => (
+                          <button key={k} onClick={() => setTopicDraft(d => ({ ...d, kind: k }))}
+                            className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold ${topicDraft.kind === k ? 'bg-mustard-100 text-sand-800 border-2 border-mustard-400' : 'bg-sand-50 text-sand-500 border-2 border-transparent'}`}>
+                            {k === 'topic' ? 'נושא רגיל' : 'מתי להתייעץ'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-sand-500 mb-1 block">התוכן</label>
+                      <textarea rows={10} value={topicDraft.body} onChange={e => setTopicDraft(d => ({ ...d, body: e.target.value }))}
+                        className={inputCls + ' resize-y leading-relaxed'} />
+                      <p className="text-[11px] text-sand-400 mt-1">שורה ריקה בין פסקאות. לא להשתמש במקפים ארוכים.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={saveTopic} disabled={saving || !topicDraft.title.trim() || !topicDraft.body.trim()}
+                        className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
+                        style={{ background: '#E7C78A' }}>{saving ? '...' : 'שמירה'}</button>
+                      <button onClick={() => setTopicForm(null)}
+                        className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => openTopicAdd(s.id)}
+                    className="w-full py-2.5 rounded-2xl bg-sand-50 text-sand-600 font-semibold text-sm inline-flex items-center justify-center gap-1.5">
+                    <Plus className="w-4 h-4" /> נושא חדש
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {pendingDeleteStage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={() => setPendingDeleteStage(null)}>
+          <div className="bg-white rounded-3xl p-5 w-full max-w-sm text-right" onClick={e => e.stopPropagation()}>
+            <p className="font-bold text-sand-800 text-sm">למחוק את השלב "{pendingDeleteStage.title}"?</p>
+            <p className="text-xs text-sand-500 mt-1">כל הנושאים שבתוכו יימחקו איתו. אפשר במקום זה פשוט לכבות אותו.</p>
+            <div className="flex gap-2 mt-4">
+              <button onClick={confirmDeleteStage} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold text-sm">מחיקה</button>
+              <button onClick={() => setPendingDeleteStage(null)} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
             </div>
           </div>
         </div>
-      ))}
-      <ConfirmDialog
-        open={!!pendingDelete}
-        itemName={pendingDelete?.title ?? pendingDelete?.tip_text?.slice(0, 60) ?? 'הטיפ'}
-        title="מחיקת טיפ יומי"
-        busy={deletingBusy}
-        onConfirm={performDelete}
-        onClose={() => setPendingDelete(null)}
-      />
+      )}
+
+      {pendingDeleteTopic && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={() => setPendingDeleteTopic(null)}>
+          <div className="bg-white rounded-3xl p-5 w-full max-w-sm text-right" onClick={e => e.stopPropagation()}>
+            <p className="font-bold text-sand-800 text-sm">למחוק את "{pendingDeleteTopic.title}"?</p>
+            <div className="flex gap-2 mt-4">
+              <button onClick={confirmDeleteTopic} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold text-sm">מחיקה</button>
+              <button onClick={() => setPendingDeleteTopic(null)} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 font-semibold text-sm">ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-
 
 // ─── Videos Tab ───────────────────────────────────────────────────────────────
 function VideosTab() {

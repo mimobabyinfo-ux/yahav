@@ -136,6 +136,41 @@ export type DailyTip = {
   pregnancy_week_end: number | null
 }
 
+// The age guide (migration 20260824030000). One row per age RANGE, not per
+// day: Yahav 24.8.26, "התפתחות היא קוראת בטווח ולא ביום יומיים או אפילו
+// שבוע". `headline` is the single sentence the home card shows; everything
+// deeper lives in age_stage_topics. Both tables are edited from the admin
+// מדריך גיל screen, which replaced the old טיפים screen.
+export type AgeStage = {
+  id: string
+  title: string
+  age_start_days: number
+  age_end_days: number
+  headline: string
+  intro: string | null
+  display_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string | null
+}
+
+// kind='consult' is the red-flag topic. It is stored and edited like any
+// other topic; only the tone and the styling differ, because Brenda asked
+// that the flags never read as alarming.
+export type AgeStageTopic = {
+  id: string
+  stage_id: string
+  kind: 'topic' | 'consult'
+  emoji: string | null
+  title: string
+  teaser: string | null
+  body: string
+  display_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string | null
+}
+
 export type ContentCategory = {
   id: string
   name: string
