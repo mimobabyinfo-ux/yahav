@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import MimoLogo from '../components/MimoLogo'
 
-// ?welcome=<lead_id> — the link inside the post-payment WhatsApp / email.
+// ?welcome=<lead_id> - the link inside the post-payment WhatsApp / email.
 //
 // Why a lead id and not a Supabase magic link: a magic link expires within
 // the hour, and a WhatsApp message gets read the next morning. This route
@@ -63,7 +63,7 @@ export default function WelcomeClaimPage({ leadId }: { leadId: string }) {
           <MimoLogo size={90} />
           <h1 className="text-lg font-bold text-sand-800">הקישור לא עבד</h1>
           <p className="text-sand-500 text-sm leading-relaxed">
-            אפשר להיכנס ישירות עם כתובת המייל שאיתה שילמת — הכל מחכה לך שם.
+            אפשר להיכנס ישירות עם כתובת המייל שאיתה שילמת - הכל מחכה לך שם.
           </p>
           <a
             href="/"

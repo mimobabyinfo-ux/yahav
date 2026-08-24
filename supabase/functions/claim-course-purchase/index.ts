@@ -9,30 +9,30 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
  *   2. fills her profile, links the lead, opens the access window
  *   3. sends her ONE welcome message with a link that logs her straight in
  *
- * The slug still says "course" for historical reasons — it now handles every
+ * The slug still says "course" for historical reasons - it now handles every
  * kind of purchase, and the difference between them matters:
  *
- *   COURSE  (a product with structured lesson content) — she bought content
+ *   COURSE  (a product with structured lesson content) - she bought content
  *           and wants the content. Her link opens the lessons directly.
  *           Dropping her on the home screen to hunt for what she paid for
  *           is how you lose her.
  *
- *   WORKSHOP (עטופים / מגלים / עיסוי / מפגש אבות) — she bought a place in a
+ *   WORKSHOP (עטופים / מגלים / עיסוי / מפגש אבות) - she bought a place in a
  *           room, not a screen. There is nothing to "open". Her link opens
  *           the HOME screen, because the whole point of her being here is
  *           that she discovers the journal and the community exist. Sending
  *           her to a content screen produces an account that never gets used
- *           — which is exactly the leak this function exists to close.
+ *           - which is exactly the leak this function exists to close.
  *
  * CHANNEL: WhatsApp first, email as the fallback.
- * WhatsApp is the channel these mothers actually open — it is where Brenda
+ * WhatsApp is the channel these mothers actually open - it is where Brenda
  * already talks to them, from a number they recognise. Email is kept as the
  * fallback for anyone with no usable phone, and for the case where the
  * WhatsApp send fails (no session window, provider error, anything).
  * WhatsApp sending is gated on global_settings.welcome_whatsapp_enabled so
  * this can be deployed dark and switched on after a live test.
  *
- * THE LINK: `?welcome=<lead_id>` — NOT a Supabase magic link.
+ * THE LINK: `?welcome=<lead_id>` - NOT a Supabase magic link.
  * A magic link expires within the hour. A WhatsApp message gets read the
  * next morning. The welcome route calls this same function back with
  * want_link, mints a fresh sign-in link at the moment she taps, and lets her
@@ -119,9 +119,9 @@ async function ghl(
   }
 }
 
-// ── message copy ─────────────────────────────────────────────────────────
+// -- message copy ---------------------------------------------------------
 // Warm, short, and specific about what is waiting for her. The workshop
-// version deliberately never says "app" first — it says her workshop lives
+// version deliberately never says "app" first - it says her workshop lives
 // there, which is the reason she has to care.
 
 function waText(kind: Kind, name: string, title: string, link: string, owner: string): string {
@@ -138,7 +138,7 @@ ${link}
   }
   return `${hi}
 ברוכה הבאה למימו, כיף שאת איתנו.
-כל התכנים והסיכומים של ${title} מחכים לך באפליקציה — וגם יומן למעקב אחרי הבייבי וקהילת האמהות שלנו.
+כל התכנים והסיכומים של ${title} מחכים לך באפליקציה - וגם יומן למעקב אחרי הבייבי וקהילת האמהות שלנו.
 
 הקישור הבא מכניס אותך פנימה, בלי סיסמה ובלי הרשמה:
 
@@ -158,13 +158,13 @@ function emailHtml(kind: Kind, name: string, title: string, link: string): strin
     : `${first ? esc(first) + ", " : ""}ברוכה הבאה למימו 🐣`
   const lead = kind === "course"
     ? `התשלום התקבל ופתחנו לך גישה מלאה ל<strong>${esc(title)}</strong>.
-       הכפתור למטה פותח את השיעורים ישירות — בלי סיסמה ובלי הרשמה.`
+       הכפתור למטה פותח את השיעורים ישירות - בלי סיסמה ובלי הרשמה.`
     : `כיף שאת איתנו. כל התכנים והסיכומים של <strong>${esc(title)}</strong> מחכים לך באפליקציה,
        וגם יומן למעקב אחרי הבייבי וקהילת האמהות שלנו.
-       הכפתור למטה מכניס אותך פנימה — בלי סיסמה ובלי הרשמה.`
+       הכפתור למטה מכניס אותך פנימה - בלי סיסמה ובלי הרשמה.`
   const cta = kind === "course" ? "לצפייה בקורס ←" : "לכניסה לאפליקציה ←"
   const tail = kind === "course"
-    ? `הקורס שלך לתמיד, בקצב שלך. ואם תרצי — יש שם גם יומן מעקב
+    ? `הקורס שלך לתמיד, בקצב שלך. ואם תרצי - יש שם גם יומן מעקב
        לשינה ולהנקה וקהילה של אמהות. בלי לחץ, בלי תוספת תשלום.`
     : `אפשר להיכנס מכל טלפון, ולהוסיף את מימו למסך הבית כדי שתהיה בהישג יד.`
 
@@ -277,12 +277,12 @@ Deno.serve(async (req: Request) => {
   if (!report?.ok) return json({ ok: false, reason: report?.reason ?? "attach_rejected" }, 409)
 
   // Where she lands once signed in. A course opens its lessons; a workshop
-  // opens the home screen, on purpose — see the header comment.
+  // opens the home screen, on purpose - see the header comment.
   const landing = kind === "course" && lead.selected_workshop_id
     ? `${APP_URL}/?course=${lead.selected_workshop_id}`
     : `${APP_URL}/`
 
-  // ── want_link mode: she just tapped the ?welcome= link ────────────────
+  // -- want_link mode: she just tapped the ?welcome= link ----------------
   // Mint a fresh sign-in link NOW and hand it back. Nothing is sent and the
   // welcome latch is untouched, so this stays safe to call repeatedly.
   if (wantLink) {
@@ -393,7 +393,7 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // Nothing reached her at all — unlatch so the next run retries.
+  // Nothing reached her at all - unlatch so the next run retries.
   if (!channel) await admin.rpc("release_welcome_email_slot", { p_lead_id: leadId })
   else {
     const { error: chErr } = await admin
