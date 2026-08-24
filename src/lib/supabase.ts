@@ -480,6 +480,19 @@ export type BabyAgeGuide = {
   created_at: string
 }
 
+export type BabyAgeGuideItem = {
+  id: string
+  band_id: string
+  age_start_days: number
+  age_end_days: number
+  section: string
+  context: string | null
+  body: string
+  display_order: number
+  is_active: boolean
+  created_at: string
+}
+
 export type UserPregnancyItem = {
   id: string
   user_id: string
