@@ -66,6 +66,28 @@ const LOCATION_ID = "zcdg19h82AGIAbya6T0r"
 
 type Kind = "course" | "workshop"
 
+// Which of the five texts she gets. Yahav 24.8.26: the single "ברוכה הבאה"
+// was wrong for two thirds of the people it was about to reach. A mother who
+// has been in the app for three months does not need welcoming, and a mother
+// whose workshop opens in ten days has nothing that "we already covered".
+// So the copy turns on two facts: is her workshop running, and is she
+// already inside.
+//   welcome  - no cohort to reason about. The original text, unchanged, so
+//              the live post-payment flow keeps behaving exactly as it did.
+type Variant = "course" | "welcome" | "running_in" | "running_out" | "upcoming_in" | "upcoming_out"
+
+// "2026-09-03" -> "3.9"
+function dayMonth(iso: string): string {
+  const [, m, d] = iso.split("-")
+  return `${Number(d)}.${Number(m)}`
+}
+
+// Today in Israel, not in UTC. A cohort that opens today must not read as
+// upcoming to a mother who is already sitting in the room.
+function todayInIsrael(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" })
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -124,9 +146,11 @@ async function ghl(
 // version deliberately never says "app" first - it says her workshop lives
 // there, which is the reason she has to care.
 
-function waText(kind: Kind, name: string, title: string, link: string, owner: string): string {
+function waText(v: Variant, name: string, title: string, link: string, owner: string, startLabel: string): string {
   const hi = firstName(name) ? `היי ${firstName(name)} 🤍` : "היי יקירה 🤍"
-  if (kind === "course") {
+  const sign = owner ? `\n${owner}` : ""
+
+  if (v === "course") {
     return `${hi}
 התשלום התקבל ופתחתי לך גישה מלאה ל${title}.
 הקישור הבא פותח לך את השיעורים ישירות, בלי סיסמה ובלי הרשמה:
@@ -136,6 +160,56 @@ ${link}
 השיעורים קצרים ואפשר לעשות אותם בקצב שלך. אין תאריך התחלה ואין מה לחכות לו.
 כאן לכל שאלה${owner ? `,\n${owner}` : ""}`
   }
+
+  // Her workshop is running and she is already in the app. This is a change
+  // of habit, not an introduction: until now the summaries came on WhatsApp.
+  if (v === "running_in") {
+    return `${hi}
+משהו משתנה אצלנו: מהיום כל התכנים והסיכומים של ${title} נמצאים באפליקציה, במקום בוואטסאפ.
+פתחתי לך את הגישה, והקישור הבא לוקח אותך ישר אליהם:
+
+${link}
+
+כל מה שכבר עברנו מחכה לך שם, ומה שנעבור בהמשך יתווסף.${sign}`
+  }
+
+  // Running, and she has never opened the app. Same change of habit, plus
+  // the account she never had.
+  if (v === "running_out") {
+    return `${hi}
+מהיום כל התכנים והסיכומים של ${title} נמצאים באפליקציה של מימו, במקום בוואטסאפ.
+הקישור הבא פותח לך חשבון ומכניס אותך ישר אליהם:
+
+${link}
+
+כל מה שכבר עברנו מחכה לך שם, ומה שנעבור בהמשך יתווסף. בדרך תגלי גם יומן למעקב אחרי הבייבי ואת קהילת האמהות שלנו.${sign}`
+  }
+
+  // Her workshop has not opened yet. Nothing has "already been covered", so
+  // the message points forward instead of back.
+  if (v === "upcoming_in") {
+    return `${hi}
+נרשמת ל${title} שמתחילה ב-${startLabel}, ורציתי שתדעי מראש: כל התכנים והסיכומים של הסדנה יהיו אצלך באפליקציה ולא בוואטסאפ.
+תיפתח כרגיל גם קבוצת וואטסאפ לסדנה, פשוט בלי הסיכומים.
+פתחתי לך את האזור של הסדנה כבר עכשיו:
+
+${link}
+
+נתראה ב-${startLabel} 🤍${sign}`
+  }
+
+  if (v === "upcoming_out") {
+    return `${hi}
+נרשמת ל${title} שמתחילה ב-${startLabel}, וכיף שאת איתנו.
+כל התכנים והסיכומים של הסדנה יחכו לך באפליקציה של מימו ולא בוואטסאפ. תיפתח כרגיל גם קבוצת וואטסאפ לסדנה, פשוט בלי הסיכומים.
+הקישור הבא פותח לך חשבון, ושווה להיכנס כבר עכשיו:
+
+${link}
+
+בדרך תגלי גם יומן למעקב אחרי הבייבי ואת קהילת האמהות שלנו. נתראה ב-${startLabel} 🤍${sign}`
+  }
+
+  // "welcome" - no cohort to reason about. Unchanged from the original.
   return `${hi}
 ברוכה הבאה למימו, כיף שאת איתנו.
 כל התכנים והסיכומים של ${title} מחכים לך באפליקציה - וגם יומן למעקב אחרי הבייבי וקהילת האמהות שלנו.
@@ -147,26 +221,48 @@ ${link}
 נתראה בקרוב 🤍${owner ? `\n${owner}` : ""}`
 }
 
-function emailSubject(kind: Kind, title: string): string {
-  return kind === "course" ? `הגישה שלך ל${title} מוכנה 🤎` : `ברוכה הבאה למימו 🐣`
+function emailSubject(v: Variant, title: string, startLabel: string): string {
+  if (v === "course") return `הגישה שלך ל${title} מוכנה 🤎`
+  if (v === "running_in" || v === "running_out") return `הסיכומים של ${title} עברו לאפליקציה 🤎`
+  if (v === "upcoming_in" || v === "upcoming_out") return `${title} מתחילה ב-${startLabel} 🐣`
+  return `ברוכה הבאה למימו 🐣`
 }
 
-function emailHtml(kind: Kind, name: string, title: string, link: string): string {
+function emailHtml(v: Variant, name: string, title: string, link: string, startLabel: string): string {
   const first = firstName(name)
-  const heading = kind === "course"
-    ? `${first ? esc(first) + ", " : ""}הקורס שלך מחכה לך 🤎`
-    : `${first ? esc(first) + ", " : ""}ברוכה הבאה למימו 🐣`
-  const lead = kind === "course"
-    ? `התשלום התקבל ופתחנו לך גישה מלאה ל<strong>${esc(title)}</strong>.
-       הכפתור למטה פותח את השיעורים ישירות - בלי סיסמה ובלי הרשמה.`
-    : `כיף שאת איתנו. כל התכנים והסיכומים של <strong>${esc(title)}</strong> מחכים לך באפליקציה,
-       וגם יומן למעקב אחרי הבייבי וקהילת האמהות שלנו.
-       הכפתור למטה מכניס אותך פנימה.`
-  const cta = kind === "course" ? "לצפייה בקורס ←" : "לכניסה לאפליקציה ←"
-  const tail = kind === "course"
-    ? `הקורס שלך לתמיד, בקצב שלך. ואם תרצי - יש שם גם יומן מעקב
-       לשינה ולהנקה וקהילה של אמהות. בלי לחץ, בלי תוספת תשלום.`
-    : `אפשר להיכנס מכל טלפון, ולהוסיף את מימו למסך הבית כדי שתהיה בהישג יד.`
+  const who = first ? esc(first) + ", " : ""
+
+  let heading: string
+  let lead: string
+  let tail: string
+  const cta = v === "course" ? "לצפייה בקורס ←" : "לכניסה לאפליקציה ←"
+
+  if (v === "course") {
+    heading = `${who}הקורס שלך מחכה לך 🤎`
+    lead = `התשלום התקבל ופתחנו לך גישה מלאה ל<strong>${esc(title)}</strong>.
+            הכפתור למטה פותח את השיעורים ישירות, בלי סיסמה ובלי הרשמה.`
+    tail = `הקורס שלך לתמיד, בקצב שלך. ואם תרצי, יש שם גם יומן מעקב
+            לשינה ולהנקה וקהילה של אמהות. בלי לחץ, בלי תוספת תשלום.`
+  } else if (v === "running_in" || v === "running_out") {
+    heading = `${who}הסיכומים עברו לאפליקציה 🤎`
+    lead = `מהיום כל התכנים והסיכומים של <strong>${esc(title)}</strong> נמצאים באפליקציה, במקום בוואטסאפ.
+            ${v === "running_in" ? "פתחנו לך את הגישה, והכפתור למטה לוקח אותך ישר אליהם." : "הכפתור למטה פותח לך חשבון ומכניס אותך ישר אליהם."}`
+    tail = `כל מה שכבר עברנו מחכה לך שם, ומה שנעבור בהמשך יתווסף.
+            אפשר להיכנס מכל טלפון, ולהוסיף את מימו למסך הבית כדי שתהיה בהישג יד.`
+  } else if (v === "upcoming_in" || v === "upcoming_out") {
+    heading = `${who}${esc(title)} מתחילה ב-${esc(startLabel)} 🐣`
+    lead = `כל התכנים והסיכומים של הסדנה יהיו אצלך באפליקציה ולא בוואטסאפ.
+            תיפתח כרגיל גם קבוצת וואטסאפ לסדנה, פשוט בלי הסיכומים.
+            ${v === "upcoming_in" ? "פתחנו לך את האזור של הסדנה כבר עכשיו." : "הכפתור למטה פותח לך חשבון, ושווה להיכנס כבר עכשיו."}`
+    tail = `נתראה ב-${esc(startLabel)}. אפשר להיכנס מכל טלפון, ולהוסיף את מימו
+            למסך הבית כדי שתהיה בהישג יד.`
+  } else {
+    heading = `${who}ברוכה הבאה למימו 🐣`
+    lead = `כיף שאת איתנו. כל התכנים והסיכומים של <strong>${esc(title)}</strong> מחכים לך באפליקציה,
+            וגם יומן למעקב אחרי הבייבי וקהילת האמהות שלנו.
+            הכפתור למטה מכניס אותך פנימה.`
+    tail = `אפשר להיכנס מכל טלפון, ולהוסיף את מימו למסך הבית כדי שתהיה בהישג יד.`
+  }
 
   return `
 <div dir="rtl" style="font-family:Assistant,Arial,sans-serif;background:#F8F4EC;padding:28px 16px;">
@@ -217,7 +313,7 @@ Deno.serve(async (req: Request) => {
   // 1 - the lead
   const { data: lead, error: leadErr } = await admin
     .from("registration_leads")
-    .select("id, name, email, phone, normalized_phone, status, selected_workshop_id, user_id")
+    .select("id, name, email, phone, normalized_phone, status, selected_workshop_id, user_id, cohort_id")
     .eq("id", leadId)
     .maybeSingle()
 
@@ -248,6 +344,16 @@ Deno.serve(async (req: Request) => {
     if (w?.thanks_template === "course") kind = "course"
   }
 
+  // 2b - when does her workshop open? Drives which text she gets.
+  let cohortStart: string | null = null
+  if (lead.cohort_id) {
+    const { data: c } = await admin
+      .from("workshop_cohorts").select("start_date")
+      .eq("id", lead.cohort_id).maybeSingle()
+    cohortStart = (c?.start_date as string | null) ?? null
+  }
+  const startLabel = cohortStart ? dayMonth(cohortStart) : ""
+
   // 3 - her user
   let userId: string | null = lead.user_id ?? null
   let createdUser = false
@@ -273,6 +379,29 @@ Deno.serve(async (req: Request) => {
       userId = created.user.id
       createdUser = true
     }
+  }
+
+  // 3b - is she already living in the app?
+  //
+  // Must be read BEFORE attach_paid_lead, which creates the profile row.
+  // Reading it after would make every mother look like a returning one.
+  // An auth user with no finished onboarding is NOT "already in the app":
+  // she started signing up and dropped out, and the welcome text is still
+  // the right thing to send her.
+  let alreadyInApp = false
+  if (userId && !createdUser) {
+    const { data: prof } = await admin
+      .from("user_profiles").select("onboarding_completed_at")
+      .eq("id", userId).maybeSingle()
+    alreadyInApp = !!prof?.onboarding_completed_at
+  }
+
+  let variant: Variant = kind === "course" ? "course" : "welcome"
+  if (kind === "workshop" && cohortStart) {
+    const running = cohortStart <= todayInIsrael()
+    variant = running
+      ? (alreadyInApp ? "running_in" : "running_out")
+      : (alreadyInApp ? "upcoming_in" : "upcoming_out")
   }
 
   // 4 - profile, linkage, access
@@ -321,11 +450,11 @@ Deno.serve(async (req: Request) => {
 
   if (dry) {
     return json({
-      ok: true, mode: "dry", kind, title, user_id: userId,
+      ok: true, mode: "dry", kind, variant, title, user_id: userId,
       created_user: createdUser, access_opened: report.access_was_new,
       would_send: waEnabled && phone ? "whatsapp" : "email",
       phone, welcome_url: welcomeUrl, landing,
-      wa_preview: waText(kind, lead.name ?? "", title, welcomeUrl, ownerName),
+      wa_preview: waText(variant, lead.name ?? "", title, welcomeUrl, ownerName, startLabel),
     })
   }
 
@@ -359,7 +488,7 @@ Deno.serve(async (req: Request) => {
       const send = await ghl("/conversations/messages", "POST", GHL_API_KEY, {
         type: "WhatsApp",
         contactId,
-        message: waText(kind, lead.name ?? "", title, welcomeUrl, ownerName),
+        message: waText(variant, lead.name ?? "", title, welcomeUrl, ownerName, startLabel),
       })
       if (send.ok) channel = "whatsapp"
       else waError = send.error ?? "send_failed"
@@ -386,8 +515,8 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({
           from: MAIL_FROM,
           to: lead.email,
-          subject: emailSubject(kind, title),
-          html: emailHtml(kind, lead.name ?? "", title, welcomeUrl),
+          subject: emailSubject(variant, title, startLabel),
+          html: emailHtml(variant, lead.name ?? "", title, welcomeUrl, startLabel),
         }),
       })
       if (r.ok) channel = "email"
@@ -413,6 +542,7 @@ Deno.serve(async (req: Request) => {
     ok: true,
     user_id: userId,
     kind,
+    variant,
     created_user: createdUser,
     access_opened: report.access_was_new,
     sent: channel !== null,
