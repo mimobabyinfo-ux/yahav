@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Plus, Trash2, Check, ArrowRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -24,7 +24,7 @@ const genderOptions: { value: 'boy' | 'girl'; label: string }[] = [
 const emptyBaby = (): Baby => ({ firstName: '', lastName: '', dob: '', gender: 'girl' })
 
 export default function OnboardingPage() {
-  const { user, refreshProfile, refreshChildren } = useAuth()
+  const { user, profile, refreshProfile, refreshChildren } = useAuth()
   // 2-step flow: mode is null until the user explicitly picks one,
   // then the rest of the form unlocks. A back arrow returns here.
   const [mode, setMode] = useState<Mode | null>(null)
@@ -55,6 +55,23 @@ export default function OnboardingPage() {
 
   const [phone, setPhone] = useState('')
   const [showPhone, setShowPhone] = useState(false)
+
+  // A mother who arrives here straight from paying already gave Brenda her
+  // name and phone on the registration form, and attach_paid_lead copied
+  // them onto her profile. Asking her to type them again is the kind of
+  // small insult that loses people on step one. Prefilled once, and only
+  // into fields she has not touched, so this never fights her typing.
+  const prefilled = useRef(false)
+  useEffect(() => {
+    if (prefilled.current || !profile) return
+    prefilled.current = true
+    const parts = (profile.mother_name ?? '').trim().split(/\s+/).filter(Boolean)
+    if (parts.length) {
+      setFirstName(prev => prev || parts[0])
+      setLastName(prev => prev || parts.slice(1).join(' '))
+    }
+    if (profile.phone_number) setPhone(prev => prev || profile.phone_number!)
+  }, [profile])
   // Brenda 19.8.26: "אני רוצה שגם בהרשמה יופיע לי הכפתור הזה" — the
   // directory switch belongs where she first fills in the profile, not
   // only where she edits it. Same control and same copy as the community
@@ -114,7 +131,12 @@ export default function OnboardingPage() {
         phone_number: phone.trim() || null,
         community_consent: showPhone,
         community_visible: showInDirectory,
-        lead_status: 'new_lead',
+        // A mother who paid for a workshop already carries
+        // 'active_workshop'. She reaches this form because
+        // attach_paid_lead made her a profile without registering her,
+        // and filling it in must not demote her back to a new lead.
+        lead_status: profile?.lead_status ?? 'new_lead',
+        onboarding_completed_at: new Date().toISOString(),
         user_mode: mode,
         due_date: mode === 'pregnant' ? dueDate || null : null,
         // Carried over from the tick on the signup screen, where the

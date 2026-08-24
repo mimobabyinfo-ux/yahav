@@ -18,6 +18,10 @@ export type UserProfile = {
   is_admin: boolean
   display_name: string | null
   lead_status: 'new_lead' | 'active_workshop' | 'post_service' | null
+  // NULL means she never finished the onboarding form, whatever else
+  // is on the row. attach_paid_lead creates a profile for every paying
+  // mother, so the row existing is no longer proof she registered.
+  onboarding_completed_at: string | null
   /** Where this account came from. null / 'app' = she signed up herself.
    *  'course_purchase' = the account was created automatically when she
    *  bought a digital course, so she may have no baby details and no

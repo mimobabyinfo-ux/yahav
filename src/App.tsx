@@ -236,7 +236,12 @@ function AppInner() {
   )
   if (!isGuest && !hasConsented) return <ConsentGate />
 
-  if (!profile && !isGuest) return <OnboardingPage />
+  // Not "does she have a profile" but "did she finish onboarding".
+  // attach_paid_lead creates a profile row for every paying mother, so
+  // the old test silently skipped registration for exactly the mothers
+  // we most need details from - they landed on an empty dashboard with
+  // no baby, no city and no community profile.
+  if (!isGuest && (!profile || !profile.onboarding_completed_at)) return <OnboardingPage />
 
   // Authenticated user settings — accessible from any role except guest
   if (isSettingsPage && !isGuest) return <UserSettingsPage />
