@@ -313,16 +313,21 @@ Deno.serve(async (req: Request) => {
   const { data: contentRows } = await admin
     .from("workshop_content").select("workshop_id").not("section", "is", null)
   const courseIds = [...new Set((contentRows ?? []).map((r: { workshop_id: string }) => r.workshop_id))]
-  if (courseIds.length === 0) {
-    await record("unmatched", "no_course_products")
-    return json({ ok: false, reason: "no_course_products" }, 404)
-  }
+  // courseIds is no longer a gate on WHO gets claimed - it only decides
+  // whether a lead can be conjured from a product id below. A location with
+  // no course products still has workshops whose buyers need an account.
 
   const since = new Date(Date.now() - 14 * 864e5).toISOString()
   const { data: leads, error: leadErr } = await admin
     .from("registration_leads")
     .select("id, status, created_at, selected_workshop_id")
-    .ilike("email", email).in("selected_workshop_id", courseIds)
+    // No .in(selected_workshop_id, courseIds) any more. Restricting the
+    // safety net to course products is what left workshop buyers with NO
+    // fallback at all: a mother who paid for עטופים and then closed her
+    // browser got an account only if the thank-you page happened to run in
+    // the same tab. That gap is the single biggest source of paid mothers
+    // who never reached the app.
+    .ilike("email", email)
     .gte("created_at", since)
     .order("created_at", { ascending: false }).limit(1)
   if (leadErr) {

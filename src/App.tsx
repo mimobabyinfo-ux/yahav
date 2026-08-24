@@ -20,6 +20,7 @@ import PublicPartnerPage from './pages/PublicPartnerPage'
 import PublicRegisterPage from './pages/PublicRegisterPage'
 import VendorCheckinPage from './pages/VendorCheckinPage'
 import ThankYouPage from './pages/ThankYouPage'
+import WelcomeClaimPage from './pages/WelcomeClaimPage'
 import LegalPage from './pages/LegalPage'
 import ConsentGate from './pages/ConsentGate'
 import UserSettingsPage from './pages/UserSettingsPage'
@@ -64,6 +65,7 @@ const checkinToken = new URLSearchParams(window.location.search).get('checkin')
 const isCoursePage = new URLSearchParams(window.location.search).has('course')
 const courseWorkshopId = new URLSearchParams(window.location.search).get('course') || null
 const isThanksPage = new URLSearchParams(window.location.search).has('thanks')
+const welcomeLeadId = new URLSearchParams(window.location.search).get('welcome')
 // ?legal=privacy|terms|accessibility — the three documents Israeli law
 // expects a consumer service to publish. Public by necessity: the signup
 // screen links to them before there is an account to render a shell for.
@@ -203,6 +205,9 @@ function AppInner() {
   if (isRegisterPage) return <PublicRegisterPage />
   if (isOfferPage) return <PublicRegisterPage />
   if (checkinToken) return <VendorCheckinPage token={checkinToken} />
+  // ?welcome=<lead_id> — the post-payment link. Must sit BEFORE the auth
+  // gate: she has no session yet, that is the entire point of the route.
+  if (welcomeLeadId) return <WelcomeClaimPage leadId={welcomeLeadId} />
   if (isThanksPage) return <ThankYouPage />
 
   if (loading) {
