@@ -141,6 +141,70 @@ async function ghl(
   }
 }
 
+// -- the 24-hour WhatsApp window ------------------------------------------
+//
+// THE BUG THIS EXISTS FOR (24.8.26): GHL answers HTTP 200 the moment it
+// accepts a message. 200 means "queued", not "delivered". WhatsApp then
+// rejected 27 of 33 messages ~27 seconds later with "more than 24 hours have
+// passed since the customer last replied to this number", and because the
+// function latched welcome_sent_at on the 200, those 27 mothers were recorded
+// as welcomed and got nothing. Four of them had never once written to Brenda,
+// so it could never have worked.
+//
+// Polling for the real status would mean blocking this webhook for ~30s, and
+// the morning webhook already has a timeout problem. But the failure is not
+// random: it is decidable BEFORE sending. Free-form WhatsApp only leaves the
+// building within 24 hours of HER last inbound message. So we ask first.
+//
+// Deliberately conservative: only a WhatsApp inbound we can actually see
+// counts. lastMessageDate would include our OWN outbound and would reopen
+// the window on paper every time we wrote — the exact bug again. Anything we
+// cannot prove is treated as closed, and closed means email, which always
+// arrives. A mother getting an email she did not need is a small cost; a
+// mother getting nothing after paying is the thing we are fixing.
+async function whatsappWindow(apiKey: string, contactId: string): Promise<{
+  open: boolean
+  proven: boolean
+  lastInbound: string | null
+  hoursAgo: number | null
+  note: string
+}> {
+  const r = await ghl(
+    `/conversations/search?locationId=${LOCATION_ID}&contactId=${encodeURIComponent(contactId)}`,
+    "GET", apiKey,
+  )
+  if (!r.ok) {
+    return { open: false, proven: false, lastInbound: null, hoursAgo: null,
+             note: `conversation lookup failed (${r.error ?? "unknown"})` }
+  }
+  const convos: any[] = Array.isArray(r.data?.conversations) ? r.data.conversations : []
+  let newest: number | null = null
+  for (const c of convos) {
+    // Verified against the live API on 25.8.26: this is the only inbound
+    // field GHL returns, and it is a millisecond epoch. Deliberately NOT
+    // falling back to lastInboundMessageDate or lastMessageDate — an SMS
+    // reply or our own outbound does not open a WhatsApp window.
+    const v = c?.lastInboundWhatsappMessageDate ?? null
+    if (!v) continue
+    const t = typeof v === "number" ? v : Date.parse(String(v))
+    if (Number.isFinite(t) && (newest === null || t > newest)) newest = t
+  }
+  if (newest === null) {
+    return { open: false, proven: true, lastInbound: null, hoursAgo: null,
+             note: convos.length === 0
+               ? "she has never written to this number"
+               : "no inbound message on record" }
+  }
+  const hoursAgo = Math.round(((Date.now() - newest) / 3_600_000) * 10) / 10
+  return {
+    open: hoursAgo < 24,
+    proven: true,
+    lastInbound: new Date(newest).toISOString(),
+    hoursAgo,
+    note: hoursAgo < 24 ? `she wrote ${hoursAgo}h ago` : `her last message was ${hoursAgo}h ago`,
+  }
+}
+
 // -- message copy ---------------------------------------------------------
 // Warm, short, and specific about what is waiting for her. The workshop
 // version deliberately never says "app" first - it says her workshop lives
@@ -449,7 +513,22 @@ Deno.serve(async (req: Request) => {
   const phone = normalizePhone(lead.normalized_phone ?? lead.phone)
 
   if (dry) {
+    // Dry mode also answers the question that actually decides the channel:
+    // is her WhatsApp window open? It upserts the contact (idempotent, and
+    // the real run does it anyway) but sends nothing.
+    let dryWindow: unknown = null
+    const dryKey = Deno.env.get("GHL_API_KEY")
+    if (waEnabled && phone && dryKey) {
+      const up = await ghl("/contacts/upsert", "POST", dryKey, {
+        locationId: LOCATION_ID, phone,
+        ...(lead.name ? { name: lead.name } : {}),
+        ...(lead.email ? { email: lead.email } : {}),
+      })
+      const cid = up.data?.contact?.id ?? up.data?.id ?? null
+      dryWindow = cid ? await whatsappWindow(dryKey, cid) : { error: up.error ?? "no_contact_id" }
+    }
     return json({
+      wa_window: dryWindow,
       ok: true, mode: "dry", kind, variant, title, user_id: userId,
       created_user: createdUser, access_opened: report.access_was_new,
       would_send: waEnabled && phone ? "whatsapp" : "email",
@@ -470,6 +549,8 @@ Deno.serve(async (req: Request) => {
   // 6 - WhatsApp first. Her channel, from a number she recognises.
   let channel: "whatsapp" | "email" | null = null
   let waError: string | null = null
+  let waMessageId: string | null = null
+  let waWindow: Awaited<ReturnType<typeof whatsappWindow>> | null = null
 
   const GHL_API_KEY = Deno.env.get("GHL_API_KEY")
   if (waEnabled && phone && GHL_API_KEY) {
@@ -485,13 +566,27 @@ Deno.serve(async (req: Request) => {
     if (!up.ok || !contactId) {
       waError = up.error ?? "no_contact_id"
     } else {
-      const send = await ghl("/conversations/messages", "POST", GHL_API_KEY, {
-        type: "WhatsApp",
-        contactId,
-        message: waText(variant, lead.name ?? "", title, welcomeUrl, ownerName, startLabel),
-      })
-      if (send.ok) channel = "whatsapp"
-      else waError = send.error ?? "send_failed"
+      const win = await whatsappWindow(GHL_API_KEY, contactId)
+      waWindow = win
+      if (!win.open) {
+        // Not an error. WhatsApp simply cannot carry this one, so we do not
+        // spend a message finding that out 27 seconds later.
+        waError = `outside the 24h window: ${win.note}`
+      } else {
+        const send = await ghl("/conversations/messages", "POST", GHL_API_KEY, {
+          type: "WhatsApp",
+          contactId,
+          message: waText(variant, lead.name ?? "", title, welcomeUrl, ownerName, startLabel),
+        })
+        // Still only "queued". The window check above is what makes it
+        // trustworthy; this id is kept so a delivery can be traced later.
+        if (send.ok) {
+          channel = "whatsapp"
+          waMessageId = send.data?.messageId ?? send.data?.msgId ?? null
+        } else {
+          waError = send.error ?? "send_failed"
+        }
+      }
     }
     if (waError) console.error("[claim] whatsapp failed, falling back to email:", waError)
   }
@@ -533,8 +628,13 @@ Deno.serve(async (req: Request) => {
   // Nothing reached her at all - unlatch so the next run retries.
   if (!channel) await admin.rpc("release_welcome_email_slot", { p_lead_id: leadId })
   else {
+    const detail = channel === "whatsapp"
+      ? `whatsapp · ${waWindow?.note ?? "window open"}${waMessageId ? ` · ${waMessageId}` : ""}`
+      : `email · ${waError ?? (waEnabled ? (phone ? "whatsapp unavailable" : "no phone") : "whatsapp disabled")}`
     const { error: chErr } = await admin
-      .from("registration_leads").update({ welcome_channel: channel }).eq("id", leadId)
+      .from("registration_leads")
+      .update({ welcome_channel: channel, welcome_detail: detail.slice(0, 500) })
+      .eq("id", leadId)
     if (chErr) console.error("[claim] welcome_channel update failed:", chErr.message)
   }
 
@@ -548,6 +648,8 @@ Deno.serve(async (req: Request) => {
     sent: channel !== null,
     channel,
     wa_error: waError,
+    wa_window: waWindow,
+    wa_message_id: waMessageId,
     mail_error: mailDetail,
   })
 })
