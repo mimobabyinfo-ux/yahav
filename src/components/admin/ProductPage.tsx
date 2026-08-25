@@ -3,6 +3,7 @@ import { ChevronRight, AlertCircle, ShoppingBag, CalendarDays, Check } from 'luc
 import { supabase, type Workshop, type WorkshopCohort } from '../../lib/supabase'
 import { useWorkshopCategories } from '../../hooks/useWorkshopCategories'
 import CohortsModal from './CohortsModal'
+import WaitlistPanel from './WaitlistPanel'
 import WorkshopOffersPanel from './WorkshopOffersPanel'
 
 // Design handoff phase 4 — "a product is a page". Full-page product
@@ -44,7 +45,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
   const [savedFlash, setSavedFlash] = useState(false)
   const [showCohortsManager, setShowCohortsManager] = useState(false)
 
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, gift_card_enabled: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, gift_card_enabled: false, waitlist_enabled: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '' })
 
   const load = useCallback(async () => {
     const [{ data: w }, { data: all }, { data: cs }, { data: leads }, { data: fs }] = await Promise.all([
@@ -76,6 +77,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
         next_workshop_id: ws.next_workshop_id ?? '', workshop_type: ws.workshop_type ?? '',
         public_registration: ws.public_registration ?? false,
         gift_card_enabled: ws.gift_card_enabled ?? false,
+        waitlist_enabled: ws.waitlist_enabled ?? false,
         linked_form_id: ws.linked_form_id ?? '', feedback_form_id: ws.feedback_form_id ?? '',
         age_from: ws.age_range_start_months?.toString() ?? '', age_to: ws.age_range_end_months?.toString() ?? '',
       })
@@ -116,6 +118,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
       workshop_type: form.workshop_type || null,
       public_registration: form.public_registration,
       gift_card_enabled: form.gift_card_enabled,
+      waitlist_enabled: form.waitlist_enabled,
       linked_form_id: form.linked_form_id || null,
       feedback_form_id: form.feedback_form_id || null,
       age_range_start_months: form.age_from !== '' ? parseFloat(form.age_from) : null,
@@ -253,6 +256,14 @@ export default function ProductPage({ workshopId, onBack }: Props) {
               <input type="checkbox" checked={form.gift_card_enabled} onChange={e => setForm(f => ({ ...f, gift_card_enabled: e.target.checked }))} className="w-4 h-4 accent-mustard-500" />
               <span className="text-sm font-semibold" style={{ color: '#5E4938' }}>🎁 אפשר לרכוש כגיפט קארד</span>
             </label>
+            {/* Yahav 25.8.26. Only for products that genuinely run in cohorts:
+                when there is no upcoming one the store asks to be told
+                instead of selling. Leave it off for anything buyable any day
+                (ליווי פרטני), or its buy button disappears between cohorts. */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.waitlist_enabled} onChange={e => setForm(f => ({ ...f, waitlist_enabled: e.target.checked }))} className="w-4 h-4 accent-mustard-500" />
+              <span className="text-sm font-semibold" style={{ color: '#5E4938' }}>🔔 בלי מחזור פתוח, לאסוף ממתינות במקום למכור</span>
+            </label>
           </div>
           <div className="space-y-3">
             <div><label className={labelCls} style={labelStyle}>תיאור</label>
@@ -341,6 +352,11 @@ export default function ProductPage({ workshopId, onBack }: Props) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Who asked to hear about the next cohort */}
+      {!isPhysical && (
+        <WaitlistPanel workshopId={workshop.id} workshopTitle={workshop.title} cohorts={cohorts} />
       )}
 
       {/* Discounted offer links — inline, same panel the modal used */}

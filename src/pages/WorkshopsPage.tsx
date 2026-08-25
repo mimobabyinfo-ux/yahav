@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useState, useMemo } from 'react'
-import { ExternalLink, MessageCircle, ShoppingBag, Star, X, CreditCard, CalendarDays, GraduationCap, Gift } from 'lucide-react'
+import { ExternalLink, MessageCircle, ShoppingBag, Star, X, CreditCard, CalendarDays, GraduationCap, Gift, Bell, Check } from 'lucide-react'
 import { supabase, Workshop, type PublicCohort } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
@@ -114,6 +114,64 @@ function recordStorePurchase(
   })
 }
 
+// ── "Tell me when a new cohort opens" ─────────────────────────────────────────
+// A product whose cohorts have all run used to keep its buy button. Mothers
+// pressed it and became registration_leads with source='store' — people who
+// looked like they owed money for a workshop that did not exist yet. Three
+// in two days. Now the button asks to be told instead, and the interest
+// lands in workshop_waitlist where Brenda can actually act on it.
+//
+// waitlist_enabled gates this per product, because "no upcoming cohort" is
+// not the same as "cannot be bought".
+function WaitlistButton({ ws, compact = false }: { ws: WorkshopExt; compact?: boolean }) {
+  const { profile } = useAuth()
+  const { track } = useTracker()
+  const [state, setState] = useState<'idle' | 'saving' | 'joined'>('idle')
+
+  useEffect(() => {
+    if (!profile) return
+    let cancelled = false
+    supabase.from('workshop_waitlist')
+      .select('id').eq('workshop_id', ws.id).eq('user_id', profile.id).maybeSingle()
+      .then(({ data }) => { if (!cancelled && data) setState('joined') })
+    return () => { cancelled = true }
+  }, [ws.id, profile])
+
+  async function join() {
+    if (!profile || state !== 'idle') return
+    setState('saving')
+    const { error } = await supabase.from('workshop_waitlist').insert({
+      workshop_id: ws.id,
+      user_id: profile.id,
+      name: profile.mother_name ?? 'לקוחה מהאפליקציה',
+      phone: profile.phone_number ?? null,
+      email: profile.email ?? null,
+    })
+    // A duplicate means she is already on the list, which is the state she
+    // wanted. Only a real failure goes back to idle.
+    if (error && error.code !== '23505') { setState('idle'); return }
+    track('waitlist_join', { workshop_id: ws.id, title: ws.title })
+    setState('joined')
+  }
+
+  if (state === 'joined') {
+    return (
+      <div className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl text-sm font-bold ${compact ? 'py-2.5' : 'py-3.5'}`}
+        style={{ background: '#F0EAE0', color: '#7B604C' }}>
+        <Check className="w-4 h-4" /> נעדכן אותך
+      </div>
+    )
+  }
+  return (
+    <button onClick={join} disabled={state === 'saving' || !profile}
+      className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-60 ${compact ? 'py-2.5' : 'py-3.5'}`}
+      style={{ background: '#E7C78A' }}>
+      <Bell className="w-4 h-4" />
+      {state === 'saving' ? 'רגע...' : 'עדכנו אותי כשייפתח מחזור'}
+    </button>
+  )
+}
+
 // ── Product detail modal ──────────────────────────────────────────────────────
 function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt; onClose: () => void; ownerWhatsapp: string; cohorts: PublicCohort[] }) {
   const { profile } = useAuth()
@@ -127,6 +185,9 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt
   // Cohort-based products go through the registration page (which
   // records the lead + chosen cohort and then leads to payment).
   const registerFlow = cohorts.length > 0 && ws.public_registration
+  // get_public_cohorts only ever returns cohorts starting after today, so an
+  // empty list here means exactly "nothing to sign up to".
+  const showWaitlist = cohorts.length === 0 && ws.waitlist_enabled
   const registerHref = `${window.location.origin}/?register=${ws.id}${selectedCohort ? `&cohort=${selectedCohort}` : ''}`
   const waText = `היי! אני מעוניינת ב: ${ws.title}${chosen ? ` (מחזור ${cohortDateLabel(chosen)})` : ''}`
   return (
@@ -210,6 +271,8 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt
             <span className="flex items-center gap-2"><ExternalLink className="w-4 h-4" /> להרשמה</span>
             {chosen && <span className="text-[12px] font-semibold opacity-80 mt-0.5">למחזור {cohortDateLabel(chosen)}</span>}
           </a>
+        ) : showWaitlist ? (
+          <WaitlistButton ws={ws} />
         ) : ws.payment_link && (
           <a
             href={ws.payment_link}
@@ -509,6 +572,8 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
                           style={{ background: '#E7C78A' }}>
                           <CalendarDays className="w-4 h-4" /> לבחירת מחזור והרשמה
                         </button>
+                      ) : wsCohorts.length === 0 && ws.waitlist_enabled ? (
+                        <WaitlistButton ws={ws} compact />
                       ) : ws.payment_link && (
                         <a href={ws.payment_link} target="_blank" rel="noopener noreferrer"
                           onClick={() => recordStorePurchase(ws, profile, null)}

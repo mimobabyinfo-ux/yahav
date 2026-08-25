@@ -238,6 +238,11 @@ export type Workshop = {
   gift_card_enabled: boolean
   next_workshop_id: string | null
   public_registration: boolean
+  // When true AND the product has no upcoming cohort, the store swaps the
+  // buy button for "tell me when a new cohort opens". A flag rather than an
+  // inference: ליווי פרטני has never had a cohort and is purchasable any
+  // day, so "no cohort" alone must not remove its buy button.
+  waitlist_enabled: boolean
   // Phase 5 / A2 Part 2: optional questionnaire linked to this workshop
   // (FK to forms). Powers the customer card's "did this mother fill
   // the questionnaire" indicator and the cohort-side gap report.
@@ -325,6 +330,29 @@ export type WorkshopOffer = {
 // Each cohort is one workshop × one start_date with optional label /
 // advisory capacity / free-text notes. registration_leads.cohort_id
 // (nullable) attaches a registration to a cohort post-signup.
+// A mother asking to hear about the next cohort of a product that has none
+// right now (migration workshop_waitlist). Deliberately NOT a
+// registration_leads row: interest is not a registration, and putting it
+// there is what made three women look like they owed money for a workshop
+// that did not exist yet.
+export type WorkshopWaitlistRow = {
+  id: string
+  workshop_id: string
+  user_id: string | null
+  // Frozen at the moment she asked, so a later profile edit cannot rewrite
+  // the number Brenda is about to message.
+  name: string
+  phone: string | null
+  normalized_phone: string | null
+  email: string | null
+  note: string | null
+  created_at: string
+  // Stamped when Brenda tells her a cohort opened. Kept, not deleted, so
+  // nobody gets told twice.
+  notified_at: string | null
+  notified_cohort_id: string | null
+}
+
 export type WorkshopCohort = {
   id: string
   workshop_id: string
