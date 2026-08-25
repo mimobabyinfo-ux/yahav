@@ -34,6 +34,7 @@ export type EventType =
   | 'member_open'         // opened another mother's profile
   | 'product_open'        // opened a product sheet in the store
   | 'product_pay_click'   // went out to pay / to the registration page
+  | 'waitlist_join'       // asked to hear when a cohort opens, on a product that has none
   | 'gift_card_open'      // opened the gift card sheet
   | 'perk_open'           // opened a partner perk
 
