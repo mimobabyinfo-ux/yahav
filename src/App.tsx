@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { useTracker } from './hooks/useTracker'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { supabase } from './lib/supabase'
@@ -10,7 +10,6 @@ import JournalPage from './pages/JournalPage'
 import BenefitsPage from './pages/BenefitsPage'
 import WorkshopsPage from './pages/WorkshopsPage'
 import ProAreaPage from './pages/ProAreaPage'
-import AdminPage from './pages/AdminPage'
 import ServicesMarketplacePage from './pages/ServicesMarketplacePage'
 import CommunityPage from './pages/CommunityPage'
 import PublicFormPage from './pages/PublicFormPage'
@@ -40,6 +39,11 @@ import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
 import ActiveTimerBanner from './components/ActiveTimerBanner'
 import InstallPrompt from './components/InstallPrompt'
+
+// Lazy: AdminPage is ~8,000 lines and pulls all of components/admin and
+// @dnd-kit with it. renderPage already gates it at RUNTIME; importing it
+// statically still shipped Brenda's whole admin panel to every mother.
+const AdminPage = lazy(() => import('./pages/AdminPage'))
 
 export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'community' | 'marketplace' | 'log-sleep' | 'log-tummy' | 'log-feeding-breast' | 'log-feeding-bottle' | 'log-feeding-solid' | 'log-diaper' | 'log-medical' | 'log-milestone' | 'log-note'
 export type AdminSection = 'home' | 'insights' | 'users' | 'workshops' | 'events' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'registrations' | 'settings'
@@ -267,7 +271,11 @@ function AppInner() {
       case 'benefits':   return <BenefitsPage />
       case 'workshops':  return <WorkshopsPage onNavigate={navigate} />
       case 'pro':        return <ProAreaPage autoOpenWorkshopId={isCoursePage ? courseWorkshopId : null} />
-      case 'admin':      return <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} overview={adminOverview} />
+      case 'admin':      return (
+        <Suspense fallback={<p className="text-center text-sand-400 text-sm py-12">טוען...</p>}>
+          <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} overview={adminOverview} />
+        </Suspense>
+      )
       case 'marketplace': return <ServicesMarketplacePage />
       case 'community':  return <CommunityPage />
       case 'log-sleep':  return <SleepPage onBack={backFromLog} onSaved={() => setTimerVersion(v => v + 1)} />
