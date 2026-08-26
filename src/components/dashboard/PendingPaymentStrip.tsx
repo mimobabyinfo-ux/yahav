@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Clock } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../contexts/AuthContext'
 
 /**
  * One thin line on the home screen for a mother who started registering
@@ -22,6 +23,14 @@ import { supabase } from '../../lib/supabase'
  * Reads her own rows directly rather than through get_community_events:
  * that RPC is the heaviest query on the home screen, and this needs two
  * columns from an indexed lookup on her own user id.
+ *
+ * The user_id filter is NOT redundant with RLS. The "users read own event
+ * registrations" policy scopes a normal mother to her own rows, but the
+ * "admins manage event registrations" policy is USING (is_admin) FOR ALL,
+ * so an admin account reads everyone's. Without this filter Yahav opened
+ * his own home screen on 26.8 and found five strips telling him that five
+ * other women had not paid. Never let RLS do a query's filtering when an
+ * admin bypass policy exists on the same table.
  */
 
 type Row = {
@@ -38,20 +47,23 @@ type Row = {
 }
 
 export default function PendingPaymentStrip() {
+  const { user } = useAuth()
   const [rows, setRows] = useState<Row[]>([])
 
   useEffect(() => {
+    if (!user?.id) { setRows([]); return }
     const today = new Date().toISOString().slice(0, 10)
     supabase
       .from('event_registrations')
       .select('id, guest_names, payment_claimed_at, community_events!inner(id, title, event_date, payment_link, payment_link_pair)')
+      .eq('user_id', user.id)
       .eq('status', 'pending')
       .eq('paid', false)
       .eq('community_events.is_active', true)
       .gte('community_events.event_date', today)
       .gt('community_events.price', 0)
       .then(({ data }) => setRows((data ?? []) as unknown as Row[]))
-  }, [])
+  }, [user?.id])
 
   if (rows.length === 0) return null
 

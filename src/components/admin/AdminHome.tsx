@@ -7,7 +7,6 @@ import type { AdminTask, AdminTaskSection } from './adminTasks'
 import MimoLeaf from '../MimoLeaf'
 import UnclaimedPurchasesCard from './UnclaimedPurchasesCard'
 import WaitlistHomeCard from './WaitlistHomeCard'
-import StalledEventPaymentsCard from './StalledEventPaymentsCard'
 
 // Admin home ("בית") — answers "what needs me today" (design handoff §3).
 // Three blocks: greeting strip with counters, the derived task list
@@ -202,10 +201,9 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               sees are the same as no leads. Renders nothing when empty. */}
           <WaitlistHomeCard onOpenProduct={onOpenProduct} />
 
-          {/* Chose an event, stopped before paying, and the hold expired
-              within hours without anyone telling her. The warmest leads
-              there are. Renders nothing when empty. */}
-          <StalledEventPaymentsCard />
+          {/* "נרשמו ולא השלימו תשלום" used to sit here too. Yahav 26.8.26:
+              "אני רוצה שזה יהיה רק באירועי קהילה." It lives in
+              EventsAdminPanel only, next to the events it is about. */}
 
           {/* דורש תשומת לב — one line per task, טופל persists (phase 2) */}
           <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>

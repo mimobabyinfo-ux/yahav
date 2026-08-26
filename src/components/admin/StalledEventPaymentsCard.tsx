@@ -31,6 +31,7 @@ type Row = {
   id: string
   user_id: string
   event_id: string
+  guest_names: string[] | null
   created_at: string
   reminded_at: string | null
 }
@@ -41,6 +42,7 @@ type EventRow = {
   event_date: string
   price: number | null
   payment_link: string | null
+  payment_link_pair: string | null
   capacity: number | null
 }
 
@@ -83,7 +85,7 @@ export default function StalledEventPaymentsCard() {
     // Only paid events: a free event has nothing to complete.
     const { data: evs } = await supabase
       .from('community_events')
-      .select('id, title, event_date, price, payment_link, capacity')
+      .select('id, title, event_date, price, payment_link, payment_link_pair, capacity')
       .eq('is_active', true)
       .gte('event_date', today)
       .gt('price', 0)
@@ -100,7 +102,7 @@ export default function StalledEventPaymentsCard() {
       // her, not to have the evidence deleted the moment he acts on it.
       supabase
         .from('event_registrations')
-        .select('id, user_id, event_id, created_at, reminded_at')
+        .select('id, user_id, event_id, guest_names, created_at, reminded_at')
         .in('event_id', ids)
         .eq('status', 'pending')
         .eq('paid', false)
@@ -108,7 +110,7 @@ export default function StalledEventPaymentsCard() {
       // Seats genuinely gone, so "there is still room" is only said when true.
       supabase
         .from('event_registrations')
-        .select('event_id')
+        .select('event_id, guest_names')
         .in('event_id', ids)
         .in('status', ['registered', 'attended']),
     ])
@@ -116,9 +118,11 @@ export default function StalledEventPaymentsCard() {
     const list = (stalled ?? []) as Row[]
     setRows(list)
 
+    // Seats, not rows. A woman who booked for two took two of them, so
+    // counting rows would tell Yahav there is room when there is not.
     const counts: Record<string, number> = {}
-    for (const r of (confirmed ?? []) as { event_id: string }[]) {
-      counts[r.event_id] = (counts[r.event_id] ?? 0) + 1
+    for (const r of (confirmed ?? []) as { event_id: string; guest_names: string[] | null }[]) {
+      counts[r.event_id] = (counts[r.event_id] ?? 0) + 1 + (r.guest_names?.length ?? 0)
     }
     setTaken(counts)
 
