@@ -25,6 +25,8 @@
 // Idempotency is reminded_at on the registration row. The admin card
 // stamps the same column, so a mother Yahav already messaged by hand is
 // skipped here rather than nagged twice through two channels.
+// reminded_channel records which of the two it was, so the card can show
+// "you sent this" and "the system emailed this" as different things.
 //
 // Nothing is cancelled while it can still turn into a paying seat. An
 // earlier draft retired a row four days after the reminder; that would
@@ -154,31 +156,44 @@ Deno.serve(async (req) => {
       continue
     }
 
+    // Morning links are fixed-price, so a link for one cannot charge for
+    // two. Send the pair link for exactly two, and for anything else we
+    // have no link that fits: leave the row unstamped so it stays in the
+    // admin card and Yahav writes to her himself. Never fall back to the
+    // single link, which quietly bills 110 for a 220 booking and only
+    // surfaces at the door.
     const seats = (r.guest_names?.length ?? 0) + 1
-    const link = (seats === 2 && ev.payment_link_pair) ? ev.payment_link_pair : ev.payment_link
-    // No link means there is nothing for her to do. Sending "go pay" with
-    // nowhere to pay is how an app teaches people to ignore its mail.
+    const link = seats === 1 ? ev.payment_link : seats === 2 ? ev.payment_link_pair : null
     if (!link) {
-      reminded.push({ name: who.name ?? r.user_id, event: ev.title, result: 'event has no payment link' })
+      reminded.push({
+        name: who.name ?? r.user_id,
+        event: ev.title,
+        result: seats > 1
+          ? `booked ${seats} seats, no link charges for all of them - needs a manual message`
+          : 'event has no payment link',
+      })
       continue
     }
 
     const hi = firstName(who.name) ? `היי ${escapeHtml(firstName(who.name))},` : 'היי,'
     const when = `${ddmm(ev.event_date)}${ev.start_time ? ` בשעה ${ev.start_time.slice(0, 5)}` : ''}`
     const where = ev.location ? ` ב${escapeHtml(ev.location)}` : ''
+    const guest = firstName(r.guest_names?.[0] ?? null)
+    const withWhom = seats === 2 && guest ? ` עם ${escapeHtml(guest)}` : ''
+    const forAll = seats > 1 ? ' לשתיכן' : ''
 
     const html = `<!doctype html><html lang="he" dir="rtl"><body style="font-family:Arial,sans-serif;color:#3A352E;line-height:1.8;background:#FBF8F3;padding:24px;" dir="rtl">
   <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:20px;padding:28px;">
     <p style="margin:0 0 14px;font-size:16px;">${hi}</p>
     <p style="margin:0 0 14px;font-size:15px;">
-      התחלת להירשם ל<strong>${escapeHtml(ev.title)}</strong> ב-${when}${where}, וההרשמה נעצרה לפני התשלום.
+      התחלת להירשם ל<strong>${escapeHtml(ev.title)}</strong> ב-${when}${where}${withWhom}, וההרשמה נעצרה לפני התשלום.
     </p>
     <p style="margin:0 0 20px;font-size:15px;">
-      שמירת המקום הזמנית פגה, אבל עדיין אפשר להשלים ולתפוס מקום:
+      שמירת המקום הזמנית פגה, אבל עדיין אפשר להשלים${forAll} ולתפוס מקום:
     </p>
     <p style="margin:0 0 22px;">
       <a href="${escapeHtml(link)}" style="display:inline-block;background:#E7C78A;color:#4A3A28;font-weight:bold;font-size:15px;text-decoration:none;padding:13px 26px;border-radius:14px;">
-        להשלמת התשלום · ₪${ev.price}
+        להשלמת התשלום${seats > 1 ? '' : ` · ₪${ev.price}`}
       </a>
     </p>
     <p style="margin:0;font-size:13px;color:#9a8a7a;">
@@ -189,7 +204,7 @@ Deno.serve(async (req) => {
 </body></html>`
 
     if (dry) {
-      reminded.push({ name: who.name ?? r.user_id, event: ev.title, result: `would email ${who.email}` })
+      reminded.push({ name: who.name ?? r.user_id, event: ev.title, result: `would email ${who.email} (${seats} seats)` })
       continue
     }
 
@@ -215,7 +230,7 @@ Deno.serve(async (req) => {
     if (result === 'sent') {
       const { error } = await supabase
         .from('event_registrations')
-        .update({ reminded_at: new Date().toISOString() })
+        .update({ reminded_at: new Date().toISOString(), reminded_channel: 'email' })
         .eq('id', r.id)
       if (error) result = `sent, but stamp failed: ${error.message}`
     }

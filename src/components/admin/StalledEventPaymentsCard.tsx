@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CreditCard, MessageCircle, RotateCcw } from 'lucide-react'
+import { CreditCard, ChevronDown, MessageCircle, Mail, RotateCcw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 /**
@@ -34,6 +34,7 @@ type Row = {
   guest_names: string[] | null
   created_at: string
   reminded_at: string | null
+  reminded_channel: 'whatsapp' | 'email' | null
 }
 
 type EventRow = {
@@ -78,6 +79,11 @@ export default function StalledEventPaymentsCard() {
   const [people, setPeople] = useState<Record<string, { name: string | null; phone: string | null }>>({})
   const [taken, setTaken] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
+  // Yahav 26.8.26: "אני רוצה שיהיה לי אופציה לפתוח ולסגור את זה."
+  // Default follows the work: open while someone is still waiting for a
+  // message, shut once he has written to everyone, so a finished list
+  // stops taking up the events page. null means "he has not decided yet".
+  const [openOverride, setOpenOverride] = useState<boolean | null>(null)
 
   const load = useCallback(async () => {
     const today = new Date().toISOString().slice(0, 10)
@@ -102,7 +108,7 @@ export default function StalledEventPaymentsCard() {
       // her, not to have the evidence deleted the moment he acts on it.
       supabase
         .from('event_registrations')
-        .select('id, user_id, event_id, guest_names, created_at, reminded_at')
+        .select('id, user_id, event_id, guest_names, created_at, reminded_at, reminded_channel')
         .in('event_id', ids)
         .eq('status', 'pending')
         .eq('paid', false)
@@ -168,46 +174,101 @@ export default function StalledEventPaymentsCard() {
     return ev.capacity - (taken[ev.id] ?? 0)
   }
 
+  // How many seats she actually asked for, and whether we have a link that
+  // charges for all of them.
+  //
+  // Yahav 26.8.26: "הקישור עם ההודעה לא מתייחס לאם רשמו שבאה עם עוד מישהו
+  // - למשל עדן רשמה שהיא מגיעה עם עוד מישהו והלינק שלה הוא תשלום אישי."
+  // He is right, and it was the worst kind of bug: the message looked
+  // correct, she would have paid 110 instead of 220, and the shortfall
+  // only surfaces at the door. Morning links are fixed-price, so a link
+  // for one cannot charge for two. Same rule as the registration flow in
+  // EventsTab: the pair link for exactly two, and for three or more there
+  // is no link that fits, so we say so instead of quietly undercharging.
+  function seatsFor(r: Row): number {
+    return (r.guest_names?.length ?? 0) + 1
+  }
+
+  function linkFor(r: Row): string | null {
+    const ev = events[r.event_id]
+    const seats = seatsFor(r)
+    if (seats === 1) return ev.payment_link
+    if (seats === 2) return ev.payment_link_pair
+    return null
+  }
+
   function messageFor(r: Row): string {
     const ev = events[r.event_id]
     const who = firstName(people[r.user_id]?.name ?? null)
     const hi = who ? `היי ${who}` : 'היי'
+    const seats = seatsFor(r)
+    const guest = firstName(r.guest_names?.[0] ?? null)
+    const withWhom = seats === 2 && guest ? ` עם ${guest}` : seats > 2 ? ` עם עוד ${seats - 1}` : ''
     const left = seatsLeft(ev)
-    const room = left == null || left > 0 ? ' יש עדיין מקום,' : ''
-    const link = ev.payment_link ? `\n\n${ev.payment_link}` : ''
-    return `${hi}, ראיתי שנרשמת ל${ev.title} ב-${dayMonth(ev.event_date)} וההרשמה נעצרה לפני התשלום.${room} ואפשר להשלים כאן:${link}`
+    const room = left == null || left >= seats ? ' יש עדיין מקום,' : ''
+    const head = `${hi}, ראיתי שנרשמת ל${ev.title} ב-${dayMonth(ev.event_date)}${withWhom} וההרשמה נעצרה לפני התשלום.${room}`
+    const link = linkFor(r)
+    if (!link) {
+      // No link that charges for everyone coming. Better to ask her to
+      // reply than to send her to a page that takes the wrong amount.
+      return `${head} כתבי לי ואסדר לך קישור לתשלום ל-${seats} משתתפות.`
+    }
+    const forAll = seats > 1 ? ' לשתיכן' : ''
+    return `${head} ואפשר להשלים${forAll} כאן:\n\n${link}`
   }
 
+  // Yahav 26.8.26: "ואם נשלח מייל זה גם יופיע לי?" Yes, and it has to be
+  // distinguishable. A row he wrote to himself on WhatsApp and a row the
+  // cron emailed both end up stamped; without the channel the card would
+  // claim credit for work he did not do, and he would have no way to tell
+  // whether a woman actually heard from a person.
   async function setReminded(r: Row, at: string | null) {
-    setRows(prev => prev.map(x => x.id === r.id ? { ...x, reminded_at: at } : x))
+    const channel = at ? 'whatsapp' as const : null
+    setRows(prev => prev.map(x => x.id === r.id ? { ...x, reminded_at: at, reminded_channel: channel } : x))
     const { error } = await supabase
       .from('event_registrations')
-      .update({ reminded_at: at })
+      .update({ reminded_at: at, reminded_channel: channel })
       .eq('id', r.id)
     // Put the row back the way it was rather than showing a lie.
-    if (error) setRows(prev => prev.map(x => x.id === r.id ? { ...x, reminded_at: r.reminded_at } : x))
+    if (error) setRows(prev => prev.map(x => x.id === r.id
+      ? { ...x, reminded_at: r.reminded_at, reminded_channel: r.reminded_channel } : x))
   }
 
   if (loading || rows.length === 0) return null
 
+  const open = openOverride ?? waiting > 0
+
   return (
     <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="font-bold flex items-center gap-1.5" style={{ fontSize: 16, color: '#443327' }}>
-          <CreditCard className="w-4 h-4" style={{ color: '#C08A5A' }} />
-          נרשמו ולא השלימו תשלום
-        </h2>
-        <span className="font-bold" style={{ fontSize: 13, color: '#C08A5A' }}>
-          {waiting > 0 ? waiting : '✓'}
-        </span>
-      </div>
-      <p className="mb-3" style={{ fontSize: 12, color: '#A2937D' }}>
-        {waiting > 0
-          ? 'בחרו אירוע, נעצרו לפני התשלום, ושמירת המקום פגה תוך שעות. אף אחת מהן לא יודעת.'
-          : 'שלחת לכולן. הן נשארות כאן עד שישלימו תשלום או שההרשמה תתבטל.'}
-      </p>
+      <button
+        onClick={() => setOpenOverride(!open)}
+        className="w-full text-right"
+        aria-expanded={open}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-bold flex items-center gap-1.5" style={{ fontSize: 16, color: '#443327' }}>
+            <CreditCard className="w-4 h-4" style={{ color: '#C08A5A' }} />
+            נרשמו ולא השלימו תשלום
+          </h2>
+          <span className="flex items-center gap-1.5">
+            <span className="font-bold" style={{ fontSize: 13, color: '#C08A5A' }}>
+              {waiting > 0 ? waiting : '✓'}
+            </span>
+            <ChevronDown
+              className="w-4 h-4 transition-transform"
+              style={{ color: '#BCAE99', transform: open ? 'rotate(180deg)' : 'none' }}
+            />
+          </span>
+        </div>
+        <p style={{ fontSize: 12, color: '#A2937D' }}>
+          {waiting > 0
+            ? 'בחרו אירוע, נעצרו לפני התשלום, ושמירת המקום פגה תוך שעות. אף אחת מהן לא יודעת.'
+            : `${rows.length} ממתינות להשלמת תשלום, כבר יצאה אליהן הודעה.`}
+        </p>
+      </button>
 
-      <div className="space-y-3">
+      {!open ? null : (
+      <div className="space-y-3 mt-3">
         {grouped.map(([eventId, list]) => {
           const ev = events[eventId]
           if (!ev) return null
@@ -241,6 +302,13 @@ export default function StalledEventPaymentsCard() {
                         <p style={{ fontSize: 11, color: '#A2937D' }} dir="ltr">
                           {person?.phone ?? 'אין טלפון'}
                         </p>
+                        {seatsFor(r) > 1 && (
+                          <p style={{ fontSize: 11, color: linkFor(r) ? '#7A8F63' : '#C0553A' }}>
+                            {linkFor(r)
+                              ? `נרשמה ל-${seatsFor(r)}, ההודעה כוללת קישור לזוג`
+                              : `נרשמה ל-${seatsFor(r)}, אין קישור שגובה על כולן`}
+                          </p>
+                        )}
                       </div>
 
                       {sent ? (
@@ -249,7 +317,8 @@ export default function StalledEventPaymentsCard() {
                             className="flex-shrink-0 font-bold rounded-full"
                             style={{ fontSize: 11, padding: '4px 9px', background: '#EAF0E4', color: '#4F6B3E' }}
                           >
-                            נשלח {agoHe(r.reminded_at as string)}
+                            {r.reminded_channel === 'email' ? <Mail className="w-3 h-3 inline -mt-0.5 ml-1" /> : null}
+                            {r.reminded_channel === 'email' ? 'מייל אוטומטי' : 'שלחת'} {agoHe(r.reminded_at as string)}
                           </span>
                           {href && (
                             <a
@@ -307,6 +376,7 @@ export default function StalledEventPaymentsCard() {
           )
         })}
       </div>
+      )}
     </div>
   )
 }
