@@ -221,7 +221,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
 
       {/* ── Mobile content ── */}
       <div className="lg:hidden max-w-sm mx-auto px-4 pt-4 space-y-4">
-        {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
+        {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} onOpenProduct={id => { setTab('workshops'); openProductPage(id) }} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTab />}
         {tab === 'insights'   && <><AppUsagePanel /><InsightsTab /></>}
         {tab === 'tips'       && <AgeStagesTab />}
@@ -244,7 +244,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
 
       {/* ── Desktop content ── */}
       <div className="hidden lg:block px-8 py-6">
-        {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
+        {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} onOpenProduct={id => { setTab('workshops'); openProductPage(id) }} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTabDesktop />}
         {tab === 'leads'      && <LeadsTabDesktop />}
         {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <><GiftCardsPanel /><WorkshopsTabDesktop onOpenProduct={openProductPage} /></>)}

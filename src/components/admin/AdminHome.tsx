@@ -6,6 +6,7 @@ import type { AdminOverview } from './useAdminOverview'
 import type { AdminTask, AdminTaskSection } from './adminTasks'
 import MimoLeaf from '../MimoLeaf'
 import UnclaimedPurchasesCard from './UnclaimedPurchasesCard'
+import WaitlistHomeCard from './WaitlistHomeCard'
 
 // Admin home ("בית") — answers "what needs me today" (design handoff §3).
 // Three blocks: greeting strip with counters, the derived task list
@@ -58,9 +59,11 @@ type Props = {
   /** Phase 3 (handoff §4): open a task's destination WITH its context —
    *  filter pre-applied, object pre-opened, context bar shown. */
   onOpenTask?: (task: AdminTask) => void
+  /** Jump straight to a product page from the home screen. */
+  onOpenProduct?: (workshopId: string) => void
 }
 
-export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
+export default function AdminHome({ overview, onSection, onOpenTask, onOpenProduct }: Props) {
   const { profile } = useAuth()
   const { loading, tasks, manualTasks, counters, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
   const [showAllMegalim, setShowAllMegalim] = useState(false)
@@ -192,6 +195,11 @@ export default function AdminHome({ overview, onSection, onOpenTask }: Props) {
               which is the normal state — it only appears when a mother is
               actually stuck, and then it sits above everything else. */}
           <UnclaimedPurchasesCard />
+
+          {/* Yahav 26.8.26: the waitlist was only reachable from inside a
+              product, "מאוד לא אינטואיטיבי ולא זמין". Warm leads nobody
+              sees are the same as no leads. Renders nothing when empty. */}
+          <WaitlistHomeCard onOpenProduct={onOpenProduct} />
 
           {/* דורש תשומת לב — one line per task, טופל persists (phase 2) */}
           <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
