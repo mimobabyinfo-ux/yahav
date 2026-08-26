@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bell, MessageCircle } from 'lucide-react'
+import { Bell, ChevronDown, MessageCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 /**
@@ -56,6 +56,9 @@ export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (i
   const [titles, setTitles] = useState<Record<string, string>>({})
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [loading, setLoading] = useState(true)
+  // Yahav 26.8.26: open/close, like the other home cards. This one holds
+  // people who are waiting on him, so it opens by default.
+  const [open, setOpen] = useState(true)
 
   const load = useCallback(async () => {
     const { data: w } = await supabase
@@ -124,18 +127,24 @@ export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (i
 
   return (
     <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="font-bold flex items-center gap-1.5" style={{ fontSize: 16, color: '#443327' }}>
-          <Bell className="w-4 h-4" style={{ color: '#C8A460' }} />
-          ממתינות למחזור חדש
-        </h2>
-        <span className="font-bold" style={{ fontSize: 13, color: '#C8A460' }}>{rows.length}</span>
-      </div>
-      <p className="mb-3" style={{ fontSize: 12, color: '#A2937D' }}>
-        ביקשו שנעדכן אותן כשייפתח מחזור. הכפתור פותח וואטסאפ עם ההודעה מוכנה.
-      </p>
+      <button onClick={() => setOpen(v => !v)} className="w-full text-right" aria-expanded={open}>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-bold flex items-center gap-1.5" style={{ fontSize: 16, color: '#443327' }}>
+            <Bell className="w-4 h-4" style={{ color: '#C8A460' }} />
+            ממתינות למחזור חדש
+          </h2>
+          <span className="flex items-center gap-1.5">
+            <span className="font-bold" style={{ fontSize: 13, color: '#C8A460' }}>{rows.length}</span>
+            <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: open ? 'rotate(180deg)' : 'none' }} />
+          </span>
+        </div>
+        <p style={{ fontSize: 12, color: '#A2937D' }}>
+          ביקשו שנעדכן אותן כשייפתח מחזור. הכפתור פותח וואטסאפ עם ההודעה מוכנה.
+        </p>
+      </button>
 
-      <div className="space-y-3">
+      {!open ? null : (
+      <div className="space-y-3 mt-3">
         {grouped.map(([workshopId, list]) => {
           const next = nextCohortFor(workshopId)
           return (
@@ -196,6 +205,7 @@ export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (i
           )
         })}
       </div>
+      )}
     </div>
   )
 }

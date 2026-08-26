@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, Plus, RotateCcw, MessageCircle, Baby } from 'lucide-react'
+import { ChevronLeft, ChevronDown, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, Plus, RotateCcw, MessageCircle, Baby } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { AdminOverview } from './useAdminOverview'
@@ -66,6 +66,12 @@ type Props = {
 export default function AdminHome({ overview, onSection, onOpenTask, onOpenProduct }: Props) {
   const { profile } = useAuth()
   const { loading, tasks, manualTasks, counters, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
+
+  // Yahav 26.8.26: he asked for open/close on the home cards. The admin
+  // home has grown into a column of tall lists and he does not need all of
+  // them at once; the ones he has dealt with should get out of the way.
+  const [openMegalim, setOpenMegalim] = useState(true)
+  const [openCapacity, setOpenCapacity] = useState(true)
   const [showAllMegalim, setShowAllMegalim] = useState(false)
   const [busyToggle, setBusyToggle] = useState<string | null>(null)
 
@@ -342,18 +348,26 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               that message reached too early. */}
           <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
             <div className="flex items-baseline justify-between gap-2 mb-1">
-              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>
+              <button
+                onClick={() => setOpenMegalim(v => !v)}
+                className="font-bold flex items-center gap-1.5 text-right"
+                style={{ fontSize: 16, color: '#443327' }}
+                aria-expanded={openMegalim}
+              >
                 מועמדות ל{megalim.targetTitle?.includes('מגלים') ? 'מגלים' : (megalim.targetTitle ?? 'סדנת ההמשך')}
                 {megalim.candidates.length > 0 && (
-                  <span className="font-display" style={{ color: '#8A6A2F' }}> · {megalim.candidates.length}</span>
+                  <span className="font-display" style={{ color: '#8A6A2F' }}>· {megalim.candidates.length}</span>
                 )}
-              </h2>
-              {megalim.candidates.length > 3 && (
+                <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: openMegalim ? 'rotate(180deg)' : 'none' }} />
+              </button>
+              {openMegalim && megalim.candidates.length > 3 && (
                 <button onClick={() => setShowAllMegalim(s => !s)} className="flex-shrink-0 font-bold" style={{ fontSize: 12, color: '#8A6A2F' }}>
                   {showAllMegalim ? 'הצגה מקוצרת' : `הצגת כולן (${megalim.candidates.length})`}
                 </button>
               )}
             </div>
+            {openMegalim && (
+            <>
             <p className="mb-3" style={{ fontSize: 12, color: '#A2937D' }}>
               סיימו עטופים, עוד לא נרשמו למגלים, והתינוק/ת הגיע/ה לגיל {ageHe(megalim.fromMonths)} ומעלה
             </p>
@@ -402,16 +416,42 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                 ל-{megalim.unknownDobCount} בוגרות נוספות אין תאריך לידה של התינוק/ת בשאלון, והן לא נספרות כאן
               </p>
             )}
+            </>
+            )}
           </div>
 
-          {/* כמה נרשמו — cohorts + events, one list by date */}
+          {/* כמה נרשמו — split by kind.
+              Yahav 26.8.26: "בכמה נרשמו שזה יתחלק לי לאירועי קהילה
+              ולסדנאות, כשזה הכל ביחד זה מבלבל." He is right: a community
+              evening and a paid workshop cohort are different businesses
+              with different capacities, and a single date-sorted list
+              interleaved them so neither read as a whole. */}
           <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-            <h2 className="font-bold mb-3" style={{ fontSize: 16, color: '#443327' }}>כמה נרשמו</h2>
-            {capacity.length === 0 ? (
+            <button
+              onClick={() => setOpenCapacity(v => !v)}
+              className="w-full flex items-center justify-between mb-3"
+              aria-expanded={openCapacity}
+            >
+              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>כמה נרשמו</h2>
+              <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: openCapacity ? 'rotate(180deg)' : 'none' }} />
+            </button>
+            {!openCapacity ? null : capacity.length === 0 ? (
               <p className="text-sm py-3 text-center" style={{ color: '#A2937D' }}>אין מחזורים או אירועים קרובים</p>
             ) : (
-              <div className="space-y-1">
-                {capacity.map(row => {
+              <div className="space-y-4">
+                {([
+                  ['event', 'אירועי קהילה'],
+                  ['cohort', 'סדנאות'],
+                ] as const).map(([kind, label]) => {
+                  const group = capacity.filter(r => r.kind === kind)
+                  if (group.length === 0) return null
+                  return (
+                    <div key={kind}>
+                      <p className="font-bold mb-1.5 px-1" style={{ fontSize: 13, color: '#6E5836' }}>
+                        {label} · {group.length}
+                      </p>
+                      <div className="space-y-1">
+                {group.map(row => {
                   const ratio = row.capacity ? Math.min(1, row.count / row.capacity) : 0
                   const left = row.capacity != null ? Math.max(0, row.capacity - row.count) : null
                   const tight = left != null && left <= 3
@@ -428,7 +468,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                       <span className="flex-1 min-w-0">
                         <span className="block font-bold truncate" style={{ fontSize: 14, color: '#443327' }}>
                           {row.title}
-                          <span className="font-semibold" style={{ color: '#A2937D' }}> · {row.kind === 'cohort' ? 'מחזור' : 'אירוע'}{row.time ? ` · ${row.time}` : ''}</span>
+                          {row.time && <span className="font-semibold" style={{ color: '#A2937D' }}> · {row.time}</span>}
                         </span>
                         <span className="block mt-1.5 rounded-full overflow-hidden" style={{ height: 6, background: '#F1EBE1' }}>
                           <span className="block h-full rounded-full" style={{ width: `${ratio * 100}%`, background: tight ? '#8B4A30' : '#C8A460' }} />
@@ -443,6 +483,10 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                         </span>
                       </span>
                     </button>
+                  )
+                })}
+                      </div>
+                    </div>
                   )
                 })}
               </div>

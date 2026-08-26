@@ -734,11 +734,6 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
         </p>
       </div>
 
-      {/* Yahav 26.8.26: he wanted this on the events page too, not only on
-          the admin home. This is where he is standing when he thinks about
-          an event, so this is where the people who nearly registered for it
-          belong. */}
-      <StalledEventPaymentsCard />
 
       {credits.length > 0 && (
         <div className="bg-white rounded-3xl p-4 shadow-sm space-y-2">
@@ -849,6 +844,11 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
             : <p className="text-center text-xs text-sand-400">לחיצה על אירוע ביומן תציג את הפרטים והפעולות שלו כאן</p>}
         </div>
       )}
+
+      {/* Yahav 26.8.26: "תוריד את נרשמו ולא השלימו תשלום למטה מתחת
+          לאירועים." Below the list, not above it: the events are the job,
+          and this is the follow-up on them. */}
+      <StalledEventPaymentsCard />
 
       {/* ── Create / edit modal ── */}
       {showForm && (
