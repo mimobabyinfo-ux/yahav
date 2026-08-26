@@ -16,6 +16,7 @@ import RecommendedWorkshopCard from '../components/dashboard/RecommendedWorkshop
 import MyCoursesCard from '../components/dashboard/MyCoursesCard'
 import AgeGuideCard from '../components/dashboard/AgeGuideCard'
 import HomeAnnouncementsBanner from '../components/dashboard/HomeAnnouncementsBanner'
+import PendingPaymentStrip from '../components/dashboard/PendingPaymentStrip'
 import MimoLeaf from '../components/MimoLeaf'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import type { Page } from '../App'
@@ -274,6 +275,10 @@ export default function DashboardPage({ onNavigate }: Props) {
             "pop" the moment the app opens */}
         <HomeAnnouncementsBanner onNavigate={onNavigate} />
 
+        {/* Started paying for an event and never came back. One thin line,
+            and nothing at all for everyone else. */}
+        <PendingPaymentStrip />
+
         {/* 2 · Quick-log — Tier 1, always visible */}
         {selectedChild && (
           <div className="flex flex-col" style={{ background: '#F6ECD8', borderRadius: 26, padding: '18px 16px 14px', gap: 14 }}>
@@ -295,22 +300,30 @@ export default function DashboardPage({ onNavigate }: Props) {
           </div>
         )}
 
-        {/* The way in to a purchased course. The pro area has no nav tab,
-            so this card is a mother's only route to content she paid for. */}
+        {/* Yahav 26.8.26: "זה לא עמוס מדי? אולי כדאי לשנות את הסדר?"
+            He was right. The old order ran quick-log, her courses, the
+            guide, a product recommendation, and only then the community,
+            so two of the first four blocks were us selling. The rule now
+            is: what is happening with her baby, then what is happening in
+            the community, then anything we want from her.
+
+            Her courses stay above the guide: 37 of the 90 mothers have
+            bought something, the pro area has no nav tab, and this card is
+            their only door to it. It renders nothing for everyone else. */}
         <MyCoursesCard onNavigate={onNavigate} />
 
         {/* What her baby's age looks like right now, from Brenda's own
-            course material. Sits above the product recommendation on
-            purpose: the guide is what she came for, the recommendation is
-            what it happens to lead to. */}
+            course material. This is what she came for after logging. */}
         <AgeGuideCard />
-
-        {/* Age-matched product recommendation — what fits the baby's age
-            right now, without digging through the store */}
-        <RecommendedWorkshopCard onNavigate={onNavigate} />
 
         {/* 3 · Community — Tier 2 */}
         <UpcomingEventsCard onNavigate={onNavigate} />
+
+        {/* Age-matched product recommendation — what fits the baby's age
+            right now, without digging through the store. Last of the
+            content blocks on purpose: it is the only one here that exists
+            to sell something. */}
+        <RecommendedWorkshopCard onNavigate={onNavigate} />
 
         {/* The "גישה לסדנה פתוחה עד…" badge used to live here. It looked
             like a button, wasn't one, and led nowhere — the first thing a

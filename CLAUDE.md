@@ -459,3 +459,40 @@ registered.
 Trap worth remembering: `event_registrations.status` has a CHECK
 constraint. Adding a new status means altering it, and `tsc` will not
 catch that. It cost a broken registration flow on production.
+
+### Stalled event payments (26.8.26)
+
+A mother who taps "אני מגיעה!" on a paid event and never finishes paying
+leaves a row that is `pending` and `paid=false` forever: not registered,
+not cancelled. Her 10-minute hold lapses silently, so she also never
+learns her seat is gone. On 26.8 there were six such rows, up to eight
+days old, visible only inside one event's registrant list.
+
+Three things now cover it, in order of how reliably they arrive:
+
+- `PendingPaymentStrip` on the mother's home screen. One thin line with a
+  payment button, rendered only for the handful who have a pending row.
+  The community tab already said this inside the event card; the point of
+  the strip is that she does not have to go back and look.
+- `remind-stalled-payments` (edge function + daily cron, 07:45 UTC).
+  Emails her once, a day after she stalls. It also cancels pending rows
+  whose event has already passed.
+- `StalledEventPaymentsCard` on the admin home AND inside the community
+  events page. A wa.me link per person, from Yahav's own phone.
+
+**Email, not WhatsApp, for the automated leg.** The GHL API returns 200
+for a WhatsApp message WhatsApp then refuses, and it refuses everything
+outside 24 hours of HER last inbound message. Registering in the app is
+not a message, so the window is shut by definition for every mother this
+targets. An automated WhatsApp here would report success and deliver
+nothing. Do not "improve" this by wiring the API back in.
+
+`reminded_at` is the shared idempotency stamp: the admin card writes it
+when Yahav sends by hand, and the cron skips anyone who already carries
+it, so nobody is nudged twice through two channels. The card no longer
+drops a row when he sends; it greys it, shows when, and offers undo.
+
+Retirement waits for the event date to pass. An earlier draft cancelled
+four days after the reminder, which would have killed five live leads
+whose events ran weeks out and freed nothing: a pending row stops
+counting against capacity the moment its hold expires.

@@ -6,7 +6,8 @@ import type { Page } from '../../App'
 
 // Admin-controlled home-page announcements (מבצעים / הנחות / הודעות).
 // Managed from the admin perks tab (HomeAnnouncementsPanel). Only
-// active announcements inside their date window render; ordering is
+// active announcements inside their date window render, and only the
+// first of them: the home feed shows ONE banner at a time. Which one is
 // admin-controlled via display_order. Tapping navigates by link_type.
 
 export default function HomeAnnouncementsBanner({ onNavigate }: { onNavigate: (page: Page) => void }) {
@@ -22,9 +23,17 @@ export default function HomeAnnouncementsBanner({ onNavigate }: { onNavigate: (p
         // Date-window filter in Israel-calendar terms (formatDate is
         // Asia/Jerusalem-anchored) — RLS already filters is_active.
         const today = formatDate(new Date())
-        setItems(((data ?? []) as HomeAnnouncement[]).filter(a =>
+        const live = ((data ?? []) as HomeAnnouncement[]).filter(a =>
           (!a.starts_at || a.starts_at <= today) && (!a.ends_at || a.ends_at >= today)
-        ))
+        )
+        // One at a time. Yahav 26.8.26: "זה לא עמוס מדי?" - two of these
+        // were live at once and they render as two identical gold blocks
+        // stacked at the top of the feed, so the evergreen referral offer
+        // was sitting above the sleep talk that fills up on 31.8. Two
+        // announcements shouting together is zero announcements read.
+        // The window filter runs first, so an expired banner cannot take
+        // the slot from a live one; display_order decides which wins.
+        setItems(live.slice(0, 1))
       })
   }, [])
 

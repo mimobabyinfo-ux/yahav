@@ -2,6 +2,7 @@
 import { Plus, Pencil, Trash2, X, XCircle, UserPlus, MessageCircle, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown, Link2, Copy, RefreshCw, ExternalLink, Check } from 'lucide-react'
 import { supabase, type CommunityEvent, type ServicePartner } from '../../lib/supabase'
 import ConfirmDialog from './ConfirmDialog'
+import StalledEventPaymentsCard from './StalledEventPaymentsCard'
 import { getBabyAge } from '../../utils/dateUtils'
 import { tagDef } from '../../constants/communityTags'
 
@@ -732,6 +733,12 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
           ביטול תמיד אפשרי. אחרי החלון הזה ההרשמה מתבטלת והמקום מתפנה, אבל בלי זיכוי.
         </p>
       </div>
+
+      {/* Yahav 26.8.26: he wanted this on the events page too, not only on
+          the admin home. This is where he is standing when he thinks about
+          an event, so this is where the people who nearly registered for it
+          belong. */}
+      <StalledEventPaymentsCard />
 
       {credits.length > 0 && (
         <div className="bg-white rounded-3xl p-4 shadow-sm space-y-2">

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CreditCard, MessageCircle } from 'lucide-react'
+import { CreditCard, MessageCircle, RotateCcw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 /**
@@ -12,12 +12,17 @@ import { supabase } from '../../lib/supabase'
  * holds expired within HOURS of her registering. She picked the event,
  * opened the payment page, got interrupted, and the seat quietly went back
  * to the pool. Nobody told her. The row then sits as 'pending' forever —
- * not registered, not cancelled — and is invisible unless you open that
- * one event's registrant list.
+ * not registered, not cancelled.
  *
- * The message is honest about this. It does not say "שמרתי לך מקום",
- * because the hold is gone; it says there is still room, which the card
- * only claims when seats_left is genuinely > 0.
+ * Yahav 26.8.26 (second pass): "אחרי שאני לוחץ על שליחת הודעה זה לא יעלם
+ * אלא יסומן כשנשלח." Right — the row vanishing was me optimising for a
+ * short list instead of for him knowing what he did. WhatsApp does not
+ * tell us whether she read it, so the only record that a nudge happened
+ * is this row. Now it stays, greys out, shows the date, and can be undone
+ * or sent again.
+ *
+ * Rendered both on the admin home and inside the community-events page,
+ * because that is where he is standing when he thinks about an event.
  *
  * Sending is a wa.me link. See project memory: whatsapp_24h_window.
  */
@@ -27,6 +32,7 @@ type Row = {
   user_id: string
   event_id: string
   created_at: string
+  reminded_at: string | null
 }
 
 type EventRow = {
@@ -90,13 +96,14 @@ export default function StalledEventPaymentsCard() {
 
     const ids = eventList.map(e => e.id)
     const [{ data: stalled }, { data: confirmed }] = await Promise.all([
+      // Reminded rows are kept. He needs to see that he already wrote to
+      // her, not to have the evidence deleted the moment he acts on it.
       supabase
         .from('event_registrations')
-        .select('id, user_id, event_id, created_at')
+        .select('id, user_id, event_id, created_at, reminded_at')
         .in('event_id', ids)
         .eq('status', 'pending')
         .eq('paid', false)
-        .is('reminded_at', null)
         .order('created_at'),
       // Seats genuinely gone, so "there is still room" is only said when true.
       supabase
@@ -131,6 +138,8 @@ export default function StalledEventPaymentsCard() {
   }, [])
   useEffect(() => { load() }, [load])
 
+  // Grouped by event, and inside each group the ones still waiting for a
+  // message come first. The done ones stay visible underneath them.
   const grouped = useMemo(() => {
     const m = new Map<string, Row[]>()
     for (const r of rows) {
@@ -138,8 +147,17 @@ export default function StalledEventPaymentsCard() {
       arr.push(r)
       m.set(r.event_id, arr)
     }
+    for (const arr of m.values()) {
+      arr.sort((a, b) => {
+        if (!a.reminded_at && b.reminded_at) return -1
+        if (a.reminded_at && !b.reminded_at) return 1
+        return a.created_at.localeCompare(b.created_at)
+      })
+    }
     return [...m.entries()]
   }, [rows])
+
+  const waiting = rows.filter(r => !r.reminded_at).length
 
   function seatsLeft(ev: EventRow): number | null {
     if (ev.capacity == null) return null
@@ -156,12 +174,14 @@ export default function StalledEventPaymentsCard() {
     return `${hi}, ראיתי שנרשמת ל${ev.title} ב-${dayMonth(ev.event_date)} וההרשמה נעצרה לפני התשלום.${room} ואפשר להשלים כאן:${link}`
   }
 
-  async function markReminded(r: Row) {
-    await supabase
+  async function setReminded(r: Row, at: string | null) {
+    setRows(prev => prev.map(x => x.id === r.id ? { ...x, reminded_at: at } : x))
+    const { error } = await supabase
       .from('event_registrations')
-      .update({ reminded_at: new Date().toISOString() })
+      .update({ reminded_at: at })
       .eq('id', r.id)
-    setRows(prev => prev.filter(x => x.id !== r.id))
+    // Put the row back the way it was rather than showing a lie.
+    if (error) setRows(prev => prev.map(x => x.id === r.id ? { ...x, reminded_at: r.reminded_at } : x))
   }
 
   if (loading || rows.length === 0) return null
@@ -173,10 +193,14 @@ export default function StalledEventPaymentsCard() {
           <CreditCard className="w-4 h-4" style={{ color: '#C08A5A' }} />
           נרשמו ולא השלימו תשלום
         </h2>
-        <span className="font-bold" style={{ fontSize: 13, color: '#C08A5A' }}>{rows.length}</span>
+        <span className="font-bold" style={{ fontSize: 13, color: '#C08A5A' }}>
+          {waiting > 0 ? waiting : '✓'}
+        </span>
       </div>
       <p className="mb-3" style={{ fontSize: 12, color: '#A2937D' }}>
-        בחרו אירוע, נעצרו לפני התשלום, ושמירת המקום פגה תוך שעות. אף אחת מהן לא יודעת.
+        {waiting > 0
+          ? 'בחרו אירוע, נעצרו לפני התשלום, ושמירת המקום פגה תוך שעות. אף אחת מהן לא יודעת.'
+          : 'שלחת לכולן. הן נשארות כאן עד שישלימו תשלום או שההרשמה תתבטל.'}
       </p>
 
       <div className="space-y-3">
@@ -199,39 +223,77 @@ export default function StalledEventPaymentsCard() {
                 {list.map(r => {
                   const person = people[r.user_id]
                   const href = waHref(person?.phone ?? null, messageFor(r))
+                  const sent = !!r.reminded_at
                   return (
-                    <div key={r.id} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: '#FBF8F3' }}>
+                    <div
+                      key={r.id}
+                      className="flex items-center gap-2 rounded-2xl px-3 py-2"
+                      style={{ background: sent ? '#FDFBF8' : '#FBF8F3', opacity: sent ? 0.75 : 1 }}
+                    >
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate" style={{ fontSize: 13, color: '#443327' }}>
+                        <p className="font-semibold truncate" style={{ fontSize: 13, color: sent ? '#8A7B67' : '#443327' }}>
                           {person?.name ?? 'לא ידוע'}
                         </p>
                         <p style={{ fontSize: 11, color: '#A2937D' }} dir="ltr">
                           {person?.phone ?? 'אין טלפון'}
                         </p>
                       </div>
-                      <span style={{ fontSize: 11, color: '#BCAE99' }} className="flex-shrink-0">
-                        נרשמה {agoHe(r.created_at)}
-                      </span>
-                      {href ? (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => markReminded(r)}
-                          className="flex-shrink-0 inline-flex items-center gap-1 rounded-xl font-bold text-white"
-                          style={{ background: '#5C7A4A', fontSize: 12, padding: '6px 10px' }}
-                        >
-                          <MessageCircle className="w-3.5 h-3.5" />
-                          הזכירי
-                        </a>
+
+                      {sent ? (
+                        <>
+                          <span
+                            className="flex-shrink-0 font-bold rounded-full"
+                            style={{ fontSize: 11, padding: '4px 9px', background: '#EAF0E4', color: '#4F6B3E' }}
+                          >
+                            נשלח {agoHe(r.reminded_at as string)}
+                          </span>
+                          {href && (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setReminded(r, new Date().toISOString())}
+                              className="flex-shrink-0 rounded-xl font-semibold"
+                              style={{ background: '#F0EAE0', color: '#6E5836', fontSize: 11, padding: '5px 8px' }}
+                            >
+                              שוב
+                            </a>
+                          )}
+                          <button
+                            onClick={() => setReminded(r, null)}
+                            title="לא נשלח בסוף"
+                            className="flex-shrink-0"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" style={{ color: '#BCAE99' }} />
+                          </button>
+                        </>
                       ) : (
-                        <button
-                          onClick={() => markReminded(r)}
-                          className="flex-shrink-0 rounded-xl font-semibold"
-                          style={{ background: '#F0EAE0', color: '#6E5836', fontSize: 12, padding: '6px 10px' }}
-                        >
-                          סמן
-                        </button>
+                        <>
+                          <span style={{ fontSize: 11, color: '#BCAE99' }} className="flex-shrink-0">
+                            נרשמה {agoHe(r.created_at)}
+                          </span>
+                          {href ? (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setReminded(r, new Date().toISOString())}
+                              className="flex-shrink-0 inline-flex items-center gap-1 rounded-xl font-bold text-white"
+                              style={{ background: '#5C7A4A', fontSize: 12, padding: '6px 10px' }}
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              הזכירי
+                            </a>
+                          ) : (
+                            <button
+                              onClick={() => setReminded(r, new Date().toISOString())}
+                              className="flex-shrink-0 rounded-xl font-semibold"
+                              style={{ background: '#F0EAE0', color: '#6E5836', fontSize: 12, padding: '6px 10px' }}
+                            >
+                              סמן
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   )
