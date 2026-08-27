@@ -138,6 +138,13 @@ export default function EventsTab() {
       .sort((a, b) => a.expires_at.localeCompare(b.expires_at) || Number(a.amount) - Number(b.amount))[0] ?? null
   }
 
+  /** What comes back after paying with this credit. Brenda 27.8.26: a
+   *  credit larger than the event no longer burns whole — the remainder is
+   *  re-issued with the same expiry, so the button can promise it. */
+  function creditChange(credit: MyCredit, total: number): number {
+    return Math.max(0, Number(credit.amount) - total)
+  }
+
   /** Is a cancellation still early enough to earn the credit back?
    *  Same rule as cancel_event_registration, so the sheet can tell her the
    *  truth before she taps instead of after. */
@@ -593,6 +600,11 @@ export default function EventsTab() {
                     style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
                   >
                     או לשלם עם הזיכוי שלי (₪{Number(credit.amount)})
+                    {creditChange(credit, ev.price * ((ev.my_guests?.length ?? 0) + 1)) > 0 && (
+                      <span className="block text-[12px] font-semibold opacity-80">
+                        יישאר לך ₪{creditChange(credit, ev.price * ((ev.my_guests?.length ?? 0) + 1))} לפעם הבאה
+                      </span>
+                    )}
                   </button>
                 )
               })()}
@@ -709,9 +721,13 @@ export default function EventsTab() {
               {(() => {
                 // One credit covers one event, same price or less. If none
                 // of her credits reaches this total she pays normally —
-                // credits are not added together.
-                const credit = creditFor(ev.price * (cleanGuests(ev).length + 1))
+                // credits are not added together. What the credit does NOT
+                // spend now comes back as a smaller credit, so a big one is
+                // no longer wasted on a cheap event.
+                const total = ev.price * (cleanGuests(ev).length + 1)
+                const credit = creditFor(total)
                 if (!credit) return null
+                const change = creditChange(credit, total)
                 return (
                   <button
                     onClick={() => redeemCredit(ev)}
@@ -720,6 +736,11 @@ export default function EventsTab() {
                     style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
                   >
                     לשימוש בזיכוי שלי (₪{Number(credit.amount)})
+                    {change > 0 && (
+                      <span className="block text-[12px] font-semibold opacity-80">
+                        יישאר לך ₪{change} לפעם הבאה
+                      </span>
+                    )}
                   </button>
                 )
               })()}

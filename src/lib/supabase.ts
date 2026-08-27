@@ -324,6 +324,12 @@ export type WorkshopOffer = {
   expires_at: string | null
   is_active: boolean
   created_at: string
+  /** Set on the template offer that is handed out automatically to
+   *  anyone who finishes a cohort of THIS workshop. */
+  auto_for_graduates_of?: string | null
+  /** Set on a per-mother clone minted by grant_graduate_offers. The admin
+   *  list hides these — they are generated, not authored. */
+  granted_to_user_id?: string | null
 }
 
 // Phase 5 / A1: workshops have recurring cohorts (Hebrew label: "מחזור").
@@ -727,6 +733,9 @@ export type MyCredit = {
   id: string
   amount: number
   event_title: string | null
+  /** Why it exists when no cancelled event explains it — an overpayment
+   *  refund, or the change from a bigger credit. */
+  grant_note: string | null
   created_at: string
   expires_at: string
 }

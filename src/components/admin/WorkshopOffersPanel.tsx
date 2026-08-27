@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+﻿import { useCallback, useEffect, useState } from 'react'
 import { Plus, Trash2, Copy, Check, X, Pencil } from 'lucide-react'
 import { supabase, type WorkshopOffer } from '../../lib/supabase'
 import ConfirmDialog from './ConfirmDialog'
@@ -81,14 +81,29 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
   const [pendingDelete, setPendingDelete] = useState<WorkshopOffer | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
 
+  // Personal links minted for graduates (granted_to_user_id set) are
+  // deliberately kept out of this list. One per mother per cohort would
+  // bury the handful of offers Brenda actually writes; they are counted
+  // instead, and each one dies on its own a week after it is issued.
+  const [grantedCount, setGrantedCount] = useState(0)
+
   const load = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase
       .from('workshop_offers')
       .select('*')
       .eq('workshop_id', workshopId)
+      .is('granted_to_user_id', null)
       .order('created_at', { ascending: false })
     setOffers((data ?? []) as WorkshopOffer[])
+    const { count } = await supabase
+      .from('workshop_offers')
+      .select('id', { count: 'exact', head: true })
+      .eq('workshop_id', workshopId)
+      .not('granted_to_user_id', 'is', null)
+      .eq('is_active', true)
+      .gt('expires_at', new Date().toISOString())
+    setGrantedCount(count ?? 0)
     setLoading(false)
   }, [workshopId])
 
@@ -220,6 +235,11 @@ export default function WorkshopOffersPanel({ workshopId, origin = window.locati
           <p className="text-[11px] text-sand-500 mt-0.5 leading-relaxed">
             לינק מיוחד שמראה מחיר מוזל. לא מופיע בעמוד ההרשמה הרגיל, ונשלח רק למי שרוצים לתת לה את ההנחה.
           </p>
+          {grantedCount > 0 && (
+            <p className="text-[11px] mt-1 font-semibold" style={{ color: '#A35C3D' }}>
+              ועוד {grantedCount} לינקים אישיים פעילים שנשלחו אוטומטית לבוגרות. הם נוצרים לבד ופגים אחרי שבוע.
+            </p>
+          )}
         </div>
         {!showForm && (
           <button

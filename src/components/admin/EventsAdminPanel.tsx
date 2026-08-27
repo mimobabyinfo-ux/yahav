@@ -61,6 +61,10 @@ type OpenCredit = {
   phone_number: string | null
   amount: number
   event_title: string | null
+  /** Why a credit with no event exists — an overpayment refund, change
+   *  from a partial redemption. NULL on the classic cancellation credit,
+   *  which event_title already explains. */
+  grant_note: string | null
   created_at: string
   expires_at: string
 }
@@ -744,14 +748,14 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
             </span>
           </div>
           <p className="text-xs text-sand-500">
-            ביטלו אחרי שכבר שילמו. הכסף נשאר אצלנו והן אמורות לקבל מקום באירוע אחר. אין דרך לתת את זה אוטומטית, אז זה יושב כאן עד שתסמן מומש.
+            ביטלו אחרי שכבר שילמו, או קיבלו זיכוי על תשלום עודף. הכסף נשאר אצלנו והן יכולות לממש אותו בהרשמה לאירוע. אם הזיכוי גדול מהאירוע, ההפרש נשאר להן לפעם הבאה. מסמנים מומש רק כשסגרת את זה מחוץ לאפליקציה.
           </p>
           {credits.map(c => (
             <div key={c.id} className="flex items-center gap-2 border border-sand-100 rounded-2xl p-2.5">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-sand-800 truncate">{c.mother_name} · ₪{c.amount}</p>
                 <p className="text-[13px] text-sand-500 truncate">
-                  {c.event_title ?? 'אירוע שנמחק'} · בתוקף עד {ddmm(c.expires_at.slice(0, 10))}
+                  {c.event_title ?? c.grant_note ?? 'זיכוי ידני'} · בתוקף עד {ddmm(c.expires_at.slice(0, 10))}
                 </p>
               </div>
               {c.phone_number && (

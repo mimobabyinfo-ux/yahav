@@ -5,6 +5,14 @@ import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { useTracker } from '../hooks/useTracker'
 import { useWorkshopCategories, categoryLabel } from '../hooks/useWorkshopCategories'
+import {
+  useGraduateOffers,
+  graduateOfferPrice,
+  graduateOfferLink,
+  graduateOfferDaysLeft,
+  graduateOfferDeadline,
+  type GraduateOffer,
+} from '../hooks/useGraduateOffers'
 import { formatDate } from '../utils/dateUtils'
 import GiftCardModal from '../components/giftcard/GiftCardModal'
 import GiftCardSendForm from '../components/giftcard/GiftCardSendForm'
@@ -172,8 +180,40 @@ function WaitlistButton({ ws, compact = false }: { ws: WorkshopExt; compact?: bo
   )
 }
 
+// ── Graduate discount ─────────────────────────────────────────────
+// Brenda 27.8.26: a mother who finished עטופים sees the משפחת מימו
+// price on מגלים here, and the buy button carries HER link. The token is
+// personal (max_uses 1) and dies a week after her last meeting, so the
+// price on the shelf and the price at checkout are the same number.
+
+function GraduateBadge({ offer }: { offer: GraduateOffer }) {
+  const days = graduateOfferDaysLeft(offer)
+  return (
+    <span className="inline-flex items-center gap-1 text-[12px] font-bold px-2.5 py-1 rounded-full"
+      style={{ background: '#F6E3DA', color: '#A35C3D' }}>
+      <Gift className="w-3 h-3" />
+      משפחת מימו · {days <= 1 ? 'יום אחרון' : `עד ${graduateOfferDeadline(offer)}`}
+    </span>
+  )
+}
+
+/** List price struck through next to what she actually pays. */
+function GraduatePrice({ ws, offer, size }: { ws: WorkshopExt; offer: GraduateOffer; size: 'card' | 'modal' }) {
+  const price = graduateOfferPrice(offer)
+  if (price == null) return null
+  const big = size === 'modal' ? 'text-xl' : 'text-lg'
+  return (
+    <span className="flex items-baseline gap-2">
+      {ws.price != null && ws.price !== price && (
+        <span className="text-sm line-through" style={{ color: '#A79684' }}>₪{ws.price}</span>
+      )}
+      <span className={`${big} font-black`} style={{ color: '#A35C3D' }}>₪{price}</span>
+    </span>
+  )
+}
+
 // ── Product detail modal ──────────────────────────────────────────────────────
-function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt; onClose: () => void; ownerWhatsapp: string; cohorts: PublicCohort[] }) {
+function ProductModal({ ws, onClose, ownerWhatsapp, cohorts, offer }: { ws: WorkshopExt; onClose: () => void; ownerWhatsapp: string; cohorts: PublicCohort[]; offer: GraduateOffer | null }) {
   const { profile } = useAuth()
   const { track } = useTracker()
   // Pre-select the first cohort that still has room, so the register
@@ -226,8 +266,13 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt
         <div className="p-6 space-y-5">
           {/* Title + price */}
           <div className="flex items-start justify-between gap-3">
-            <h2 className="font-bold text-sand-800 text-xl leading-tight">{ws.title}</h2>
-            {ws.price != null && (
+            <div className="space-y-2">
+              <h2 className="font-bold text-sand-800 text-xl leading-tight">{ws.title}</h2>
+              {offer && <GraduateBadge offer={offer} />}
+            </div>
+            {offer ? (
+              <span className="flex-shrink-0"><GraduatePrice ws={ws} offer={offer} size="modal" /></span>
+            ) : ws.price != null && (
               <span className="text-xl font-bold text-mustard-600 flex-shrink-0">
                 {ws.price === 0 ? 'חינם' : `₪${ws.price}`}
               </span>
@@ -259,7 +304,20 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts }: { ws: WorkshopExt
           WhatsApp
         </a>
 
-        {registerFlow ? (
+        {offer ? (
+          /* Her own discount link. It opens the registration page in offer
+             mode, where the cohort is picked and the discounted payment
+             link takes over. */
+          <a
+            href={graduateOfferLink(offer)}
+            onClick={() => track('product_pay_click', { workshop_id: ws.id, title: ws.title, route: 'graduate_offer' })}
+            className="flex-1 flex flex-col items-center justify-center font-bold py-2.5 rounded-2xl text-sm transition-all"
+            style={{ background: '#A35C3D', color: '#FFFFFF' }}
+          >
+            <span className="flex items-center gap-2"><Gift className="w-4 h-4" /> להרשמה בהנחה</span>
+            <span className="text-[12px] font-semibold opacity-90 mt-0.5">המחיר שלך כבר מעודכן בקישור</span>
+          </a>
+        ) : registerFlow ? (
           /* Registration page with the chosen cohort pre-selected —
              records the lead + cohort, then continues to payment */
           <a
@@ -312,6 +370,9 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
   const { track } = useTracker()
   const { ownerWhatsapp } = useOwnerSettings()
   const { categories } = useWorkshopCategories()
+  // Discounts she earned by finishing a workshop, keyed by the product
+  // they apply to. Empty for almost everyone.
+  const { byWorkshop: graduateOffers } = useGraduateOffers()
   const isPregnant = profile?.user_mode === 'pregnant'
   const [workshops, setWorkshops] = useState<WorkshopExt[]>([])
   const [purchases, setPurchases] = useState<PurchasedRow[]>([])
@@ -499,6 +560,7 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
               filtered.map(ws => {
                 const isFeatured = ws.display_order === 1
                 const wsCohorts = cohortsByWorkshop.get(ws.id) ?? []
+                const gradOffer = graduateOffers.get(ws.id) ?? null
                 return (
                   <div key={ws.id} className="bg-white rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => openProduct(ws)}>
                     <div className="flex gap-3 p-4">
@@ -512,7 +574,12 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
                         {ws.description && (
                           <p className="text-xs leading-relaxed line-clamp-2" style={{ color: '#818267' }}>{ws.description.split('\n')[0]}</p>
                         )}
-                        {ws.price != null && (
+                        {gradOffer ? (
+                          <div className="space-y-1.5">
+                            <GraduatePrice ws={ws} offer={gradOffer} size="card" />
+                            <GraduateBadge offer={gradOffer} />
+                          </div>
+                        ) : ws.price != null && (
                           <p className="text-lg font-black" style={{ color: '#D9B978' }}>{ws.price === 0 ? 'חינם' : `₪${ws.price}`}</p>
                         )}
                       </div>
@@ -564,7 +631,14 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
                         style={{ background: '#818267' }}>
                         <MessageCircle className="w-4 h-4" /> וואטסאפ
                       </a>
-                      {wsCohorts.length > 0 && ws.public_registration ? (
+                      {gradOffer ? (
+                        <a href={graduateOfferLink(gradOffer)}
+                          onClick={() => track('product_pay_click', { workshop_id: ws.id, title: ws.title, route: 'graduate_offer' })}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white"
+                          style={{ background: '#A35C3D' }}>
+                          <Gift className="w-4 h-4" /> להרשמה בהנחה
+                        </a>
+                      ) : wsCohorts.length > 0 && ws.public_registration ? (
                         /* Cohort-based product — open the modal to pick a
                            cohort before continuing to registration */
                         <button onClick={() => openProduct(ws)}
@@ -680,7 +754,7 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
         />
       )}
 
-      {selected && <ProductModal ws={selected} onClose={() => setSelected(null)} ownerWhatsapp={ownerWhatsapp} cohorts={cohortsByWorkshop.get(selected.id) ?? []} />}
+      {selected && <ProductModal ws={selected} onClose={() => setSelected(null)} ownerWhatsapp={ownerWhatsapp} cohorts={cohortsByWorkshop.get(selected.id) ?? []} offer={graduateOffers.get(selected.id) ?? null} />}
     </div>
   )
 }

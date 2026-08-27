@@ -16,6 +16,7 @@ import RecommendedWorkshopCard from '../components/dashboard/RecommendedWorkshop
 import MyCoursesCard from '../components/dashboard/MyCoursesCard'
 import AgeGuideCard from '../components/dashboard/AgeGuideCard'
 import HomeAnnouncementsBanner from '../components/dashboard/HomeAnnouncementsBanner'
+import GraduateOfferModal from '../components/dashboard/GraduateOfferModal'
 import PendingPaymentStrip from '../components/dashboard/PendingPaymentStrip'
 import MimoLeaf from '../components/MimoLeaf'
 import PerkDetailsModal from '../components/PerkDetailsModal'
@@ -274,6 +275,10 @@ export default function DashboardPage({ onNavigate }: Props) {
         {/* Admin announcements — מבצעים/הנחות, top of the feed so they
             "pop" the moment the app opens */}
         <HomeAnnouncementsBanner onNavigate={onNavigate} />
+
+        {/* Finished a workshop and has a discount waiting. Shows once,
+            over everything, then never again. */}
+        <GraduateOfferModal onNavigate={onNavigate} />
 
         {/* Started paying for an event and never came back. One thin line,
             and nothing at all for everyone else. */}
