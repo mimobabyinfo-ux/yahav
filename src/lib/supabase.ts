@@ -715,6 +715,12 @@ export type CommunityEventRow = {
   /** She declared a payment we could not observe (Bit, cross-device).
    *  Awaiting Brenda's confirmation — NOT proof that she paid. */
   my_payment_claimed_at: string | null
+  /** A ticket she asked for AFTER she was already registered and paid,
+   *  still mid-checkout. Not a seat yet — it becomes one (and joins
+   *  my_guests) only when its payment lands. */
+  my_extra_guests: string[] | null
+  /** The ten-minute hold on that ticket. Past it the seat is released. */
+  my_extra_hold_expires_at: string | null
 }
 
 // Row shape of the get_my_waitlists RPC — the calling user's place in

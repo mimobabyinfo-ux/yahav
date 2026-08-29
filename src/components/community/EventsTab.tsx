@@ -96,6 +96,11 @@ export default function EventsTab() {
   // Falls back to what the server already has for her.
   const [guestDrafts, setGuestDrafts] = useState<Record<string, string[]>>({})
   const [guestOpen, setGuestOpen] = useState<Record<string, boolean>>({})
+  // The same thing for a ticket she buys AFTER she is already in — kept
+  // apart from guestDrafts on purpose, because these two never mean the
+  // same thing: one is part of a registration, the other is a purchase.
+  const [extraDrafts, setExtraDrafts] = useState<Record<string, string[]>>({})
+  const [extraOpen, setExtraOpen] = useState<Record<string, boolean>>({})
 
   // My waitlist entries (event_id → position). Simple waitlist: joining
   // is possible only when full; when a spot frees the card highlights
@@ -301,6 +306,92 @@ export default function EventsTab() {
     }
   }
 
+  function setExtra(eventId: string, next: string[]) {
+    setExtraDrafts(prev => ({ ...prev, [eventId]: next }))
+  }
+
+  function clearExtra(eventId: string) {
+    setExtraDrafts(prev => { const n = { ...prev }; delete n[eventId]; return n })
+    setExtraOpen(prev => ({ ...prev, [eventId]: false }))
+  }
+
+  /** Brenda 29.8.26: "קניתי כרטיס להרצאת שינה ואז בעלי אמר גם אני רוצה".
+   *  A ticket bought after she is already in is a PURCHASE, not an edit to
+   *  her guest list: it holds a seat for ten minutes, sends her to the link
+   *  priced for it, and becomes a real seat only when the payment comes
+   *  back. That is the whole difference from the option removed on 17.8,
+   *  which handed out a seat and asked for nothing. */
+  async function buyExtra(ev: CommunityEventRow) {
+    const names = (extraDrafts[ev.id] ?? []).map(g => g.trim()).filter(Boolean).slice(0, 3)
+    if (names.length === 0) return
+
+    // Same iOS rule as register(): the tab has to be opened while the tap
+    // is still being handled, or no payment page ever appears.
+    const payTab = window.open('', '_blank')
+    if (payTab) { try { payTab.opener = null } catch { /* cross-origin */ } }
+
+    setBusyId(ev.id)
+    const { data, error } = await supabase.rpc('buy_extra_event_seat', {
+      p_event_id: ev.id,
+      p_guest_names: names,
+    })
+    setBusyId(null)
+    if (error) { payTab?.close(); showToast('שגיאה. נסי שוב'); return }
+    if (data !== 'pending') {
+      payTab?.close()
+      showToast(
+        data === 'full' ? 'אין מספיק מקומות פנויים 😢'
+        : data === 'too_many' ? 'אפשר עד 3 מקומות נוספים'
+        : data === 'not_registered' ? 'קודם משלימות את התשלום על ההרשמה שלך'
+        : 'שגיאה. נסי שוב',
+      )
+      load()
+      return
+    }
+
+    track('event_extra_seat', { event_id: ev.id, title: ev.title, seats: names.length })
+    rememberPaymentIntent(ev.id)
+    const link = paymentLinkFor(ev, names.length)
+    if (link && payTab) payTab.location.href = link
+    else if (link) window.open(link, '_blank', 'noopener')
+    else payTab?.close()
+    showToast(link
+      ? 'המקום הנוסף שמור ל-10 דקות. משלימות תשלום וזהו 🤎'
+      : 'המקום הנוסף שמור. אין כאן קישור תשלום, כתבי לנו ונסדר את זה 🤎')
+    clearExtra(ev.id)
+    load()
+  }
+
+  async function cancelExtra(ev: CommunityEventRow) {
+    setBusyId(ev.id)
+    const { error } = await supabase.rpc('cancel_extra_event_seat', { p_event_id: ev.id })
+    setBusyId(null)
+    if (error) { showToast('שגיאה. נסי שוב'); return }
+    showToast('הכרטיס הנוסף בוטל. ההרשמה שלך לא נגעה')
+    load()
+  }
+
+  /** Paying for the extra ticket with an open credit, by the same rule as
+   *  everywhere else: one credit that covers the whole thing, and the
+   *  remainder comes back with the original expiry. */
+  async function redeemExtra(ev: CommunityEventRow, names: string[]) {
+    if (names.length === 0) return
+    setBusyId(ev.id)
+    const { data, error } = await supabase.rpc('redeem_credit_for_extra_seat', {
+      p_event_id: ev.id,
+      p_guest_names: names,
+    })
+    setBusyId(null)
+    if (error) { showToast('שגיאה. נסי שוב'); return }
+    if (data === 'insufficient') { showToast('אין לך זיכוי שמכסה את הכרטיס הנוסף'); loadCredit(); return }
+    if (data === 'full') { showToast('אין מספיק מקומות פנויים 😢'); load(); return }
+    if (data !== 'redeemed') { showToast('שגיאה. נסי שוב'); return }
+    showToast('שילמנו עם הזיכוי שלך. נתראה שם, שתיכן! 🤎')
+    clearExtra(ev.id)
+    loadCredit()
+    load()
+  }
+
   /** Brenda 17.8.26: "I want the credit kept in the app, and if I want to
    *  register I can use the credit or pay again." So a paid event shows a
    *  second button when her open balance covers the whole thing. Partial
@@ -460,6 +551,172 @@ export default function EventsTab() {
             {busyId === ev.id ? 'רגע...' : hasBlankGuest(ev) ? 'צריך למלא את השם' : saveLabel}
           </button>
         )}
+      </div>
+    )
+  }
+
+  // ── "רכישת כרטיס נוסף" on an event she is already in ──
+  // Only for a paid event she has actually paid for. A mother still
+  // mid-checkout on her own seat has one thing to finish first, and a free
+  // event has nothing to buy.
+  function extraSeatBlock(ev: CommunityEventRow) {
+    if (ev.price <= 0 || !ev.my_paid) return null
+
+    const already = (ev.my_guests ?? []).length
+    const pending = ev.my_extra_guests ?? []
+    const holdLive = !!ev.my_extra_hold_expires_at
+      && new Date(ev.my_extra_hold_expires_at).getTime() > Date.now()
+
+    // A ticket already asked for and not yet paid. One thing to finish and
+    // one way out — and the way out touches nothing but the extra seat.
+    if (pending.length > 0 && holdLive) {
+      const link = paymentLinkFor(ev, pending.length)
+      const total = ev.price * pending.length
+      const credit = creditFor(total)
+      return (
+        <div className="mt-2 rounded-2xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
+          <p className="text-[13px] font-bold" style={{ color: '#A35C3D' }}>
+            הכרטיס הנוסף ל{pending.join(', ')} מחכה לתשלום
+          </p>
+          <div className="flex gap-2">
+            {link && (
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => rememberPaymentIntent(ev.id)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] transition-all hover:brightness-95"
+                style={{ background: '#E7C78A' }}
+              >
+                <ExternalLink className="w-4 h-4" /> להשלמת התשלום · ₪{total}
+              </a>
+            )}
+            <button
+              onClick={() => cancelExtra(ev)}
+              disabled={busyId === ev.id}
+              className={`px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-bold disabled:opacity-40 whitespace-nowrap ${link ? '' : 'flex-1'}`}
+            >
+              ביטול הכרטיס הנוסף
+            </button>
+          </div>
+          {credit && (
+            <button
+              onClick={() => redeemExtra(ev, pending)}
+              disabled={busyId === ev.id}
+              className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
+              style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
+            >
+              או לשלם עם הזיכוי שלי (₪{Number(credit.amount)})
+              {creditChange(credit, total) > 0 && (
+                <span className="block text-[12px] font-semibold opacity-80">
+                  יישאר לך ₪{creditChange(credit, total)} לפעם הבאה
+                </span>
+              )}
+            </button>
+          )}
+        </div>
+      )
+    }
+
+    // Three is the same ceiling a registration has.
+    if (already >= 3) return null
+
+    const list = extraDrafts[ev.id] ?? []
+    const open = extraOpen[ev.id] ?? false
+
+    if (!open) {
+      return (
+        <button
+          onClick={() => { setExtra(ev.id, ['']); setExtraOpen(prev => ({ ...prev, [ev.id]: true })) }}
+          className="mt-2 text-[12px] font-semibold px-1 transition-colors hover:brightness-95"
+          style={{ color: '#9C8A74' }}
+        >
+          + רכישת כרטיס נוסף (₪{ev.price})
+        </button>
+      )
+    }
+
+    const clean = list.map(g => g.trim()).filter(Boolean)
+    const blank = list.some(g => g.trim() === '')
+    const total = ev.price * Math.max(clean.length, 1)
+    const credit = clean.length > 0 ? creditFor(total) : null
+
+    return (
+      <div className="mt-2 rounded-2xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
+        <p className="text-[12px] font-semibold" style={{ color: '#8C6E63' }}>
+          מי עוד מגיע/ה איתך?
+        </p>
+        {list.map((g, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <input
+              value={g}
+              onChange={e => setExtra(ev.id, list.map((v, j) => (j === i ? e.target.value : v)))}
+              placeholder="השם של מי שמגיע/ה איתך"
+              maxLength={40}
+              className="flex-1 px-3 py-2 rounded-2xl text-[13px] font-semibold outline-none"
+              style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#4A3A28' }}
+            />
+            <button
+              onClick={() => {
+                const next = list.filter((_, j) => j !== i)
+                if (next.length === 0) clearExtra(ev.id)
+                else setExtra(ev.id, next)
+              }}
+              className="p-2 rounded-2xl"
+              style={{ background: '#F4EDE1', color: '#8A7A63' }}
+              title="הסרה"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+        {already + list.length < 3 && (
+          <button
+            onClick={() => setExtra(ev.id, [...list, ''])}
+            className="text-[12px] font-semibold"
+            style={{ color: '#9C8A74' }}
+          >
+            + עוד אחד/ת
+          </button>
+        )}
+        {/* Morning links carry a fixed amount, so more than one extra
+            ticket means going through the same link more than once. Say it
+            before she pays, not after. */}
+        {clean.length > 1 && !paymentIsExact(ev, clean.length) && (
+          <p className="text-[13px] font-semibold leading-snug" style={{ color: '#8C6E63' }}>
+            קישור התשלום הוא לכרטיס אחד, אז צריך לעבור בו {clean.length} פעמים, סה״כ ₪{total}.
+          </p>
+        )}
+        <button
+          onClick={() => buyExtra(ev)}
+          disabled={busyId === ev.id || blank || clean.length === 0}
+          className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
+          style={{ background: '#818267', color: '#FFFFFF' }}
+        >
+          {busyId === ev.id ? 'רגע...' : blank ? 'צריך למלא את השם' : `לרכישת כרטיס נוסף · ₪${total}`}
+        </button>
+        {credit && (
+          <button
+            onClick={() => redeemExtra(ev, clean)}
+            disabled={busyId === ev.id}
+            className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
+            style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
+          >
+            או לשלם עם הזיכוי שלי (₪{Number(credit.amount)})
+            {creditChange(credit, total) > 0 && (
+              <span className="block text-[12px] font-semibold opacity-80">
+                יישאר לך ₪{creditChange(credit, total)} לפעם הבאה
+              </span>
+            )}
+          </button>
+        )}
+        <button
+          onClick={() => clearExtra(ev.id)}
+          className="w-full text-[12px] font-semibold"
+          style={{ color: '#9C8A74' }}
+        >
+          לא עכשיו
+        </button>
       </div>
     )
   }
@@ -667,10 +924,15 @@ export default function EventsTab() {
                   </button>
                 </div>
               )}
-              {/* Brenda 17.8.26: "after I registered you can't add someone —
-                  cancel that option". It also had a money hole behind it:
-                  a guest added after payment was a seat nobody paid for,
-                  which is what produced the ₪60 credit on a ₪30 purchase. */}
+              {/* Brenda 17.8.26 took away "add someone after I registered",
+                  and she was right: a guest bolted onto the row after
+                  payment was a seat nobody had paid for, which is what
+                  produced the ₪60 credit on a ₪30 purchase. Brenda 29.8.26
+                  wants the need behind it answered — "בעלי אמר גם אני רוצה"
+                  — so it is back as a purchase and not as an edit: its own
+                  hold, its own payment, a seat only once the money is in.
+                  See buy_extra_event_seat. */}
+              {extraSeatBlock(ev)}
             </>
           ) : isFull && !myOffer ? (
             /* Full event — waitlist instead of a dead-end */

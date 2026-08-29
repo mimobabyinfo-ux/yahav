@@ -38,7 +38,7 @@ import { useAdminOverview } from './components/admin/useAdminOverview'
 import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
 import ActiveTimerBanner from './components/ActiveTimerBanner'
-import InstallPrompt from './components/InstallPrompt'
+import InstallGuide from './components/InstallGuide'
 
 // Lazy: AdminPage is ~8,000 lines and pulls all of components/admin and
 // @dnd-kit with it. renderPage already gates it at RUNTIME; importing it
@@ -380,7 +380,7 @@ function AppInner() {
             adminSection={adminSection} onAdminSection={navigateAdmin}
             viewAsUser={viewAsUser} onToggleUserView={toggleUserView}
           />
-          <InstallPrompt />
+          <InstallGuide />
         </>
       )}
       <FormTriggerModal />

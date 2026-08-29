@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState, useCallback } from 'react'
-import { ChevronLeft, Settings as SettingsIcon, MessageCircle, Gift, Moon, Sun, Baby, Plus } from 'lucide-react'
+import { ChevronLeft, Settings as SettingsIcon, MessageCircle, Gift, Moon, Sun, Baby, Plus, HelpCircle } from 'lucide-react'
+import { openInstallGuide } from '../components/InstallGuide'
 import { supabase, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
@@ -261,6 +262,18 @@ export default function DashboardPage({ onNavigate }: Props) {
                 <Moon style={{ width: 20, height: 20, color: '#7B604C' }} strokeWidth={2} />
               </button>
             )}
+            {/* Brenda 29.8.26: the how-to-install video has to be
+                reachable at any moment, not only in the one popup on the
+                first visit. Same circle as the gear, beside it. */}
+            <button
+              onClick={openInstallGuide}
+              className="rounded-full flex items-center justify-center transition-colors hover:brightness-95"
+              style={{ width: 44, height: 44, background: '#F0EBE3' }}
+              title="איך שמים את מימו במסך הבית"
+              aria-label="איך שמים את מימו במסך הבית"
+            >
+              <HelpCircle style={{ width: 22, height: 22, color: '#7B604C' }} strokeWidth={2} />
+            </button>
             <a
               href="?settings"
               className="rounded-full flex items-center justify-center transition-colors hover:brightness-95"

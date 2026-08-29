@@ -1,4 +1,4 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+﻿import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 /**
@@ -57,6 +57,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
  *
  * A hold is "live" when it is unpaid, still pending/registered, its
  * hold_expires_at has not passed, and it was touched inside HOLD_WINDOW.
+ *
+ * v16 (29.8.26) adds the second thing a paid row can still owe: an EXTRA
+ * ticket bought after registration (buy_extra_event_seat). Its hold is
+ * extra_hold_expires_at, and confirm_event_payment_for_user turns it into
+ * a seat exactly the way the thank-you page does.
  *
  * COURSES are matched separately, after events: a lead by email, or
  * workshops.morning_product_id for a raw link (the lead is created).
@@ -205,17 +210,30 @@ async function process(payload: MorningPayload): Promise<void> {
       const since = new Date(Date.now() - HOLD_WINDOW_MIN * 60_000).toISOString()
       const nowIso = new Date().toISOString()
       const ids = candidates.map(e => e.id)
+      // Two kinds of seat can be owing money on one row (v16, 29.8.26):
+      // the registration itself, or an EXTRA ticket bought after she was
+      // already registered and paid. The old query said .eq("paid", false)
+      // and so could not see the second kind at all - a mother who bought
+      // a second ticket and lost the redirect would have had her payment
+      // logged as no_seat_match.
       const { data: holds } = await admin
         .from("event_registrations")
-        .select("event_id, user_id, status, updated_at, hold_expires_at")
+        .select("event_id, user_id, status, paid, updated_at, hold_expires_at, extra_guest_names, extra_hold_expires_at")
         .in("event_id", ids)
         .in("status", ["pending", "registered"])
-        .eq("paid", false)
         .order("updated_at", { ascending: false })
 
-      const unpaid = holds ?? []
-      const live = unpaid.filter(h =>
-        h.updated_at >= since && (!h.hold_expires_at || h.hold_expires_at > nowIso))
+      // Whichever hold is the open one decides both questions below.
+      const owing = (h: { paid?: boolean; extra_guest_names?: string[] | null }) =>
+        !h.paid || (h.extra_guest_names ?? []).length > 0
+      const holdEnd = (h: { paid?: boolean; hold_expires_at?: string | null; extra_hold_expires_at?: string | null }) =>
+        h.paid ? h.extra_hold_expires_at : h.hold_expires_at
+
+      const unpaid = (holds ?? []).filter(owing)
+      const live = unpaid.filter(h => {
+        const until = holdEnd(h)
+        return h.updated_at >= since && (!until || until > nowIso)
+      })
 
       const titleOf = (id: string) => candidates.find(e => e.id === id)?.title ?? id
       const priceOf = (id: string) => Number(candidates.find(e => e.id === id)?.price ?? 0)
@@ -381,7 +399,7 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "GET") {
     return json({
-      ok: true, alive: true, version: 15,
+      ok: true, alive: true, version: 16,
       handles: ["community_event", "digital_course", "workshop"],
       seat_match: ["payer_hold", "single_live_hold", "payer_new"],
       shared_product_ids: true,

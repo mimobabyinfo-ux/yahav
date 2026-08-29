@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+﻿import { useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -30,6 +30,8 @@ export type EventType =
   // passed through.
   | 'event_open'          // opened a community event card
   | 'event_register'      // registered for one
+  | 'event_extra_seat'    // bought another ticket after she was already in
+  | 'install_guide'       // watched the how-to-install video
   | 'community_tab'       // אירועים / ההזמנות שלי / חברות
   | 'member_open'         // opened another mother's profile
   | 'product_open'        // opened a product sheet in the store
