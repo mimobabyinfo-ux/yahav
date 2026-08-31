@@ -2,6 +2,7 @@
 import { supabase, Workshop, type WorkshopOffer, type PublicCohort } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 import { initPixel, pixelTrack } from '../utils/metaPixel'
+import { captureAdAttribution, getAdAttribution } from '../utils/adAttribution'
 import { Instagram, Facebook } from 'lucide-react'
 
 // Mimo social profiles — shown as quiet icons at the bottom of the
@@ -84,6 +85,9 @@ export default function PublicRegisterPage() {
 
   useEffect(() => {
     document.title = 'הרשמה לסדנאות מימו'
+    // Snapshot the ad's utm_* / fbclid (arriving from the marketing site)
+    // before she browses cohorts and the params leave the address bar.
+    captureAdAttribution()
   }, [])
 
   // Settings (subtitle + hero) are needed in both modes.
@@ -322,6 +326,7 @@ export default function PublicRegisterPage() {
         offer_id: offer.id,
         offer_token: offer.token,
         source: source || 'offer',
+        ...getAdAttribution(),
       })
       if (error) {
         console.error('[offer-submit] registration_leads insert error:', error)
@@ -358,6 +363,7 @@ export default function PublicRegisterPage() {
       selected_workshop_id: selected,
       cohort_id: selectedCohort || null,
       ...(source ? { source } : {}),
+      ...getAdAttribution(),
     })
     if (error) {
       setSubmitting(false)

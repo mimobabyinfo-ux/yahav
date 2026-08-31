@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
 
   const { data: leads, error: leadsErr } = await supabase
     .from('registration_leads')
-    .select('id, name, phone, normalized_phone, email, cohort_id, selected_workshop_id')
+    .select('id, name, phone, normalized_phone, email, cohort_id, selected_workshop_id, utm_content, utm_campaign')
     .eq('status', 'paid')
     .is('crm_paid_synced_at', null)
   if (leadsErr) return new Response(JSON.stringify({ error: leadsErr.message }), { status: 500 })
@@ -121,6 +121,10 @@ Deno.serve(async (req) => {
     const contactBody: Record<string, unknown> = { locationId: LOCATION_ID, phone }
     if (lead.name) contactBody.name = lead.name
     if (lead.email && String(lead.email).includes('@')) contactBody.email = lead.email
+    // Ad attribution (31.8.26): utm_content carries the exact ad name from the
+    // marketing site through the app's register page. Surfacing it as the GHL
+    // contact source finally links a PAID registration back to its ad.
+    if (lead.utm_content) contactBody.source = String(lead.utm_content).slice(0, 200)
     const cRes = await ghl('/contacts/upsert', 'POST', GHL_API_KEY, contactBody)
     const contactId = cRes.data?.contact?.id
     if (!cRes.ok || !contactId) {
