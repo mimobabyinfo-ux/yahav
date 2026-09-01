@@ -79,15 +79,90 @@ export function registrationAmount(reg: {
   return list
 }
 
+// ─── Community events ───────────────────────────────────────────────
+// The card is supposed to hold the WHOLE customer, and since the
+// community launched that includes every event she signed up for, not
+// only the workshops she bought. event_registrations keys on the auth
+// user, so this stays empty for a lead who never opened the app —
+// that is real information about her, not a gap.
+
+export type CustomerEventLite = {
+  id: string
+  title: string
+  emoji: string | null
+  event_date: string
+  start_time: string | null
+  location: string | null
+  price: number | null
+}
+
+export type EventRegStatus = 'pending' | 'registered' | 'cancelled' | 'attended' | 'no_show'
+
+export type CustomerEventRegistration = {
+  id: string
+  event_id: string
+  status: EventRegStatus
+  paid: boolean
+  paid_amount: number | null
+  /** Who she brought — one paid seat per name, on top of her own. */
+  guestNames: string[]
+  /** A further ticket bought after the fact; unpaid while it holds. */
+  extraGuestNames: string[]
+  substituteName: string | null
+  created_at: string
+  event: CustomerEventLite | null
+}
+
+export type CustomerEventWaitlistEntry = {
+  id: string
+  event_id: string
+  status: string
+  created_at: string
+  event: CustomerEventLite | null
+}
+
+export type CustomerCredit = {
+  id: string
+  amount: number
+  created_at: string
+  expires_at: string | null
+  used_at: string | null
+  used_note: string | null
+  grant_note: string | null
+  sourceEventTitle: string | null
+}
+
+/** Seats this registration holds: herself plus every guest name. */
+export function eventSeats(reg: CustomerEventRegistration): number {
+  return 1 + reg.guestNames.length
+}
+
+/** What the seat(s) are worth. Same rule EventsAdminPanel writes with:
+ *  paid_amount is the truth once it exists, and before that it is the
+ *  list price times the seats she holds. */
+export function eventRegistrationAmount(reg: CustomerEventRegistration): number | null {
+  if (reg.paid_amount != null) return Number(reg.paid_amount)
+  const price = reg.event?.price
+  if (price == null) return null
+  return Number(price) * eventSeats(reg)
+}
+
 /** Lifetime value split by whether the money actually arrived.
  *  מומש (handled) counts as paid — it's a workshop she already used. */
-export function customerTotals(registrations: CustomerRegistration[]): {
+export function customerTotals(
+  registrations: CustomerRegistration[],
+  eventRegistrations: CustomerEventRegistration[] = [],
+): {
+  /** Everything she has actually paid us — workshops AND events. */
   paid: number
   pending: number
   /** Registrations we couldn't price (no product, or product with no price). */
   unpricedPaid: number
+  /** The two halves of `paid`, so the card can show the split. */
+  workshopsPaid: number
+  eventsPaid: number
 } {
-  let paid = 0
+  let workshopsPaid = 0
   let pending = 0
   let unpricedPaid = 0
   for (const r of registrations) {
@@ -97,10 +172,33 @@ export function customerTotals(registrations: CustomerRegistration[]): {
       if (counted) unpricedPaid++
       continue
     }
-    if (counted) paid += amount
+    if (counted) workshopsPaid += amount
     else pending += amount
   }
-  return { paid, pending, unpricedPaid }
+
+  // Community events. A cancelled seat is money that came back (or
+  // never arrived) — it counts for nothing on either side.
+  let eventsPaid = 0
+  for (const r of eventRegistrations) {
+    if (r.status === 'cancelled') continue
+    const amount = eventRegistrationAmount(r)
+    if (amount == null) {
+      if (r.paid) unpricedPaid++
+    } else if (r.paid) {
+      eventsPaid += amount
+    } else if (amount > 0) {
+      // A free meetup is not money she owes us.
+      pending += amount
+    }
+    // An extra ticket she took after registering is a separate hold,
+    // unpaid until Morning says otherwise.
+    const price = r.event?.price
+    if (r.extraGuestNames.length > 0 && price != null) {
+      pending += Number(price) * r.extraGuestNames.length
+    }
+  }
+
+  return { paid: workshopsPaid + eventsPaid, pending, unpricedPaid, workshopsPaid, eventsPaid }
 }
 
 export function formatIls(n: number): string {
@@ -140,6 +238,12 @@ export type CustomerProfile = {
   // registrations (even when unfilled) — the panel's השאלון tab needs
   // the form title + id to build the reminder message.
   linkedForms: { id: string; title: string }[]
+
+  // Community. Only ever populated when `user` is set — these tables
+  // key on the auth user, not on a phone number.
+  eventRegistrations: CustomerEventRegistration[]
+  eventWaitlist: CustomerEventWaitlistEntry[]
+  credits: CustomerCredit[]
 }
 
 export type CustomerCandidate = {
@@ -415,6 +519,9 @@ async function assembleProfile(cluster: {
     )
   }
 
+  // ── Community: events she signed up for, waitlist places, credit ──
+  const community = await loadCommunity(user?.id ?? null)
+
   return {
     user,
     displayName,
@@ -424,5 +531,109 @@ async function assembleProfile(cluster: {
     registrations,
     formSubmissions,
     linkedForms,
+    ...community,
   }
+}
+
+// Everything the community side of the app knows about one mother.
+// Three small reads, one round trip. Anything that fails comes back
+// empty — the card still opens.
+async function loadCommunity(userId: string | null): Promise<{
+  eventRegistrations: CustomerEventRegistration[]
+  eventWaitlist: CustomerEventWaitlistEntry[]
+  credits: CustomerCredit[]
+}> {
+  const empty = { eventRegistrations: [], eventWaitlist: [], credits: [] }
+  if (!userId) return empty
+
+  const EVENT_COLS = 'id, title, emoji, event_date, start_time, location, price'
+  const [{ data: regRows }, { data: waitRows }, { data: creditRows }] = await Promise.all([
+    supabase
+      .from('event_registrations')
+      .select(
+        `id, event_id, status, paid, paid_amount, guest_names, extra_guest_names, ` +
+        `substitute_name, created_at, community_events(${EVENT_COLS})`,
+      )
+      .eq('user_id', userId),
+    supabase
+      .from('event_waitlist')
+      .select(`id, event_id, status, created_at, community_events(${EVENT_COLS})`)
+      .eq('user_id', userId),
+    // community_credits points at community_events twice (source and
+    // used_on), so the embed has to name the constraint.
+    supabase
+      .from('community_credits')
+      .select(
+        'id, amount, created_at, expires_at, used_at, used_note, grant_note, ' +
+        'source_event:community_events!community_credits_source_event_id_fkey(title)',
+      )
+      .eq('user_id', userId),
+  ])
+
+  type EventJoin = CustomerEventLite | CustomerEventLite[] | null
+  const oneEvent = (e: EventJoin): CustomerEventLite | null =>
+    Array.isArray(e) ? e[0] ?? null : e ?? null
+
+  type RegRow = {
+    id: string; event_id: string; status: EventRegStatus; paid: boolean
+    paid_amount: number | null; guest_names: string[] | null
+    extra_guest_names: string[] | null; substitute_name: string | null
+    created_at: string; community_events: EventJoin
+  }
+  type WaitRow = {
+    id: string; event_id: string; status: string; created_at: string
+    community_events: EventJoin
+  }
+  type CreditRow = {
+    id: string; amount: number; created_at: string; expires_at: string | null
+    used_at: string | null; used_note: string | null; grant_note: string | null
+    source_event: { title: string } | { title: string }[] | null
+  }
+
+  const eventRegistrations: CustomerEventRegistration[] =
+    ((regRows ?? []) as unknown as RegRow[])
+      .map(r => ({
+        id: r.id,
+        event_id: r.event_id,
+        status: r.status,
+        paid: r.paid,
+        paid_amount: r.paid_amount,
+        guestNames: r.guest_names ?? [],
+        extraGuestNames: r.extra_guest_names ?? [],
+        substituteName: r.substitute_name,
+        created_at: r.created_at,
+        event: oneEvent(r.community_events),
+      }))
+      // Newest event first; an event with no date sorts last.
+      .sort((a, b) => (b.event?.event_date ?? '').localeCompare(a.event?.event_date ?? ''))
+
+  const eventWaitlist: CustomerEventWaitlistEntry[] =
+    ((waitRows ?? []) as unknown as WaitRow[])
+      .map(w => ({
+        id: w.id,
+        event_id: w.event_id,
+        status: w.status,
+        created_at: w.created_at,
+        event: oneEvent(w.community_events),
+      }))
+      .sort((a, b) => (b.event?.event_date ?? '').localeCompare(a.event?.event_date ?? ''))
+
+  const credits: CustomerCredit[] =
+    ((creditRows ?? []) as unknown as CreditRow[])
+      .map(c => {
+        const src = Array.isArray(c.source_event) ? c.source_event[0] ?? null : c.source_event
+        return {
+          id: c.id,
+          amount: Number(c.amount),
+          created_at: c.created_at,
+          expires_at: c.expires_at,
+          used_at: c.used_at,
+          used_note: c.used_note,
+          grant_note: c.grant_note,
+          sourceEventTitle: src?.title ?? null,
+        }
+      })
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+
+  return { eventRegistrations, eventWaitlist, credits }
 }

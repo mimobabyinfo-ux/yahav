@@ -1,12 +1,13 @@
 ﻿import { useState, useEffect, useCallback } from 'react'
 import {
-  LogOut, Sparkles, CheckCircle2, Circle, ShoppingBag, Stethoscope,
-  ChevronDown, ChevronUp, Plus, Trash2, Bell, X, Pencil, Check,
+  Sparkles, CheckCircle2, Circle, ShoppingBag, Stethoscope,
+  ChevronDown, ChevronUp, Plus, Trash2, Bell, X, Pencil, Check, HelpCircle,
   Settings as SettingsIcon,
 } from 'lucide-react'
 import { supabase, PregnancyChecklistItem, PregnancyWeeklyGuide, UserPregnancyItem, UserReminder } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MyTasksPanel from '../components/MyTasksPanel'
+import { openInstallGuide } from '../components/InstallGuide'
 import { formatDate } from '../utils/dateUtils'
 import { pregnancyWeek, daysUntilDue } from '../utils/pregnancyWeek'
 import { PREGNANCY_REMINDER_TEMPLATES, PregnancyReminderTemplate } from '../data/pregnancyReminderTemplates'
@@ -312,7 +313,7 @@ function CustomRemindersPanel({ currentWeek }: { currentWeek?: number }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function PregnancyDashboard({ onNavigate }: Props) {
-  const { profile, signOut, refreshProfile, refreshChildren, user } = useAuth()
+  const { profile, refreshProfile, refreshChildren, user } = useAuth()
   const [dashTab, setDashTab] = useState<DashTab>('medical')
 
   // Checklist data
@@ -535,7 +536,19 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
               <p className="text-sm" style={{ color: '#D9B978' }}>שלום,</p>
               <h1 className="text-2xl font-bold text-white">{profile?.mother_name ?? 'אמא לעתיד'} 🤰🏼</h1>
             </div>
+            {/* Brenda 1.9.26: same pair as the mother home screen — the
+                how-to-install video beside the gear. יציאה was removed from
+                here on purpose; logging out lives only in הגדרות, so it
+                cannot be hit by mistake from the home screen. */}
             <div className="flex items-center gap-1">
+              <button
+                onClick={openInstallGuide}
+                className="p-2 rounded-xl text-white/50 hover:text-white transition-colors"
+                title="איך שמים את מימו במסך הבית"
+                aria-label="איך שמים את מימו במסך הבית"
+              >
+                <HelpCircle className="w-5 h-5" />
+              </button>
               <a
                 href="?settings"
                 className="p-2 rounded-xl text-white/50 hover:text-white transition-colors"
@@ -543,9 +556,6 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
               >
                 <SettingsIcon className="w-5 h-5" />
               </a>
-              <button onClick={signOut} className="p-2 rounded-xl text-white/50 hover:text-white transition-colors" title="יציאה">
-                <LogOut className="w-5 h-5" />
-              </button>
             </div>
           </div>
 

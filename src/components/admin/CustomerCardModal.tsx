@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { X, MessageCircle, Mail, Phone, Copy, Check, ChevronDown, ChevronUp, Loader2, ChevronLeft, ChevronRight, Plus, Maximize2, Minimize2 } from 'lucide-react'
+import { X, MessageCircle, Mail, Phone, Copy, Check, ChevronDown, ChevronUp, Loader2, ChevronLeft, ChevronRight, Plus, Maximize2, Minimize2, Users, Clock, Gift } from 'lucide-react'
 import { supabase, type WorkshopCohort } from '../../lib/supabase'
 import AddRegistrationModal from './AddRegistrationModal'
 import {
@@ -9,7 +9,11 @@ import {
   type CustomerCandidate,
   type CustomerRegistration,
   type CustomerFormSubmission,
+  type CustomerEventRegistration,
+  type CustomerCredit,
   registrationAmount,
+  eventRegistrationAmount,
+  eventSeats,
   customerTotals,
   offerPrice,
   formatIls,
@@ -23,7 +27,7 @@ import {
 // Layout contract:
 //   [Header]   avatar · name · cohort+date · ‹ › · הרחבה · close
 //   [Contact]  pinned at the TOP: וואטסאפ · מייל · חיוג
-//   [Tabs]     ההרשמה · השאלון · היסטוריה
+//   [Tabs]     ההרשמה · השאלון · קהילה · היסטוריה
 //   [Body]     scrollable tab content
 //   [Footer]   pinned: שמירה + סגירה
 //
@@ -58,7 +62,7 @@ type ViewState =
   | { kind: 'chooser'; candidates: CustomerCandidate[] }
   | { kind: 'loaded'; profile: CustomerProfile }
 
-type PanelTab = 'reg' | 'form' | 'history'
+type PanelTab = 'reg' | 'form' | 'community' | 'history'
 
 type WorkshopLite = { id: string; title: string; price: number | null; linked_form_id: string | null }
 
@@ -376,16 +380,17 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
 
         {/* ── Tabs ── */}
         {view.kind === 'loaded' && (
-          <div className="px-5 border-b flex-shrink-0 flex items-center gap-1" style={{ borderColor: '#E9E2D6' }}>
+          <div className="px-5 border-b flex-shrink-0 flex items-center gap-1 overflow-x-auto" style={{ borderColor: '#E9E2D6' }}>
             {([
               ['reg', 'ההרשמה'],
               ['form', 'השאלון'],
+              ['community', `קהילה (${view.profile.eventRegistrations.length})`],
               ['history', `היסטוריה (${view.profile.registrations.length})`],
             ] as [PanelTab, string][]).map(([t, label]) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className="py-2.5 px-3 font-bold transition-colors"
+                className="py-2.5 px-3 font-bold transition-colors flex-shrink-0 whitespace-nowrap"
                 style={{
                   fontSize: 14,
                   color: tab === t ? '#443327' : '#8A7A63',
@@ -439,6 +444,10 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
 
           {view.kind === 'loaded' && tab === 'form' && (
             <QuestionnaireTabView profile={view.profile} focused={focused} wide={wide} />
+          )}
+
+          {view.kind === 'loaded' && tab === 'community' && (
+            <CommunityTabView profile={view.profile} wide={wide} />
           )}
 
           {view.kind === 'loaded' && tab === 'history' && (
@@ -832,6 +841,234 @@ function SubmissionAnswers({ submission }: { submission: CustomerFormSubmission 
   )
 }
 
+// ─── Tab: קהילה ─────────────────────────────────────────────────────
+// Brenda 1.9.26: "בכרטיסיית לקוח יהיה לי את כל המידע על הלקוח כולל
+// אירועי קהילה". The workshops half of her life was already here; this
+// is the other half — every event she took a seat at, the seats she is
+// still holding without paying, where she stands on a waiting list, and
+// the credit she has left to spend.
+//
+// All three tables key on the auth user, so a lead who never opened the
+// app has nothing here. That is stated plainly rather than shown as an
+// empty list, because "she has no events" and "she has no account" are
+// different answers to the same question.
+
+const EVENT_STATUS: Record<string, { label: string; color: string; bg: string }> = {
+  pending:    { label: 'באמצע תשלום', color: '#8B4A30', bg: '#F7EBE4' },
+  registered: { label: 'רשומה',       color: '#35505C', bg: '#EEF2F4' },
+  attended:   { label: '✓ הגיעה',     color: '#4F5040', bg: '#EDF0E6' },
+  no_show:    { label: '✗ לא הגיעה',  color: '#8B4A30', bg: '#F7EBE4' },
+  cancelled:  { label: 'ביטלה',       color: '#A2937D', bg: '#F0EBE3' },
+}
+
+function EventStatusBadge({ status }: { status: string }) {
+  const cfg = EVENT_STATUS[status] ?? { label: status, color: '#7B604C', bg: '#F0EBE3' }
+  return (
+    <span className="text-xs font-bold px-2 py-1 rounded-md flex-shrink-0" style={{ color: cfg.color, background: cfg.bg }}>
+      {cfg.label}
+    </span>
+  )
+}
+
+function formatEventDate(date: string, time: string | null): string {
+  const [y, m, d] = date.split('-')
+  const t = time ? ` ${time.slice(0, 5)}` : ''
+  return `${d}/${m}/${y.slice(2)}${t}`
+}
+
+function creditIsLive(c: CustomerCredit): boolean {
+  if (c.used_at) return false
+  if (c.expires_at && new Date(c.expires_at).getTime() < Date.now()) return false
+  return true
+}
+
+function CommunityTabView({ profile, wide }: { profile: CustomerProfile; wide: boolean }) {
+  const regs = profile.eventRegistrations
+  const waitlist = profile.eventWaitlist.filter(w => w.status === 'waiting' || w.status === 'offered')
+  const liveCredits = profile.credits.filter(creditIsLive)
+  const spentCredits = profile.credits.filter(c => !creditIsLive(c))
+
+  if (!profile.user) {
+    return (
+      <div className="px-6 py-14 text-center space-y-2">
+        <p className="text-3xl">🫂</p>
+        <p className="text-sm font-semibold text-sand-700">אין לה עדיין חשבון באפליקציה</p>
+        <p className="text-xs text-sand-500 leading-relaxed">
+          הרשמה לאירועי קהילה נעשית מתוך האפליקציה, אז כל עוד היא רק ליד אין כאן מה להציג.
+        </p>
+      </div>
+    )
+  }
+
+  const attended = regs.filter(r => r.status === 'attended').length
+  const active = regs.filter(r => r.status === 'registered' || r.status === 'attended' || r.status === 'pending')
+  const paidSum = regs
+    .filter(r => r.paid && r.status !== 'cancelled')
+    .reduce((sum, r) => sum + (eventRegistrationAmount(r) ?? 0), 0)
+  // A free event is never "unpaid" — most of the community meetups cost
+  // nothing, and flagging them would bury the two seats that do owe.
+  const owing = regs.filter(r =>
+    r.status !== 'cancelled' &&
+    ((!r.paid && (eventRegistrationAmount(r) ?? 0) > 0) || r.extraGuestNames.length > 0),
+  )
+
+  return (
+    <div className="px-5 py-4 space-y-5">
+      {/* ── Summary ── */}
+      <div className="flex items-baseline gap-2 flex-wrap rounded-2xl px-4 py-3" style={{ background: '#F6ECD8' }}>
+        <span className="font-bold" style={{ fontSize: 13, color: '#6E5836' }}>אירועי קהילה</span>
+        <span className="font-display" style={{ fontSize: 20, color: '#443327' }}>{regs.length}</span>
+        {attended > 0 && (
+          <span className="font-semibold" style={{ fontSize: 12.5, color: '#4F5040' }}>· הגיעה ל-{attended}</span>
+        )}
+        {paidSum > 0 && (
+          <span className="font-semibold" style={{ fontSize: 12.5, color: '#6E5836' }}>· שילמה {formatIls(paidSum)}</span>
+        )}
+        {liveCredits.length > 0 && (
+          <span className="font-semibold" style={{ fontSize: 12.5, color: '#35505C' }}>
+            · זיכוי פתוח {formatIls(liveCredits.reduce((n, c) => n + c.amount, 0))}
+          </span>
+        )}
+      </div>
+
+      {/* An unpaid seat is the one thing she has to act on, so it is
+          said out loud instead of hiding inside a row. */}
+      {owing.length > 0 && (
+        <div className="rounded-2xl px-4 py-3 space-y-1" style={{ background: '#F7EBE4' }}>
+          <p className="font-bold" style={{ fontSize: 13, color: '#8B4A30' }}>
+            {owing.length === 1 ? 'מקום אחד שעדיין לא שולם' : `${owing.length} מקומות שעדיין לא שולמו`}
+          </p>
+          {owing.map(r => (
+            <p key={r.id} className="text-xs" style={{ color: '#8B4A30' }}>
+              {r.event?.title ?? 'אירוע שנמחק'}
+              {r.extraGuestNames.length > 0 && ' · כרטיס נוסף בהמתנה לתשלום'}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* ── Events ── */}
+      <div className="space-y-2.5">
+        <div className="border-b border-sand-200 pb-1.5">
+          <h3 className="text-base font-bold text-sand-800">הרשמות לאירועים ({regs.length})</h3>
+        </div>
+        {regs.length === 0 ? (
+          <p className="text-sm text-sand-500">עדיין לא נרשמה לאף אירוע קהילה.</p>
+        ) : (
+          <div className={wide ? 'grid grid-cols-2 gap-2' : 'space-y-2'}>
+            {regs.map(r => <EventRegistrationRow key={r.id} reg={r} />)}
+          </div>
+        )}
+        {active.length === 0 && regs.length > 0 && (
+          <p className="text-xs text-sand-400">כל ההרשמות שלה בוטלו.</p>
+        )}
+      </div>
+
+      {/* ── Waitlist ── */}
+      {waitlist.length > 0 && (
+        <div className="space-y-2.5">
+          <div className="border-b border-sand-200 pb-1.5">
+            <h3 className="text-base font-bold text-sand-800">רשימת המתנה ({waitlist.length})</h3>
+          </div>
+          <div className="space-y-2">
+            {waitlist.map(w => (
+              <div key={w.id} className="rounded-2xl bg-[#F5F1EB] p-3.5 flex items-center gap-2">
+                <Clock className="w-4 h-4 flex-shrink-0" style={{ color: '#8A7A63' }} />
+                <span className="text-sm font-semibold text-sand-800 flex-1 min-w-0 truncate">
+                  {w.event ? `${w.event.emoji ? w.event.emoji + ' ' : ''}${w.event.title}` : 'אירוע שנמחק'}
+                </span>
+                <span className="text-xs font-bold px-2 py-1 rounded-md flex-shrink-0"
+                  style={w.status === 'offered'
+                    ? { color: '#4F5040', background: '#EDF0E6' }
+                    : { color: '#7B604C', background: '#F0EBE3' }}>
+                  {w.status === 'offered' ? 'הוצע לה מקום' : 'ממתינה'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Credit ── */}
+      {profile.credits.length > 0 && (
+        <div className="space-y-2.5">
+          <div className="border-b border-sand-200 pb-1.5">
+            <h3 className="text-base font-bold text-sand-800">זיכויים</h3>
+          </div>
+          <div className="space-y-2">
+            {[...liveCredits, ...spentCredits].map(c => {
+              const live = creditIsLive(c)
+              return (
+                <div key={c.id} className="rounded-2xl p-3.5 space-y-1"
+                  style={{ background: live ? '#EEF2F4' : '#F5F1EB', opacity: live ? 1 : 0.7 }}>
+                  <div className="flex items-center gap-2">
+                    <Gift className="w-4 h-4 flex-shrink-0" style={{ color: live ? '#35505C' : '#A2937D' }} />
+                    <span className="text-sm font-bold flex-1" style={{ color: '#443327' }}>{formatIls(c.amount)}</span>
+                    <span className="text-xs font-bold" style={{ color: live ? '#35505C' : '#A2937D' }}>
+                      {c.used_at ? 'נוצל' : live ? 'פתוח' : 'פג תוקף'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-sand-500 flex flex-wrap gap-x-2">
+                    {c.sourceEventTitle && <span>מ-{c.sourceEventTitle}</span>}
+                    {c.grant_note && <span>· {c.grant_note}</span>}
+                    {c.expires_at && <span>· בתוקף עד {new Date(c.expires_at).toLocaleDateString('he-IL')}</span>}
+                    {c.used_note && <span>· {c.used_note}</span>}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EventRegistrationRow({ reg }: { reg: CustomerEventRegistration }) {
+  const amount = eventRegistrationAmount(reg)
+  const seats = eventSeats(reg)
+  return (
+    <div className="rounded-2xl bg-[#F5F1EB] p-3.5 space-y-1.5">
+      <div className="flex items-center gap-2 flex-wrap">
+        <EventStatusBadge status={reg.status} />
+        <span className="text-sm font-semibold text-sand-800 flex-1 min-w-0 truncate">
+          {reg.event ? `${reg.event.emoji ? reg.event.emoji + ' ' : ''}${reg.event.title}` : 'אירוע שנמחק'}
+        </span>
+        {amount != null && amount > 0 ? (
+          <span className="text-sm font-bold flex-shrink-0" style={{ color: reg.paid ? '#443327' : '#8B4A30' }}>
+            {formatIls(amount)}{!reg.paid && ' · לא שולם'}
+          </span>
+        ) : (
+          <span className="text-xs font-semibold flex-shrink-0" style={{ color: '#A2937D' }}>חינם</span>
+        )}
+      </div>
+      <p className="text-xs text-sand-500 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        {reg.event
+          ? <span>📅 {formatEventDate(reg.event.event_date, reg.event.start_time)}</span>
+          : <span className="text-sand-400">ללא תאריך</span>}
+        {reg.event?.location && <span>· {reg.event.location}</span>}
+        <span>· נרשמה {new Date(reg.created_at).toLocaleDateString('he-IL')}</span>
+      </p>
+      {seats > 1 && (
+        <p className="text-xs font-semibold flex items-center gap-1" style={{ color: '#6E5836' }}>
+          <Users className="w-3.5 h-3.5" />
+          {seats} מקומות · מגיעה עם {reg.guestNames.join(', ')}
+        </p>
+      )}
+      {reg.extraGuestNames.length > 0 && (
+        <p className="text-xs font-semibold" style={{ color: '#8B4A30' }}>
+          כרטיס נוסף בהמתנה לתשלום ({reg.extraGuestNames.join(', ')})
+        </p>
+      )}
+      {reg.substituteName && (
+        <p className="text-xs font-semibold" style={{ color: '#7B604C' }}>
+          מגיעה במקומה: {reg.substituteName}
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ─── Tab: היסטוריה ──────────────────────────────────────────────────
 function HistoryTabView({
   profile,
@@ -844,7 +1081,7 @@ function HistoryTabView({
 }) {
   // Lifetime value — every product she bought from us, at the price she
   // actually paid (offers applied). מומש counts; ממתינה is shown apart.
-  const totals = customerTotals(profile.registrations)
+  const totals = customerTotals(profile.registrations, profile.eventRegistrations)
 
   // Two registrations for the SAME product are almost always a mistake
   // — the same woman filled the form twice, or an offer link created a
@@ -872,10 +1109,15 @@ function HistoryTabView({
           <AddRegistrationButton profile={profile} onSaved={onProfileChanged} />
         </div>
 
-        {profile.registrations.length > 0 && (
+        {(profile.registrations.length > 0 || profile.eventRegistrations.length > 0) && (
           <div className="flex items-baseline gap-2 flex-wrap rounded-2xl px-4 py-3" style={{ background: '#F6ECD8' }}>
             <span className="font-bold" style={{ fontSize: 13, color: '#6E5836' }}>סה"כ רכשה מאיתנו</span>
             <span className="font-display" style={{ fontSize: 20, color: '#443327' }}>{formatIls(totals.paid)}</span>
+            {totals.eventsPaid > 0 && (
+              <span className="font-semibold" style={{ fontSize: 12.5, color: '#6E5836' }}>
+                ({formatIls(totals.workshopsPaid)} סדנאות · {formatIls(totals.eventsPaid)} אירועי קהילה)
+              </span>
+            )}
             {totals.pending > 0 && (
               <span className="font-semibold" style={{ fontSize: 12.5, color: '#8B4A30' }}>
                 · ועוד {formatIls(totals.pending)} שממתין לתשלום
