@@ -1,8 +1,8 @@
 ﻿import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronDown, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, Plus, RotateCcw, MessageCircle, Baby } from 'lucide-react'
+import { ChevronLeft, ChevronDown, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, Plus, RotateCcw, MessageCircle, Baby, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import type { AdminOverview } from './useAdminOverview'
+import type { AdminOverview, MorningPayment } from './useAdminOverview'
 import type { AdminTask, AdminTaskSection } from './adminTasks'
 import MimoLeaf from '../MimoLeaf'
 import UnclaimedPurchasesCard from './UnclaimedPurchasesCard'
@@ -65,7 +65,9 @@ type Props = {
 
 export default function AdminHome({ overview, onSection, onOpenTask, onOpenProduct }: Props) {
   const { profile } = useAuth()
-  const { loading, tasks, manualTasks, counters, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
+  const { loading, tasks, manualTasks, counters, monthPayments, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
+  // The הכנסות number opens into the payments behind it.
+  const [showPayments, setShowPayments] = useState(false)
 
   // Yahav 26.8.26: he asked for open/close on the home cards. The admin
   // home has grown into a column of tall lists and he does not need all of
@@ -182,12 +184,27 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3 mt-4">
-              {[
-                { label: 'ממתינות לתשלום', value: String(counters.pendingPayment), sub: null },
-                { label: 'נכנס החודש', value: `₪${counters.monthRevenue.toLocaleString()}`, sub: 'לפי מחיר המוצר' },
-                { label: 'נרשמות פעילות', value: String(counters.activeRegistrations), sub: null },
-              ].map(c => (
-                <div key={c.label} className="rounded-2xl px-4 py-3" style={{ background: '#F6F3ED' }}>
+              {([
+                { label: 'ממתינות לתשלום', value: String(counters.pendingPayment), sub: null, onClick: undefined },
+                {
+                  label: 'נכנס החודש',
+                  value: `₪${counters.monthRevenue.toLocaleString()}`,
+                  // Brenda 1.9.26: "ההכנסות גם לא מדוייקות... רשום 1600"
+                  // when two mothers paid 720 each. It was adding up list
+                  // prices. Now it is what Morning charged, and the number
+                  // opens so she never has to take it on faith again.
+                  sub: `${monthPayments.length} תשלומים`,
+                  onClick: () => setShowPayments(true),
+                },
+                { label: 'נרשמות פעילות', value: String(counters.activeRegistrations), sub: null, onClick: undefined },
+              ] as { label: string; value: string; sub: string | null; onClick?: () => void }[]).map(c => (
+                <div
+                  key={c.label}
+                  onClick={c.onClick}
+                  role={c.onClick ? 'button' : undefined}
+                  className={`rounded-2xl px-4 py-3 ${c.onClick ? 'cursor-pointer transition-colors hover:brightness-95' : ''}`}
+                  style={{ background: '#F6F3ED' }}
+                >
                   <p className="font-display" style={{ fontSize: 24, lineHeight: 1.1, color: '#443327' }}>{c.value}</p>
                   <p className="font-semibold mt-0.5" style={{ fontSize: 13, color: '#8A7A63' }}>
                     {c.label}{c.sub && <span style={{ color: '#A2937D' }}> · {c.sub}</span>}
@@ -195,6 +212,9 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                 </div>
               ))}
             </div>
+            {showPayments && (
+              <MonthPaymentsModal payments={monthPayments} total={counters.monthRevenue} onClose={() => setShowPayments(false)} />
+            )}
           </div>
 
           {/* Paid but never got in. Renders nothing when the list is empty,
@@ -602,6 +622,103 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               <ChevronLeft className="w-4 h-4 flex-shrink-0" style={{ color: '#35505C' }} />
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── The money, line by line ─────────────────────────────────────────
+// Brenda 1.9.26: "ההכנסות החודש גם לא מדוייקות - אני רוצה שהם יכילו את
+// הכל דרך הממשק של מורנינג ולא ינחשו". So the tile adds up what Morning
+// charged, and this is that list: every payment, with the amount that was
+// actually taken. If a number looks wrong, the row that caused it is here.
+//
+// What it cannot show: anything before 17.8.26 (the webhook log starts
+// there), and money that never went through Morning — a Bit transfer
+// marked paid by hand has no amount anywhere in the system.
+
+function paymentDateHe(ts: string): string {
+  return new Date(ts).toLocaleDateString('he-IL', {
+    timeZone: 'Asia/Jerusalem', day: '2-digit', month: '2-digit',
+  })
+}
+
+function paymentTimeHe(ts: string): string {
+  return new Date(ts).toLocaleTimeString('he-IL', {
+    timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+function MonthPaymentsModal({
+  payments,
+  total,
+  onClose,
+}: {
+  payments: MorningPayment[]
+  total: number
+  onClose: () => void
+}) {
+  // A payment Morning delivered that we could not attach to anyone. The
+  // money is real and counts; the seat is the open question.
+  const unmatched = payments.filter(p => p.outcome === 'unmatched')
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6" style={{ background: 'rgba(40,30,20,0.45)' }} onClick={onClose}>
+      <div
+        dir="rtl"
+        onClick={e => e.stopPropagation()}
+        className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col"
+        style={{ maxHeight: '85vh' }}
+      >
+        <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-3 flex-shrink-0">
+          <div>
+            <h3 className="font-bold" style={{ fontSize: 17, color: '#443327' }}>נכנס החודש</h3>
+            <p className="mt-0.5" style={{ fontSize: 12.5, color: '#8A7A63' }}>
+              כל מה שמורנינג חייבה בפועל, לפי הסכום שנגבה
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-xl transition-colors hover:bg-sand-100" aria-label="סגירה">
+            <X className="w-4 h-4" style={{ color: '#8A7A63' }} />
+          </button>
+        </div>
+
+        <div className="px-5 pb-3 flex-shrink-0">
+          <div className="flex items-baseline gap-2 rounded-2xl px-4 py-3" style={{ background: '#F6ECD8' }}>
+            <span className="font-display" style={{ fontSize: 24, color: '#443327' }}>₪{total.toLocaleString()}</span>
+            <span className="font-semibold" style={{ fontSize: 12.5, color: '#6E5836' }}>
+              ב-{payments.length} תשלומים
+            </span>
+          </div>
+          {unmatched.length > 0 && (
+            <p className="mt-2 rounded-2xl px-3 py-2 font-semibold" style={{ fontSize: 12, background: '#F7EBE4', color: '#8B4A30' }}>
+              {unmatched.length === 1 ? 'תשלום אחד נכנס' : `${unmatched.length} תשלומים נכנסו`} בלי שהצלחנו לשייך אותו למישהי. הכסף נספר, המקום לא.
+            </p>
+          )}
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-5 pb-5 space-y-2">
+          {payments.length === 0 ? (
+            <p className="text-sm text-center py-8" style={{ color: '#8A7A63' }}>
+              עוד לא נכנס כסף החודש דרך מורנינג.
+            </p>
+          ) : payments.map(p => (
+            <div key={p.id} className="rounded-2xl px-4 py-3" style={{ background: '#F5F1EB' }}>
+              <div className="flex items-baseline gap-2">
+                <span className="font-semibold flex-1 min-w-0 truncate" style={{ fontSize: 13.5, color: '#443327' }}>
+                  {p.payer_name || p.payer_email || 'ללא שם'}
+                </span>
+                <span className="font-bold flex-shrink-0" style={{ fontSize: 14, color: '#443327' }}>
+                  ₪{Number(p.total ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <p className="mt-0.5 flex flex-wrap gap-x-2" style={{ fontSize: 11.5, color: '#8A7A63' }}>
+                <span>{paymentDateHe(p.received_at)} · {paymentTimeHe(p.received_at)}</span>
+                {p.description && <span>· {p.description}</span>}
+                {p.outcome === 'unmatched' && <span style={{ color: '#8B4A30', fontWeight: 700 }}>· לא שויך</span>}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </div>

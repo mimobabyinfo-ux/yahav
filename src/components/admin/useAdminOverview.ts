@@ -11,6 +11,35 @@ function todayIsrael(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
 }
 
+/** The Israeli calendar day a timestamp falls on (YYYY-MM-DD). A payment
+ *  at 01:00 on the 1st is this month's money, not last month's. */
+function israelDay(ts: string): string {
+  return new Date(ts).toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
+}
+
+/** Morning retries a delivery it thinks failed, and every delivery is
+ *  logged. Counting the retries would inflate the month. Two rows are the
+ *  same payment when the same payer paid the same amount for the same
+ *  thing within a few minutes — a mother genuinely buying the same product
+ *  twice in that window does not happen, and if it ever did, one seat is
+ *  the safer error than two payments that never existed. */
+function dedupePayments(rows: MorningPayment[]): MorningPayment[] {
+  const WINDOW_MS = 15 * 60 * 1000
+  const kept: MorningPayment[] = []
+  const seen = new Map<string, number>()   // key → last kept timestamp
+  // Oldest first so the FIRST delivery is the one kept.
+  for (const r of [...rows].sort((a, b) => a.received_at.localeCompare(b.received_at))) {
+    const who = (r.payer_email ?? r.payer_name ?? '').toLowerCase().trim()
+    const key = `${who}|${r.total}|${r.description ?? ''}`
+    const t = new Date(r.received_at).getTime()
+    const prev = seen.get(key)
+    if (prev != null && t - prev < WINDOW_MS) continue
+    seen.set(key, t)
+    kept.push(r)
+  }
+  return kept.reverse()   // newest first, the order the UI reads in
+}
+
 export type CapacityRow = {
   kind: 'cohort' | 'event'
   id: string
@@ -21,6 +50,19 @@ export type CapacityRow = {
   capacity: number | null
 }
 
+/** One payment Morning actually charged, as it reached our webhook.
+ *  This is the money — not a product price, not an estimate. */
+export type MorningPayment = {
+  id: string
+  received_at: string
+  description: string | null
+  total: number
+  payer_name: string | null
+  payer_email: string | null
+  outcome: string | null
+  detail: string | null
+}
+
 export type AdminOverview = {
   loading: boolean
   /** Derived tasks AFTER persisted dismissals were applied. */
@@ -28,6 +70,10 @@ export type AdminOverview = {
   /** Open manual tasks (admin_tasks table, phase 2). */
   manualTasks: ManualTask[]
   counters: { pendingPayment: number; monthRevenue: number; activeRegistrations: number }
+  /** Every payment Morning reported this calendar month, newest first —
+   *  what the הכנסות tile adds up, so the number can be opened and read
+   *  line by line instead of trusted. */
+  monthPayments: MorningPayment[]
   /** Mothers who said they paid outside the app, awaiting confirmation.
    *  Drives the אירועים badge — Brenda 17.8.26: "I want it to pop up as a
    *  1 and then I'll go in." */
@@ -65,10 +111,11 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
   const [eventWaiting, setEventWaiting] = useState<Map<string, number>>(new Map())
   const [eventSeatsTaken, setEventSeatsTaken] = useState<Map<string, number>>(new Map())
   const [unmatchedPayments, setUnmatchedPayments] = useState<UnmatchedPayment[]>([])
+  const [payments, setPayments] = useState<MorningPayment[]>([])
 
   const load = useCallback(async () => {
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-    const [ws, cs, evs, toks, lds, evRegs, claims, anns, pls, mts, dms, dobs, wls, hooks] = await Promise.all([
+    const [ws, cs, evs, toks, lds, evRegs, claims, anns, pls, mts, dms, dobs, wls, hooks, pays] = await Promise.all([
       supabase.from('workshops').select('*').order('display_order'),
       supabase.from('workshop_cohorts').select('*').order('start_date'),
       supabase.from('community_events').select('*').order('event_date'),
@@ -99,6 +146,14 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
         .gte('received_at', new Date(Date.now() - 30 * 86400000).toISOString())
         .order('received_at', { ascending: false })
         .limit(50),
+      // THE MONEY. Every delivery Morning made, with the amount it
+      // actually charged — the discount, the pair price, the ₪1 test.
+      // 90 days so this month and the two before it can be read.
+      supabase.from('morning_webhook_log')
+        .select('id, received_at, description, total, payer_name, payer_email, outcome, detail')
+        .gte('received_at', new Date(Date.now() - 90 * 86400000).toISOString())
+        .order('received_at', { ascending: false })
+        .limit(500),
     ])
     const wsList = (ws.data ?? []) as Workshop[]
     setWorkshops(wsList)
@@ -136,6 +191,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
       wlCount.set(w.event_id, (wlCount.get(w.event_id) ?? 0) + 1)
     }
     setEventWaiting(wlCount)
+    setPayments(dedupePayments((pays.data ?? []) as MorningPayment[]))
     setUnmatchedPayments(((hooks.data ?? []) as {
       id: string; received_at: string; payer_name: string | null
       payer_email: string | null; total: number | null; detail: string | null
@@ -209,21 +265,25 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     return applyDismissals(derived, dismissals)
   }, [loading, workshops, cohorts, events, checkinEventIds, leads, formDefs, formSubs, dismissals, paymentClaims, eventSeatsTaken, eventWaiting, unmatchedPayments])
 
+  // Everything Morning charged since the 1st of this month, Israel time.
+  const monthPayments = useMemo<MorningPayment[]>(() => {
+    const monthStart = todayIsrael().slice(0, 8) + '01'
+    return payments.filter(p => israelDay(p.received_at) >= monthStart)
+  }, [payments])
+
   const counters = useMemo(() => {
-    const today = todayIsrael()
-    const monthStart = today.slice(0, 8) + '01'
     const pendingPayment = leads.filter(l => l.status === 'pending').length
-    // ESTIMATE by product price — registration_leads stores no amount
-    // (handoff §7.1). The UI labels it "לפי מחיר המוצר".
-    const wById = new Map(workshops.map(w => [w.id, w]))
-    let monthRevenue = 0
-    for (const l of leads) {
-      if (l.status !== 'paid' || l.created_at.slice(0, 10) < monthStart) continue
-      monthRevenue += l.selected_workshop_id ? (wById.get(l.selected_workshop_id)?.price ?? 0) : 0
-    }
+    // THE MONEY, not an estimate. This used to add up product LIST prices
+    // for every lead marked paid, so a ₪800 workshop sold at 10% off still
+    // counted ₪800 and two of them read ₪1,600 instead of ₪1,440 (Brenda
+    // 1.9.26). Morning tells us what it actually charged; that is the only
+    // number worth showing. Nothing before 17.8.26 — the webhook log
+    // starts there, and an invented figure for August would be the same
+    // mistake in a different direction.
+    const monthRevenue = monthPayments.reduce((sum, p) => sum + Number(p.total ?? 0), 0)
     const activeRegistrations = leads.filter(l => l.status === 'pending' || l.status === 'paid').length
     return { pendingPayment, monthRevenue, activeRegistrations }
-  }, [leads, workshops])
+  }, [leads, monthPayments])
 
   const capacity = useMemo<CapacityRow[]>(() => {
     const today = todayIsrael()
@@ -295,5 +355,5 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     [upcomingEvents],
   )
 
-  return { loading, tasks, manualTasks, counters, paymentClaimCount: paymentClaims.length, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload: load }
+  return { loading, tasks, manualTasks, counters, monthPayments, paymentClaimCount: paymentClaims.length, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload: load }
 }

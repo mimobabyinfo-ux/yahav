@@ -321,6 +321,19 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
         {/* ── Contact actions — pinned at the TOP ── */}
         {view.kind === 'loaded' && (
           <div className="px-5 py-2.5 border-b flex-shrink-0 flex items-center gap-2 flex-wrap" style={{ borderColor: '#E9E2D6', background: '#FBF8F3' }}>
+            {/* Whether Mimo is actually on her phone, not just in her
+                browser. Recorded from 1.9.26 onward, so its absence on an
+                older account means "we never saw her open it installed",
+                not "she never installed it". */}
+            {view.profile.user?.pwa_installed_at && (
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold"
+                style={{ background: '#EDF0E6', color: '#4F5040', fontSize: 12.5 }}
+                title={`נראתה לראשונה במסך הבית ב-${new Date(view.profile.user.pwa_installed_at).toLocaleDateString('he-IL')}`}
+              >
+                📱 במסך הבית
+              </span>
+            )}
             {waHref && (
               <a
                 href={waHref}

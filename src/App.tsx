@@ -1,7 +1,8 @@
-﻿import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
+﻿import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import { useTracker } from './hooks/useTracker'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { supabase } from './lib/supabase'
+import { isStandalone } from './utils/webPush'
 import LoginPage from './pages/LoginPage'
 import OnboardingPage from './pages/OnboardingPage'
 import DashboardPage from './pages/DashboardPage'
@@ -106,6 +107,26 @@ function AppInner() {
   // One shared fetch feeding the admin home screen AND the sidebar
   // badges (task count / product problems). Disabled outside admin mode.
   const adminOverview = useAdminOverview((profile?.is_admin ?? false) && !viewAsUser)
+
+  // Brenda 1.9.26: "אני רוצה לדעת גם מי שמה את האפליקציה במסך הבית."
+  // The browser is the only one who knows, and it knew it for the length
+  // of one page view. A PWA opened from the home screen runs in
+  // display-mode: standalone, so a single ping per app load records both
+  // the install (the first time we ever see it) and the fact that she is
+  // still opening it that way. A mother in a browser tab writes nothing.
+  const pwaPinged = useRef(false)
+  useEffect(() => {
+    if (pwaPinged.current) return
+    if (!user || !profile || isGuest) return
+    if (!isStandalone()) return
+    pwaPinged.current = true
+    const now = new Date().toISOString()
+    const patch: { pwa_last_open_at: string; pwa_installed_at?: string } =
+      { pwa_last_open_at: now }
+    if (!profile.pwa_installed_at) patch.pwa_installed_at = now
+    supabase.from('user_profiles').update(patch).eq('id', user.id)
+      .then(({ error }) => { if (error) console.error('[pwa ping]', error) })
+  }, [user, profile, isGuest])
 
   useEffect(() => {
     track('page_view', { page: currentPage })

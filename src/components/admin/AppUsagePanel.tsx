@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
-import { MessageCircle, Users, Clock, RotateCcw, Eye } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { MessageCircle, Users, Clock, RotateCcw, Eye, Smartphone } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { waLink } from '../../utils/phone'
+import { useOpenCustomer } from './CustomerCardContext'
 
 // שימוש באפליקציה — Brenda 21.8.26: "אני רוצה לדעת מה האמהות עשו
 // באפליקציה, כמה זמן הם היו שם, איזה עמודים הם ראו... ומה הדבר העיקרי
@@ -53,6 +54,18 @@ type MotherRow = {
   visits: number
   journal_entries: number
   event_registrations: number
+  /** Only set in the 'installed' list — when she put Mimo on her home
+   *  screen. Nothing was recorded before 1.9.26. */
+  pwa_installed_at?: string | null
+}
+
+type ListMode = 'dormant' | 'active' | 'never' | 'installed'
+
+const LIST_TITLE: Record<ListMode, string> = {
+  dormant:   'מי נעלמה',
+  active:    'מי נכנסה',
+  never:     'נרשמו ולא פתחו',
+  installed: 'שמו את מימו במסך הבית',
 }
 
 // Screen names as Brenda calls them, not as the router calls them.
@@ -106,9 +119,14 @@ function ddmm(d: string): string {
   return `${day}/${m}`
 }
 
-function Tile({ label, value, sub, icon }: { label: string; value: string; sub?: string; icon?: React.ReactNode }) {
+function Tile({ label, value, sub, icon, onClick }: { label: string; value: string; sub?: string; icon?: React.ReactNode; onClick?: () => void }) {
   return (
-    <div className="rounded-2xl p-3.5 flex-1 min-w-[130px]" style={{ background: '#FAF8F4', border: '1px solid #EFE7DC' }}>
+    <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      className={`rounded-2xl p-3.5 flex-1 min-w-[130px] ${onClick ? 'cursor-pointer transition-colors hover:brightness-95' : ''}`}
+      style={{ background: '#FAF8F4', border: '1px solid #EFE7DC' }}
+    >
       <p className="text-[11px] font-semibold flex items-center gap-1" style={{ color: '#8A7A63' }}>
         {icon}{label}
       </p>
@@ -139,10 +157,22 @@ function BarRow({ label, value, note, max, color }: { label: string; value: numb
 export default function AppUsagePanel() {
   const [days, setDays] = useState(30)
   const [usage, setUsage] = useState<Usage | null>(null)
-  const [listMode, setListMode] = useState<'dormant' | 'active'>('dormant')
+  const [listMode, setListMode] = useState<ListMode>('dormant')
   const [dormantDays, setDormantDays] = useState(7)
   const [rows, setRows] = useState<MotherRow[]>([])
+  const [installedCount, setInstalledCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  // Brenda 1.9.26: "אני רוצה לראות את האמהות האלה ה-9 שנכנסו השבוע".
+  // Every number in this panel was a dead end — you could read it and
+  // not reach the women behind it. The tiles now open the list.
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const openCustomer = useOpenCustomer()
+  function openList(mode: ListMode) {
+    setListMode(mode)
+    // The list is below the fold on a phone; jumping to it is the whole
+    // point of the click.
+    setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
 
   const loadUsage = useCallback(() => {
     setLoading(true)
@@ -153,15 +183,55 @@ export default function AppUsagePanel() {
   }, [days])
 
   const loadRows = useCallback(() => {
+    // The installed list is not an activity question — it comes straight
+    // off the profile, where the app stamps it on every standalone open.
+    if (listMode === 'installed') {
+      supabase.from('user_profiles')
+        .select('id, mother_name, phone_number, email, created_at, last_active, pwa_installed_at')
+        .not('pwa_installed_at', 'is', null)
+        .eq('is_admin', false)
+        .order('pwa_installed_at', { ascending: false })
+        .limit(200)
+        .then(({ data }) => setRows(((data ?? []) as {
+          id: string; mother_name: string | null; phone_number: string | null
+          email: string | null; created_at: string; last_active: string | null
+          pwa_installed_at: string | null
+        }[]).map(r => ({
+          user_id: r.id,
+          mother_name: r.mother_name,
+          phone_number: r.phone_number,
+          email: r.email,
+          joined: r.created_at,
+          last_active: r.last_active,
+          days_since: null,
+          visits: 0,
+          journal_entries: 0,
+          event_registrations: 0,
+          pwa_installed_at: r.pwa_installed_at,
+        }))))
+      return
+    }
     supabase.rpc('get_mothers_activity', {
-      p_mode: listMode,
-      p_days: listMode === 'dormant' ? dormantDays : days,
-      p_limit: 40,
-    }).then(({ data }) => setRows((data ?? []) as MotherRow[]))
+      // 'never' is the dormant list with the harshest cut — the women who
+      // never opened it at all sort first there anyway.
+      p_mode: listMode === 'never' ? 'dormant' : listMode,
+      p_days: listMode === 'dormant' ? dormantDays : listMode === 'never' ? 1 : days,
+      p_limit: 200,
+    }).then(({ data }) => {
+      const all = (data ?? []) as MotherRow[]
+      setRows(listMode === 'never' ? all.filter(r => !r.last_active) : all)
+    })
   }, [listMode, dormantDays, days])
 
   useEffect(() => { loadUsage() }, [loadUsage])
   useEffect(() => { loadRows() }, [loadRows])
+  useEffect(() => {
+    supabase.from('user_profiles')
+      .select('id', { count: 'exact', head: true })
+      .not('pwa_installed_at', 'is', null)
+      .eq('is_admin', false)
+      .then(({ count }) => setInstalledCount(count ?? 0))
+  }, [])
 
   if (loading && !usage) {
     return (
@@ -205,6 +275,14 @@ export default function AppUsagePanel() {
             label="נכנסו בתקופה"
             value={`${usage.active_window}`}
             sub={`מתוך ${usage.mothers_total} אמהות · היום ${usage.active_today}`}
+            onClick={() => openList('active')}
+          />
+          <Tile
+            icon={<Smartphone className="w-3 h-3" />}
+            label="במסך הבית"
+            value={`${installedCount}`}
+            sub="נמדד מ-1.9.26"
+            onClick={() => openList('installed')}
           />
           <Tile
             icon={<RotateCcw className="w-3 h-3" />}
@@ -227,9 +305,13 @@ export default function AppUsagePanel() {
         </div>
 
         {usage.never_opened > 0 && (
-          <p className="text-xs mt-3 rounded-2xl px-3 py-2" style={{ background: '#FBEBE7', color: '#C1392C' }}>
-            {usage.never_opened} אמהות נרשמו ומעולם לא פתחו את האפליקציה
-          </p>
+          <button
+            onClick={() => openList('never')}
+            className="w-full text-right text-xs mt-3 rounded-2xl px-3 py-2 transition-colors hover:brightness-95"
+            style={{ background: '#FBEBE7', color: '#C1392C' }}
+          >
+            {usage.never_opened} אמהות נרשמו ומעולם לא פתחו את האפליקציה ←
+          </button>
         )}
       </div>
 
@@ -294,19 +376,16 @@ export default function AppUsagePanel() {
       </div>
 
       {/* Who disappeared / who is here */}
-      <div className="bg-white rounded-3xl shadow-sm p-5">
+      <div className="bg-white rounded-3xl shadow-sm p-5" ref={listRef}>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-          <div className="flex gap-1.5">
-            <button onClick={() => setListMode('dormant')}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold"
-              style={listMode === 'dormant' ? { background: '#E7C78A', color: '#4A3A28' } : { background: '#F4EDE1', color: '#7B604C' }}>
-              מי נעלמה
-            </button>
-            <button onClick={() => setListMode('active')}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold"
-              style={listMode === 'active' ? { background: '#E7C78A', color: '#4A3A28' } : { background: '#F4EDE1', color: '#7B604C' }}>
-              הכי פעילות
-            </button>
+          <div className="flex gap-1.5 flex-wrap">
+            {(['active', 'dormant', 'never', 'installed'] as ListMode[]).map(m => (
+              <button key={m} onClick={() => setListMode(m)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold"
+                style={listMode === m ? { background: '#E7C78A', color: '#4A3A28' } : { background: '#F4EDE1', color: '#7B604C' }}>
+                {LIST_TITLE[m]}
+              </button>
+            ))}
           </div>
           {listMode === 'dormant' && (
             <div className="flex gap-1.5">
@@ -321,9 +400,19 @@ export default function AppUsagePanel() {
           )}
         </div>
 
+        <p className="text-[11px] mb-2" style={{ color: '#8A7A63' }}>
+          {listMode === 'active'    && `כל מי שנכנסה ב-${days} הימים האחרונים · ${rows.length}`}
+          {listMode === 'dormant'   && `לא נכנסו ${dormantDays} ימים ומעלה · ${rows.length}`}
+          {listMode === 'never'     && `יש להן חשבון ומעולם לא פתחו · ${rows.length}`}
+          {listMode === 'installed' && `פתחו את מימו מהמסך הבית · ${rows.length}`}
+        </p>
+
         {rows.length === 0 ? (
-          <p className="text-xs py-6 text-center" style={{ color: '#8A7A63' }}>
-            {listMode === 'dormant' ? 'אף אחת לא נעלמה בטווח הזה 🤍' : 'אין כניסות בתקופה'}
+          <p className="text-xs py-6 text-center leading-relaxed" style={{ color: '#8A7A63' }}>
+            {listMode === 'dormant' ? 'אף אחת לא נעלמה בטווח הזה 🤍'
+              : listMode === 'never' ? 'כל מי שנרשמה גם פתחה 🤍'
+              : listMode === 'installed' ? 'עוד אף אחת לא נראתה פותחת את מימו ממסך הבית. המדידה התחילה ב-1.9.26, אז זה יתמלא מהעדכון הבא של האפליקציה.'
+              : 'אין כניסות בתקופה'}
           </p>
         ) : (
           <div className="space-y-2">
@@ -338,15 +427,24 @@ export default function AppUsagePanel() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold truncate" style={{ color: '#443327' }}>{name}</p>
                     <p className="text-[11px] mt-0.5" style={{ color: '#8A7A63' }}>
-                      {listMode === 'dormant'
-                        ? (r.last_active
+                      {listMode === 'installed'
+                        ? `במסך הבית מ-${r.pwa_installed_at ? new Date(r.pwa_installed_at).toLocaleDateString('he-IL') : '—'}`
+                        : listMode === 'active'
+                        ? `${r.visits} כניסות`
+                        : (r.last_active
                             ? `לא נכנסה ${r.days_since} ימים`
-                            : 'מעולם לא פתחה את האפליקציה')
-                        : `${r.visits} כניסות`}
+                            : 'מעולם לא פתחה את האפליקציה')}
                       {r.journal_entries > 0 && ` · ${r.journal_entries} רשומות ביומן`}
                       {r.event_registrations > 0 && ` · ${r.event_registrations} אירועים`}
                     </p>
                   </div>
+                  <button
+                    onClick={() => openCustomer({ phone: r.phone_number, email: r.email })}
+                    className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition-colors hover:brightness-95"
+                    style={{ background: '#F0EBE3', color: '#443327' }}
+                  >
+                    כרטיסייה
+                  </button>
                   {wa ? (
                     <a href={wa} target="_blank" rel="noopener noreferrer"
                       className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"

@@ -18,6 +18,7 @@ import ConfirmDialog from '../components/admin/ConfirmDialog'
 import WorkshopOffersPanel from '../components/admin/WorkshopOffersPanel'
 import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
+import { useUserProducts, shortProductName, type ProductFacet } from '../components/admin/useUserProducts'
 import { REGISTRATIONS_CHANGED_EVENT } from '../components/admin/CustomerCardModal'
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
 import { normalizeIlPhone } from '../components/admin/customerLookup'
@@ -289,6 +290,88 @@ function LeadBadge({ status }: { status: string | null }) {
 // ─── Users Tab ───────────────────────────────────────────────────────────────
 type UserWithChildren = UserProfile & { childCount: number }
 
+// ─── משתמשות: product filter + the badges that go with it ────────────
+// Brenda 1.9.26 asked for three things on this screen at once: to slice
+// the list by what a woman bought, to see it on her row, and to open her
+// customer card from here. All three hang off the same index.
+
+function ProductChips({
+  products,
+  value,
+  onChange,
+  installedCount,
+}: {
+  products: ProductFacet[]
+  value: string
+  onChange: (v: string) => void
+  installedCount: number
+}) {
+  if (products.length === 0) return null
+  const chip = (id: string, label: string, n: number) => {
+    const active = value === id
+    return (
+      <button
+        key={id}
+        onClick={() => onChange(id)}
+        className="px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap"
+        style={active
+          ? { background: '#E7C78A', color: '#4A3A28', fontSize: 12 }
+          : { background: '#F4EDE1', color: '#7B604C', fontSize: 12 }}
+      >
+        {label} · {n}
+      </button>
+    )
+  }
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {chip('all', 'כל המוצרים', products.reduce((n, p) => n + p.buyers, 0))}
+      {products.map(p => chip(p.id, shortProductName(p.title), p.buyers))}
+      {/* Not a product, but the same question: who is really in. */}
+      {installedCount > 0 && chip('installed', '📱 במסך הבית', installedCount)}
+    </div>
+  )
+}
+
+/** Does this user pass the product chip? 'installed' is the odd one out —
+ *  it filters on the home-screen install, not on a purchase. */
+function passesProductFilter(
+  u: UserProfile,
+  filter: string,
+  byUser: Map<string, string[]>,
+): boolean {
+  if (filter === 'all') return true
+  if (filter === 'installed') return !!u.pwa_installed_at
+  return (byUser.get(u.id) ?? []).includes(filter)
+}
+
+function UserProductBadges({ ids, titleById }: { ids: string[]; titleById: Map<string, string> }) {
+  if (ids.length === 0) return null
+  return (
+    <>
+      {ids.map(id => (
+        <span key={id} className="text-[13px] px-1.5 py-0.5 rounded-md font-bold"
+          style={{ background: '#F0EBE3', color: '#6E6852' }}>
+          {shortProductName(titleById.get(id) ?? 'מוצר')}
+        </span>
+      ))}
+    </>
+  )
+}
+
+/** 📱 — she opened Mimo from her home screen at least once. */
+function InstalledBadge({ at }: { at: string | null }) {
+  if (!at) return null
+  return (
+    <span
+      className="text-[13px] px-1.5 py-0.5 rounded-md font-bold"
+      style={{ background: '#EDF0E6', color: '#4F5040' }}
+      title={`הוסיפה למסך הבית ב-${new Date(at).toLocaleDateString('he-IL')}`}
+    >
+      📱 במסך הבית
+    </span>
+  )
+}
+
 type ExistingAccess = { id: string; workshop_id: string; access_start_date: string | null; access_end_date: string | null; workshops?: { title: string }[] | { title: string } | null }
 
 function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose: () => void }) {
@@ -441,6 +524,9 @@ function UsersTab() {
   const [users, setUsers] = useState<UserWithChildren[]>([])
   const [search, setSearch] = useState('')
   const [modeFilter, setModeFilter] = useState<'all' | 'pregnant' | 'mom' | 'course'>('all')
+  const [productFilter, setProductFilter] = useState<string>('all')
+  const { byUser, products, titleById } = useUserProducts()
+  const openCustomer = useOpenCustomer()
   const [editUser, setEditUser] = useState<UserWithChildren | null>(null)
   const [editName, setEditName] = useState('')
   const [editLeadStatus, setEditLeadStatus] = useState<string>('')
@@ -466,8 +552,10 @@ function UsersTab() {
     if (modeFilter === 'course') {
       if (u.acquisition_source !== 'course_purchase') return false
     } else if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
+    if (!passesProductFilter(u, productFilter, byUser)) return false
     return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
   })
+  const installedCount = users.filter(u => u.pwa_installed_at).length
 
   async function saveEdit() {
     if (!editUser || !editName.trim()) return
@@ -520,6 +608,13 @@ function UsersTab() {
         ))}
       </div>
 
+      <ProductChips
+        products={products}
+        value={productFilter}
+        onChange={setProductFilter}
+        installedCount={installedCount}
+      />
+
       <p className="text-xs text-sand-400">{filtered.length} משתמשות</p>
 
       {filtered.map(u => (
@@ -533,6 +628,8 @@ function UsersTab() {
                 {u.acquisition_source === 'course_purchase' && (
                   <span className="text-[13px] bg-[#F6ECD8] text-[#6E5836] px-1.5 py-0.5 rounded-md font-bold">🎓 קורס</span>
                 )}
+                <UserProductBadges ids={byUser.get(u.id) ?? []} titleById={titleById} />
+                <InstalledBadge at={u.pwa_installed_at} />
                 <LeadBadge status={u.lead_status} />
               </div>
               <p className="text-xs text-sand-400 truncate">{u.email}</p>
@@ -579,6 +676,16 @@ function UsersTab() {
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
+
+          {/* The whole customer in one place: what she bought, what she
+              paid, her questionnaire, her community events. */}
+          <button
+            onClick={() => openCustomer({ phone: u.phone_number, email: u.email })}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-colors"
+            style={{ background: '#F6F3ED', color: '#443327' }}
+          >
+            <Users className="w-4 h-4" /> כרטיסיית לקוח
+          </button>
 
           {/* Workshop access button */}
           <button
@@ -675,6 +782,9 @@ function UsersTabDesktop() {
   const [users, setUsers] = useState<UserWithChildren[]>([])
   const [search, setSearch] = useState('')
   const [modeFilter, setModeFilter] = useState<'all' | 'pregnant' | 'mom' | 'course'>('all')
+  const [productFilter, setProductFilter] = useState<string>('all')
+  const { byUser, products, titleById } = useUserProducts()
+  const openCustomer = useOpenCustomer()
   const [drawer, setDrawer] = useState<UserWithChildren | null>(null)
   const [editName, setEditName] = useState('')
   const [editLeadStatus, setEditLeadStatus] = useState('')
@@ -700,8 +810,12 @@ function UsersTabDesktop() {
     if (modeFilter === 'course') {
       if (u.acquisition_source !== 'course_purchase') return false
     } else if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
+    if (!passesProductFilter(u, productFilter, byUser)) return false
     return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
   })
+  const installedCount = users.filter(u => u.pwa_installed_at).length
+  // The card's ‹ › arrows walk the list she is looking at, in its order.
+  const cardList = filtered.map(u => ({ phone: u.phone_number, email: u.email }))
 
   function openDrawer(u: UserWithChildren) {
     setDrawer(u)
@@ -753,6 +867,15 @@ function UsersTabDesktop() {
           <span className="text-sm text-gray-400 mr-auto">{filtered.length} משתמשות</span>
         </div>
 
+        <div className="mb-4">
+          <ProductChips
+            products={products}
+            value={productFilter}
+            onChange={setProductFilter}
+            installedCount={installedCount}
+          />
+        </div>
+
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
           <table className="w-full text-right" dir="rtl">
@@ -777,6 +900,10 @@ function UsersTabDesktop() {
                         {u.acquisition_source === 'course_purchase' && (
                           <span className="text-[9px] bg-[#F6ECD8] text-[#6E5836] px-1 rounded font-bold">🎓 קורס</span>
                         )}
+                        <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                          <UserProductBadges ids={byUser.get(u.id) ?? []} titleById={titleById} />
+                          <InstalledBadge at={u.pwa_installed_at} />
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -795,7 +922,22 @@ function UsersTabDesktop() {
                     {u.created_at ? new Date(u.created_at).toLocaleDateString('he-IL') : 'ללא'}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1">
+                      {/* Always visible: this is now the main way into a
+                          person, not a hover affordance. The edit/delete
+                          row stays hidden until hover, where it was. */}
+                      <button
+                        onClick={() => openCustomer(
+                          { phone: u.phone_number, email: u.email },
+                          { list: cardList, index: filtered.indexOf(u) },
+                        )}
+                        title="כרטיסיית לקוח"
+                        className="px-2 py-1.5 rounded-lg font-bold transition-colors hover:brightness-95 flex-shrink-0"
+                        style={{ background: '#F6F3ED', color: '#443327', fontSize: 12 }}
+                      >
+                        כרטיסייה
+                      </button>
+                      <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => openDrawer(u)} title="ערוך"
                         className="p-1.5 rounded-lg hover:bg-mustard-50 text-gray-400 hover:text-mustard-600">
                         <Pencil className="w-3.5 h-3.5" />
@@ -812,6 +954,7 @@ function UsersTabDesktop() {
                         className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
+                      </span>
                     </div>
                   </td>
                 </tr>

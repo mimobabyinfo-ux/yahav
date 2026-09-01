@@ -29,6 +29,13 @@ export type UserProfile = {
   acquisition_source: 'app' | 'course_purchase' | null
   staff_notes: string | null
   last_active: string | null
+  /** First / last time she was seen running the app from her home screen
+   *  (display-mode: standalone). NULL in pwa_installed_at = never seen
+   *  installed. Nothing was recorded before 1.9.2026, so an old account
+   *  with NULL may well have the app installed — it just has not opened
+   *  it since. */
+  pwa_installed_at: string | null
+  pwa_last_open_at: string | null
   family_id: string | null
   area: string | null
   /** Optional neighbourhood inside `area`. Free text; suggestions come
