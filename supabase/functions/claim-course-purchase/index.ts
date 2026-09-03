@@ -24,6 +24,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
  *           her to a content screen produces an account that never gets used
  *           - which is exactly the leak this function exists to close.
  *
+ *   NO CONTENT (a pouf, a rattle, ליווי פרטני) - nothing in the app for her.
+ *           No message, no account. Brenda 3.9.26.
+ *
  * CHANNEL: WhatsApp first, email as the fallback.
  * WhatsApp is the channel these mothers actually open - it is where Brenda
  * already talks to them, from a number they recognise. Email is kept as the
@@ -74,6 +77,10 @@ type Kind = "course" | "workshop"
 // already inside.
 //   welcome  - no cohort to reason about. The original text, unchanged, so
 //              the live post-payment flow keeps behaving exactly as it did.
+//
+// Brenda 3.9.26: none of the texts mention WhatsApp or say the summaries
+// "moved". New cohorts never knew summaries used to come on WhatsApp, so
+// "במקום בוואטסאפ" only confuses. The summaries are simply in the app.
 type Variant = "course" | "welcome" | "running_in" | "running_out" | "upcoming_in" | "upcoming_out"
 
 // "2026-09-03" -> "3.9"
@@ -225,37 +232,35 @@ ${link}
 כאן לכל שאלה${owner ? `,\n${owner}` : ""}`
   }
 
-  // Her workshop is running and she is already in the app. This is a change
-  // of habit, not an introduction: until now the summaries came on WhatsApp.
+  // Her workshop is running and she is already in the app.
   if (v === "running_in") {
     return `${hi}
-משהו משתנה אצלנו: מהיום כל התכנים והסיכומים של ${title} נמצאים באפליקציה, במקום בוואטסאפ.
+כל התכנים והסיכומים של ${title} מחכים לך באפליקציה.
 פתחתי לך את הגישה, והקישור הבא לוקח אותך ישר אליהם:
 
 ${link}
 
-כל מה שכבר עברנו מחכה לך שם, ומה שנעבור בהמשך יתווסף.${sign}`
+נתראה במפגש הבא 🤍${sign}`
   }
 
-  // Running, and she has never opened the app. Same change of habit, plus
-  // the account she never had.
+  // Running, and she has never opened the app. Same, plus the account she
+  // never had.
   if (v === "running_out") {
     return `${hi}
-מהיום כל התכנים והסיכומים של ${title} נמצאים באפליקציה של מימו, במקום בוואטסאפ.
+כל התכנים והסיכומים של ${title} מחכים לך באפליקציה של מימו.
 הקישור הבא פותח לך חשבון ומכניס אותך ישר אליהם:
 
 ${link}
 
-כל מה שכבר עברנו מחכה לך שם, ומה שנעבור בהמשך יתווסף. בדרך תגלי גם יומן למעקב אחרי הבייבי ואת קהילת האמהות שלנו.${sign}`
+בדרך תגלי גם יומן למעקב אחרי הבייבי ואת קהילת האמהות שלנו. נתראה במפגש הבא 🤍${sign}`
   }
 
   // Her workshop has not opened yet. Nothing has "already been covered", so
   // the message points forward instead of back.
   if (v === "upcoming_in") {
     return `${hi}
-נרשמת ל${title} שמתחילה ב-${startLabel}, ורציתי שתדעי מראש: כל התכנים והסיכומים של הסדנה יהיו אצלך באפליקציה ולא בוואטסאפ.
-תיפתח כרגיל גם קבוצת וואטסאפ לסדנה, פשוט בלי הסיכומים.
-פתחתי לך את האזור של הסדנה כבר עכשיו:
+נרשמת ל${title} שמתחילה ב-${startLabel}, וכיף שאת איתנו.
+כל התכנים והסיכומים של הסדנה יחכו לך באפליקציה, ופתחתי לך את האזור של הסדנה כבר עכשיו:
 
 ${link}
 
@@ -265,7 +270,7 @@ ${link}
   if (v === "upcoming_out") {
     return `${hi}
 נרשמת ל${title} שמתחילה ב-${startLabel}, וכיף שאת איתנו.
-כל התכנים והסיכומים של הסדנה יחכו לך באפליקציה של מימו ולא בוואטסאפ. תיפתח כרגיל גם קבוצת וואטסאפ לסדנה, פשוט בלי הסיכומים.
+כל התכנים והסיכומים של הסדנה יחכו לך באפליקציה של מימו.
 הקישור הבא פותח לך חשבון, ושווה להיכנס כבר עכשיו:
 
 ${link}
@@ -287,7 +292,7 @@ ${link}
 
 function emailSubject(v: Variant, title: string, startLabel: string): string {
   if (v === "course") return `הגישה שלך ל${title} מוכנה 🤎`
-  if (v === "running_in" || v === "running_out") return `הסיכומים של ${title} עברו לאפליקציה 🤎`
+  if (v === "running_in" || v === "running_out") return `הסיכומים של ${title} מחכים לך באפליקציה 🤎`
   if (v === "upcoming_in" || v === "upcoming_out") return `${title} מתחילה ב-${startLabel} 🐣`
   return `ברוכה הבאה למימו 🐣`
 }
@@ -308,15 +313,13 @@ function emailHtml(v: Variant, name: string, title: string, link: string, startL
     tail = `הקורס שלך לתמיד, בקצב שלך. ואם תרצי, יש שם גם יומן מעקב
             לשינה ולהנקה וקהילה של אמהות. בלי לחץ, בלי תוספת תשלום.`
   } else if (v === "running_in" || v === "running_out") {
-    heading = `${who}הסיכומים עברו לאפליקציה 🤎`
-    lead = `מהיום כל התכנים והסיכומים של <strong>${esc(title)}</strong> נמצאים באפליקציה, במקום בוואטסאפ.
+    heading = `${who}הסיכומים מחכים לך באפליקציה 🤎`
+    lead = `כל התכנים והסיכומים של <strong>${esc(title)}</strong> נמצאים באפליקציה.
             ${v === "running_in" ? "פתחנו לך את הגישה, והכפתור למטה לוקח אותך ישר אליהם." : "הכפתור למטה פותח לך חשבון ומכניס אותך ישר אליהם."}`
-    tail = `כל מה שכבר עברנו מחכה לך שם, ומה שנעבור בהמשך יתווסף.
-            אפשר להיכנס מכל טלפון, ולהוסיף את מימו למסך הבית כדי שתהיה בהישג יד.`
+    tail = `אפשר להיכנס מכל טלפון, ולהוסיף את מימו למסך הבית כדי שתהיה בהישג יד.`
   } else if (v === "upcoming_in" || v === "upcoming_out") {
     heading = `${who}${esc(title)} מתחילה ב-${esc(startLabel)} 🐣`
-    lead = `כל התכנים והסיכומים של הסדנה יהיו אצלך באפליקציה ולא בוואטסאפ.
-            תיפתח כרגיל גם קבוצת וואטסאפ לסדנה, פשוט בלי הסיכומים.
+    lead = `כל התכנים והסיכומים של הסדנה יחכו לך באפליקציה.
             ${v === "upcoming_in" ? "פתחנו לך את האזור של הסדנה כבר עכשיו." : "הכפתור למטה פותח לך חשבון, ושווה להיכנס כבר עכשיו."}`
     tail = `נתראה ב-${esc(startLabel)}. אפשר להיכנס מכל טלפון, ולהוסיף את מימו
             למסך הבית כדי שתהיה בהישג יד.`
@@ -406,6 +409,29 @@ Deno.serve(async (req: Request) => {
       .eq("id", lead.selected_workshop_id).maybeSingle()
     if (w?.title) title = w.title
     if (w?.thanks_template === "course") kind = "course"
+
+    // 2a - is there anything in the app for her at all? Brenda 3.9.26: a
+    // mother who bought a pouf got "כל התכנים והסיכומים של פוף 110/80 מחכים
+    // לך באפליקציה". Embarrassing. A product with no workshop_content rows
+    // (the physical products, ליווי פרטני, מפגש אבות) has nothing to
+    // welcome her to, so nothing is sent and no account is opened. The lead
+    // is latched so the manual-paid trigger does not keep knocking.
+    if (!wantLink) {
+      const { count } = await admin
+        .from("workshop_content")
+        .select("id", { count: "exact", head: true })
+        .eq("workshop_id", lead.selected_workshop_id)
+      if ((count ?? 0) === 0) {
+        if (dry) return json({ ok: true, mode: "dry", kind, title, sent: false, reason: "no_content" })
+        const { error: skipErr } = await admin
+          .from("registration_leads")
+          .update({ welcome_sent_at: new Date().toISOString(), welcome_channel: "skipped",
+                    welcome_detail: `no app content for ${title}` })
+          .eq("id", leadId).is("welcome_sent_at", null)
+        if (skipErr) console.error("[claim] skip latch failed:", skipErr.message)
+        return json({ ok: true, kind, title, sent: false, reason: "no_content" })
+      }
+    }
   }
 
   // 2b - when does her workshop open? Drives which text she gets.

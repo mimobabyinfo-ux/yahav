@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarDays, Check, Clock, X, RotateCcw, Pencil } from 'lucide-react'
+import { CalendarDays, Check, Clock, X, RotateCcw, Pencil, ChevronDown } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 // לוח המפגשים של האמא, וממנו גם השלמת מפגש שפוספס.
@@ -89,6 +89,9 @@ export default function MyWorkshopMeetings() {
   const [options, setOptions] = useState<Option[] | null>(null)
   // אישור לפני ביטול סימון שגורר גם ביטול של בקשת השלמה
   const [confirmUndo, setConfirmUndo] = useState<Row | null>(null)
+  // ברנדה 3.9.26: הרשימה סגורה כברירת מחדל. לחיצה על הכותרת פותחת את
+  // התאריכים וההשלמות.
+  const [open, setOpen] = useState(false)
 
   const load = useCallback(async () => {
     const { data, error: rpcError } = await supabase.rpc('get_my_cohort_schedule')
@@ -181,21 +184,35 @@ export default function MyWorkshopMeetings() {
   const used = head.makeups_used
   const allowed = head.makeups_allowed
 
+  const next = mine.find(r => !r.is_past && !r.is_cancelled)
+
   return (
     <div className="bg-[#F5F1EB] rounded-3xl p-4 space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-2 text-right"
+        aria-expanded={open}
+      >
         <div className="min-w-0">
           <p className="font-bold text-sand-800 text-sm inline-flex items-center gap-1.5">
             <CalendarDays className="w-4 h-4 text-mustard-600" />
             המפגשים שלי
           </p>
-          <p className="text-[11px] text-sand-500 truncate">{head.workshop_title}</p>
+          <p className="text-[11px] text-sand-500 truncate">
+            {head.workshop_title}
+            {!open && next ? ` · הבא: יום ${dayName(next.meeting_date)} ${ddmm(next.meeting_date)}` : ''}
+          </p>
         </div>
-        <span className="text-[10px] font-semibold text-sand-500 bg-white px-2 py-1 rounded-full flex-shrink-0">
-          השלמות: {used}/{allowed}
-        </span>
-      </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-[10px] font-semibold text-sand-500 bg-white px-2 py-1 rounded-full">
+            השלמות: {used}/{allowed}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-sand-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
 
+      {open && (
       <div className="space-y-2">
         {mine.map(r => {
           const isBusy = busy === r.meeting_id
@@ -331,6 +348,7 @@ export default function MyWorkshopMeetings() {
           )
         })}
       </div>
+      )}
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 
