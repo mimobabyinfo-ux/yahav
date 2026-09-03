@@ -152,7 +152,10 @@ export default function MakeupsPanel() {
         <p className="text-center text-sand-400 text-sm py-10">טוענת...</p>
       ) : (
         <>
-          {/* ממתינות בתור */}
+          {/* ממתינות בתור.
+              ברנדה 3.9.26: "יותר מדי מלל, אני לא מצליח להבין מה רשום". המידע
+              הוא תמיד אותם ארבעה שדות (מי, איזה מפגש, מאיפה, לאן), אז הוא
+              נפרס לשתי משבצות עם תווית קטנה במקום להיסחב כמשפט. */}
           <section className="space-y-2">
             <h3 className="text-sm font-bold text-sand-700 inline-flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-sand-400" />
@@ -165,19 +168,31 @@ export default function MakeupsPanel() {
             ) : (
               waiting.map(r => (
                 <div key={r.request_id} className="rounded-2xl bg-white border border-sand-200 p-3">
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-baseline gap-2">
                     <span className="text-sm font-bold text-sand-800">{r.mother_name ?? '—'}</span>
-                    <span className="text-[11px] text-sand-400">{r.mother_phone ?? ''}</span>
+                    <span className="text-[11px] text-sand-400" dir="ltr">{r.mother_phone ?? ''}</span>
                     {r.queue_position != null && (
-                      <span className="text-[10px] font-semibold text-sand-600 bg-sand-100 px-2 py-0.5 rounded-full mr-auto">
+                      <span className="text-[10px] font-semibold text-sand-600 bg-sand-100 px-2 py-0.5 rounded-full mr-auto flex-shrink-0">
                         מקום {r.queue_position} בתור
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-sand-500 mt-1 leading-relaxed">
-                    פספסה מפגש {r.meeting_number} ב-{ddmm(r.missed_date)} (קבוצת {r.source_cohort_label}),
-                    ביקשה להשלים ביום {dayName(r.makeup_date)} {ddmm(r.makeup_date)} בקבוצת {r.makeup_cohort_label}
-                  </p>
+                  <div className="flex items-stretch gap-2 mt-2">
+                    <div className="flex-1 rounded-xl bg-sand-50 px-3 py-2 min-w-0">
+                      <p className="text-[10px] text-sand-400">פספסה</p>
+                      <p className="text-xs font-bold text-sand-700">מפגש {r.meeting_number}</p>
+                      <p className="text-[11px] text-sand-500">{ddmm(r.missed_date)}</p>
+                    </div>
+                    <div className="flex items-center text-sand-300 text-lg flex-shrink-0">←</div>
+                    <div className="flex-1 rounded-xl bg-mustard-50 px-3 py-2 min-w-0">
+                      <p className="text-[10px] text-mustard-600">רוצה להשלים</p>
+                      <p className="text-xs font-bold text-sand-700">
+                        {dayName(r.makeup_date)} {ddmm(r.makeup_date)}
+                        {r.makeup_time ? ` ${r.makeup_time.slice(0, 5)}` : ''}
+                      </p>
+                      <p className="text-[11px] text-sand-500 truncate">קבוצת {r.makeup_cohort_label}</p>
+                    </div>
+                  </div>
                 </div>
               ))
             )}
@@ -196,15 +211,12 @@ export default function MakeupsPanel() {
             ) : (
               incoming.map(r => (
                 <div key={r.request_id} className="rounded-2xl bg-white border border-sand-200 p-3">
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-baseline gap-2">
                     <span className="text-sm font-bold text-sand-800">{r.mother_name ?? '—'}</span>
-                    <span className="text-[11px] text-sand-400">
-                      מפגש {r.meeting_number} · {dayName(r.makeup_date)} {ddmm(r.makeup_date)}
-                      {r.makeup_time ? ` ${r.makeup_time.slice(0, 5)}` : ''}
-                    </span>
+                    <span className="text-[11px] text-sand-400" dir="ltr">{r.mother_phone ?? ''}</span>
                     <button
                       onClick={() => markAttended(r.request_id, r.status !== 'attended')}
-                      className={`mr-auto text-[11px] font-semibold px-2.5 py-1 rounded-lg ${
+                      className={`mr-auto flex-shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-lg ${
                         r.status === 'attended'
                           ? 'text-[#2E7D32] bg-[#E8F5E9]'
                           : 'text-sand-600 bg-sand-100 hover:bg-sand-200'
@@ -213,9 +225,22 @@ export default function MakeupsPanel() {
                       {r.status === 'attended' ? '✓ הגיעה' : 'סימון כהגיעה'}
                     </button>
                   </div>
-                  <p className="text-[11px] text-sand-500 mt-1">
-                    מצטרפת לקבוצת {r.makeup_cohort_label}
-                  </p>
+                  <div className="flex items-stretch gap-2 mt-2">
+                    <div className="flex-1 rounded-xl bg-sand-50 px-3 py-2 min-w-0">
+                      <p className="text-[10px] text-sand-400">פספסה</p>
+                      <p className="text-xs font-bold text-sand-700">מפגש {r.meeting_number}</p>
+                      <p className="text-[11px] text-sand-500">{ddmm(r.missed_date)}</p>
+                    </div>
+                    <div className="flex items-center text-sand-300 text-lg flex-shrink-0">←</div>
+                    <div className="flex-1 rounded-xl bg-[#E8F5E9] px-3 py-2 min-w-0">
+                      <p className="text-[10px] text-[#2E7D32] opacity-80">מגיעה אלייך</p>
+                      <p className="text-xs font-bold text-sand-700">
+                        {dayName(r.makeup_date)} {ddmm(r.makeup_date)}
+                        {r.makeup_time ? ` ${r.makeup_time.slice(0, 5)}` : ''}
+                      </p>
+                      <p className="text-[11px] text-sand-500 truncate">קבוצת {r.makeup_cohort_label}</p>
+                    </div>
+                  </div>
                 </div>
               ))
             )}

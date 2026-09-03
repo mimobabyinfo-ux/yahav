@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarDays, Check, Clock, X, RotateCcw } from 'lucide-react'
+import { CalendarDays, Check, Clock, X, RotateCcw, Pencil } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 // לוח המפגשים של האמא, וממנו גם השלמת מפגש שפוספס.
@@ -7,11 +7,13 @@ import { supabase } from '../lib/supabase'
 // כל העניין נשען על הפרדה אחת: בקשה זה לא אישור. כשהיא מבקשת להשלים,
 // ההרשמה למחזור המארח בדרך כלל עוד לא נסגרה, ונרשמת משלמת שתגיע מחר
 // גוברת עליה. לכן אסור להראות לה "יש לך מקום" — רק "את בתור, מקום 1,
-// תשובה סופית בתאריך הזה". ההכרעה נופלת 24 שעות לפני המפגש, כשהרוסטר
-// וההיעדרויות כבר ידועים.
+// תשובה סופית בתאריך הזה". ההכרעה נופלת 24 שעות לפני המפגש.
 //
 // השער להשלמה הוא הצהרת ההיעדרות: קודם היא מסמנת שלא תגיע (או שלא
 // הגיעה), ורק אז נפתחת לה הבחירה. ברנדה 3.9.26: "האחריות המלאה עליה".
+//
+// כל פעולה כאן הפיכה, כי ברנדה ביקשה: אפשר לבטל סימון היעדרות גם על
+// מפגש שכבר עבר ("לחצתי בטעות"), ואפשר להחליף את המועד שנבחר.
 
 type Row = {
   lead_id: string
@@ -27,8 +29,12 @@ type Row = {
   is_cancelled: boolean
   is_past: boolean
   i_am_absent: boolean
+  makeup_request_id: string | null
   makeup_status: string | null
+  makeup_meeting_id: string | null
   makeup_meeting_date: string | null
+  makeup_time: string | null
+  makeup_cohort_label: string | null
   makeup_decision_at: string | null
   makeup_queue_position: number | null
   makeups_used: number
@@ -71,8 +77,11 @@ export default function MyWorkshopMeetings() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [picking, setPicking] = useState<Row | null>(null)
+  // picking = בחירת מועד. mode קובע אם זו בקשה חדשה או החלפה של קיימת.
+  const [picking, setPicking] = useState<{ row: Row; mode: 'new' | 'change' } | null>(null)
   const [options, setOptions] = useState<Option[] | null>(null)
+  // אישור לפני ביטול סימון שגורר גם ביטול של בקשת השלמה
+  const [confirmUndo, setConfirmUndo] = useState<Row | null>(null)
 
   const load = useCallback(async () => {
     const { data, error: rpcError } = await supabase.rpc('get_my_cohort_schedule')
@@ -91,17 +100,25 @@ export default function MyWorkshopMeetings() {
       p_absent: absent,
     })
     setBusy(null)
+    setConfirmUndo(null)
     if (rpcError) {
       setError(rpcError.message.includes('allocation already ran')
-        ? 'המקומות למפגש הזה כבר חולקו, אז אי אפשר לבטל את הסימון'
+        ? 'המקומות למפגש הזה כבר חולקו, אז אי אפשר לבטל את הסימון. דברי איתנו'
         : 'משהו השתבש. נסי שוב')
       return
     }
     await load()
   }
 
-  async function openPicker(row: Row) {
-    setPicking(row)
+  // ביטול סימון שיש מאחוריו בקשת השלמה מפיל גם אותה. עדיף לשאול פעם אחת
+  // מאשר שהיא תגלה בדיעבד שההשלמה נעלמה.
+  function requestUndo(row: Row) {
+    if (row.makeup_status) { setConfirmUndo(row); return }
+    setAbsence(row, false)
+  }
+
+  async function openPicker(row: Row, mode: 'new' | 'change') {
+    setPicking({ row, mode })
     setOptions(null)
     setError(null)
     const { data } = await supabase.rpc('get_makeup_options', { p_source_meeting_id: row.meeting_id })
@@ -112,10 +129,15 @@ export default function MyWorkshopMeetings() {
     if (!picking) return
     setBusy(o.meeting_id)
     setError(null)
-    const { error: rpcError } = await supabase.rpc('request_makeup', {
-      p_source_meeting_id: picking.meeting_id,
-      p_target_meeting_id: o.meeting_id,
-    })
+    const { error: rpcError } = picking.mode === 'change' && picking.row.makeup_request_id
+      ? await supabase.rpc('change_makeup_target', {
+          p_request_id: picking.row.makeup_request_id,
+          p_target_meeting_id: o.meeting_id,
+        })
+      : await supabase.rpc('request_makeup', {
+          p_source_meeting_id: picking.row.meeting_id,
+          p_target_meeting_id: o.meeting_id,
+        })
     setBusy(null)
     if (rpcError) {
       setError(
@@ -132,10 +154,20 @@ export default function MyWorkshopMeetings() {
     await load()
   }
 
+  async function cancelRequest(row: Row) {
+    if (!row.makeup_request_id) return
+    setBusy(row.meeting_id)
+    setError(null)
+    const { error: rpcError } = await supabase.rpc('cancel_makeup_request', {
+      p_request_id: row.makeup_request_id,
+    })
+    setBusy(null)
+    if (rpcError) { setError('משהו השתבש. נסי שוב'); return }
+    await load()
+  }
+
   if (loading || rows.length === 0) return null
 
-  // המחזור האחרון שלה הוא זה שרלוונטי. הישנים נשארים בנתונים לצורך
-  // היסטוריה אבל אין סיבה להעמיס אותם על המסך.
   const currentCohort = rows[0].cohort_id
   const mine = rows.filter(r => r.cohort_id === currentCohort)
   const head = mine[0]
@@ -160,6 +192,8 @@ export default function MyWorkshopMeetings() {
       <div className="space-y-2">
         {mine.map(r => {
           const isBusy = busy === r.meeting_id
+          const pending = r.makeup_status === 'requested'
+          const settled = r.makeup_status === 'confirmed' || r.makeup_status === 'attended'
           return (
             <div
               key={r.meeting_id}
@@ -182,35 +216,76 @@ export default function MyWorkshopMeetings() {
                 )}
                 {r.i_am_absent && !r.is_cancelled && (
                   <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full mr-auto">
-                    לא מגיעה
+                    {r.is_past ? 'לא הגעתי' : 'לא מגיעה'}
                   </span>
                 )}
               </div>
 
-              {/* מצב ההשלמה של המפגש הזה */}
-              {r.makeup_status === 'requested' && (
+              {pending && (
                 <div className="mt-2 rounded-xl bg-sand-50 px-3 py-2">
                   <p className="text-[11px] text-sand-700 font-semibold inline-flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    בתור למועד {r.makeup_meeting_date ? ddmm(r.makeup_meeting_date) : ''}
+                    בתור ל{r.makeup_meeting_date ? `יום ${dayName(r.makeup_meeting_date)}, ${ddmm(r.makeup_meeting_date)}` : ''}
+                    {r.makeup_time ? ` ${hhmm(r.makeup_time)}` : ''}
                     {r.makeup_queue_position ? `, מקום ${r.makeup_queue_position}` : ''}
                   </p>
                   <p className="text-[10px] text-sand-500 mt-0.5 leading-relaxed">
                     תשובה סופית {r.makeup_decision_at ? dayAndDate(r.makeup_decision_at) : ''}. נרשמות הקבוצה
                     קודמות, ולכן המקום נסגר רק 24 שעות לפני המפגש.
                   </p>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <button
+                      onClick={() => openPicker(r, 'change')}
+                      disabled={isBusy}
+                      className="text-[11px] font-semibold text-mustard-700 hover:text-mustard-800 inline-flex items-center gap-1 disabled:opacity-40"
+                    >
+                      <Pencil className="w-3 h-3" /> שינוי המועד
+                    </button>
+                    <button
+                      onClick={() => cancelRequest(r)}
+                      disabled={isBusy}
+                      className="text-[11px] text-sand-500 hover:text-sand-700 disabled:opacity-40"
+                    >
+                      ביטול הבקשה
+                    </button>
+                  </div>
                 </div>
               )}
-              {(r.makeup_status === 'confirmed' || r.makeup_status === 'attended') && (
-                <p className="mt-2 text-[11px] font-semibold text-[#2E7D32] bg-[#E8F5E9] rounded-xl px-3 py-2 inline-flex items-center gap-1">
-                  <Check className="w-3 h-3" />
-                  ההשלמה אושרה למועד {r.makeup_meeting_date ? ddmm(r.makeup_meeting_date) : ''}
-                </p>
+
+              {settled && (
+                <div className="mt-2 rounded-xl bg-[#E8F5E9] px-3 py-2">
+                  <p className="text-[11px] font-semibold text-[#2E7D32] inline-flex items-center gap-1">
+                    <Check className="w-3 h-3" />
+                    ההשלמה אושרה
+                    {r.makeup_meeting_date ? ` ליום ${dayName(r.makeup_meeting_date)}, ${ddmm(r.makeup_meeting_date)}` : ''}
+                    {r.makeup_time ? ` ${hhmm(r.makeup_time)}` : ''}
+                  </p>
+                  {r.makeup_cohort_label && (
+                    <p className="text-[10px] text-[#2E7D32] opacity-80 mt-0.5">קבוצת {r.makeup_cohort_label}</p>
+                  )}
+                  {r.makeup_status === 'confirmed' && (
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <button
+                        onClick={() => openPicker(r, 'change')}
+                        disabled={isBusy}
+                        className="text-[11px] font-semibold text-[#2E7D32] hover:underline inline-flex items-center gap-1 disabled:opacity-40"
+                      >
+                        <Pencil className="w-3 h-3" /> שינוי המועד
+                      </button>
+                      <button
+                        onClick={() => cancelRequest(r)}
+                        disabled={isBusy}
+                        className="text-[11px] text-[#2E7D32] opacity-80 hover:underline disabled:opacity-40"
+                      >
+                        ביטול ההשלמה
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
 
-              {/* פעולות */}
               {!r.is_cancelled && (
-                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <div className="mt-2 flex items-center gap-3 flex-wrap">
                   {!r.i_am_absent && (
                     <button
                       onClick={() => setAbsence(r, true)}
@@ -221,25 +296,26 @@ export default function MyWorkshopMeetings() {
                     </button>
                   )}
                   {r.i_am_absent && !r.makeup_status && (
-                    <>
-                      <button
-                        onClick={() => openPicker(r)}
-                        disabled={isBusy || used >= allowed}
-                        className="text-[11px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-40"
-                        style={{ background: '#C8A460', color: '#33281B' }}
-                      >
-                        בחירת מועד להשלמה
-                      </button>
-                      {!r.is_past && (
-                        <button
-                          onClick={() => setAbsence(r, false)}
-                          disabled={isBusy}
-                          className="text-[11px] text-sand-500 hover:text-sand-700 inline-flex items-center gap-1 disabled:opacity-40"
-                        >
-                          <RotateCcw className="w-3 h-3" /> בעצם כן אגיע
-                        </button>
-                      )}
-                    </>
+                    <button
+                      onClick={() => openPicker(r, 'new')}
+                      disabled={isBusy || used >= allowed}
+                      className="text-[11px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-40"
+                      style={{ background: '#C8A460', color: '#33281B' }}
+                    >
+                      בחירת מועד להשלמה
+                    </button>
+                  )}
+                  {/* ביטול הסימון זמין תמיד, גם אחרי שהמפגש עבר. ברנדה 3.9.26:
+                      "במידה ולחצתי בטעות על זה שלא הגעתי אבל כן הגעתי". */}
+                  {r.i_am_absent && (
+                    <button
+                      onClick={() => requestUndo(r)}
+                      disabled={isBusy}
+                      className="text-[11px] text-sand-500 hover:text-sand-700 inline-flex items-center gap-1 disabled:opacity-40"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      {r.is_past ? 'בעצם הגעתי' : 'בעצם כן אגיע'}
+                    </button>
                   )}
                   {used >= allowed && r.i_am_absent && !r.makeup_status && (
                     <span className="text-[10px] text-sand-400">ניצלת את שתי ההשלמות</span>
@@ -253,6 +329,37 @@ export default function MyWorkshopMeetings() {
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 
+      {/* אישור לביטול סימון שגורר ביטול השלמה */}
+      {confirmUndo && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setConfirmUndo(null)} dir="rtl">
+          <div className="bg-white rounded-3xl w-full max-w-xs shadow-2xl p-5 space-y-3"
+            onClick={e => e.stopPropagation()}>
+            <p className="font-bold text-sand-800 text-sm">לבטל את הסימון?</p>
+            <p className="text-xs text-sand-600 leading-relaxed">
+              {confirmUndo.makeup_status === 'confirmed'
+                ? 'ההשלמה שכבר אושרה לך תתבטל, והמקום יחזור לקבוצה.'
+                : 'הבקשה להשלמה שממתינה בתור תתבטל יחד עם הסימון.'}
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setAbsence(confirmUndo, false)}
+                className="flex-1 py-2 rounded-xl text-sm font-bold"
+                style={{ background: '#C8A460', color: '#33281B' }}
+              >
+                כן, הגעתי
+              </button>
+              <button
+                onClick={() => setConfirmUndo(null)}
+                className="px-4 py-2 rounded-xl bg-sand-100 text-sand-600 text-sm font-semibold"
+              >
+                חזרה
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {picking && (
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/40 px-4"
           onClick={() => { setPicking(null); setOptions(null) }} dir="rtl">
@@ -260,7 +367,9 @@ export default function MyWorkshopMeetings() {
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100">
               <div>
-                <h3 className="font-bold text-sand-800 text-sm">השלמת מפגש {picking.meeting_number}</h3>
+                <h3 className="font-bold text-sand-800 text-sm">
+                  {picking.mode === 'change' ? 'שינוי מועד' : 'השלמת'} מפגש {picking.row.meeting_number}
+                </h3>
                 <p className="text-[11px] text-sand-500">אותו תוכן, בקבוצה אחרת</p>
               </div>
               <button onClick={() => { setPicking(null); setOptions(null) }}
@@ -283,32 +392,42 @@ export default function MyWorkshopMeetings() {
               ) : (
                 <>
                   <p className="text-[11px] text-sand-500 leading-relaxed bg-sand-50 rounded-xl px-3 py-2">
-                    בחירת מועד היא בקשה ולא הבטחה. נרשמות הקבוצה המארחת קודמות, ומקום
-                    מתפנה גם כשמישהי מהן מודיעה שהיא לא מגיעה. התשובה הסופית נשלחת אלייך
-                    24 שעות לפני המפגש.
+                    {picking.mode === 'change'
+                      ? 'בחירת מועד חדש מבטלת את הקודם ומכניסה אותך לתור של המועד החדש, לפי סדר הבקשות שם.'
+                      : 'בחירת מועד היא בקשה ולא הבטחה. נרשמות הקבוצה המארחת קודמות, ומקום מתפנה גם כשמישהי מהן מודיעה שהיא לא מגיעה. התשובה הסופית נשלחת אלייך 24 שעות לפני המפגש.'}
                   </p>
-                  {options.map(o => (
-                    <button
-                      key={o.meeting_id}
-                      onClick={() => chooseOption(o)}
-                      disabled={busy === o.meeting_id}
-                      className="w-full text-right rounded-2xl border-2 border-sand-200 hover:border-mustard-300 p-3 disabled:opacity-40 transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-sand-800">
-                          יום {dayName(o.meeting_date)}, {ddmm(o.meeting_date)}
-                        </span>
-                        {o.start_time && <span className="text-[11px] text-sand-500">{hhmm(o.start_time)}</span>}
-                      </div>
-                      <p className="text-[10px] text-sand-400 mt-1">
-                        קבוצת {o.cohort_label} · כרגע {o.registered_now} מתוך {o.capacity} רשומות
-                        {o.queue_ahead > 0 ? ` · ${o.queue_ahead} כבר בתור` : ''}
-                      </p>
-                      <p className="text-[10px] text-sand-400">
-                        תשובה סופית ב-{dayAndDate(o.decision_at)}
-                      </p>
-                    </button>
-                  ))}
+                  {options.map(o => {
+                    const isCurrent = o.meeting_id === picking.row.makeup_meeting_id
+                    return (
+                      <button
+                        key={o.meeting_id}
+                        onClick={() => chooseOption(o)}
+                        disabled={busy === o.meeting_id || isCurrent}
+                        className={`w-full text-right rounded-2xl border-2 p-3 transition-colors disabled:opacity-50 ${
+                          isCurrent ? 'border-mustard-300 bg-mustard-50' : 'border-sand-200 hover:border-mustard-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-sand-800">
+                            יום {dayName(o.meeting_date)}, {ddmm(o.meeting_date)}
+                          </span>
+                          {o.start_time && <span className="text-[11px] text-sand-500">{hhmm(o.start_time)}</span>}
+                          {isCurrent && (
+                            <span className="text-[10px] font-semibold text-mustard-700 bg-white px-2 py-0.5 rounded-full mr-auto">
+                              המועד הנוכחי שלך
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-sand-400 mt-1">
+                          קבוצת {o.cohort_label} · כרגע {o.registered_now} מתוך {o.capacity} רשומות
+                          {o.queue_ahead > 0 ? ` · ${o.queue_ahead} כבר בתור` : ''}
+                        </p>
+                        <p className="text-[10px] text-sand-400">
+                          תשובה סופית ב-{dayAndDate(o.decision_at)}
+                        </p>
+                      </button>
+                    )
+                  })}
                 </>
               )}
               {error && <p className="text-xs text-red-500">{error}</p>}
