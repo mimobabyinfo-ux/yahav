@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Home as HomeIcon, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Baby, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
+import { Home as HomeIcon, BookOpen, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Baby, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -34,11 +34,12 @@ import ProductPage from '../components/admin/ProductPage'
 import GiftCardsPanel from '../components/admin/GiftCardsPanel'
 import AppUsagePanel from '../components/admin/AppUsagePanel'
 import MakeupsPanel from '../components/admin/MakeupsPanel'
+import ProgramPanel from '../components/admin/ProgramPanel'
 import type { AdminOverview } from '../components/admin/useAdminOverview'
 import type { AdminTask } from '../components/admin/adminTasks'
 import { ChevronRight as CtxBack } from 'lucide-react'
 
-type Tab = 'home' | 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'events' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations' | 'makeups'
+type Tab = 'home' | 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'events' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations' | 'makeups' | 'program'
 
 
 // Map admin nav sections → internal tabs
@@ -57,6 +58,7 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
   partners:  'partners',
   registrations: 'registrations',
   makeups:   'makeups',
+  program:   'program',
   settings:  'settings',
 }
 
@@ -70,6 +72,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'events',    label: 'אירועי קהילה',  icon: <Sparkles className="w-3.5 h-3.5" /> },
   { id: 'partners',  label: 'ספקי קהילה',     icon: <Link2 className="w-3.5 h-3.5" /> },
   { id: 'workshops', label: 'מוצרים ותשלום', icon: <GraduationCap className="w-3.5 h-3.5" /> },
+  { id: 'program',   label: 'תוכנית הסדנאות', icon: <BookOpen className="w-3.5 h-3.5" /> },
   { id: 'users',     label: 'משתמשות',      icon: <Users className="w-3.5 h-3.5" /> },
   { id: 'leads',     label: 'לידים',         icon: <Phone className="w-3.5 h-3.5" /> },
   { id: 'insights',  label: 'תובנות',        icon: <BarChart2 className="w-3.5 h-3.5" /> },
@@ -243,6 +246,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'forms'      && <FormsTab />}
         {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} onClearFocus={() => setTaskContext(null)} />}
         {tab === 'makeups'    && <MakeupsPanel />}
+        {tab === 'program'    && <ProgramPanel />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
 
@@ -267,6 +271,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'partners'   && <PartnersTab />}
         {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} onClearFocus={() => setTaskContext(null)} />}
         {tab === 'makeups'    && <MakeupsPanel />}
+        {tab === 'program'    && <ProgramPanel />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
     </div>

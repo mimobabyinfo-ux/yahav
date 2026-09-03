@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './program.css'
 import App from './App.tsx'
 
 // ── Serving the build that was actually deployed ──────────────────────

@@ -39,6 +39,10 @@ export type EventType =
   | 'waitlist_join'       // asked to hear when a cohort opens, on a product that has none
   | 'gift_card_open'      // opened the gift card sheet
   | 'perk_open'           // opened a partner perk
+  // Workshop program (3.9.26): topic filter, meeting switch, glossary tap.
+  | 'program_topic'
+  | 'program_meeting'
+  | 'glossary_open'
 
 export type EventData = Record<string, string | number | boolean | null>
 

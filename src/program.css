@@ -1,0 +1,22 @@
+/* ── Workshop program (exercise cards, topic bar, glossary) ─────────────── */
+.pg-html { color: #5F564D; font-size: 15px; line-height: 1.7; }
+.pg-html p { margin: 0 0 .5em; }
+.pg-html p:last-child { margin-bottom: 0; }
+.pg-html ul { list-style: disc; padding-inline-start: 1.2em; margin: .25em 0; }
+.pg-html ol { list-style: decimal; padding-inline-start: 1.2em; margin: .25em 0; }
+.pg-html li + li { margin-top: .35em; }
+.pg-html a { color: #A35C3D; text-decoration: underline; text-underline-offset: 2px; }
+.pg-lead { margin-bottom: 4px; }
+.pg-why { background: #E7EDEF; border-inline-start: 3px solid #C3CDD2; border-radius: 10px; padding: 10px 12px; margin-top: 9px; color: #4A443C; }
+.pg-stop { background: #F7E9E2; border-inline-start: 3px solid #A35C3D; border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+.pg-lyrics { font-style: italic; color: #6E5836; font-size: 15px; line-height: 1.7; margin: 6px 0 2px; }
+.pg-end { color: #8C8177; margin-top: 8px; }
+.pg-term {
+  color: #A35C3D; font: inherit; font-weight: 600; background: none; border: 0; padding: 0;
+  text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+/* admin form inputs in the program panel */
+.inp { width: 100%; background: #fff; border: 1px solid #E4DAD0; border-radius: 0.875rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; color: #5E4938; }
+.inp:focus { outline: none; border-color: #E7C78A; box-shadow: 0 0 0 2px #FAF0D7; }

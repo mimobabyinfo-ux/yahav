@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BarChart2, Users, LogOut, Eye, Video, Baby, Gift, Settings, ClipboardList, FileText, Sparkles, Link2, GraduationCap, Phone, MapPin, Home, ChevronDown, CalendarDays } from 'lucide-react'
+import { BarChart2, Users, LogOut, Eye, Video, Baby, Gift, Settings, ClipboardList, FileText, Sparkles, Link2, GraduationCap, Phone, MapPin, Home, ChevronDown, CalendarDays, BookOpen } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLeaf from './MimoLeaf'
 import type { AdminSection } from '../App'
@@ -39,6 +39,7 @@ const PRIMARY: NavItem[] = [
 
 const MORE: NavItem[] = [
   { id: 'makeups',   label: 'השלמות',         icon: <CalendarDays className="w-[18px] h-[18px]" /> },
+  { id: 'program',   label: 'תוכנית הסדנאות', icon: <BookOpen className="w-[18px] h-[18px]" /> },
   { id: 'users',     label: 'משתמשות',       icon: <Users className="w-[18px] h-[18px]" /> },
   { id: 'leads',     label: 'לידים',          icon: <Phone className="w-[18px] h-[18px]" /> },
   { id: 'insights',  label: 'תובנות',         icon: <BarChart2 className="w-[18px] h-[18px]" /> },

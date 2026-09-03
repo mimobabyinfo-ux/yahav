@@ -8,6 +8,8 @@ import { formatDate } from '../utils/dateUtils'
 import CoursePlayer from '../components/course/CoursePlayer'
 import MyWorkshopMeetings from '../components/MyWorkshopMeetings'
 import { signedMediaUrl } from '../utils/signedMedia'
+import WorkshopProgram from '../components/program/WorkshopProgram'
+import { loadProgram, Program } from '../lib/program'
 
 type ActiveWorkshop = PurchasedWorkshop & { workshop: Workshop | null }
 
@@ -24,6 +26,9 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
   const [activeWorkshops, setActiveWorkshops] = useState<ActiveWorkshop[]>([])
   const [selected, setSelected] = useState<ActiveWorkshop | null>(null)
   const [content, setContent] = useState<WorkshopContent[]>([])
+  // Exercises-as-records program (עטופים / מגלים). null = the workshop has
+  // no session templates and keeps the old content view.
+  const [program, setProgram] = useState<Program | null>(null)
   const [loading, setLoading] = useState(true)
   const [contentLoading, setContentLoading] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
@@ -96,6 +101,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
       .order('display_order')
     const items = data ?? []
     setContent(items)
+    setProgram(await loadProgram(aw.workshop_id))
 
     // Load next workshop if linked
     if (aw.workshop?.next_workshop_id) {
@@ -188,6 +194,24 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
     )
   }
 
+  // ── Workshop program ───────────────────────────────────────────────────────
+  // A workshop with session templates (עטופים, מגלים) renders as a program:
+  // meetings bar, topic filter, one card per exercise. Decided by data, so the
+  // digital course below is untouched.
+  if (selected?.workshop && !contentLoading && program && user) {
+    return (
+      <WorkshopProgram
+        workshop={selected.workshop}
+        program={program}
+        ownerName={ownerName}
+        ownerWhatsapp={ownerWhatsapp}
+        motherName={profile?.mother_name ?? null}
+        onBack={() => { setSelected(null); setContent([]); setProgram(null); setPlayingId(null) }}
+        track={track}
+      />
+    )
+  }
+
   // ── Digital course view ────────────────────────────────────────────────────
   // A workshop whose content carries module names (or reading lessons) is a
   // course, not a folder of files: it gets the ordered player with progress.
@@ -203,7 +227,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
         userId={user.id}
         ownerName={ownerName}
         ownerWhatsapp={ownerWhatsapp}
-        onBack={() => { setSelected(null); setContent([]); setPlayingId(null) }}
+        onBack={() => { setSelected(null); setContent([]); setProgram(null); setPlayingId(null) }}
         track={track}
       />
     )
@@ -219,7 +243,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
       <div className="min-h-screen pb-24" dir="rtl" style={{ background: '#FFFFFF' }}>
         {/* Header */}
         <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-sand-100 bg-white sticky top-0 z-10">
-          <button onClick={() => { setSelected(null); setContent([]); setPlayingId(null) }}
+          <button onClick={() => { setSelected(null); setContent([]); setProgram(null); setPlayingId(null) }}
             className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 transition-colors">
             <ChevronRight className="w-5 h-5" />
           </button>
