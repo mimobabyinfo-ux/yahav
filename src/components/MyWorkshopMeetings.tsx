@@ -76,15 +76,11 @@ function dayAndDate(iso: string | null): string {
   return `${d.getDate()}/${d.getMonth() + 1}`
 }
 
-// הניסוחים שמוצגים לאמא. שני מצבים בלבד:
-//  * "immediate" - הקבוצה המארחת כבר יצאה לדרך, הרוסטר שלה סופי, אפשר
-//    לדעת עכשיו אם יש מקום.
-//  * ממתין - הקבוצה עוד פתוחה להרשמה, אז התשובה הסופית מגיעה סמוך יותר
-//    למועד עצמו.
-const IMMEDIATE_NOTE =
-  'הקבוצה המקבילה כבר יצאה לדרך, אז כבר אפשר לדעת אם יש מקום. אם כן, ההצטרפות שלך תאושר באופן מיידי.'
-const WAITING_NOTE =
-  'נרשמות הקבוצה המארחת נכנסות ראשונות. הקבוצה הזו עוד פתוחה להרשמה, אז נדע בוודאות אם יש מקום קרוב יותר למועד, ונעדכן אותך ברגע שיהיה ברור.'
+// הניסוח שמוצג לאמא מעל רשימת המועדים. ברנדה 3.9.26: בלי הסברים על
+// איך ההקצאה עובדת. משפט אחד. ההבדל בין "מיידי" ל"ממתין" נשאר רק בשורת
+// המועד עצמה ("אישור מיידי אם יש מקום" / "תשובה סופית עד").
+const PICK_NOTE =
+  'ההרשמה על בסיס מקום פנוי, וניתן להשלים עד 2 מפגשים.'
 const CHANGE_NOTE =
   'בחירת מועד חדש מבטלת את הקודם ומכניסה אותך לתור של המועד החדש, לפי סדר הבקשות שם.'
 
@@ -409,7 +405,7 @@ export default function MyWorkshopMeetings() {
                 <>
                   <p className="text-[11px] text-sand-500 leading-relaxed bg-sand-50 rounded-xl px-3 py-2">
                     {picking.mode === 'change' ? `${CHANGE_NOTE} ` : ''}
-                    {options.every(o => o.is_immediate) ? IMMEDIATE_NOTE : WAITING_NOTE}
+                    {PICK_NOTE}
                   </p>
                   {options.map(o => {
                     const isCurrent = o.meeting_id === picking.row.makeup_meeting_id
