@@ -5,9 +5,11 @@ import { supabase } from '../lib/supabase'
 // לוח המפגשים של האמא, וממנו גם השלמת מפגש שפוספס.
 //
 // כל העניין נשען על הפרדה אחת: בקשה זה לא אישור. כשהיא מבקשת להשלים,
-// ההרשמה למחזור המארח בדרך כלל עוד לא נסגרה, ונרשמת משלמת שתגיע מחר
-// גוברת עליה. לכן אסור להראות לה "יש לך מקום" — רק "את בתור, מקום 1,
-// תשובה סופית בתאריך הזה". ההכרעה נופלת 24 שעות לפני המפגש.
+// ההרשמה למחזור המארח לפעמים עוד לא נסגרה, ונרשמת משלמת שתגיע מחר
+// גוברת עליה. לכן אסור להראות לה "יש לך מקום" — רק אם יש מקום פנוי כרגע,
+// כן/לא, בלי מספרים. כשהקבוצה המארחת כבר יצאה לדרך (בעצם תמיד ממפגש 2
+// והלאה) הרוסטר שלה כבר סופי, ואז ההכרעה מיידית. כשהיא עוד לא נפתחה
+// (בעיקר מפגש 1) ההכרעה הסופית נופלת רק 24 שעות לפני המפגש.
 //
 // השער להשלמה הוא הצהרת ההיעדרות: קודם היא מסמנת שלא תגיע (או שלא
 // הגיעה), ורק אז נפתחת לה הבחירה. ברנדה 3.9.26: "האחריות המלאה עליה".
@@ -36,6 +38,7 @@ type Row = {
   makeup_time: string | null
   makeup_cohort_label: string | null
   makeup_decision_at: string | null
+  makeup_is_immediate: boolean | null
   makeup_queue_position: number | null
   makeups_used: number
   makeups_allowed: number
@@ -48,10 +51,10 @@ type Option = {
   meeting_date: string
   start_time: string | null
   starts_at: string
-  decision_at: string
+  decision_at: string | null
+  is_immediate: boolean
   queue_ahead: number
-  registered_now: number
-  capacity: number
+  available_now: boolean
 }
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
@@ -67,10 +70,23 @@ function dayName(date: string): string {
 function hhmm(t: string | null): string {
   return t ? t.slice(0, 5) : ''
 }
-function dayAndDate(iso: string): string {
+function dayAndDate(iso: string | null): string {
+  if (!iso) return ''
   const d = new Date(iso)
   return `${d.getDate()}/${d.getMonth() + 1}`
 }
+
+// הניסוחים שמוצגים לאמא. שני מצבים בלבד:
+//  * "immediate" - הקבוצה המארחת כבר יצאה לדרך, הרוסטר שלה סופי, אפשר
+//    לדעת עכשיו אם יש מקום.
+//  * ממתין - הקבוצה עוד פתוחה להרשמה, אז התשובה הסופית מגיעה סמוך יותר
+//    למועד עצמו.
+const IMMEDIATE_NOTE =
+  'הקבוצה המקבילה כבר יצאה לדרך, אז כבר אפשר לדעת אם יש מקום. אם כן, ההצטרפות שלך תאושר באופן מיידי.'
+const WAITING_NOTE =
+  'נרשמות הקבוצה המארחת נכנסות ראשונות. הקבוצה הזו עוד פתוחה להרשמה, אז נדע בוודאות אם יש מקום קרוב יותר למועד, ונעדכן אותך ברגע שיהיה ברור.'
+const CHANGE_NOTE =
+  'בחירת מועד חדש מבטלת את הקודם ומכניסה אותך לתור של המועד החדש, לפי סדר הבקשות שם.'
 
 export default function MyWorkshopMeetings() {
   const [rows, setRows] = useState<Row[]>([])
@@ -230,8 +246,9 @@ export default function MyWorkshopMeetings() {
                     {r.makeup_queue_position ? `, מקום ${r.makeup_queue_position}` : ''}
                   </p>
                   <p className="text-[10px] text-sand-500 mt-0.5 leading-relaxed">
-                    תשובה סופית {r.makeup_decision_at ? dayAndDate(r.makeup_decision_at) : ''}. נרשמות הקבוצה
-                    קודמות, ולכן המקום נסגר רק 24 שעות לפני המפגש.
+                    {r.makeup_is_immediate
+                      ? `הקבוצה המארחת כבר יצאה לדרך, וברגע שיתפנה מקום תיכנסי אליו מיד. הכי מאוחר, תשובה סופית עד ${dayAndDate(r.makeup_decision_at)}.`
+                      : `נרשמות הקבוצה המארחת נכנסות ראשונות. תשובה סופית עד ${dayAndDate(r.makeup_decision_at)}.`}
                   </p>
                   <div className="flex items-center gap-3 mt-1.5">
                     <button
@@ -377,7 +394,6 @@ export default function MyWorkshopMeetings() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <div className="overflow-y-auto flex-1 px-5 py-4 space-y-2">
               {options === null ? (
                 <p className="text-center text-sand-400 text-sm py-6">טוענת...</p>
@@ -392,9 +408,8 @@ export default function MyWorkshopMeetings() {
               ) : (
                 <>
                   <p className="text-[11px] text-sand-500 leading-relaxed bg-sand-50 rounded-xl px-3 py-2">
-                    {picking.mode === 'change'
-                      ? 'בחירת מועד חדש מבטלת את הקודם ומכניסה אותך לתור של המועד החדש, לפי סדר הבקשות שם.'
-                      : 'בחירת מועד היא בקשה ולא הבטחה. נרשמות הקבוצה המארחת קודמות, ומקום מתפנה גם כשמישהי מהן מודיעה שהיא לא מגיעה. התשובה הסופית נשלחת אלייך 24 שעות לפני המפגש.'}
+                    {picking.mode === 'change' ? `${CHANGE_NOTE} ` : ''}
+                    {options.every(o => o.is_immediate) ? IMMEDIATE_NOTE : WAITING_NOTE}
                   </p>
                   {options.map(o => {
                     const isCurrent = o.meeting_id === picking.row.makeup_meeting_id
@@ -419,11 +434,11 @@ export default function MyWorkshopMeetings() {
                           )}
                         </div>
                         <p className="text-[10px] text-sand-400 mt-1">
-                          קבוצת {o.cohort_label} · כרגע {o.registered_now} מתוך {o.capacity} רשומות
-                          {o.queue_ahead > 0 ? ` · ${o.queue_ahead} כבר בתור` : ''}
+                          קבוצת {o.cohort_label} · {o.available_now ? 'יש כרגע מקום פנוי' : 'אין כרגע מקום פנוי'}
+                          {o.queue_ahead > 0 ? ` · ${o.queue_ahead} כבר בתור לפנייך` : ''}
                         </p>
                         <p className="text-[10px] text-sand-400">
-                          תשובה סופית ב-{dayAndDate(o.decision_at)}
+                          {o.is_immediate ? 'אישור מיידי אם יש מקום' : `תשובה סופית עד ${dayAndDate(o.decision_at)}`}
                         </p>
                       </button>
                     )
