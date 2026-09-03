@@ -70,19 +70,14 @@ function dayName(date: string): string {
 function hhmm(t: string | null): string {
   return t ? t.slice(0, 5) : ''
 }
-function dayAndDate(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return `${d.getDate()}/${d.getMonth() + 1}`
-}
 
 // הניסוח שמוצג לאמא מעל רשימת המועדים. ברנדה 3.9.26: בלי הסברים על
-// איך ההקצאה עובדת. משפט אחד. ההבדל בין "מיידי" ל"ממתין" נשאר רק בשורת
-// המועד עצמה ("אישור מיידי אם יש מקום" / "תשובה סופית עד").
+// איך ההקצאה עובדת, בלי מיקום בתור, בלי תאריך הכרעה, ובלי המילה "תור".
+// האמא רואה: יש/אין מקום פנוי כרגע, "הבקשה התקבלה", ו"נעדכן אותך".
 const PICK_NOTE =
   'ההרשמה על בסיס מקום פנוי, וניתן להשלים עד 2 מפגשים.'
 const CHANGE_NOTE =
-  'בחירת מועד חדש מבטלת את הקודם ומכניסה אותך לתור של המועד החדש, לפי סדר הבקשות שם.'
+  'בחירת מועד חדש מבטלת את הבקשה הקודמת.'
 
 export default function MyWorkshopMeetings() {
   const [rows, setRows] = useState<Row[]>([])
@@ -237,14 +232,11 @@ export default function MyWorkshopMeetings() {
                 <div className="mt-2 rounded-xl bg-sand-50 px-3 py-2">
                   <p className="text-[11px] text-sand-700 font-semibold inline-flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    בתור ל{r.makeup_meeting_date ? `יום ${dayName(r.makeup_meeting_date)}, ${ddmm(r.makeup_meeting_date)}` : ''}
+                    הבקשה התקבלה{r.makeup_meeting_date ? ` ליום ${dayName(r.makeup_meeting_date)}, ${ddmm(r.makeup_meeting_date)}` : ''}
                     {r.makeup_time ? ` ${hhmm(r.makeup_time)}` : ''}
-                    {r.makeup_queue_position ? `, מקום ${r.makeup_queue_position}` : ''}
                   </p>
                   <p className="text-[10px] text-sand-500 mt-0.5 leading-relaxed">
-                    {r.makeup_is_immediate
-                      ? `הקבוצה המארחת כבר יצאה לדרך, וברגע שיתפנה מקום תיכנסי אליו מיד. הכי מאוחר, תשובה סופית עד ${dayAndDate(r.makeup_decision_at)}.`
-                      : `נרשמות הקבוצה המארחת נכנסות ראשונות. תשובה סופית עד ${dayAndDate(r.makeup_decision_at)}.`}
+                    ברגע שההשלמה תאושר, נעדכן אותך.
                   </p>
                   <div className="flex items-center gap-3 mt-1.5">
                     <button
@@ -352,7 +344,7 @@ export default function MyWorkshopMeetings() {
             <p className="text-xs text-sand-600 leading-relaxed">
               {confirmUndo.makeup_status === 'confirmed'
                 ? 'ההשלמה שכבר אושרה לך תתבטל, והמקום יחזור לקבוצה.'
-                : 'הבקשה להשלמה שממתינה בתור תתבטל יחד עם הסימון.'}
+                : 'הבקשה להשלמה שממתינה תתבטל יחד עם הסימון.'}
             </p>
             <div className="flex gap-2 pt-1">
               <button
@@ -431,10 +423,6 @@ export default function MyWorkshopMeetings() {
                         </div>
                         <p className="text-[10px] text-sand-400 mt-1">
                           קבוצת {o.cohort_label} · {o.available_now ? 'יש כרגע מקום פנוי' : 'אין כרגע מקום פנוי'}
-                          {o.queue_ahead > 0 ? ` · ${o.queue_ahead} כבר בתור לפנייך` : ''}
-                        </p>
-                        <p className="text-[10px] text-sand-400">
-                          {o.is_immediate ? 'אישור מיידי אם יש מקום' : `תשובה סופית עד ${dayAndDate(o.decision_at)}`}
                         </p>
                       </button>
                     )
