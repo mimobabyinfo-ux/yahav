@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { X, Pencil, Trash2, Plus, Check } from 'lucide-react'
+import { X, Pencil, Trash2, Plus, Check, CalendarDays } from 'lucide-react'
 import { supabase, type WorkshopCohort, type Workshop } from '../../lib/supabase'
 import ConfirmDialog from './ConfirmDialog'
+import CohortMeetingsModal from './CohortMeetingsModal'
 
 // Phase 5 / A1: per-workshop cohort manager. Opened from the admin
 // Workshops list via the "📅 מחזורים" button. Lists existing cohorts
@@ -90,6 +91,10 @@ export default function CohortsModal({ workshop, onClose }: Props) {
   const [deletingBusy, setDeletingBusy] = useState(false)
   // Finished cohorts are hidden by default; this toggle reveals them.
   const [showFinished, setShowFinished] = useState(false)
+  // The cohort whose meeting schedule is open. Meetings are their own
+  // rows now, and moving one is what keeps end_date, the feedback survey
+  // timing and the whole makeup mechanism honest.
+  const [meetingsFor, setMeetingsFor] = useState<WorkshopCohort | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -302,6 +307,14 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                       </div>
                       <div className="flex flex-col gap-1 flex-shrink-0">
                         <button
+                          onClick={() => setMeetingsFor(c)}
+                          className="p-1.5 rounded-lg text-sand-400 hover:text-mustard-600 hover:bg-mustard-50"
+                          aria-label="מפגשים"
+                          title="מפגשי המחזור"
+                        >
+                          <CalendarDays className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => startEdit(c)}
                           className="p-1.5 rounded-lg text-sand-400 hover:text-mustard-600 hover:bg-mustard-50"
                           aria-label="עריכה"
@@ -373,17 +386,22 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-sand-500 mb-1">תאריך סיום (מחושב, ניתן לעריכה)</label>
+                    <label className="block text-[11px] font-semibold text-sand-500 mb-1">תאריך סיום</label>
                     <div dir="ltr">
                       <input
                         type="date"
                         value={draft.end_date}
-                        onChange={e => setDraft(d => ({ ...d, end_date: e.target.value }))}
-                        className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                        readOnly
+                        disabled
+                        className="w-full px-3 py-2 border-2 border-sand-100 bg-sand-50 rounded-xl text-sm text-sand-500"
                       />
                     </div>
+                    {/* לא ניתן לעריכה יותר: תאריך הסיום נגזר מהמפגש האחרון בטבלת
+                        המפגשים. שתי הקלדות של אותו נתון היו נותנות שני תאריכים
+                        שונים, ושאלון המשוב היה יוצא לפי הלא נכון. */}
                     <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
-                      שאלון המשוב נשלח אוטומטית יומיים אחרי תאריך זה.
+                      נקבע אוטומטית לפי המפגש האחרון. כדי לשנות, פתחי את 🗓️ מפגשי המחזור.
+                      שאלון המשוב נשלח יומיים אחרי התאריך הזה.
                     </p>
                   </div>
                   {editingId && (() => {
@@ -471,6 +489,14 @@ export default function CohortsModal({ workshop, onClose }: Props) {
           )}
         </div>
       </div>
+      {meetingsFor && (
+        <CohortMeetingsModal
+          workshop={workshop}
+          cohort={meetingsFor}
+          onClose={() => setMeetingsFor(null)}
+          onChanged={load}
+        />
+      )}
       <ConfirmDialog
         open={!!pendingDelete}
         itemName={pendingDelete

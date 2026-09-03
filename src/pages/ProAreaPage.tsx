@@ -6,6 +6,7 @@ import { useTracker } from '../hooks/useTracker'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { formatDate } from '../utils/dateUtils'
 import CoursePlayer from '../components/course/CoursePlayer'
+import MyWorkshopMeetings from '../components/MyWorkshopMeetings'
 import { signedMediaUrl } from '../utils/signedMedia'
 
 type ActiveWorkshop = PurchasedWorkshop & { workshop: Workshop | null }
@@ -164,8 +165,15 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
 
   if (!hasAccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" dir="rtl">
-        <div className="text-center max-w-sm space-y-5">
+      <div className="min-h-screen p-4 pb-24" dir="rtl">
+        <div className="max-w-sm mx-auto space-y-5 pt-4">
+          {/* הגישה לתוכן והשיוך לקבוצה הם שני דברים נפרדים במסד: התוכן חי
+              ב-purchased_workshops והקבוצה ב-registration_leads. אמא שנרשמה
+              לסדנה שגישת התוכן שלה עוד לא נפתחה עדיין צריכה לראות את המפגשים
+              שלה ולסמן שהיא לא מגיעה, אחרת המקום שלה לא משתחרר לאף אחת. */}
+          <MyWorkshopMeetings />
+        </div>
+        <div className="text-center max-w-sm mx-auto space-y-5 pt-10">
           <div className="w-24 h-24 rounded-3xl mx-auto flex items-center justify-center shadow-lg"
             style={{ background: '#E7C78A' }}>
             <Lock className="w-10 h-10 text-white" />
@@ -486,6 +494,8 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
           <h1 className="text-2xl font-bold text-sand-800">סדנאות</h1>
           <p className="text-sand-400 text-sm">תכנים מקצועיים עבורך</p>
         </div>
+
+        <MyWorkshopMeetings />
 
         {retentionWorkshop && !reminderDismissed && (
           <div className="bg-gradient-to-l from-mustard-50 to-sand-50 rounded-2xl p-4 border border-mustard-100 flex items-start gap-3">

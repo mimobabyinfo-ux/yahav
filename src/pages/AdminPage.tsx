@@ -33,11 +33,12 @@ import AdminHome from '../components/admin/AdminHome'
 import ProductPage from '../components/admin/ProductPage'
 import GiftCardsPanel from '../components/admin/GiftCardsPanel'
 import AppUsagePanel from '../components/admin/AppUsagePanel'
+import MakeupsPanel from '../components/admin/MakeupsPanel'
 import type { AdminOverview } from '../components/admin/useAdminOverview'
 import type { AdminTask } from '../components/admin/adminTasks'
 import { ChevronRight as CtxBack } from 'lucide-react'
 
-type Tab = 'home' | 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'events' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations'
+type Tab = 'home' | 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'events' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations' | 'makeups'
 
 
 // Map admin nav sections → internal tabs
@@ -55,6 +56,7 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
   pregnancy: 'pregnancy',
   partners:  'partners',
   registrations: 'registrations',
+  makeups:   'makeups',
   settings:  'settings',
 }
 
@@ -240,6 +242,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'leads'      && <LeadsTab />}
         {tab === 'forms'      && <FormsTab />}
         {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} onClearFocus={() => setTaskContext(null)} />}
+        {tab === 'makeups'    && <MakeupsPanel />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
 
@@ -263,6 +266,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'partners'   && <PartnersTab />}
         {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} onClearFocus={() => setTaskContext(null)} />}
+        {tab === 'makeups'    && <MakeupsPanel />}
         {tab === 'settings'   && <SettingsTab />}
       </div>
     </div>

@@ -250,6 +250,9 @@ export type Workshop = {
   // inference: ליווי פרטני has never had a cohort and is purchasable any
   // day, so "no cohort" alone must not remove its buy button.
   waitlist_enabled: boolean
+  // כמה מפגשים יש במחזור של המוצר. קובע כמה שורות cohort_meetings נוצרות
+  // אוטומטית בפתיחת מחזור. 1 לרוב המוצרים, 5 לסדנאות הרב-מפגשיות.
+  meetings_count: number
   // Phase 5 / A2 Part 2: optional questionnaire linked to this workshop
   // (FK to forms). Powers the customer card's "did this mother fill
   // the questionnaire" indicator and the cohort-side gap report.
@@ -385,6 +388,72 @@ export type WorkshopCohort = {
   end_date: string | null  // YYYY-MM-DD
   survey_sent_at: string | null
   created_at: string
+}
+
+// המפגשים בפועל של מחזור. עד 3.9.26 הם לא היו קיימים כנתון: המחזור החזיק
+// רק start_date/end_date, ושינויי מועד חיו ביומן החיצוני של ברנדה. בלי
+// השורות האלה אי אפשר לדעת מתי רץ "מפגש 2" בקבוצה מקבילה, וזה בדיוק מה
+// שנדרש כדי להשלים מפגש שפוספס.
+export type CohortMeeting = {
+  id: string
+  cohort_id: string
+  meeting_number: number       // 1..5
+  meeting_date: string         // YYYY-MM-DD
+  // שעה משלו. לפעמים זז מפגש בודד לשעה אחרת ולא כל המחזור. NULL = לפי המחזור.
+  start_time: string | null
+  // ביטול בלי מחיקה, כדי שההיעדרויות וההשלמות שנתלו בו יישמרו.
+  is_cancelled: boolean
+  // "לפעמים אפשר להחליט חריג שנכנסות 9". נקודתי למפגש הזה בלבד.
+  capacity_override: number | null
+  notes: string | null
+  // מתי רצה ההקצאה (24 שעות לפני המפגש). אחרי החותמת אמא לא יכולה לבטל
+  // הצהרת היעדרות, כדי לא לשלוף מקום ממשלימה שכבר אושרה.
+  allocated_at: string | null
+  created_at: string
+}
+
+// הצהרת "לא אגיע" או "לא הגעתי". זה גם השער להשלמה: בלי הצהרה אין בקשה.
+export type MeetingAbsence = {
+  id: string
+  cohort_meeting_id: string
+  lead_id: string
+  created_at: string
+  cancelled_at: string | null
+}
+
+// בקשת השלמה. requested אינה תופסת מקום ואינה חוסמת אף נרשמת משלמת —
+// ההכרעה נופלת פעם אחת, 24 שעות לפני המפגש המארח.
+export type MakeupRequest = {
+  id: string
+  lead_id: string
+  source_cohort_meeting_id: string
+  target_cohort_meeting_id: string
+  status: 'requested' | 'confirmed' | 'rejected' | 'cancelled' | 'attended'
+  requested_at: string
+  decided_at: string | null
+  reject_reason: string | null
+  notified_at: string | null
+  created_at: string
+}
+
+// שורה אחת לכל מפגש: מי רשומה, מי הודיעה שלא מגיעה, וכמה משלימות נכנסו.
+export type MeetingRoster = {
+  meeting_id: string
+  workshop_id: string
+  workshop_title: string
+  cohort_id: string
+  cohort_start_date: string
+  cohort_label: string
+  meeting_number: number
+  meeting_date: string
+  start_time: string | null
+  is_cancelled: boolean
+  allocated_at: string | null
+  capacity: number
+  registered: number
+  absent: number
+  makeups_in: number
+  makeups_waiting: number
 }
 
 export type WorkshopContent = {
