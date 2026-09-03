@@ -199,13 +199,13 @@ export default function MyWorkshopMeetings() {
             <CalendarDays className="w-4 h-4 text-mustard-600" />
             המפגשים שלי
           </p>
-          <p className="text-[11px] text-sand-500 truncate">
+          <p className="text-xs text-sand-500 truncate">
             {head.workshop_title}
             {!open && next ? ` · הבא: יום ${dayName(next.meeting_date)} ${ddmm(next.meeting_date)}` : ''}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-[10px] font-semibold text-sand-500 bg-white px-2 py-1 rounded-full">
+          <span className="text-[11px] font-semibold text-sand-500 bg-white px-2 py-1 rounded-full">
             השלמות: {used}/{allowed}
           </span>
           <ChevronDown className={`w-4 h-4 text-sand-500 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -233,13 +233,13 @@ export default function MyWorkshopMeetings() {
                   יום {dayName(r.meeting_date)}, {ddmm(r.meeting_date)}
                 </span>
                 {r.start_time && (
-                  <span className="text-[11px] text-sand-400">{hhmm(r.start_time)}</span>
+                  <span className="text-xs text-sand-400">{hhmm(r.start_time)}</span>
                 )}
                 {r.is_cancelled && (
-                  <span className="text-[10px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">בוטל</span>
+                  <span className="text-[11px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">בוטל</span>
                 )}
                 {r.i_am_absent && !r.is_cancelled && (
-                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full mr-auto">
+                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full mr-auto">
                     {r.is_past ? 'לא הגעתי' : 'לא מגיעה'}
                   </span>
                 )}
@@ -247,26 +247,26 @@ export default function MyWorkshopMeetings() {
 
               {pending && (
                 <div className="mt-2 rounded-xl bg-sand-50 px-3 py-2">
-                  <p className="text-[11px] text-sand-700 font-semibold inline-flex items-center gap-1">
+                  <p className="text-xs text-sand-700 font-semibold inline-flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     הבקשה התקבלה{r.makeup_meeting_date ? ` ליום ${dayName(r.makeup_meeting_date)}, ${ddmm(r.makeup_meeting_date)}` : ''}
                     {r.makeup_time ? ` ${hhmm(r.makeup_time)}` : ''}
                   </p>
-                  <p className="text-[10px] text-sand-500 mt-0.5 leading-relaxed">
+                  <p className="text-[11px] text-sand-500 mt-0.5 leading-relaxed">
                     ברגע שההשלמה תאושר, נעדכן אותך.
                   </p>
-                  <div className="flex items-center gap-3 mt-1.5">
+                  <div className="flex items-center gap-4 flex-wrap mt-1">
                     <button
                       onClick={() => openPicker(r, 'change')}
                       disabled={isBusy}
-                      className="text-[11px] font-semibold text-mustard-700 hover:text-mustard-800 inline-flex items-center gap-1 disabled:opacity-40"
+                      className="py-2 min-h-[40px] text-xs font-semibold text-mustard-700 hover:text-mustard-800 inline-flex items-center gap-1 disabled:opacity-40"
                     >
                       <Pencil className="w-3 h-3" /> שינוי המועד
                     </button>
                     <button
                       onClick={() => cancelRequest(r)}
                       disabled={isBusy}
-                      className="text-[11px] text-sand-500 hover:text-sand-700 disabled:opacity-40"
+                      className="py-2 min-h-[40px] text-xs text-sand-500 hover:text-sand-700 disabled:opacity-40"
                     >
                       ביטול הבקשה
                     </button>
@@ -276,28 +276,28 @@ export default function MyWorkshopMeetings() {
 
               {settled && (
                 <div className="mt-2 rounded-xl bg-[#E8F5E9] px-3 py-2">
-                  <p className="text-[11px] font-semibold text-[#2E7D32] inline-flex items-center gap-1">
+                  <p className="text-xs font-semibold text-[#2E7D32] inline-flex items-center gap-1">
                     <Check className="w-3 h-3" />
                     ההשלמה אושרה
                     {r.makeup_meeting_date ? ` ליום ${dayName(r.makeup_meeting_date)}, ${ddmm(r.makeup_meeting_date)}` : ''}
                     {r.makeup_time ? ` ${hhmm(r.makeup_time)}` : ''}
                   </p>
                   {r.makeup_cohort_label && (
-                    <p className="text-[10px] text-[#2E7D32] opacity-80 mt-0.5">קבוצת {r.makeup_cohort_label}</p>
+                    <p className="text-[11px] text-[#2E7D32] opacity-80 mt-0.5">קבוצת {r.makeup_cohort_label}</p>
                   )}
                   {r.makeup_status === 'confirmed' && (
-                    <div className="flex items-center gap-3 mt-1.5">
+                    <div className="flex items-center gap-4 flex-wrap mt-1">
                       <button
                         onClick={() => openPicker(r, 'change')}
                         disabled={isBusy}
-                        className="text-[11px] font-semibold text-[#2E7D32] hover:underline inline-flex items-center gap-1 disabled:opacity-40"
+                        className="py-2 min-h-[40px] text-xs font-semibold text-[#2E7D32] hover:underline inline-flex items-center gap-1 disabled:opacity-40"
                       >
                         <Pencil className="w-3 h-3" /> שינוי המועד
                       </button>
                       <button
                         onClick={() => cancelRequest(r)}
                         disabled={isBusy}
-                        className="text-[11px] text-[#2E7D32] opacity-80 hover:underline disabled:opacity-40"
+                        className="py-2 min-h-[40px] text-xs text-[#2E7D32] opacity-80 hover:underline disabled:opacity-40"
                       >
                         ביטול ההשלמה
                       </button>
@@ -312,7 +312,7 @@ export default function MyWorkshopMeetings() {
                     <button
                       onClick={() => setAbsence(r, true)}
                       disabled={isBusy}
-                      className="text-[11px] font-semibold text-sand-600 bg-sand-100 hover:bg-sand-200 px-3 py-1.5 rounded-lg disabled:opacity-40"
+                      className="text-xs font-semibold text-sand-600 bg-sand-100 hover:bg-sand-200 px-3.5 py-2.5 min-h-[40px] rounded-xl disabled:opacity-40"
                     >
                       {r.is_past ? 'לא הגעתי למפגש הזה' : 'לא אוכל להגיע'}
                     </button>
@@ -321,7 +321,7 @@ export default function MyWorkshopMeetings() {
                     <button
                       onClick={() => openPicker(r, 'new')}
                       disabled={isBusy || used >= allowed}
-                      className="text-[11px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-40"
+                      className="text-xs font-bold px-3.5 py-2.5 min-h-[40px] rounded-xl disabled:opacity-40"
                       style={{ background: '#C8A460', color: '#33281B' }}
                     >
                       בחירת מועד להשלמה
@@ -333,14 +333,14 @@ export default function MyWorkshopMeetings() {
                     <button
                       onClick={() => requestUndo(r)}
                       disabled={isBusy}
-                      className="text-[11px] text-sand-500 hover:text-sand-700 inline-flex items-center gap-1 disabled:opacity-40"
+                      className="py-2 min-h-[40px] text-xs text-sand-500 hover:text-sand-700 inline-flex items-center gap-1 disabled:opacity-40"
                     >
                       <RotateCcw className="w-3 h-3" />
                       {r.is_past ? 'בעצם הגעתי' : 'בעצם כן אגיע'}
                     </button>
                   )}
                   {used >= allowed && r.i_am_absent && !r.makeup_status && (
-                    <span className="text-[10px] text-sand-400">ניצלת את שתי ההשלמות</span>
+                    <span className="text-[11px] text-sand-400">ניצלת את שתי ההשלמות</span>
                   )}
                 </div>
               )}
@@ -386,17 +386,17 @@ export default function MyWorkshopMeetings() {
       {picking && (
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/40 px-4"
           onClick={() => { setPicking(null); setOptions(null) }} dir="rtl">
-          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl flex flex-col max-h-[85vh] mb-4 sm:mb-0"
+          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl flex flex-col max-h-[85vh] mb-4 sm:mb-0 pb-[env(safe-area-inset-bottom)]"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100">
               <div>
                 <h3 className="font-bold text-sand-800 text-sm">
                   {picking.mode === 'change' ? 'שינוי מועד' : 'השלמת'} מפגש {picking.row.meeting_number}
                 </h3>
-                <p className="text-[11px] text-sand-500">אותו תוכן, בקבוצה אחרת</p>
+                <p className="text-xs text-sand-500">אותו תוכן, בקבוצה אחרת</p>
               </div>
               <button onClick={() => { setPicking(null); setOptions(null) }}
-                className="p-1.5 text-sand-300 hover:text-sand-600">
+                className="p-2.5 -m-1 text-sand-300 hover:text-sand-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -413,7 +413,7 @@ export default function MyWorkshopMeetings() {
                 </div>
               ) : (
                 <>
-                  <p className="text-[11px] text-sand-500 leading-relaxed bg-sand-50 rounded-xl px-3 py-2">
+                  <p className="text-xs text-sand-500 leading-relaxed bg-sand-50 rounded-xl px-3 py-2">
                     {picking.mode === 'change' ? `${CHANGE_NOTE} ` : ''}
                     {PICK_NOTE}
                   </p>
@@ -432,14 +432,14 @@ export default function MyWorkshopMeetings() {
                           <span className="text-sm font-bold text-sand-800">
                             יום {dayName(o.meeting_date)}, {ddmm(o.meeting_date)}
                           </span>
-                          {o.start_time && <span className="text-[11px] text-sand-500">{hhmm(o.start_time)}</span>}
+                          {o.start_time && <span className="text-xs text-sand-500">{hhmm(o.start_time)}</span>}
                           {isCurrent && (
-                            <span className="text-[10px] font-semibold text-mustard-700 bg-white px-2 py-0.5 rounded-full mr-auto">
+                            <span className="text-[11px] font-semibold text-mustard-700 bg-white px-2 py-0.5 rounded-full mr-auto">
                               המועד הנוכחי שלך
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] text-sand-400 mt-1">
+                        <p className="text-[11px] text-sand-400 mt-1">
                           קבוצת {o.cohort_label} · {o.available_now ? 'יש כרגע מקום פנוי' : 'אין כרגע מקום פנוי'}
                         </p>
                       </button>
