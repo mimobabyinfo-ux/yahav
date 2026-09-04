@@ -73,6 +73,8 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'partners',  label: 'ספקי קהילה',     icon: <Link2 className="w-3.5 h-3.5" /> },
   { id: 'workshops', label: 'מוצרים ותשלום', icon: <GraduationCap className="w-3.5 h-3.5" /> },
   { id: 'program',   label: 'תוכנית הסדנאות', icon: <BookOpen className="w-3.5 h-3.5" /> },
+  // ברנדה 4.9.26: רוצה לראות את ההשלמות גם מהטלפון.
+  { id: 'makeups',   label: 'השלמות',        icon: <CalendarDays className="w-3.5 h-3.5" /> },
   { id: 'users',     label: 'משתמשות',      icon: <Users className="w-3.5 h-3.5" /> },
   { id: 'leads',     label: 'לידים',         icon: <Phone className="w-3.5 h-3.5" /> },
   { id: 'insights',  label: 'תובנות',        icon: <BarChart2 className="w-3.5 h-3.5" /> },
