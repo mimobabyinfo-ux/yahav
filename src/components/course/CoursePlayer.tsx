@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ChevronRight, ChevronLeft, PlayCircle, BookOpen, FileText,
-  CheckCircle2, Circle, MessageCircle,
+  CheckCircle2, Circle, MessageCircle, ChevronDown,
 } from 'lucide-react'
 import { supabase, Workshop, WorkshopContent } from '../../lib/supabase'
 import type { EventType, EventData } from '../../hooks/useTracker'
@@ -41,6 +41,10 @@ export default function CoursePlayer({
   const [done, setDone] = useState<Set<string>>(new Set())
   const [openIdx, setOpenIdx] = useState<number | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
+  // ברנדה 4.9.26: "שלא כל האופציות יהיו פתוחות כל הזמן". כל נושא (חימום,
+  // מפגש 1..5) הוא אקורדיון סגור, ורק הנושא שבו היא עומדת פתוח. null =
+  // עוד לא נגעה, ואז נפתח הנושא עם השיעור הראשון שלא סומן.
+  const [openModules, setOpenModules] = useState<Set<number> | null>(null)
 
   // Consecutive items sharing a section become one module. Order is the
   // display_order the query already applied — never re-sorted here, so a
@@ -100,6 +104,19 @@ export default function CoursePlayer({
 
   const doneCount = items.filter(i => done.has(i.id)).length
   const pct = items.length > 0 ? Math.round((doneCount / items.length) * 100) : 0
+
+  const firstUnfinishedModule = useMemo(() => {
+    const i = modules.findIndex(m => m.lessons.some(l => !done.has(l.id)))
+    return i === -1 ? 0 : i
+  }, [modules, done])
+  const isModuleOpen = (mi: number) => openModules ? openModules.has(mi) : mi === firstUnfinishedModule
+  function toggleModule(mi: number) {
+    setOpenModules(prev => {
+      const next = new Set(prev ?? [firstUnfinishedModule])
+      if (next.has(mi)) next.delete(mi); else next.add(mi)
+      return next
+    })
+  }
 
   // ── Lesson view ────────────────────────────────────────────────────────────
   if (openIdx !== null && items[openIdx]) {
@@ -220,45 +237,67 @@ export default function CoursePlayer({
           </div>
         )}
 
-        {/* Modules */}
-        {modules.map((mod, mi) => (
-          <section key={`${mod.name}-${mi}`}>
-            <h2 className="font-bold text-sand-700 text-sm mb-2 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-lg bg-mustard-100 text-mustard-700 text-[11px] font-black flex items-center justify-center flex-shrink-0">
-                {mi + 1}
-              </span>
-              {mod.name}
-            </h2>
-            <div className="space-y-2">
-              {mod.lessons.map(lesson => {
-                const idx = counter++
-                const isDone = done.has(lesson.id)
-                return (
-                  <button key={lesson.id}
-                    onClick={() => { setOpenIdx(idx); track('lesson_open', { content_id: lesson.id, title: lesson.title }) }}
-                    className="w-full flex items-center gap-3 bg-[#F5F1EB] rounded-2xl p-3.5 text-right hover:bg-sand-50 transition-colors">
-                    <span className="flex-shrink-0">
-                      {isDone
-                        ? <CheckCircle2 className="w-5 h-5 text-green-600" />
-                        : lesson.type === 'video'
-                          ? <PlayCircle className="w-5 h-5 text-mustard-500" />
-                          : <BookOpen className="w-5 h-5 text-sand-400" />}
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className={`block text-sm font-semibold truncate ${isDone ? 'text-sand-400' : 'text-sand-800'}`}>
-                        {lesson.title}
-                      </span>
-                      <span className="block text-[11px] text-sand-400">
-                        {lesson.type === 'video' ? 'סרטון' : 'לקריאה'}
-                      </span>
-                    </span>
-                    <ChevronLeft className="w-4 h-4 text-sand-300 flex-shrink-0" />
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-        ))}
+        {/* Modules: accordion, one topic at a time */}
+        {modules.map((mod, mi) => {
+          const open = isModuleOpen(mi)
+          const modDone = mod.lessons.filter(l => done.has(l.id)).length
+          const startIdx = counter
+          counter += mod.lessons.length
+          return (
+            <section key={`${mod.name}-${mi}`} className="rounded-2xl bg-[#F5F1EB] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleModule(mi)}
+                aria-expanded={open}
+                className="w-full flex items-center gap-3 p-3.5 text-right min-h-[52px]"
+              >
+                <span className={`w-7 h-7 rounded-xl text-xs font-black flex items-center justify-center flex-shrink-0 ${
+                  modDone === mod.lessons.length ? 'bg-green-100 text-green-700' : 'bg-mustard-100 text-mustard-700'
+                }`}>
+                  {modDone === mod.lessons.length ? <CheckCircle2 className="w-4 h-4" /> : mi + 1}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-bold text-sand-800 truncate">{mod.name}</span>
+                  <span className="block text-xs text-sand-400">
+                    {mod.lessons.length === 1 ? 'פריט אחד' : `${mod.lessons.length} פריטים`}
+                    {modDone > 0 && modDone < mod.lessons.length ? ` · ${modDone} הושלמו` : ''}
+                  </span>
+                </span>
+                <ChevronDown className={`w-4 h-4 text-sand-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+              </button>
+              {open && (
+                <div className="px-2 pb-2 space-y-1.5">
+                  {mod.lessons.map((lesson, li) => {
+                    const idx = startIdx + li
+                    const isDone = done.has(lesson.id)
+                    return (
+                      <button key={lesson.id}
+                        onClick={() => { setOpenIdx(idx); track('lesson_open', { content_id: lesson.id, title: lesson.title }) }}
+                        className="w-full flex items-center gap-3 bg-white rounded-xl p-3 text-right hover:bg-sand-50 transition-colors min-h-[48px]">
+                        <span className="flex-shrink-0">
+                          {isDone
+                            ? <CheckCircle2 className="w-5 h-5 text-green-600" />
+                            : lesson.type === 'video'
+                              ? <PlayCircle className="w-5 h-5 text-mustard-500" />
+                              : <BookOpen className="w-5 h-5 text-sand-400" />}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className={`block text-sm font-semibold ${isDone ? 'text-sand-400' : 'text-sand-800'}`}>
+                            {lesson.title}
+                          </span>
+                          <span className="block text-xs text-sand-400">
+                            {lesson.type === 'video' ? 'סרטון' : 'לקריאה'}
+                          </span>
+                        </span>
+                        <ChevronLeft className="w-4 h-4 text-sand-300 flex-shrink-0" />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+          )
+        })}
 
         <a
           href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי ${ownerName}! יש לי שאלה על "${workshop.title}"`)}`}
