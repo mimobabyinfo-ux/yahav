@@ -269,6 +269,9 @@ export type Workshop = {
   // Product max / stock. For cohort-based workshops this doubles as the
   // DEFAULT cohort capacity — cohorts with capacity=NULL inherit it.
   stock_quantity: number | null
+  // How many months after the cohort's last meeting a paying mother keeps
+  // access to the content. Brenda 5.9.26: default 2, editable per product.
+  access_months_after_end: number
   // Recommended baby age window in MONTHS (decimals allowed, e.g. 3.5).
   // Powers the age-matched recommendation card on the home dashboard.
   // Both NULL = no age targeting; end NULL = open-ended.

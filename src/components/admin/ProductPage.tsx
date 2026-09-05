@@ -45,7 +45,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
   const [savedFlash, setSavedFlash] = useState(false)
   const [showCohortsManager, setShowCohortsManager] = useState(false)
 
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, gift_card_enabled: false, waitlist_enabled: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, gift_card_enabled: false, waitlist_enabled: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '', access_months: '2' })
 
   const load = useCallback(async () => {
     const [{ data: w }, { data: all }, { data: cs }, { data: leads }, { data: fs }] = await Promise.all([
@@ -80,6 +80,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
         waitlist_enabled: ws.waitlist_enabled ?? false,
         linked_form_id: ws.linked_form_id ?? '', feedback_form_id: ws.feedback_form_id ?? '',
         age_from: ws.age_range_start_months?.toString() ?? '', age_to: ws.age_range_end_months?.toString() ?? '',
+        access_months: (ws.access_months_after_end ?? 2).toString(),
       })
     }
     setLoading(false)
@@ -123,6 +124,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
       feedback_form_id: form.feedback_form_id || null,
       age_range_start_months: form.age_from !== '' ? parseFloat(form.age_from) : null,
       age_range_end_months: form.age_to !== '' ? parseFloat(form.age_to) : null,
+      access_months_after_end: form.access_months !== '' ? Math.max(0, parseInt(form.access_months)) : 2,
       updated_at: new Date().toISOString(),
     }).eq('id', workshop.id)
     setSaving(false)
@@ -246,6 +248,12 @@ export default function ProductPage({ workshopId, onBack }: Props) {
                 <input value={form.age_from} onChange={e => setForm(f => ({ ...f, age_from: e.target.value }))} placeholder="מגיל" type="number" step="0.5" min="0" className={inputCls} style={inputStyle} />
                 <input value={form.age_to} onChange={e => setForm(f => ({ ...f, age_to: e.target.value }))} placeholder="עד גיל" type="number" step="0.5" min="0" className={inputCls} style={inputStyle} />
               </div></div>
+            {!isPhysical && (
+              <div><label className={labelCls} style={labelStyle}>גישה לתוכן באפליקציה: חודשים אחרי המפגש האחרון</label>
+                <input value={form.access_months} onChange={e => setForm(f => ({ ...f, access_months: e.target.value }))} type="number" min="0" max="120" className={inputCls} style={inputStyle} />
+                <p className="text-[11px] mt-1" style={{ color: '#A2937D' }}>חל על מי שמשלמת מעכשיו. 0 = הגישה נסגרת ביום הסיום. לאמא ספציפית אפשר תמיד להאריך ידנית במסך המשתמשות.</p>
+              </div>
+            )}
             <label className="flex items-center gap-2 cursor-pointer pt-1">
               <input type="checkbox" checked={form.public_registration} onChange={e => setForm(f => ({ ...f, public_registration: e.target.checked }))} className="w-4 h-4 accent-mustard-500" />
               <span className="text-sm font-semibold" style={{ color: '#5E4938' }}>מופיע בעמוד ההרשמה הציבורי</span>
