@@ -1477,6 +1477,10 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
             <button onClick={() => setShowCatManager(true)} className="px-3 py-2 rounded-xl text-sm font-semibold bg-gray-50 text-gray-600 hover:bg-gray-100" title="ניהול קטגוריות">⚙️ קטגוריות</button>
           </div>
           {showCatManager && <CategoryManagerModal onClose={() => setShowCatManager(false)} onChanged={() => { reloadCategories(); load() }} />}
+          {/* Yahav 5.9.26: the actions cell overflowed the card and the
+              registration-link button was cut off. The table can now scroll
+              sideways if it must, and the actions wrap onto two lines. */}
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
@@ -1485,7 +1489,7 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
                 <th className="px-4 py-3">מחיר</th>
                 <th className="px-4 py-3">קישור תשלום</th>
                 <th className="px-4 py-3">סטטוס</th>
-                <th className="px-4 py-3">פעולות</th>
+                <th className="px-4 py-3" style={{ minWidth: 230 }}>פעולות</th>
               </tr>
             </thead>
             <tbody>
@@ -1558,10 +1562,36 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
                             </button>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1 flex-wrap max-w-[260px] opacity-0 group-hover:opacity-100 transition-opacity">
+                              {(w as unknown as { public_registration?: boolean }).public_registration && (
+                                <button
+                                  onClick={() => copyRegisterLink(w.id)}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 whitespace-nowrap"
+                                  title="העתקת לינק להרשמה ישירה למוצר הזה"
+                                >
+                                  {copiedId === w.id ? '✓ הועתק' : '🔗 לינק הרשמה'}
+                                </button>
+                              )}
+                              {/* Yahav 5.9.26: "והלינק של הגיפט קארד נמצא איפשהו?" — the public
+                                  no-account page for this product, same place as the registration link. */}
+                              {w.gift_card_enabled && (
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(`${window.location.origin}/?giftcard=${w.id}`).then(() => {
+                                      setCopiedId('gift:' + w.id)
+                                      setTimeout(() => setCopiedId(prev => prev === 'gift:' + w.id ? null : prev), 1500)
+                                    })
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold hover:brightness-95 whitespace-nowrap"
+                                  style={{ background: '#F6ECD8', color: '#8A6A2F' }}
+                                  title="העתקת לינק לרכישת גיפט קארד למוצר הזה (בלי התחברות)"
+                                >
+                                  {copiedId === 'gift:' + w.id ? '✓ הועתק' : '🎁 לינק גיפט קארד'}
+                                </button>
+                              )}
                               {!isPhysicalProduct(w) && (
                                 <>
-                                  <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#F6ECD8] text-[#6E5836] hover:bg-[#EFDFC2]">📂 תוכן</button>
+                                  <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#F6ECD8] text-[#6E5836] hover:bg-[#EFDFC2] whitespace-nowrap">📂 תוכן</button>
                                   <button
                                     onClick={() => setCohortsWorkshop(w)}
                                     className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100"
@@ -1578,15 +1608,6 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
                                   </button>
                                 </>
                               )}
-                              {(w as unknown as { public_registration?: boolean }).public_registration && (
-                                <button
-                                  onClick={() => copyRegisterLink(w.id)}
-                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100"
-                                  title="העתקת לינק להרשמה ישירה למוצר הזה"
-                                >
-                                  {copiedId === w.id ? '✓ הועתק' : '🔗 לינק'}
-                                </button>
-                              )}
                               <button onClick={() => onOpenProduct?.(w.id)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
                               <button onClick={() => setPendingDelete(w)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
@@ -1599,6 +1620,7 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
               </DndContext>
             </tbody>
           </table>
+          </div>
           {visibleWorkshops.length === 0 && <p className="text-center text-gray-400 text-sm py-12">{workshops.length === 0 ? 'אין מוצרים' : 'לא נמצאו מוצרים בסינון הזה'}</p>}
         </div>
       </div>
