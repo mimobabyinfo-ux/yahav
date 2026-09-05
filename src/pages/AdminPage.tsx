@@ -1511,9 +1511,22 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
                           <td className="px-4 py-3 text-gray-600">{w.price != null ? `₪${w.price}` : '—'}</td>
                           <td className="px-4 py-3">
                             {w.payment_link ? (
-                              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                <span style={{ width: 9, height: 9, borderRadius: 9999, background: '#818267', display: 'inline-block' }} />
-                                <span style={{ color: '#434434', fontSize: 13 }}>קיים</span>
+                              /* Brenda 5.9.26: "קיים" told her nothing. Show the
+                                 link itself, hover for the full URL, copy and
+                                 open beside it. */
+                              <span className="inline-flex items-center gap-1.5 whitespace-nowrap" style={{ maxWidth: 260 }}>
+                                <span style={{ width: 9, height: 9, borderRadius: 9999, background: '#818267', display: 'inline-block', flexShrink: 0 }} />
+                                <span dir="ltr" className="truncate" style={{ color: '#434434', fontSize: 12, maxWidth: 170 }} title={w.payment_link}>{w.payment_link.replace(/^https?:\/\//, '')}</span>
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText(w.payment_link!).then(() => { setCopiedId('pay:' + w.id); setTimeout(() => setCopiedId(prev => prev === 'pay:' + w.id ? null : prev), 1500) }) }}
+                                  className="p-1 rounded-md hover:bg-gray-100 flex-shrink-0"
+                                  title={copiedId === 'pay:' + w.id ? 'הועתק' : 'העתקת קישור התשלום'}
+                                >
+                                  {copiedId === 'pay:' + w.id ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-gray-400" />}
+                                </button>
+                                <a href={w.payment_link} target="_blank" rel="noopener noreferrer" className="p-1 rounded-md hover:bg-gray-100 flex-shrink-0" title="פתיחת עמוד התשלום בלשונית חדשה">
+                                  <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                                </a>
                               </span>
                             ) : (
                               <button

@@ -18,6 +18,7 @@ import PublicBabyPage from './pages/PublicBabyPage'
 import GuestJoinPage from './pages/GuestJoinPage'
 import PublicPartnerPage from './pages/PublicPartnerPage'
 import PublicRegisterPage from './pages/PublicRegisterPage'
+import PublicGiftCardPage from './pages/PublicGiftCardPage'
 import VendorCheckinPage from './pages/VendorCheckinPage'
 import ThankYouPage from './pages/ThankYouPage'
 import WelcomeClaimPage from './pages/WelcomeClaimPage'
@@ -70,6 +71,13 @@ const checkinToken = new URLSearchParams(window.location.search).get('checkin')
 const isCoursePage = new URLSearchParams(window.location.search).has('course')
 const courseWorkshopId = new URLSearchParams(window.location.search).get('course') || null
 const isThanksPage = new URLSearchParams(window.location.search).has('thanks')
+// ?gift=<workshop id> — a shareable link straight into the גיפט קארד sheet
+// for one product. Login is still required (the card is written on the
+// buyer), so this only picks the landing page; WorkshopsPage reads the id.
+const isGiftPage = new URLSearchParams(window.location.search).has('gift')
+// ?giftcard[=<workshop id>] — the PUBLIC gift card page, no account
+// needed (Yahav 5.9.26). Gated with the other public routes, before auth.
+const isPublicGiftCardPage = new URLSearchParams(window.location.search).has('giftcard')
 const welcomeLeadId = new URLSearchParams(window.location.search).get('welcome')
 // ?legal=privacy|terms|accessibility — the three documents Israeli law
 // expects a consumer service to publish. Public by necessity: the signup
@@ -84,7 +92,7 @@ const REGS_LS_KEY = 'registrations_last_seen'
 
 function AppInner() {
   const { user, profile, loading, isGuest } = useAuth()
-  const [currentPage, setCurrentPage] = useState<Page>(isCoursePage ? 'pro' : 'dashboard')
+  const [currentPage, setCurrentPage] = useState<Page>(isCoursePage ? 'pro' : isGiftPage ? 'workshops' : 'dashboard')
   // Brenda 17.8.26: "when I go into nursing/sleep/bottle FROM the journal
   // and press back, I want to come back to the journal, not to the home
   // screen." The log pages are opened from two places, so back has to
@@ -138,7 +146,7 @@ function AppInner() {
   // ?course wins: an admin opening a customer's welcome link wants to see
   // what the customer sees.
   useEffect(() => {
-    if (isCoursePage) return
+    if (isCoursePage || isGiftPage) return
     if (profile?.is_admin && !viewAsUser) {
       setCurrentPage('admin')
     } else {
@@ -229,6 +237,7 @@ function AppInner() {
   if (isPartnerPage) return <PublicPartnerPage />
   if (isRegisterPage) return <PublicRegisterPage />
   if (isOfferPage) return <PublicRegisterPage />
+  if (isPublicGiftCardPage) return <PublicGiftCardPage />
   if (checkinToken) return <VendorCheckinPage token={checkinToken} />
   // ?welcome=<lead_id> — the post-payment link. Must sit BEFORE the auth
   // gate: she has no session yet, that is the entire point of the route.

@@ -18,9 +18,10 @@ export type GiftCardStatus = 'pending' | 'paid' | 'sent' | 'redeemed' | 'cancell
 export type GiftCard = {
   id: string
   code: string
-  buyer_user_id: string
+  buyer_user_id: string | null   // null = bought without an account (public page)
   buyer_name: string | null
   buyer_email: string | null
+  buyer_phone: string | null
   workshop_id: string | null
   workshop_title: string
   cohort_id: string | null
@@ -100,4 +101,73 @@ export async function sendGiftCard(opts: {
     return { ok: false, error: 'הפרטים נשמרו אבל המייל לא יצא. נסי שוב בעוד רגע' }
   }
   return { ok: true }
+}
+
+// ── Public (no account) gift cards — Yahav 5.9.26 ───────────────────────────
+// "מי שתקנה גיפט קארד בדרך כלל לא תהיה מישהי שצריכה להירשם לאפליקציה."
+// Same lifecycle, but the card is owned by a secret claim_token instead of
+// a user. The token lives in localStorage between the payment page and
+// the thank-you page, under the same one-hour intent rule as above.
+
+export const PENDING_PUBLIC_GIFT_KEY = 'mimo_pending_public_gift_token'
+export const PENDING_PUBLIC_GIFT_AT_KEY = 'mimo_pending_public_gift_at'
+
+export type PublicGiftCard = Pick<GiftCard,
+  'id' | 'code' | 'status' | 'buyer_name' | 'buyer_email' | 'workshop_id' | 'workshop_title' |
+  'cohort_label' | 'amount' | 'recipient_name' | 'recipient_email' | 'personal_message' |
+  'paid_at' | 'sent_at' | 'created_at'>
+
+export function rememberPublicGiftIntent(token: string) {
+  try {
+    localStorage.setItem(PENDING_PUBLIC_GIFT_KEY, token)
+    localStorage.setItem(PENDING_PUBLIC_GIFT_AT_KEY, String(Date.now()))
+  } catch { /* private mode */ }
+}
+
+export function clearPublicGiftIntent() {
+  try {
+    localStorage.removeItem(PENDING_PUBLIC_GIFT_KEY)
+    localStorage.removeItem(PENDING_PUBLIC_GIFT_AT_KEY)
+  } catch { /* private mode */ }
+}
+
+export function readPublicGiftIntent(): string | null {
+  try {
+    const token = localStorage.getItem(PENDING_PUBLIC_GIFT_KEY)
+    const at = Number(localStorage.getItem(PENDING_PUBLIC_GIFT_AT_KEY) ?? '0')
+    if (!token || !/^[0-9a-f-]{36}$/.test(token)) return null
+    if (!(at > 0 && Date.now() - at < GIFT_INTENT_TTL_MS)) { clearPublicGiftIntent(); return null }
+    return token
+  } catch { return null }
+}
+
+/** Mail the friend on a card owned by a claim token. The recipient must
+ *  already be on the card (set at purchase, or via setPublicGiftCardRecipient). */
+export async function sendPublicGiftCard(claimToken: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data, error } = await supabase.functions.invoke('send-gift-card', {
+    body: { claim_token: claimToken },
+  })
+  if (error || !(data as { ok?: boolean } | null)?.ok) {
+    return { ok: false, error: 'המייל לא יצא. אפשר לנסות שוב בעוד רגע' }
+  }
+  return { ok: true }
+}
+
+export async function setAndSendPublicGiftCard(opts: {
+  claimToken: string
+  recipientName: string
+  recipientEmail: string
+  message: string
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: saved, error: saveErr } = await supabase.rpc('set_public_gift_card_recipient', {
+    p_claim_token: opts.claimToken,
+    p_recipient_name: opts.recipientName,
+    p_recipient_email: opts.recipientEmail,
+    p_message: opts.message,
+  })
+  if (saveErr) return { ok: false, error: 'שגיאה בשמירת הפרטים. נסי שוב' }
+  if (saved === 'bad_email') return { ok: false, error: 'כתובת המייל לא נראית תקינה' }
+  if (saved === 'not_paid') return { ok: false, error: 'התשלום עדיין לא אושר. נשלח ברגע שיאושר' }
+  if (saved !== 'ok') return { ok: false, error: 'לא הצלחנו לשמור את הפרטים' }
+  return sendPublicGiftCard(opts.claimToken)
 }

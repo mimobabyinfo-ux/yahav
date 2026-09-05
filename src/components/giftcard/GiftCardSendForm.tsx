@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Mail, Send, Check } from 'lucide-react'
-import { sendGiftCard, type GiftCard } from './giftCard'
+import { sendGiftCard, setAndSendPublicGiftCard, type GiftCard, type PublicGiftCard } from './giftCard'
 
 // "לשלוח את זה לחברה" — the second half of a gift card, shown on the
 // thank-you page right after payment and again in הרכישות שלי for anyone
@@ -13,10 +13,14 @@ export default function GiftCardSendForm({
   card,
   onSent,
   compact = false,
+  claimToken,
 }: {
-  card: GiftCard
+  card: GiftCard | PublicGiftCard
   onSent?: () => void
   compact?: boolean
+  /** A card bought without an account (public ?giftcard page): the
+   *  claim token stands in for the session. */
+  claimToken?: string
 }) {
   const alreadySent = card.status === 'sent' || card.status === 'redeemed'
   const [open, setOpen] = useState(!alreadySent)
@@ -30,12 +34,9 @@ export default function GiftCardSendForm({
   async function submit() {
     if (!email.trim()) { setError('צריך את המייל של החברה'); return }
     setBusy(true); setError('')
-    const res = await sendGiftCard({
-      giftCardId: card.id,
-      recipientName: name,
-      recipientEmail: email,
-      message,
-    })
+    const res = claimToken
+      ? await setAndSendPublicGiftCard({ claimToken, recipientName: name, recipientEmail: email, message })
+      : await sendGiftCard({ giftCardId: card.id, recipientName: name, recipientEmail: email, message })
     setBusy(false)
     if (!res.ok) { setError(res.error); return }
     setDone(true)
@@ -117,7 +118,7 @@ export default function GiftCardSendForm({
         {busy ? 'שולחת...' : 'שליחת המתנה'}
       </button>
 
-      {!compact && (
+      {!compact && !claimToken && (
         <p className="text-[11px] text-center" style={{ color: '#8A7A63' }}>
           אפשר גם לשלוח מאוחר יותר, המתנה שמורה לך במוצרים ← הרכישות שלי
         </p>

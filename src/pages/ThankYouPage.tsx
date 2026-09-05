@@ -4,7 +4,7 @@ import MimoLogo from '../components/MimoLogo'
 import { pixelTrack } from '../utils/metaPixel'
 import { PENDING_EVENT_KEY, PENDING_EVENT_AT_KEY, INTENT_TTL_MS } from '../components/community/EventsTab'
 import GiftCardSendForm from '../components/giftcard/GiftCardSendForm'
-import { readGiftIntent, clearGiftIntent, type GiftCard } from '../components/giftcard/giftCard'
+import { readGiftIntent, clearGiftIntent, readPublicGiftIntent, clearPublicGiftIntent, sendPublicGiftCard, type GiftCard, type PublicGiftCard } from '../components/giftcard/giftCard'
 
 // ?thanks — where Morning sends her back after a successful payment.
 //
@@ -154,6 +154,13 @@ export default function ThankYouPage() {
   // so this form is the FIRST place a gift can leave the building.
   const [giftCard, setGiftCard] = useState<GiftCard | null>(null)
   const [giftUnconfirmed, setGiftUnconfirmed] = useState(false)
+  // A card bought without an account (public ?giftcard page, 5.9.26).
+  // Owned by its claim token, so no session is needed here — which is
+  // exactly the case the signed-in flow could not handle (giftUnconfirmed).
+  const [publicGift, setPublicGift] = useState<{ token: string; card: PublicGiftCard } | null>(null)
+  // 'sending' | 'sent' | 'failed' | null — when the friend was already
+  // named at purchase, the mail goes out by itself the moment we land.
+  const [publicAutoSend, setPublicAutoSend] = useState<'sending' | 'sent' | 'failed' | null>(null)
   const [accessOpened, setAccessOpened] = useState(false)
   const [mailFailed, setMailFailed] = useState(false)
 
@@ -247,6 +254,25 @@ export default function ThankYouPage() {
           const card = ((cards ?? []) as GiftCard[]).find(c => c.id === giftId) ?? null
           setGiftCard(card)
         })
+      })
+    }
+
+    const publicToken = readPublicGiftIntent()
+    if (publicToken) {
+      supabase.rpc('mark_public_gift_card_paid', { p_claim_token: publicToken }).then(async ({ data, error }) => {
+        if (error || data === 'not_found') return
+        clearPublicGiftIntent()
+        const { data: raw } = await supabase.rpc('get_public_gift_card', { p_claim_token: publicToken })
+        const card = raw as PublicGiftCard | null
+        if (!card) return
+        setPublicGift({ token: publicToken, card })
+        if (card.status === 'paid' && card.recipient_email) {
+          setPublicAutoSend('sending')
+          const res = await sendPublicGiftCard(publicToken)
+          setPublicAutoSend(res.ok ? 'sent' : 'failed')
+        } else if (card.status === 'sent') {
+          setPublicAutoSend('sent')
+        }
       })
     }
 
@@ -351,12 +377,14 @@ export default function ThankYouPage() {
   // A gift is not a registration: nobody is coming to a workshop and no
   // WhatsApp group is waiting. The product's own success URL still lands
   // here, so the copy is overridden rather than routed elsewhere.
-  const isGift = giftCard != null || giftUnconfirmed
+  const isGift = giftCard != null || giftUnconfirmed || publicGift != null
   const title = isGift
     ? 'התשלום התקבל, המתנה מוכנה 🎁'
     : settings[KEYS[kind].title] || COPY[kind].title
   const body = isGift
-    ? 'נשאר רק לשלוח אותה לחברה. היא תקבל מייל ממימו עם כל הפרטים.'
+    ? (publicAutoSend === 'sent' || publicAutoSend === 'sending'
+        ? 'המייל עם המתנה יוצא לחברה עכשיו, עם כל הפרטים למימוש.'
+        : 'נשאר רק לשלוח אותה לחברה. היא תקבל מייל ממימו עם כל הפרטים.')
     : settings[KEYS[kind].body] || COPY[kind].body(owner)
   const firstName = (ctx?.lead_name ?? '').trim().split(' ')[0]
   const meeting = (kind === 'group' || kind === 'meetup') ? cohortLine(ctx ?? { found: false }) : null
@@ -381,9 +409,11 @@ export default function ThankYouPage() {
             {firstName ? `${firstName}, ${title}` : title}
           </h1>
 
-          {(giftCard?.workshop_title ?? ctx?.title) && (
+          {(giftCard?.workshop_title ?? publicGift?.card.workshop_title ?? ctx?.title) && (
             <p className="text-sm font-bold" style={{ color: '#8A6A2F' }}>
-              {giftCard ? `גיפט קארד · ${giftCard.workshop_title}` : ctx?.title}
+              {giftCard ? `גיפט קארד · ${giftCard.workshop_title}`
+                : publicGift ? `גיפט קארד · ${publicGift.card.workshop_title}`
+                : ctx?.title}
             </p>
           )}
 
@@ -391,6 +421,34 @@ export default function ThankYouPage() {
 
           {giftCard && (
             <GiftCardSendForm card={giftCard} onSent={() => { /* stays on screen */ }} />
+          )}
+
+          {publicGift && (
+            publicAutoSend === 'sending' ? (
+              <div className="rounded-2xl p-4 text-center" style={{ background: '#FAF6EF', border: '1px solid #EFE4D3' }}>
+                <p className="text-sm font-bold" style={{ color: '#8A6A2F' }}>שולחים את המתנה ל{publicGift.card.recipient_email}...</p>
+              </div>
+            ) : publicAutoSend === 'sent' ? (
+              <div className="space-y-2">
+                <div className="rounded-2xl p-4 text-center space-y-1.5" style={{ background: '#F1F3EA', border: '1px solid #C9D0B4' }}>
+                  <p className="text-sm font-bold" style={{ color: '#4A5C31' }}>המתנה נשלחה 🤍</p>
+                  <p className="text-xs" style={{ color: '#6E7B55' }}>{publicGift.card.recipient_email} קיבלה מייל עם כל הפרטים</p>
+                </div>
+                <GiftCardSendForm card={{ ...publicGift.card, status: 'sent' }} claimToken={publicGift.token} compact />
+              </div>
+            ) : (
+              <>
+                {publicAutoSend === 'failed' && (
+                  <p className="text-xs text-red-500">המייל לא יצא בניסיון הראשון. אפשר לשלוח שוב כאן.</p>
+                )}
+                <GiftCardSendForm card={publicGift.card} claimToken={publicGift.token} />
+              </>
+            )
+          )}
+          {publicGift && (
+            <p className="text-[11px]" style={{ color: '#8A7A63' }}>
+              קוד המתנה: <span dir="ltr" className="font-bold">{publicGift.card.code}</span>. שמרי אותו, ואם משהו לא עובד כתבי ל{owner || 'ברנדה'}.
+            </p>
           )}
 
           {giftUnconfirmed && (

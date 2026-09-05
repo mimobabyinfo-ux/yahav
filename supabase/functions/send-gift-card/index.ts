@@ -10,8 +10,9 @@
 // function and not a database trigger.
 //
 // Rules it enforces, in order:
-//   1. The caller is signed in (verify_jwt) and is either the BUYER or an
-//      admin. Anyone could otherwise mail anyone by guessing a uuid.
+//   1. The caller is either signed in and the BUYER or an admin, or (no
+//      account, public page) holds the card's secret claim_token. Anyone
+//      could otherwise mail anyone by guessing a uuid.
 //   2. The card is PAID. Brenda chose "רק אחרי שהתשלום אושר" — a pending
 //      card is an intent, not a gift, and mailing it would promise a
 //      workshop nobody paid for.
@@ -119,29 +120,44 @@ Deno.serve(async (req: Request) => {
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
   if (!resendKey) return json({ error: 'missing_resend_key' }, 500)
 
-  const authHeader = req.headers.get('Authorization') ?? ''
-  const jwt = authHeader.replace(/^Bearer\s+/i, '')
-  if (!jwt) return json({ error: 'unauthorized' }, 401)
-
-  const asUser = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } })
-  const { data: userData } = await asUser.auth.getUser(jwt)
-  const user = userData?.user
-  if (!user) return json({ error: 'unauthorized' }, 401)
-
-  let body: { gift_card_id?: string }
+  // Two kinds of caller, since 5.9.26:
+  //   - signed in (the in-app flow, and Brenda): a JWT, and the card must
+  //     be hers or she must be admin;
+  //   - no account (the public ?giftcard page): the card's claim_token,
+  //     which only the buyer's own browser holds. verify_jwt is OFF for
+  //     this function so the request can arrive with just the anon key.
+  let body: { gift_card_id?: string; claim_token?: string }
   try { body = await req.json() } catch { return json({ error: 'bad_body' }, 400) }
-  const cardId = body.gift_card_id
-  if (!cardId) return json({ error: 'missing_gift_card_id' }, 400)
 
   const admin = createClient(url, serviceKey)
+  let card: Record<string, any> | null = null
 
-  const { data: card } = await admin.from('gift_cards').select('*').eq('id', cardId).maybeSingle()
-  if (!card) return json({ error: 'not_found' }, 404)
+  if (body.claim_token) {
+    if (!/^[0-9a-f-]{36}$/.test(body.claim_token)) return json({ error: 'bad_token' }, 400)
+    const { data } = await admin.from('gift_cards').select('*')
+      .eq('claim_token', body.claim_token).is('buyer_user_id', null).maybeSingle()
+    if (!data) return json({ error: 'not_found' }, 404)
+    card = data
+  } else {
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const jwt = authHeader.replace(/^Bearer\s+/i, '')
+    if (!jwt) return json({ error: 'unauthorized' }, 401)
+    const asUser = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } })
+    const { data: userData } = await asUser.auth.getUser(jwt)
+    const user = userData?.user
+    if (!user) return json({ error: 'unauthorized' }, 401)
 
-  const { data: prof } = await admin
-    .from('user_profiles').select('is_admin').eq('id', user.id).maybeSingle()
-  const isAdmin = prof?.is_admin === true
-  if (card.buyer_user_id !== user.id && !isAdmin) return json({ error: 'not_yours' }, 403)
+    const cardId = body.gift_card_id
+    if (!cardId) return json({ error: 'missing_gift_card_id' }, 400)
+    const { data } = await admin.from('gift_cards').select('*').eq('id', cardId).maybeSingle()
+    if (!data) return json({ error: 'not_found' }, 404)
+    const { data: prof } = await admin
+      .from('user_profiles').select('is_admin').eq('id', user.id).maybeSingle()
+    const isAdmin = prof?.is_admin === true
+    if (data.buyer_user_id !== user.id && !isAdmin) return json({ error: 'not_yours' }, 403)
+    card = data
+  }
+  const cardId = card!.id as string
 
   // Payment first — Brenda's rule, and the only thing standing between an
   // unpaid checkout and a promise in a stranger's inbox.

@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronRight, AlertCircle, ShoppingBag, CalendarDays, Check } from 'lucide-react'
+import { ChevronRight, AlertCircle, ShoppingBag, CalendarDays, Check, Copy } from 'lucide-react'
 import { supabase, type Workshop, type WorkshopCohort } from '../../lib/supabase'
 import { useWorkshopCategories } from '../../hooks/useWorkshopCategories'
 import CohortsModal from './CohortsModal'
@@ -43,6 +43,16 @@ export default function ProductPage({ workshopId, onBack }: Props) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
+  const [giftLinkCopied, setGiftLinkCopied] = useState(false)
+  // The PUBLIC page (no account) — the one to send to anyone. A signed-in
+  // mother can still reach the in-app sheet with ?gift=<id>.
+  const giftLink = `${window.location.origin}/?giftcard=${workshopId}`
+  function copyGiftLink() {
+    navigator.clipboard.writeText(giftLink).then(() => {
+      setGiftLinkCopied(true)
+      setTimeout(() => setGiftLinkCopied(false), 1500)
+    })
+  }
   const [showCohortsManager, setShowCohortsManager] = useState(false)
 
   const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, gift_card_enabled: false, waitlist_enabled: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '', access_months: '2' })
@@ -264,6 +274,18 @@ export default function ProductPage({ workshopId, onBack }: Props) {
               <input type="checkbox" checked={form.gift_card_enabled} onChange={e => setForm(f => ({ ...f, gift_card_enabled: e.target.checked }))} className="w-4 h-4 accent-mustard-500" />
               <span className="text-sm font-semibold" style={{ color: '#5E4938' }}>🎁 אפשר לרכוש כגיפט קארד</span>
             </label>
+            {/* Brenda 5.9.26: a link to send, like the registration link.
+                Opens the store with the gift sheet on this product (after
+                login, since the card is written on the buyer). */}
+            {form.gift_card_enabled && (
+              <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: '#F6ECD8', border: '1px solid #E7C78A' }}>
+                <span className="text-[11px] font-bold whitespace-nowrap" style={{ color: '#7B604C' }}>קישור לרכישת גיפט קארד (בלי התחברות)</span>
+                <span dir="ltr" className="flex-1 min-w-0 truncate text-xs" style={{ color: '#3D2E20' }} title={giftLink}>{giftLink}</span>
+                <button type="button" onClick={copyGiftLink} className="inline-flex items-center gap-1 text-xs font-bold whitespace-nowrap hover:underline" style={{ color: giftLinkCopied ? '#5E7A3A' : '#8B4A30' }}>
+                  {giftLinkCopied ? <><Check className="w-3.5 h-3.5" /> הועתק</> : <><Copy className="w-3.5 h-3.5" /> העתקה</>}
+                </button>
+              </div>
+            )}
             {/* Yahav 25.8.26. Only for products that genuinely run in cohorts:
                 when there is no upcoming one the store asks to be told
                 instead of selling. Leave it off for anything buyable any day

@@ -113,7 +113,7 @@ export default function GiftCardsPanel() {
                 <div className="min-w-0">
                   <p className="text-sm font-bold" style={{ color: '#3D2E20' }}>{c.workshop_title}</p>
                   <p className="text-xs mt-0.5" style={{ color: '#7B604C' }}>
-                    מ{c.buyer_name || c.buyer_email || 'לקוחה'} · ₪{c.amount} · {dt(c.created_at)}
+                    מ{c.buyer_name || c.buyer_email || 'לקוחה'}{c.buyer_phone ? <> · <span dir="ltr">{c.buyer_phone}</span></> : ''}{c.buyer_user_id ? '' : ' · בלי חשבון'} · ₪{c.amount} · {dt(c.created_at)}
                   </p>
                   {c.cohort_label && (
                     <p className="text-xs mt-0.5" style={{ color: '#8A7A63' }}>מחזור מבוקש: {c.cohort_label}</p>

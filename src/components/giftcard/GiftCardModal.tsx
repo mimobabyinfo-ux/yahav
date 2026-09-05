@@ -23,13 +23,18 @@ export default function GiftCardModal({
   cohortsByWorkshop,
   ownerWhatsapp,
   onClose,
+  initialProductId,
 }: {
   products: Workshop[]
   cohortsByWorkshop: Map<string, PublicCohort[]>
   ownerWhatsapp: string
   onClose: () => void
+  /** From a ?gift=<id> link: land on that product instead of the first one. */
+  initialProductId?: string | null
 }) {
-  const [productId, setProductId] = useState<string>(products[0]?.id ?? '')
+  const [productId, setProductId] = useState<string>(
+    (initialProductId && products.some(p => p.id === initialProductId)) ? initialProductId : (products[0]?.id ?? '')
+  )
   const [cohortId, setCohortId] = useState<string>('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')

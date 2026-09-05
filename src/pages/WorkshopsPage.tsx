@@ -402,6 +402,20 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
   // הרכישות שלי until it reaches someone).
   const [giftOpen, setGiftOpen] = useState(false)
   const [giftCards, setGiftCards] = useState<GiftCard[]>([])
+  // ?gift=<workshop id> — Brenda 5.9.26: a link she can send, like the
+  // registration link, that opens the gift sheet on one product. Read
+  // once and stripped from the URL so a refresh does not reopen it.
+  const [pendingGiftId, setPendingGiftId] = useState<string | null>(() => {
+    try {
+      const url = new URL(window.location.href)
+      const id = url.searchParams.get('gift')
+      if (!id) return null
+      url.searchParams.delete('gift')
+      window.history.replaceState({}, '', url.pathname + (url.search || '') + url.hash)
+      return id
+    } catch { return null }
+  })
+  const [giftInitialId, setGiftInitialId] = useState<string | null>(null)
   const [tab, setTab] = useState<'store' | 'purchases'>('store')
   // Upcoming cohorts for ALL displayed products (one RPC call).
   const [cohorts, setCohorts] = useState<PublicCohort[]>([])
@@ -432,6 +446,22 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
     if (ws) openProduct(ws)
     setPendingProductId(null)
   }, [pendingProductId, workshops])
+
+  // Gift link: open the gift sheet on that product. If the product is no
+  // longer giftable (checkbox off since the link was sent), fall back to
+  // its own sheet rather than a picker with the wrong product selected.
+  useEffect(() => {
+    if (!pendingGiftId || workshops.length === 0) return
+    const ws = workshops.find(w => w.id === pendingGiftId)
+    if (ws?.gift_card_enabled) {
+      setGiftInitialId(ws.id)
+      setGiftOpen(true)
+      track('gift_card_open', { source: 'link', workshop_id: ws.id })
+    } else if (ws) {
+      openProduct(ws)
+    }
+    setPendingGiftId(null)
+  }, [pendingGiftId, workshops])
 
   const cohortsByWorkshop = useMemo(() => {
     const m = new Map<string, PublicCohort[]>()
@@ -750,7 +780,8 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
           products={giftableProducts}
           cohortsByWorkshop={cohortsByWorkshop}
           ownerWhatsapp={ownerWhatsapp}
-          onClose={() => setGiftOpen(false)}
+          onClose={() => { setGiftOpen(false); setGiftInitialId(null) }}
+          initialProductId={giftInitialId}
         />
       )}
 
