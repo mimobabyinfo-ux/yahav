@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Gift, CalendarDays, MessageCircle } from 'lucide-react'
+import { Gift, CalendarDays, MessageCircle, ChevronDown } from 'lucide-react'
 import { supabase, type PublicCohort } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
@@ -55,6 +55,9 @@ export default function PublicGiftCardPage() {
   const [loading, setLoading] = useState(true)
 
   const [productId, setProductId] = useState('')
+  // Yahav 5.9.26: "אני רוצה שיפתח לי הפירוט של מה שיש בפנים" — the chosen
+  // product unfolds its full description; the others stay two lines.
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [cohortId, setCohortId] = useState('')
   const [buyerName, setBuyerName] = useState('')
   const [buyerEmail, setBuyerEmail] = useState('')
@@ -177,27 +180,49 @@ export default function PublicGiftCardPage() {
             <div className="space-y-2">
               {products.map(p => {
                 const chosen = p.id === productId
+                const expanded = expandedId === p.id
+                const full = p.description || p.summary || ''
                 return (
-                  <button
+                  <div
                     key={p.id}
-                    type="button"
-                    onClick={() => setProductId(p.id)}
-                    className="w-full text-right rounded-2xl p-3 flex items-center gap-3 transition-all"
+                    className="rounded-2xl transition-all"
                     style={{ background: chosen ? '#F6ECD8' : '#FAF7F1', border: `2px solid ${chosen ? '#E7C78A' : '#EFE8DA'}` }}
                   >
-                    {p.image_url ? (
-                      <img src={p.image_url} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: '#FFFFFF' }}>🎁</div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-sand-800">{p.title}</p>
-                      {(p.summary || p.description) && (
-                        <p className="text-xs text-sand-500 mt-0.5 line-clamp-2">{p.summary || p.description}</p>
+                    <button
+                      type="button"
+                      onClick={() => { setProductId(p.id); setExpandedId(p.id) }}
+                      className="w-full text-right p-3 flex items-center gap-3"
+                    >
+                      {p.image_url ? (
+                        <img src={p.image_url} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: '#FFFFFF' }}>🎁</div>
                       )}
-                    </div>
-                    {p.price != null && <span className="font-bold text-sm whitespace-nowrap" style={{ color: '#8A6A2F' }}>₪{p.price}</span>}
-                  </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm text-sand-800">{p.title}</p>
+                        {full && !expanded && (
+                          <p className="text-xs text-sand-500 mt-0.5 line-clamp-2">{p.summary || p.description}</p>
+                        )}
+                      </div>
+                      {p.price != null && <span className="font-bold text-sm whitespace-nowrap" style={{ color: '#8A6A2F' }}>₪{p.price}</span>}
+                    </button>
+                    {full && (
+                      <div className="px-3 pb-3">
+                        {expanded && (
+                          <p className="text-xs leading-relaxed whitespace-pre-line text-sand-700 mb-2">{full}</p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(expanded ? null : p.id)}
+                          className="inline-flex items-center gap-1 text-xs font-bold"
+                          style={{ color: '#8A6A2F' }}
+                        >
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                          {expanded ? 'פחות' : 'מה כולל?'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </div>
