@@ -218,7 +218,7 @@ export default function CoursePlayer({
 
       <div className="p-4 space-y-5 max-w-sm mx-auto">
         {/* לוח המפגשים של המחזור שלה; מחזיר null כשאין מחזור (קורס דיגיטלי) */}
-        <MyWorkshopMeetings />
+        <MyWorkshopMeetings workshopId={workshop.id} />
 
         {/* Progress */}
         <div className="bg-[#F5F1EB] rounded-2xl p-4">

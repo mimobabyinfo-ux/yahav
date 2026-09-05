@@ -79,7 +79,10 @@ const PICK_NOTE =
 const CHANGE_NOTE =
   'בחירת מועד חדש מבטלת את הבקשה הקודמת.'
 
-export default function MyWorkshopMeetings() {
+// workshopId: בתוך סדנה מציגים רק את המחזור של אותה סדנה. ברנדה 5.9.26:
+// "אם מישהי רשומה גם לליווי התפתחותי וגם עיסוי תינוקות ולכל אחד מהם
+// תאריכים אחרים". בלי workshopId (המסך הנעול) מציגים את המחזור הראשון.
+export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string } = {}) {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
@@ -176,10 +179,11 @@ export default function MyWorkshopMeetings() {
     await load()
   }
 
-  if (loading || rows.length === 0) return null
+  const scoped = workshopId ? rows.filter(r => r.workshop_id === workshopId) : rows
+  if (loading || scoped.length === 0) return null
 
-  const currentCohort = rows[0].cohort_id
-  const mine = rows.filter(r => r.cohort_id === currentCohort)
+  const currentCohort = scoped[0].cohort_id
+  const mine = scoped.filter(r => r.cohort_id === currentCohort)
   const head = mine[0]
   const used = head.makeups_used
   const allowed = head.makeups_allowed

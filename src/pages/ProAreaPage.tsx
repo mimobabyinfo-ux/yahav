@@ -17,7 +17,8 @@ type ActiveWorkshop = PurchasedWorkshop & { workshop: Workshop | null }
  * autoOpenWorkshopId — set by ?course in the URL, which is where the
  * welcome email lands. She bought a course; she should be looking at the
  * course, not at a list with one item in it. A bare ?course with no id
- * opens her only course when she has exactly one.
+ * no longer auto-opens anything (Brenda 5.9.26: the tab always shows the
+ * list, so the mother sees her workshop card and enters from there).
  */
 export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWorkshopId?: string | null } = {}) {
   const { user, profile, hasActiveWorkshopAccess, purchasedWorkshops } = useAuth()
@@ -77,9 +78,11 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
   const [autoOpened, setAutoOpened] = useState(false)
   useEffect(() => {
     if (autoOpened || loading || activeWorkshops.length === 0) return
+    // ברנדה 5.9.26: הטאב "סדנאות" תמיד מציג את הרשימה, גם עם סדנה אחת.
+    // פתיחה אוטומטית רק כשהגיעה מקישור ?course=<id> (המייל של הקורס).
     const target = autoOpenWorkshopId
       ? activeWorkshops.find(aw => aw.workshop_id === autoOpenWorkshopId)
-      : (activeWorkshops.length === 1 ? activeWorkshops[0] : null)
+      : null
     if (!target) return
     setAutoOpened(true)
     openWorkshop(target)
@@ -257,7 +260,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
         </div>
 
         <div className="p-4 space-y-5 max-w-sm mx-auto">
-          <MyWorkshopMeetings />
+          <MyWorkshopMeetings workshopId={selected.workshop_id} />
 
           {/* ── Message owner + Book next workshop ── */}
           <div className="grid grid-cols-2 gap-2">
@@ -519,8 +522,6 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
           <h1 className="text-2xl font-bold text-sand-800">סדנאות</h1>
           <p className="text-sand-400 text-sm">תכנים מקצועיים עבורך</p>
         </div>
-
-        <MyWorkshopMeetings />
 
         {retentionWorkshop && !reminderDismissed && (
           <div className="bg-gradient-to-l from-mustard-50 to-sand-50 rounded-2xl p-4 border border-mustard-100 flex items-start gap-3">

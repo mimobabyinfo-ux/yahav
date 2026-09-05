@@ -124,7 +124,7 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
             ברשימת הסדנאות, כי אמא עם סדנה אחת מועברת ישר לכאן ולא רואה את
             הרשימה בכלל. מעיין, 5.9.26. ── */}
         <div className="px-4 pt-4">
-          <MyWorkshopMeetings />
+          <MyWorkshopMeetings workshopId={workshop.id} />
         </div>
 
         {/* ── Mode: topics / meetings ── */}
