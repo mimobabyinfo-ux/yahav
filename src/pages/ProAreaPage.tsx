@@ -197,6 +197,30 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
     )
   }
 
+  // ── Loading a workshop ─────────────────────────────────────────────────────
+  // While the content and program load, show only the header and a spinner.
+  // Falling through to the folder view meanwhile flashed "0 פריטים" and the
+  // wrong buttons for a second before the real screen appeared (Brenda 5.9.26).
+  if (selected && contentLoading) {
+    return (
+      <div className="min-h-screen pb-24" dir="rtl" style={{ background: '#FFFFFF' }}>
+        <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-sand-100 bg-white sticky top-0 z-10">
+          <button onClick={() => { setSelected(null); setContent([]); setProgram(null); setPlayingId(null) }}
+            className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 transition-colors">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+          {selected.workshop?.image_url && (
+            <img src={selected.workshop.image_url} alt="" className="w-9 h-9 rounded-xl object-cover" />
+          )}
+          <h1 className="font-bold text-sand-800 text-base leading-tight">{selected.workshop?.title ?? 'סדנה'}</h1>
+        </div>
+        <div className="flex justify-center py-16">
+          <div className="w-7 h-7 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin" />
+        </div>
+      </div>
+    )
+  }
+
   // ── Workshop program ───────────────────────────────────────────────────────
   // A workshop with session templates (עטופים, מגלים) renders as a program:
   // meetings bar, topic filter, one card per exercise. Decided by data, so the
