@@ -6,6 +6,7 @@ import {
 import { supabase, Workshop, WorkshopContent } from '../../lib/supabase'
 import type { EventType, EventData } from '../../hooks/useTracker'
 import { signedMediaUrl } from '../../utils/signedMedia'
+import MyWorkshopMeetings from '../MyWorkshopMeetings'
 
 /**
  * Digital-course player.
@@ -216,6 +217,9 @@ export default function CoursePlayer({
       </div>
 
       <div className="p-4 space-y-5 max-w-sm mx-auto">
+        {/* לוח המפגשים של המחזור שלה; מחזיר null כשאין מחזור (קורס דיגיטלי) */}
+        <MyWorkshopMeetings />
+
         {/* Progress */}
         <div className="bg-[#F5F1EB] rounded-2xl p-4">
           <div className="flex items-center justify-between mb-2">

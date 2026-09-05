@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronRight, ChevronDown, MessageCircle, X } from 'lucide-react'
 import { supabase, Workshop } from '../../lib/supabase'
 import { signedMediaUrl } from '../../utils/signedMedia'
+import MyWorkshopMeetings from '../MyWorkshopMeetings'
 import type { EventType, EventData } from '../../hooks/useTracker'
 import {
   Program, Exercise, SessionTemplate, CohortSession, GlossaryTerm,
@@ -41,6 +42,9 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
   const [sessions, setSessions] = useState<CohortSession[]>([])
   const [meeting, setMeeting] = useState<number>(1)
   const [topic, setTopic] = useState<string | null>(null)
+  // ברנדה 5.9.26: "זה עמוס מדי שרואים הכל מול העיניים". שני כפתורים בלבד,
+  // ורק אחרי הבחירה נפתחת הרשימה המתאימה: נושאים או מפגשים.
+  const [mode, setMode] = useState<'meetings' | 'topics'>('meetings')
   // null = not touched yet: open in meeting 1 (where she meets it), folded after.
   const [warmupOpen, setWarmupOpen] = useState<boolean | null>(null)
   const [term, setTerm] = useState<GlossaryTerm | null>(null)
@@ -116,26 +120,44 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
       </div>
 
       <div className="max-w-sm mx-auto">
-        {/* ── Topic bar ── */}
+        {/* ── לוח המפגשים של המחזור שלה (סגור כברירת מחדל). יושב כאן ולא רק
+            ברשימת הסדנאות, כי אמא עם סדנה אחת מועברת ישר לכאן ולא רואה את
+            הרשימה בכלל. מעיין, 5.9.26. ── */}
         <div className="px-4 pt-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12px] font-bold tracking-wide text-[#8C8177] ml-1">לפי נושא</span>
-            {topics.map(tp => (
-              <Chip key={tp.key} active={topic === tp.key} onClick={() => { const next = topic === tp.key ? null : tp.key; setTopic(next); if (next) track('program_topic', { topic: next }) }}>
-                {tp.label}
-              </Chip>
-            ))}
-            <Chip dashed active={topic === null} onClick={() => setTopic(null)}>כל המפגשים</Chip>
+          <MyWorkshopMeetings />
+        </div>
+
+        {/* ── Mode: topics / meetings ── */}
+        <div className="px-4 pt-4">
+          <div className="grid grid-cols-2 gap-2">
+            <ModeButton active={mode === 'meetings'} onClick={() => { setMode('meetings'); setTopic(null) }}>כל המפגשים</ModeButton>
+            <ModeButton active={mode === 'topics'} onClick={() => { setMode('topics'); track('program_mode', { mode: 'topics' }) }}>לפי נושא</ModeButton>
           </div>
         </div>
 
-        {/* ── Meetings bar ── */}
-        {topic === null && (
-          <div className="mt-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar">
+        {/* ── Topic chips (only in topic mode) ── */}
+        {mode === 'topics' && (
+          <div className="px-4 pt-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {topics.map(tp => (
+                <Chip key={tp.key} active={topic === tp.key} onClick={() => { const next = topic === tp.key ? null : tp.key; setTopic(next); if (next) track('program_topic', { topic: next }) }}>
+                  {tp.label}
+                </Chip>
+              ))}
+            </div>
+            {topic === null && (
+              <p className="text-[13px] text-[#8C8177] mt-3">בחרי נושא כדי לראות את כל התרגילים שלו, מכל המפגשים.</p>
+            )}
+          </div>
+        )}
+
+        {/* ── Meetings bar (only in meetings mode) ── */}
+        {mode === 'meetings' && (
+          <div className="mt-3 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar">
             {templates.map(t => (
               <button key={t.id}
                 onClick={() => { setMeeting(t.meeting_number); track('program_meeting', { meeting: t.meeting_number }) }}
-                className="flex-shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold whitespace-nowrap border transition-colors"
+                className="flex-shrink-0 rounded-full px-4 py-2 min-h-[40px] text-[13px] font-semibold whitespace-nowrap border transition-colors"
                 style={t.meeting_number === meeting
                   ? { background: '#2E2C24', color: '#fff', borderColor: '#2E2C24' }
                   : { background: '#fff', color: '#4A443C', borderColor: '#E5DCD0' }}>
@@ -147,7 +169,7 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
 
         {/* ── Body ── */}
         <div className="px-4 pt-5 space-y-4">
-          {topic !== null ? (
+          {mode === 'topics' && topic === null ? null : topic !== null ? (
             <FilteredView
               templates={templates} exercisesOf={exercisesOf} warmup={warmup}
               topic={topic} topicLabel={topics.find(t => t.key === topic)?.label ?? ''}
@@ -191,6 +213,18 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
 }
 
 // ── pieces ────────────────────────────────────────────────────────────────
+
+function ModeButton({ children, active, onClick }: { children: React.ReactNode; active: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className="rounded-2xl py-3 min-h-[44px] text-[14px] font-bold transition-colors"
+      style={active
+        ? { background: '#2E2C24', color: '#fff', border: '1px solid #2E2C24' }
+        : { background: '#fff', color: '#4A443C', border: '1px solid #E5DCD0' }}>
+      {children}
+    </button>
+  )
+}
 
 function Chip({ children, active, dashed, onClick }: { children: React.ReactNode; active: boolean; dashed?: boolean; onClick: () => void }) {
   return (

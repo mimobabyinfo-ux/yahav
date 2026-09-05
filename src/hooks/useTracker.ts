@@ -41,6 +41,7 @@ export type EventType =
   | 'perk_open'           // opened a partner perk
   // Workshop program (3.9.26): topic filter, meeting switch, glossary tap.
   | 'program_topic'
+  | 'program_mode'
   | 'program_meeting'
   | 'glossary_open'
 

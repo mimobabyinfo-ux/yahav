@@ -257,6 +257,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
         </div>
 
         <div className="p-4 space-y-5 max-w-sm mx-auto">
+          <MyWorkshopMeetings />
 
           {/* ── Message owner + Book next workshop ── */}
           <div className="grid grid-cols-2 gap-2">
