@@ -368,7 +368,7 @@ type PurchasedRow = {
 export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page) => void } = {}) {
   const { profile, user } = useAuth()
   const { track } = useTracker()
-  const { ownerWhatsapp } = useOwnerSettings()
+  const { ownerName, ownerWhatsapp } = useOwnerSettings()
   const { categories } = useWorkshopCategories()
   // Discounts she earned by finishing a workshop, keyed by the product
   // they apply to. Empty for almost everyone.
@@ -779,6 +779,7 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
         <GiftCardModal
           products={giftableProducts}
           cohortsByWorkshop={cohortsByWorkshop}
+          ownerName={ownerName}
           ownerWhatsapp={ownerWhatsapp}
           onClose={() => { setGiftOpen(false); setGiftInitialId(null) }}
           initialProductId={giftInitialId}
