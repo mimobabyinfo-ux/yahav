@@ -21,12 +21,14 @@ function cohortLabel(c: PublicCohort): string {
 export default function GiftCardModal({
   products,
   cohortsByWorkshop,
+  ownerName,
   ownerWhatsapp,
   onClose,
   initialProductId,
 }: {
   products: Workshop[]
   cohortsByWorkshop: Map<string, PublicCohort[]>
+  ownerName: string
   ownerWhatsapp: string
   onClose: () => void
   /** From a ?gift=<id> link: land on that product instead of the first one. */
@@ -44,7 +46,7 @@ export default function GiftCardModal({
 
   async function buy() {
     if (!product) return
-    if (!product.payment_link) { setError('אין קישור תשלום למוצר הזה. אפשר לכתוב לברנדה בוואטסאפ'); return }
+    if (!product.payment_link) { setError(`אין קישור תשלום למוצר הזה. אפשר לכתוב ל${ownerName} בוואטסאפ`); return }
     setBusy(true); setError('')
     const { data, error: err } = await supabase.rpc('create_gift_card', {
       p_workshop_id: product.id,
@@ -130,7 +132,7 @@ export default function GiftCardModal({
                 })}
               </div>
               <p className="text-[11px] mt-2 leading-relaxed" style={{ color: '#8A7A63' }}>
-                המחזור נשמר כהעדפה בלבד ולא תופס מקום. החברה תתאם את המועד המדויק מול ברנדה.
+                המחזור נשמר כהעדפה בלבד ולא תופס מקום. החברה תתאם את המועד המדויק מול {ownerName}.
               </p>
             </div>
           )}
