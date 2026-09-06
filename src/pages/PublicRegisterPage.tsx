@@ -4,6 +4,7 @@ import MimoLogo from '../components/MimoLogo'
 import { initPixel, pixelTrack } from '../utils/metaPixel'
 import { captureAdAttribution, getAdAttribution } from '../utils/adAttribution'
 import { Instagram, Facebook } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 // Mimo social profiles — shown as quiet icons at the bottom of the
 // public registration page (both the general form and per-product
@@ -63,6 +64,22 @@ export default function PublicRegisterPage() {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+
+  // Brenda 6.9.26: a mother who is already signed in (she came from the
+  // in-app store, or opened a link in the browser she logged in from)
+  // used to retype her name, phone and email here. Worse, the email is
+  // what claim-course-purchase keys on (find_auth_user_by_email): a
+  // different spelling created her a second account and put the content
+  // there. So her details arrive filled in, and the email is locked.
+  // Guests (anonymous share sessions) have no email and are left alone.
+  const { user, profile, isGuest } = useAuth()
+  const signedInEmail = !isGuest ? (user?.email ?? profile?.email ?? '').trim().toLowerCase() : ''
+  useEffect(() => {
+    if (!signedInEmail) return
+    setEmail(signedInEmail)
+    if (profile?.mother_name) setName(prev => prev || profile.mother_name || '')
+    if (profile?.phone_number) setPhone(prev => prev || profile.phone_number || '')
+  }, [signedInEmail, profile?.mother_name, profile?.phone_number])
   const [selected, setSelected] = useState<string>('')
   // Upcoming cohorts for ALL displayed workshops (one RPC call). The
   // RPC only returns active cohorts whose start_date hasn't passed, so
@@ -499,8 +516,12 @@ export default function PublicRegisterPage() {
               onChange={e => setEmail(e.target.value)}
               dir="ltr"
               autoComplete="email"
-              className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
+              readOnly={!!signedInEmail}
+              className={`w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400${signedInEmail ? ' bg-sand-50 text-sand-500' : ''}`}
             />
+            {signedInEmail && (
+              <p className="text-xs text-sand-400 mt-1">זה המייל של החשבון שלך במימו, וההרשמה תישמר בו.</p>
+            )}
             {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
           </div>
 

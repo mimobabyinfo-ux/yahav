@@ -53,25 +53,84 @@ type Preview = { title: string; description: string; image?: string }
 
 const IMAGE_APP = '/mimo_logo.png'
 
-function previewFor(url: URL): Preview {
+// Brand rule (Brenda, 6.9.26): no em dashes anywhere a mother reads.
+// Titles join with a middle dot or a plain comma instead.
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// Product name for a link that carries a workshop id (?register=, ?course=,
+// ?gift=, ?giftcard=). One REST call against Supabase with the anon key,
+// bounded to 1.5s so a slow database can never stall a preview; any
+// failure (no env, RLS hides the row, timeout) just means the generic
+// title. The anon policy exposes only active, publicly registrable
+// products, which is exactly the set Brenda sends links to.
+async function workshopTitle(id: string | null): Promise<string | null> {
+  if (!id || !UUID.test(id)) return null
+  const base = process.env.VITE_SUPABASE_URL
+  const key = process.env.VITE_SUPABASE_ANON_KEY
+  if (!base || !key) return null
+  try {
+    const r = await fetch(
+      `${base}/rest/v1/workshops?id=eq.${id}&select=title`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(1500) },
+    )
+    if (!r.ok) return null
+    const rows = (await r.json()) as { title?: string }[]
+    const t = rows[0]?.title?.trim()
+    return t ? t : null
+  } catch {
+    return null
+  }
+}
+
+async function previewFor(url: URL): Promise<Preview> {
   const q = url.searchParams
 
   if (q.has('join')) {
     return {
       title: 'היומן של התינוק/ת · מימו',
-      description: 'שיתפו איתך יומן במימו. שינה, האכלות וחיתולים — בזמן אמת, במקום אחד.',
+      description: 'שיתפו איתך יומן במימו. שינה, האכלות וחיתולים בזמן אמת, במקום אחד.',
     }
   }
-  if (q.has('register') || q.has('offer')) {
+  if (q.has('register')) {
+    const t = await workshopTitle(q.get('register'))
     return {
-      title: 'הרשמה לסדנאות מימו',
-      description: 'הצטרפי לסדנאות מימו — מלווה אותך בצעדים הראשונים של האימהות.',
+      title: t ? `הרשמה ל${t} · מימו` : 'הרשמה לסדנאות מימו',
+      description: t
+        ? `הצטרפי ל${t}. כמה פרטים קצרים, ואנחנו איתך.`
+        : 'הצטרפי לסדנאות מימו, מלווה אותך בצעדים הראשונים של האימהות.',
+    }
+  }
+  if (q.has('offer')) {
+    return {
+      title: 'הצעה מיוחדת בשבילך · מימו',
+      description: 'הצטרפי לסדנאות מימו, מלווה אותך בצעדים הראשונים של האימהות.',
     }
   }
   if (q.has('course')) {
+    const t = await workshopTitle(q.get('course'))
     return {
-      title: 'הקורס הדיגיטלי של מימו',
+      title: t ? `${t} · מימו` : 'הקורס הדיגיטלי של מימו',
       description: 'כל מה שחשוב לדעת בחודשים הראשונים, בקצב שלך, מתי שנוח לך.',
+    }
+  }
+  if (q.has('gift') || q.has('giftcard')) {
+    const t = await workshopTitle(q.get('gift') ?? q.get('giftcard'))
+    return {
+      title: t ? `גיפט קארד ל${t} · מימו` : 'גיפט קארד של מימו',
+      description: 'מתנה לאמא, מהלב. בוחרים, ומימו כבר דואגת לשאר.',
+    }
+  }
+  if (q.has('welcome')) {
+    return {
+      title: 'ברוכה הבאה למימו',
+      description: 'התשלום התקבל. הקישור הזה מכניס אותך ישר לאפליקציה.',
+    }
+  }
+  if (q.has('legal')) {
+    return {
+      title: 'המסמכים של מימו',
+      description: 'תנאי שימוש, מדיניות פרטיות והסכמה, בשפה פשוטה.',
     }
   }
   if (q.has('form')) {
@@ -83,7 +142,7 @@ function previewFor(url: URL): Preview {
   if (q.has('partner')) {
     return {
       title: 'מימו לאנשי מקצוע',
-      description: 'יועצות הנקה, דולות, פיזיותרפיה ורצפת אגן — הצטרפו למאגר של מימו.',
+      description: 'יועצות הנקה, דולות, פיזיותרפיה ורצפת אגן: הצטרפו למאגר של מימו.',
     }
   }
   if (q.has('checkin')) {
@@ -95,7 +154,7 @@ function previewFor(url: URL): Preview {
   if (q.has('baby')) {
     return {
       title: 'היום של התינוק/ת · מימו',
-      description: 'מבט מהיר על היום — שינה, האכלות וחיתולים.',
+      description: 'מבט מהיר על היום: שינה, האכלות וחיתולים.',
     }
   }
   if (q.has('thanks')) {
@@ -105,7 +164,7 @@ function previewFor(url: URL): Preview {
     }
   }
   return {
-    title: 'מימו — האפליקציה לאמהות טריות',
+    title: 'מימו · האפליקציה לאמהות טריות',
     description: 'יומן יומי לתינוק/ת, מפגשים וקהילה של אמהות. הכול במקום אחד.',
   }
 }
@@ -116,14 +175,14 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
-export default function middleware(request: Request): Response {
+export default async function middleware(request: Request): Promise<Response> {
   const ua = request.headers.get('user-agent') ?? ''
   // Everyone who is not a preview crawler passes straight through to the
   // static app. next() is the documented no-op for non-Next projects.
   if (!isPreviewCrawler(ua)) return next()
 
   const url = new URL(request.url)
-  const { title, description, image } = previewFor(url)
+  const { title, description, image } = await previewFor(url)
   const absoluteImage = new URL(image ?? IMAGE_APP, url.origin).toString()
   const canonical = url.toString()
 
