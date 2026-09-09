@@ -161,8 +161,11 @@ export default function ThankYouPage() {
   // 'sending' | 'sent' | 'failed' | null — when the friend was already
   // named at purchase, the mail goes out by itself the moment we land.
   const [publicAutoSend, setPublicAutoSend] = useState<'sending' | 'sent' | 'failed' | null>(null)
-  const [accessOpened, setAccessOpened] = useState(false)
-  const [mailFailed, setMailFailed] = useState(false)
+  // What claim-course-purchase reported: her account exists (user_id),
+  // whether the product is a course or a workshop, and which channel the
+  // welcome went out on. Brenda 7.9.26: after paying she should be able to
+  // walk straight into the app from here, not only from the message.
+  const [claim, setClaim] = useState<{ userId: string; kind: 'course' | 'workshop'; channel: 'whatsapp' | 'email' | null } | null>(null)
 
   useEffect(() => {
     // Whose payment is this thank-you page for?
@@ -337,9 +340,15 @@ export default function ThankYouPage() {
         console.error('[thank-you] claim failed:', res.status, out)
         return
       }
-      // Nothing was opened and nothing was emailed → she has no way in.
-      if (out.access_opened && !out.email_sent) setMailFailed(true)
-      if (out.access_opened) setAccessOpened(true)
+      // A product with no app content gets no account (3.9.26 rule);
+      // the function says so with reason: 'no_content' and no user_id.
+      if (out.user_id) {
+        setClaim({
+          userId: String(out.user_id),
+          kind: out.kind === 'course' ? 'course' : 'workshop',
+          channel: out.channel === 'whatsapp' || out.channel === 'email' ? out.channel : null,
+        })
+      }
     } catch (e) {
       console.error('[thank-you] claim threw:', e)
     }
@@ -486,25 +495,28 @@ export default function ThankYouPage() {
             </div>
           )}
 
-          {/* Digital course: her account is open. Give her the door right
-              here — the email is the backup, not the only way in. */}
-          {accessOpened && (
+          {/* Her account is open. Give her the door right here; the
+              WhatsApp / email is the backup, not the only way in.
+              ?welcome=<lead> mints a fresh sign-in link the moment she
+              taps (WelcomeClaimPage), so this works with no session and
+              lands her on the course or the home screen by kind. */}
+          {claim && paidLeadId && (
             <div className="rounded-2xl py-4 px-4 text-right space-y-3"
               style={{ background: '#FDF3E3', border: '1px solid #E7C78A' }}>
               <p className="text-sm font-bold" style={{ color: '#8A6A2F' }}>
-                החשבון שלך מוכן והקורס פתוח 🤎
+                {claim.kind === 'course' ? 'החשבון שלך מוכן והקורס פתוח 🤎' : 'החשבון שלך במימו מוכן 🤎'}
               </p>
               <p className="text-xs leading-relaxed" style={{ color: '#6E5836' }}>
-                {mailFailed
-                  ? 'שלחנו לך מייל עם קישור כניסה. אם הוא לא הגיע, פשוט היכנסי לאפליקציה והתחברי עם אותה כתובת מייל.'
-                  : 'שלחנו לך מייל עם קישור כניסה ישיר. אפשר גם להיכנס מכאן:'}
+                {claim.kind === 'course'
+                  ? 'הקורס בנוי משיעורים קצרים, בקצב שלך.'
+                  : `התכנים של ${ctx?.title ?? 'הסדנה'} והמפגשים שלך מחכים לך באפליקציה.`}
+                {claim.channel === 'whatsapp' && ' שלחנו לך גם וואטסאפ עם קישור כניסה.'}
+                {claim.channel === 'email' && ' שלחנו לך גם מייל עם קישור כניסה.'}
               </p>
-              {/* ?course opens the course itself, not the app home. She
-                  bought a course; do not make her go looking for it. */}
-              <a href={ctx?.workshop_id ? `/?course=${ctx.workshop_id}` : '/?course'}
+              <a href={`/?welcome=${paidLeadId}`}
                 className="block w-full py-3 rounded-xl font-bold text-sm text-center text-[#4A3A28]"
                 style={{ background: '#E7C78A' }}>
-                כניסה לקורס ←
+                {claim.kind === 'course' ? 'כניסה לקורס ←' : 'כניסה לאפליקציה ←'}
               </a>
             </div>
           )}
