@@ -11,11 +11,21 @@ const MONTHS_HE = ['ינו׳', 'פבר׳', 'מרץ', 'אפר׳', 'מאי', 'יו
 
 export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const [events, setEvents] = useState<CommunityEventRow[]>([])
+  const [past, setPast] = useState<CommunityEventRow[]>([])
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    supabase.rpc('get_community_events').then(({ data }) => {
-      setEvents(((data ?? []) as CommunityEventRow[]).slice(0, 3))
+    // Brenda 10.9.26: the last meetups that already happened show under
+    // the upcoming ones, so a mother who just joined sees what she missed
+    // and what the community is like. 60 days back, two at most.
+    const from = new Date(); from.setDate(from.getDate() - 60)
+    const pFrom = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}-${String(from.getDate()).padStart(2, '0')}`
+    const t = new Date()
+    const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+    supabase.rpc('get_community_events', { p_from: pFrom }).then(({ data }) => {
+      const all = (data ?? []) as CommunityEventRow[]
+      setEvents(all.filter(ev => ev.event_date >= today).slice(0, 3))
+      setPast(all.filter(ev => ev.event_date < today).reverse().slice(0, 2))
       setLoaded(true)
     })
   }, [])
@@ -115,6 +125,40 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
           })
         )}
       </div>
+
+      {/* What already happened: muted, no price, a count when there is one */}
+      {loaded && past.length > 0 && (
+        <div className="flex flex-col mt-3" style={{ gap: 6 }}>
+          <p className="font-semibold" style={{ fontSize: 12.5, color: '#A2937D' }}>מה כבר היה</p>
+          {past.map(ev => {
+            const d = new Date(ev.event_date + 'T12:00:00')
+            const n = Number(ev.registered_count ?? 0)
+            const mine = ev.my_status === 'registered' || ev.my_status === 'attended'
+            return (
+              <button
+                key={ev.id}
+                onClick={openEvents}
+                className="w-full flex items-center text-right"
+                style={{ padding: 10, border: '1px solid #F0EBE3', borderRadius: 16, gap: 12, opacity: 0.8 }}
+              >
+                <span
+                  className="flex flex-col items-center justify-center flex-shrink-0"
+                  style={{ width: 46, paddingTop: 5, paddingBottom: 5, borderRadius: 14, background: '#F1E8E9' }}
+                >
+                  <span className="font-bold" style={{ fontSize: 16, lineHeight: 1, color: '#8C6E63' }}>{d.getDate()}</span>
+                  <span className="font-semibold mt-0.5" style={{ fontSize: 11.5, color: '#A2937D' }}>{MONTHS_HE[d.getMonth()]}</span>
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block font-bold truncate" style={{ fontSize: 14, lineHeight: 1.3, color: '#5E4938' }}>{ev.title}</span>
+                  <span className="block font-semibold truncate mt-0.5" style={{ fontSize: 12.5, color: '#957860' }}>
+                    {mine ? 'היית שם 🤎' : n > 0 ? `${n} אמהות היו שם 🤎` : 'כבר היה'}
+                  </span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Footer CTAs */}
       <div className="flex mt-3" style={{ gap: 10 }}>

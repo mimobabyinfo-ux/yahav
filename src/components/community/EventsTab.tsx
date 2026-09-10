@@ -159,8 +159,13 @@ export default function EventsTab() {
   }
 
   const load = useCallback(async () => {
+    // Brenda 10.9.26: past meetups stay visible as "already happened",
+    // in the calendar and in the list, so a mother who joined last week
+    // sees what the community does and what she missed. 90 days back.
+    const from = new Date(); from.setDate(from.getDate() - 90)
+    const pFrom = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}-${String(from.getDate()).padStart(2, '0')}`
     const [{ data }, { data: wl }] = await Promise.all([
-      supabase.rpc('get_community_events'),
+      supabase.rpc('get_community_events', { p_from: pFrom }),
       supabase.rpc('get_my_waitlists'),
     ])
     setEvents((data ?? []) as CommunityEventRow[])
@@ -722,6 +727,37 @@ export default function EventsTab() {
   }
 
   // ── Single event card (shared by list + calendar views) ──
+  /** A meetup that already happened. No actions, just what it was and
+   *  how many were there: the point is that the next one is worth it. */
+  function pastCard(ev: CommunityEventRow) {
+    const meta = [dayLabel(ev.event_date), hhmm(ev.start_time), ev.location].filter(Boolean).join(' · ')
+    const n = Number(ev.registered_count ?? 0)
+    const mine = ev.my_status === 'registered' || ev.my_status === 'attended'
+    return (
+      <div key={ev.id} className="bg-white rounded-3xl shadow-sm p-4" style={{ opacity: 0.88 }}>
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 bg-[#F4EDE1]" style={{ filter: 'grayscale(35%)' }}>
+            {ev.emoji ?? '🎉'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-bold text-sand-800 text-sm leading-snug">{ev.title}</p>
+              <span className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-[#F4EDE1] text-sand-500">
+                {mine ? 'היית שם' : 'כבר היה'}
+              </span>
+            </div>
+            <p className="text-xs text-sand-500 mt-0.5">{meta}</p>
+            {n > 0 && (
+              <p className="text-xs font-semibold mt-1.5" style={{ color: '#8A6A2F' }}>
+                {n === 1 ? 'אמא אחת הייתה שם' : `${n} אמהות היו שם`} 🤎 {mine ? '' : 'הבא בדרך, שמרי מקום.'}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   function eventCard(ev: CommunityEventRow) {
     const spotsLeft = ev.capacity != null ? ev.capacity - ev.registered_count : null
     const isFull = spotsLeft != null && spotsLeft <= 0
@@ -1031,6 +1067,10 @@ export default function EventsTab() {
     )
   }
 
+  const todayIso = todayLocalIso()
+  const upcoming = events.filter(ev => ev.event_date >= todayIso)
+  const past = events.filter(ev => ev.event_date < todayIso).slice().reverse()
+
   if (events.length === 0) {
     return (
       <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-3 animate-rise">
@@ -1043,7 +1083,7 @@ export default function EventsTab() {
 
   // Group by month, preserving RPC date order.
   const groups: { key: string; items: CommunityEventRow[] }[] = []
-  for (const ev of events) {
+  for (const ev of upcoming) {
     const key = monthKey(ev.event_date)
     const last = groups[groups.length - 1]
     if (last && last.key === key) last.items.push(ev)
@@ -1123,6 +1163,12 @@ export default function EventsTab() {
             </div>
           )}
 
+          {upcoming.length === 0 && (
+            <div className="bg-white rounded-3xl p-6 text-center shadow-sm space-y-2">
+              <p className="font-semibold text-sand-700 text-sm">אירועי הקהילה הבאים בדרך 🎉</p>
+              <p className="text-xs text-sand-600">ברגע שנפרסם את לוח האירועים החודשי, הוא יופיע כאן</p>
+            </div>
+          )}
           {visibleGroups.map(group => (
             <div key={group.key} className="space-y-3">
               <h2 className="text-sm font-bold text-sand-500 flex items-center gap-1.5">
@@ -1132,6 +1178,15 @@ export default function EventsTab() {
               {group.items.map(ev => eventCard(ev))}
             </div>
           ))}
+          {!monthFilter && past.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-sm font-bold text-sand-500 flex items-center gap-1.5">
+                <CalendarHeart className="w-4 h-4 text-sand-400" />
+                מה כבר היה
+              </h2>
+              {past.slice(0, 6).map(ev => pastCard(ev))}
+            </div>
+          )}
         </div>
       ) : (
         /* ── יומן — month calendar grid ── */
@@ -1157,7 +1212,8 @@ export default function EventsTab() {
               {Array.from({ length: calDays }, (_, i) => i + 1).map(day => {
                 const ds = calDateStr(day)
                 const dayEvents = eventsByDate[ds] ?? []
-                const isToday = ds === todayLocalIso()
+                const isToday = ds === todayIso
+                const isPastDay = ds < todayIso
                 return (
                   // Yahav 12.8.26: a day with something on it wears the
                   // brand's rosa polvo, so the month reads at a glance.
@@ -1165,7 +1221,7 @@ export default function EventsTab() {
                   <div
                     key={day}
                     className={`min-h-[50px] rounded-xl p-1 text-center ${isToday ? 'bg-mustard-50 ring-1 ring-mustard-300' : ''}`}
-                    style={isToday ? undefined : { background: dayEvents.length > 0 ? '#EADBDD' : 'rgba(244,237,225,.7)' }}
+                    style={isToday ? undefined : { background: dayEvents.length > 0 ? (isPastDay ? '#F1E8E9' : '#EADBDD') : 'rgba(244,237,225,.7)' }}
                   >
                     <p
                       className={`text-[13px] font-bold ${isToday ? 'text-mustard-700' : ''}`}
@@ -1179,7 +1235,7 @@ export default function EventsTab() {
                             onClick={() => { setCalSelectedId(cur => cur === ev.id ? null : ev.id); setExpandedId(ev.id) }}
                             title={ev.title}
                             className={`w-full text-sm leading-none py-0.5 rounded-lg transition-all ${calSelectedId === ev.id ? 'bg-mustard-100 ring-2 ring-mustard-300' : 'hover:bg-[#EFE6D6]'} ${mine ? 'ring-1 ring-musgo-300' : ''}`}>
-                            {ev.emoji ?? '🎉'}
+                            <span style={isPastDay ? { opacity: 0.55, filter: 'grayscale(40%)' } : undefined}>{ev.emoji ?? '🎉'}</span>
                           </button>
                         )
                       })}
@@ -1191,7 +1247,7 @@ export default function EventsTab() {
           </div>
 
           {calSelected
-            ? eventCard(calSelected)
+            ? (calSelected.event_date < todayIso ? pastCard(calSelected) : eventCard(calSelected))
             : <p className="text-center text-xs text-sand-600">לחצי על אירוע ביומן כדי לראות פרטים ולהירשם 👆</p>}
         </div>
       )}

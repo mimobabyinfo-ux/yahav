@@ -250,7 +250,7 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
       onClick={onClose}
       dir="rtl"
     >

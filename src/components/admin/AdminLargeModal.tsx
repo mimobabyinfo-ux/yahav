@@ -38,7 +38,7 @@ export default function AdminLargeModal({
 }: Props) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-stretch lg:items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-3 pb-[96px] lg:pb-6"
+      className="fixed inset-0 z-[60] flex items-stretch lg:items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-3 pb-[96px] lg:pb-6"
       onClick={onClose}
       dir="rtl"
     >

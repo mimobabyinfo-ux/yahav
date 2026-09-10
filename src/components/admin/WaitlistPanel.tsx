@@ -201,7 +201,7 @@ export default function WaitlistPanel({ workshopId, workshopTitle, cohorts }: {
       )}
 
       {pendingDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-6"
           onClick={() => setPendingDelete(null)}>
           <div className="bg-white rounded-3xl p-5 w-full max-w-sm text-right" onClick={e => e.stopPropagation()}>
             <p className="font-bold text-sand-800 text-sm">להסיר את {pendingDelete.name} מהרשימה?</p>

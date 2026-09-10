@@ -664,7 +664,7 @@ function MonthPaymentsModal({
   const unmatched = payments.filter(p => p.outcome === 'unmatched')
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6" style={{ background: 'rgba(40,30,20,0.45)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-6" style={{ background: 'rgba(40,30,20,0.45)' }} onClick={onClose}>
       <div
         dir="rtl"
         onClick={e => e.stopPropagation()}

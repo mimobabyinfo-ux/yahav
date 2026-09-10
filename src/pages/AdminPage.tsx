@@ -3773,7 +3773,7 @@ function WorkshopContentModal({ workshop, onClose }: { workshop: Workshop; onClo
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-sm shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-3xl w-full max-w-sm shadow-xl max-h-[85dvh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div className="p-5 border-b border-sand-100 sticky top-0 bg-white rounded-t-3xl z-10 flex items-center justify-between">

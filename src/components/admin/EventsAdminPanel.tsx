@@ -856,7 +856,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
 
       {/* ── Create / edit modal ── */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-3xl w-full max-w-md max-h-[92vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()} dir="rtl">
             <div className="sticky top-0 bg-white px-5 py-4 border-b border-sand-100 flex items-center justify-between rounded-t-3xl">
               <h3 className="font-bold text-sand-800">{editingId ? 'עריכת אירוע' : 'אירוע חדש'}</h3>
@@ -989,7 +989,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
 
       {/* ── Registrants modal ── */}
       {regsEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setRegsEvent(null)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setRegsEvent(null)}>
           <div className="bg-white rounded-3xl w-full max-w-md max-h-[92vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()} dir="rtl">
             <div className="sticky top-0 bg-white px-5 py-4 border-b border-sand-100 flex items-center justify-between rounded-t-3xl">
               <div>

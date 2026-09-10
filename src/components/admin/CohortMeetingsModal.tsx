@@ -153,7 +153,7 @@ export default function CohortMeetingsModal({ workshop, cohort, onClose, onChang
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4" onClick={onClose} dir="rtl">
       <div
-        className="bg-white rounded-3xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-white rounded-3xl w-full max-w-md shadow-2xl flex flex-col max-h-[85dvh]"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100 flex-shrink-0">
@@ -169,7 +169,7 @@ export default function CohortMeetingsModal({ workshop, cohort, onClose, onChang
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+        <div className="overflow-y-auto flex-1 min-h-0 px-5 py-4 space-y-3">
           {loading ? (
             <p className="text-center text-sand-400 text-sm py-6">טוענת...</p>
           ) : meetings.length === 0 ? (

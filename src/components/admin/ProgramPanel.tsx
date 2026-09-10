@@ -317,7 +317,7 @@ function ExercisesTab({ exercises, topics, glossary, templates, onChanged }: {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center" onClick={() => setEditing(null)}>
+        <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center" onClick={() => setEditing(null)}>
           <div className="absolute inset-0 bg-black/30" />
           <div className="relative w-full lg:max-w-xl max-h-[92vh] overflow-y-auto bg-white rounded-t-3xl lg:rounded-3xl p-5 space-y-3 shadow-xl" onClick={ev => ev.stopPropagation()}>
             <h3 className="font-bold text-sand-800">{editing.id ? 'עריכת תרגיל' : 'תרגיל חדש'}</h3>
@@ -422,7 +422,7 @@ function GlossaryTab({ glossary, onChanged }: { glossary: GlossaryTerm[]; onChan
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center" onClick={() => setEditing(null)}>
+        <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center" onClick={() => setEditing(null)}>
           <div className="absolute inset-0 bg-black/30" />
           <div className="relative w-full lg:max-w-lg bg-white rounded-t-3xl lg:rounded-3xl p-5 space-y-3 shadow-xl" onClick={ev => ev.stopPropagation()}>
             <h3 className="font-bold text-sand-800">{editing.id ? 'עריכת מונח' : 'מונח חדש'}</h3>

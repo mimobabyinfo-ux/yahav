@@ -112,7 +112,7 @@ export default function CategoryManagerModal({ onClose, onChanged }: Props) {
   const inputCls = 'px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose} dir="rtl">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={onClose} dir="rtl">
       <div className="bg-white rounded-3xl w-full max-w-md max-h-[88vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="sticky top-0 bg-white px-5 py-4 border-b border-sand-100 flex items-center justify-between rounded-t-3xl">
           <div>
