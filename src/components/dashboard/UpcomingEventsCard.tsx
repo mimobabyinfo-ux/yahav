@@ -126,13 +126,12 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
         )}
       </div>
 
-      {/* What already happened: muted, no price, a count when there is one */}
+      {/* What already happened: muted, no price, no count (Brenda 10.9.26) */}
       {loaded && past.length > 0 && (
         <div className="flex flex-col mt-3" style={{ gap: 6 }}>
           <p className="font-semibold" style={{ fontSize: 12.5, color: '#A2937D' }}>מה כבר היה</p>
           {past.map(ev => {
             const d = new Date(ev.event_date + 'T12:00:00')
-            const n = Number(ev.registered_count ?? 0)
             const mine = ev.my_status === 'registered' || ev.my_status === 'attended'
             return (
               <button
@@ -151,7 +150,7 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
                 <span className="flex-1 min-w-0">
                   <span className="block font-bold truncate" style={{ fontSize: 14, lineHeight: 1.3, color: '#5E4938' }}>{ev.title}</span>
                   <span className="block font-semibold truncate mt-0.5" style={{ fontSize: 12.5, color: '#957860' }}>
-                    {mine ? 'היית שם 🤎' : n > 0 ? `${n} אמהות היו שם 🤎` : 'כבר היה'}
+                    {mine ? 'היית שם 🤎' : 'כבר היה'}
                   </span>
                 </span>
               </button>

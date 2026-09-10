@@ -731,7 +731,7 @@ export default function EventsTab() {
    *  how many were there: the point is that the next one is worth it. */
   function pastCard(ev: CommunityEventRow) {
     const meta = [dayLabel(ev.event_date), hhmm(ev.start_time), ev.location].filter(Boolean).join(' · ')
-    const n = Number(ev.registered_count ?? 0)
+    // Brenda 10.9.26: no attendance count, no nudge. Just an event whose time has passed.
     const mine = ev.my_status === 'registered' || ev.my_status === 'attended'
     return (
       <div key={ev.id} className="bg-white rounded-3xl shadow-sm p-4" style={{ opacity: 0.88 }}>
@@ -747,10 +747,8 @@ export default function EventsTab() {
               </span>
             </div>
             <p className="text-xs text-sand-500 mt-0.5">{meta}</p>
-            {n > 0 && (
-              <p className="text-xs font-semibold mt-1.5" style={{ color: '#8A6A2F' }}>
-                {n === 1 ? 'אמא אחת הייתה שם' : `${n} אמהות היו שם`} 🤎 {mine ? '' : 'הבא בדרך, שמרי מקום.'}
-              </p>
+            {ev.description && (
+              <p className="text-xs text-sand-600 leading-relaxed whitespace-pre-line mt-1.5">{ev.description}</p>
             )}
           </div>
         </div>

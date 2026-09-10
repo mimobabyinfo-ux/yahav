@@ -53,13 +53,18 @@ export function useTracker() {
   const track = useCallback(
     async (event_type: EventType, event_data?: EventData) => {
       if (!user) return
-      // Fire-and-forget — don't await in hot paths
+      // Fire-and-forget, but the request has to be STARTED. A supabase-js
+      // query builder is lazy: nothing is sent until it is awaited or
+      // .then() is called. On 21.8.26 the .then that used to follow this
+      // insert was removed together with the last_active write inside it,
+      // and from then on no activity was recorded at all (Brenda 10.9.26:
+      // every usage tile showed 0). The .then below is the send.
       supabase.from('user_activities').insert({
         user_id: user.id,
         session_id: SESSION_ID,
         event_type,
         event_data: event_data ?? null,
-      })
+      }).then(({ error }) => { if (error) console.error('[track]', error.message) })
       // last_active is NOT written from here any more. This update ran on
       // every event and failed silently for every mother — 0 of 57
       // profiles ever got a value. It is now a trigger on user_activities
