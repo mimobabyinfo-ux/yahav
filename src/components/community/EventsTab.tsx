@@ -732,7 +732,6 @@ export default function EventsTab() {
   function pastCard(ev: CommunityEventRow) {
     const meta = [dayLabel(ev.event_date), hhmm(ev.start_time), ev.location].filter(Boolean).join(' · ')
     // Brenda 10.9.26: no attendance count, no nudge. Just an event whose time has passed.
-    const mine = ev.my_status === 'registered' || ev.my_status === 'attended'
     return (
       <div key={ev.id} className="bg-white rounded-3xl shadow-sm p-4" style={{ opacity: 0.88 }}>
         <div className="flex items-start gap-3">
@@ -740,12 +739,8 @@ export default function EventsTab() {
             {ev.emoji ?? '🎉'}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <p className="font-bold text-sand-800 text-sm leading-snug">{ev.title}</p>
-              <span className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-[#F4EDE1] text-sand-500">
-                {mine ? 'היית שם' : 'כבר היה'}
-              </span>
-            </div>
+            {/* The section header already says it happened; no chip per card (Brenda 10.9.26). */}
+            <p className="font-bold text-sand-800 text-sm leading-snug">{ev.title}</p>
             <p className="text-xs text-sand-500 mt-0.5">{meta}</p>
             {ev.description && (
               <p className="text-xs text-sand-600 leading-relaxed whitespace-pre-line mt-1.5">{ev.description}</p>

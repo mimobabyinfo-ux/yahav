@@ -132,7 +132,7 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
           <p className="font-semibold" style={{ fontSize: 12.5, color: '#A2937D' }}>מה כבר היה</p>
           {past.map(ev => {
             const d = new Date(ev.event_date + 'T12:00:00')
-            const mine = ev.my_status === 'registered' || ev.my_status === 'attended'
+            const meta = [ev.start_time?.slice(0, 5), ev.location].filter(Boolean).join(' · ')
             return (
               <button
                 key={ev.id}
@@ -149,9 +149,7 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block font-bold truncate" style={{ fontSize: 14, lineHeight: 1.3, color: '#5E4938' }}>{ev.title}</span>
-                  <span className="block font-semibold truncate mt-0.5" style={{ fontSize: 12.5, color: '#957860' }}>
-                    {mine ? 'היית שם 🤎' : 'כבר היה'}
-                  </span>
+                  {meta && <span className="block font-semibold truncate mt-0.5" style={{ fontSize: 12.5, color: '#957860' }}>{meta}</span>}
                 </span>
               </button>
             )
