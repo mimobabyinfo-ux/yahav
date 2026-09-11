@@ -126,7 +126,7 @@ export default function PublicEventPage({ eventId }: { eventId: string }) {
     e.preventDefault()
     if (!ev) return
     if (name.trim().length < 2) { setError('איך קוראים לך?'); return }
-    if (withGuest && guestName.trim().length < 2) { setError('איך קוראים לה?'); return }
+    if (withGuest && guestName.trim().length < 2) { setError('איך קוראים לו/ה?'); return }
     if (!isValidPhone(phone)) { setError('מספר הטלפון לא נראה תקין'); return }
     if (!isValidEmail(email)) { setError('כתובת המייל לא נראית תקינה'); return }
     setError(null)
@@ -283,11 +283,11 @@ export default function PublicEventPage({ eventId }: { eventId: string }) {
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={withGuest} onChange={e => { setWithGuest(e.target.checked); if (!e.target.checked) setGuestName('') }} className="w-4 h-4 accent-mustard-500" />
-              <span className="text-xs font-semibold text-sand-600">מגיעה עם עוד מישהי</span>
+              <span className="text-xs font-semibold text-sand-600">מגיעה עם עוד מישהו/י</span>
             </label>
             {withGuest && (
               <div>
-                <label className={labelCls}>השם שלה</label>
+                <label className={labelCls}>השם שלו/ה</label>
                 <input className={inputCls} value={guestName} onChange={e => setGuestName(e.target.value)} />
               </div>
             )}
