@@ -82,6 +82,11 @@ export default function PublicEventPage({ eventId }: { eventId: string }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  // Yahav 11.9.26: "אם רוצים להגיע שתיים". One companion, by name; the
+  // function picks the pair link when the event has one.
+  const [withGuest, setWithGuest] = useState(false)
+  const [guestName, setGuestName] = useState('')
+  const [payTimes, setPayTimes] = useState(1)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -121,6 +126,7 @@ export default function PublicEventPage({ eventId }: { eventId: string }) {
     e.preventDefault()
     if (!ev) return
     if (name.trim().length < 2) { setError('איך קוראים לך?'); return }
+    if (withGuest && guestName.trim().length < 2) { setError('איך קוראים לה?'); return }
     if (!isValidPhone(phone)) { setError('מספר הטלפון לא נראה תקין'); return }
     if (!isValidEmail(email)) { setError('כתובת המייל לא נראית תקינה'); return }
     setError(null)
@@ -131,7 +137,8 @@ export default function PublicEventPage({ eventId }: { eventId: string }) {
     const payTab = ev.price > 0 ? window.open('', '_blank') : null
     if (payTab) { try { payTab.opener = null } catch { /* cross-origin */ } }
 
-    const { status, out } = await callFn({ event_id: ev.id, name: name.trim(), phone: phone.trim(), email: email.trim() })
+    const guests = withGuest && guestName.trim() ? [guestName.trim()] : []
+    const { status, out } = await callFn({ event_id: ev.id, name: name.trim(), phone: phone.trim(), email: email.trim(), guest_names: guests })
     setBusy(false)
 
     if (!out?.ok) {
@@ -150,6 +157,7 @@ export default function PublicEventPage({ eventId }: { eventId: string }) {
     setClaimToken((out.claim_token as string | null) ?? null)
     const link = (out.payment_link as string | null) ?? null
     setPaymentLink(link)
+    setPayTimes(Number(out.pay_times ?? 1))
 
     if (out.status === 'already') {
       payTab?.close()
@@ -260,7 +268,6 @@ export default function PublicEventPage({ eventId }: { eventId: string }) {
 
         {phase === 'form' && ev.is_open && (
           <form onSubmit={submit} className="bg-white rounded-3xl shadow-sm p-6 space-y-4">
-            <p className="text-sm font-bold text-sand-800">אני מגיעה!</p>
             <div>
               <label className={labelCls}>שם מלא</label>
               <input className={inputCls} value={name} onChange={e => setName(e.target.value)} autoComplete="name" />
@@ -274,11 +281,21 @@ export default function PublicEventPage({ eventId }: { eventId: string }) {
               <input className={inputCls} value={email} onChange={e => setEmail(e.target.value)} inputMode="email" autoComplete="email" dir="ltr" />
               <p className="text-[11px] text-sand-400 mt-1">איתו נפתח לך גם כניסה לאפליקציית מימו, בלי סיסמה.</p>
             </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={withGuest} onChange={e => { setWithGuest(e.target.checked); if (!e.target.checked) setGuestName('') }} className="w-4 h-4 accent-mustard-500" />
+              <span className="text-xs font-semibold text-sand-600">מגיעה עם עוד מישהי</span>
+            </label>
+            {withGuest && (
+              <div>
+                <label className={labelCls}>השם שלה</label>
+                <input className={inputCls} value={guestName} onChange={e => setGuestName(e.target.value)} />
+              </div>
+            )}
             {error && <p className="text-xs text-red-500">{error}</p>}
             <button type="submit" disabled={busy}
               className="w-full py-3.5 rounded-2xl text-sm font-bold disabled:opacity-60"
               style={{ background: '#E7C78A', color: '#4A3A28' }}>
-              {busy ? 'רגע...' : ev.price > 0 ? `להרשמה ותשלום · ₪${ev.price}` : 'להרשמה'}
+              {busy ? 'רגע...' : ev.price > 0 ? `להרשמה ותשלום · ₪${ev.price * (withGuest && guestName.trim() ? 2 : 1)}` : 'להרשמה'}
             </button>
             {ev.price > 0 && (
               <p className="text-[11px] text-sand-400 leading-relaxed text-center">
@@ -293,6 +310,7 @@ export default function PublicEventPage({ eventId }: { eventId: string }) {
             <p className="text-sm font-bold text-sand-800">המקום שמור לך ל-10 דקות 🤍</p>
             <p className="text-xs text-sand-600 leading-relaxed">
               התשלום נפתח בחלון חדש. אחרי שתסיימי, הדף הזה יתעדכן לבד.
+              {payTimes > 1 && ` שימי לב: הלינק הוא לכרטיס אחד, צריך לעבור דרכו ${payTimes} פעמים.`}
             </p>
             {paymentLink && (
               <a href={paymentLink} target="_blank" rel="noopener noreferrer"

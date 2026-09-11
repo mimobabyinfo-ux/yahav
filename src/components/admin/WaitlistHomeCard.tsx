@@ -24,6 +24,19 @@ export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (i
   const [loading, setLoading] = useState(true)
   // Holds people who are waiting on him, so it opens by default.
   const [open, setOpen] = useState(true)
+  // Yahav 11.9.26: "אם אני עובד כרגע רק על מפגש אבות אני רוצה לראות רק את
+  // המפגש אבות". Each product folds on its own; the choice is remembered
+  // per browser so it survives a refresh.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem('mimo_admin_waitlist_collapsed') ?? '{}') } catch { return {} }
+  })
+  function toggleGroup(id: string) {
+    setCollapsed(prev => {
+      const next = { ...prev, [id]: !prev[id] }
+      try { localStorage.setItem('mimo_admin_waitlist_collapsed', JSON.stringify(next)) } catch { /* private mode */ }
+      return next
+    })
+  }
 
   const load = useCallback(async () => {
     const { data: w } = await supabase.from('workshop_waitlist').select('workshop_id')
@@ -64,11 +77,20 @@ export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (i
         <div className="space-y-5 mt-3">
           {groups.map(g => (
             <div key={g.workshopId}>
-              <button onClick={() => onOpenProduct?.(g.workshopId)} className="font-bold text-right mb-2 block"
-                style={{ fontSize: 13, color: '#6E5836' }}>
-                {g.title} · {g.count}
-              </button>
-              <WaitlistOutreach workshopId={g.workshopId} workshopTitle={g.title} compact />
+              <div className="flex items-center justify-between mb-2">
+                <button onClick={() => toggleGroup(g.workshopId)} className="font-bold text-right flex items-center gap-1.5"
+                  style={{ fontSize: 13, color: '#6E5836' }} aria-expanded={!collapsed[g.workshopId]}>
+                  <ChevronDown className="w-3.5 h-3.5 transition-transform"
+                    style={{ color: '#BCAE99', transform: collapsed[g.workshopId] ? 'rotate(-90deg)' : 'none' }} />
+                  {g.title} · {g.count}
+                </button>
+                <button onClick={() => onOpenProduct?.(g.workshopId)} style={{ fontSize: 11, color: '#A2937D' }}>
+                  לעמוד המוצר
+                </button>
+              </div>
+              {!collapsed[g.workshopId] && (
+                <WaitlistOutreach workshopId={g.workshopId} workshopTitle={g.title} compact />
+              )}
             </div>
           ))}
         </div>

@@ -12,7 +12,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
  * give her an account first. This function does what claim-course-purchase
  * does for a paid lead, minus the welcome message:
  *
- *   register  {event_id, name, phone, email}
+ *   register  {event_id, name, phone, email, guest_names?}
+ *             guest_names: up to 3 people she brings (Yahav 11.9.26:
+ *             "אם רוצים להגיע שתיים"). One guest on an event with a pair
+ *             link pays through that link; otherwise pay_times says how
+ *             many times to pass through the single link, as the app does.
  *             find-or-create her auth user by email, write a profile row
  *             (name, phone, email - what morning-paid matches the payment
  *             against), and call register_for_event_as. A priced event
@@ -125,6 +129,8 @@ Deno.serve(async (req) => {
   const name = String(body.name ?? "").trim()
   const email = String(body.email ?? "").trim().toLowerCase()
   const phone = cleanPhone(String(body.phone ?? ""))
+  const guests = (Array.isArray(body.guest_names) ? body.guest_names : [])
+    .map(g => String(g ?? "").trim()).filter(g => g.length > 0).slice(0, 3)
 
   if (!UUID.test(eventId)) return json({ ok: false, reason: "bad_event" }, 400)
   if (name.length < 2) return json({ ok: false, reason: "bad_name" }, 422)
@@ -133,7 +139,7 @@ Deno.serve(async (req) => {
 
   const { data: ev } = await admin
     .from("community_events")
-    .select("id, title, price, payment_link, is_active, event_date")
+    .select("id, title, price, payment_link, payment_link_pair, is_active, event_date")
     .eq("id", eventId).maybeSingle()
   if (!ev || !ev.is_active) return json({ ok: false, reason: "not_found" }, 404)
 
@@ -177,7 +183,7 @@ Deno.serve(async (req) => {
 
   // 3 - the seat
   const { data: result, error: regErr } = await admin.rpc("register_for_event_as", {
-    p_user_id: userId, p_event_id: eventId,
+    p_user_id: userId, p_event_id: eventId, p_guest_names: guests,
   })
   if (regErr) return json({ ok: false, reason: "register_failed", detail: regErr.message }, 500)
   const status = String(result)
@@ -189,11 +195,16 @@ Deno.serve(async (req) => {
     .from("event_registrations").select("claim_token")
     .eq("event_id", eventId).eq("user_id", userId).maybeSingle()
 
+  const seats = 1 + guests.length
+  const priced = Number(ev.price) > 0
+  const pair = seats === 2 && ev.payment_link_pair ? ev.payment_link_pair : null
   return json({
     ok: true,
     status,                              // 'pending' | 'registered' | 'already'
     claim_token: reg?.claim_token ?? null,
-    payment_link: Number(ev.price) > 0 ? ev.payment_link : null,
+    payment_link: priced ? (pair ?? ev.payment_link) : null,
+    pay_times: priced && !pair ? seats : 1,
+    seats,
     title: ev.title,
   })
 })
