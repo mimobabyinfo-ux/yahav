@@ -250,6 +250,9 @@ export type Workshop = {
   // inference: ליווי פרטני has never had a cohort and is purchasable any
   // day, so "no cohort" alone must not remove its buy button.
   waitlist_enabled: boolean
+  // Yahav 11.9.26: the date he is currently floating to the waitlist
+  // ("מפגש אבות ב-25/09?") before any cohort exists. Null = nothing proposed.
+  waitlist_proposed_date: string | null  // YYYY-MM-DD
   // כמה מפגשים יש במחזור של המוצר. קובע כמה שורות cohort_meetings נוצרות
   // אוטומטית בפתיחת מחזור. 1 לרוב המוצרים, 5 לסדנאות הרב-מפגשיות.
   meetings_count: number
@@ -370,6 +373,15 @@ export type WorkshopWaitlistRow = {
   // nobody gets told twice.
   notified_at: string | null
   notified_cohort_id: string | null
+  // Yahav 11.9.26: which date she was asked about, and what she said.
+  // Compared with workshops.waitlist_proposed_date: same date = asked about
+  // the current proposal; different date = her answer is history and she is
+  // back to "not asked yet" for the new date.
+  proposed_date: string | null  // YYYY-MM-DD
+  // 'registered' is set by hand; the admin panel also derives it from a
+  // paid registration_leads row for the same product and person.
+  response: 'yes' | 'no' | 'registered' | null
+  responded_at: string | null
 }
 
 export type WorkshopCohort = {

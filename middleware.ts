@@ -83,6 +83,33 @@ async function workshopTitle(id: string | null): Promise<string | null> {
   }
 }
 
+// Event title for ?event=<id> (public registration, 11.9.26). The events
+// table is not readable anonymously, so this goes through the
+// get_public_event RPC, which is. Same 1.5s bound, same silent fallback.
+async function eventTitle(id: string | null): Promise<string | null> {
+  if (!id || !UUID.test(id)) return null
+  const base = process.env.VITE_SUPABASE_URL
+  const key = process.env.VITE_SUPABASE_ANON_KEY
+  if (!base || !key) return null
+  try {
+    const r = await fetch(
+      `${base}/rest/v1/rpc/get_public_event`,
+      {
+        method: 'POST',
+        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_event_id: id }),
+        signal: AbortSignal.timeout(1500),
+      },
+    )
+    if (!r.ok) return null
+    const rows = (await r.json()) as { title?: string }[]
+    const t = rows[0]?.title?.trim()
+    return t ? t : null
+  } catch {
+    return null
+  }
+}
+
 async function previewFor(url: URL): Promise<Preview> {
   const q = url.searchParams
 
@@ -99,6 +126,13 @@ async function previewFor(url: URL): Promise<Preview> {
       description: t
         ? `הצטרפי ל${t}. כמה פרטים קצרים, ואנחנו איתך.`
         : 'הצטרפי לסדנאות מימו, מלווה אותך בצעדים הראשונים של האימהות.',
+    }
+  }
+  if (q.has('event')) {
+    const t = await eventTitle(q.get('event'))
+    return {
+      title: t ? `${t} · קהילת מימו` : 'מפגש של קהילת מימו',
+      description: 'מפגש לאמהות מקהילת מימו. כמה פרטים קצרים, ושומרים לך מקום.',
     }
   }
   if (q.has('offer')) {

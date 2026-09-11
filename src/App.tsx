@@ -19,6 +19,7 @@ import GuestJoinPage from './pages/GuestJoinPage'
 import PublicPartnerPage from './pages/PublicPartnerPage'
 import PublicRegisterPage from './pages/PublicRegisterPage'
 import PublicGiftCardPage from './pages/PublicGiftCardPage'
+import PublicEventPage from './pages/PublicEventPage'
 import VendorCheckinPage from './pages/VendorCheckinPage'
 import ThankYouPage from './pages/ThankYouPage'
 import WelcomeClaimPage from './pages/WelcomeClaimPage'
@@ -78,6 +79,9 @@ const isGiftPage = new URLSearchParams(window.location.search).has('gift')
 // ?giftcard[=<workshop id>] — the PUBLIC gift card page, no account
 // needed (Yahav 5.9.26). Gated with the other public routes, before auth.
 const isPublicGiftCardPage = new URLSearchParams(window.location.search).has('giftcard')
+// ?event=<id> — registering for a community event without the app (11.9.26).
+// Public: the edge function creates her account. Sits before the auth gate.
+const publicEventId = new URLSearchParams(window.location.search).get('event')
 const welcomeLeadId = new URLSearchParams(window.location.search).get('welcome')
 // ?legal=privacy|terms|accessibility — the three documents Israeli law
 // expects a consumer service to publish. Public by necessity: the signup
@@ -238,6 +242,7 @@ function AppInner() {
   if (isRegisterPage) return <PublicRegisterPage />
   if (isOfferPage) return <PublicRegisterPage />
   if (isPublicGiftCardPage) return <PublicGiftCardPage />
+  if (publicEventId) return <PublicEventPage eventId={publicEventId} />
   if (checkinToken) return <VendorCheckinPage token={checkinToken} />
   // ?welcome=<lead_id> — the post-payment link. Must sit BEFORE the auth
   // gate: she has no session yet, that is the entire point of the route.

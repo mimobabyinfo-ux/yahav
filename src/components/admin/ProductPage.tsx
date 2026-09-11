@@ -386,7 +386,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
 
       {/* Who asked to hear about the next cohort */}
       {!isPhysical && (
-        <WaitlistPanel workshopId={workshop.id} workshopTitle={workshop.title} cohorts={cohorts} />
+        <WaitlistPanel workshopId={workshop.id} workshopTitle={workshop.title} />
       )}
 
       {/* Discounted offer links — inline, same panel the modal used */}

@@ -118,6 +118,17 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
   const [vendors, setVendors] = useState<ServicePartner[]>([])
   // Vendor check-in link share modal (Phase 1 of the vendor flow).
   const [checkinEvent, setCheckinEvent] = useState<CommunityEvent | null>(null)
+  // Yahav 11.9.26: a public registration link per event, for mothers with
+  // no app. /?event=<id> creates her account and holds the seat
+  // (PublicEventPage + public-event-register). Copied, not opened.
+  const [copiedEventLink, setCopiedEventLink] = useState<string | null>(null)
+  function copyEventLink(ev: CommunityEvent) {
+    const link = `${window.location.origin}/?event=${ev.id}`
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedEventLink(ev.id)
+      setTimeout(() => setCopiedEventLink(null), 2000)
+    }).catch(() => { /* clipboard blocked */ })
+  }
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -667,6 +678,13 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
             ) : (
               <button onClick={() => openRegs(ev)} className="font-bold rounded-xl transition-all hover:bg-sand-50" style={{ border: '1.5px solid #DCD4C8', color: '#7B604C', padding: '9px 14px', fontSize: 14 }}>
                 נרשמות
+              </button>
+            )}
+            {!isDraft && !isPast && (
+              <button onClick={() => copyEventLink(ev)} className="flex items-center justify-center rounded-xl transition-colors hover:brightness-95" style={{ width: 38, height: 38, background: copiedEventLink === ev.id ? '#EEF3E8' : '#F8F4EC' }} title="העתק קישור הרשמה (למי שאין לה אפליקציה)">
+                {copiedEventLink === ev.id
+                  ? <Check className="w-[17px] h-[17px]" style={{ color: '#5C7A4A' }} />
+                  : <Copy className="w-[17px] h-[17px]" style={{ color: '#7B604C' }} />}
               </button>
             )}
             {!isDraft && (
