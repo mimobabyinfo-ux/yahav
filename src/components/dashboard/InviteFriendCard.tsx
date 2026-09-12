@@ -64,12 +64,7 @@ export default function InviteFriendCard() {
           שלחי לחברה את הלינק שלך. כשהיא נרשמת ושמה את מימו במסך הבית — שתיכן מקבלות ₪{amount} לאירועי הקהילה.
         </p>
       </div>
-      <div className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(255,255,255,.6)' }}>
-        <span className="flex-1 min-w-0 truncate font-semibold" dir="ltr" style={{ fontSize: 12, color: '#5E4938', textAlign: 'left' }}>{link}</span>
-        <button onClick={copy} className="flex-shrink-0 p-1.5 rounded-full hover:brightness-95" style={{ background: '#F0EBE3' }} aria-label="העתקת הלינק">
-          {copied ? <Check className="w-4 h-4" style={{ color: '#5E4938' }} /> : <Copy className="w-4 h-4" style={{ color: '#7B604C' }} />}
-        </button>
-      </div>
+      {/* Brenda 12.9.26: the raw URL is not shown — a copy button instead. */}
       <button
         onClick={share}
         className="w-full py-3 rounded-2xl font-bold text-sm text-[#4A3A28] flex items-center justify-center gap-2 transition-all hover:brightness-95"
@@ -77,6 +72,14 @@ export default function InviteFriendCard() {
       >
         <Share2 className="w-4 h-4" />
         לשלוח לחברה
+      </button>
+      <button
+        onClick={copy}
+        className="w-full py-2.5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 transition-all hover:brightness-95"
+        style={{ background: 'rgba(255,255,255,.6)', color: '#5E4938' }}
+      >
+        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+        {copied ? 'הקישור הועתק' : 'להעתקת הקישור'}
       </button>
     </div>
   )
