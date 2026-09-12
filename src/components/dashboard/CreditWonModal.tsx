@@ -72,7 +72,7 @@ export default function CreditWonModal({ credit, onClose, onNavigate }: {
 
         <div className="p-6 space-y-4">
           <p className="text-sm leading-relaxed" style={{ color: '#5C4A38' }}>
-            הזיכוי כבר מחכה לך במסך הקהילה — {windowLabel(credit)}. בוחרות אירוע ולוחצות "לשימוש בזיכוי שלי".
+            הזיכוי כבר מחכה לך במסך הקהילה, {windowLabel(credit)}. בוחרות אירוע ולוחצות "לשימוש בזיכוי שלי".
           </p>
           <button
             onClick={() => { onClose(); onNavigate('community') }}

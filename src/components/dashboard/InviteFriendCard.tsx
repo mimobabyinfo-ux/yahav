@@ -38,7 +38,7 @@ export default function InviteFriendCard() {
   if (!enabled || !code) return null
 
   const link = `${window.location.origin}/?ref=${code}`
-  const text = `היי! אני משתמשת במימו — אפליקציה לאמהות עם יומן לתינוק, סדנאות וקהילה ברמת גן 🤍\n` +
+  const text = `היי! אני משתמשת במימו, אפליקציה לאמהות עם יומן לתינוק, סדנאות וקהילה ברמת גן 🤍\n` +
     `הרשמי דרך הלינק שלי ושימי אותה במסך הבית, ושתינו נקבל ₪${amount} לאירועי הקהילה:\n${link}`
 
   async function share() {
@@ -61,10 +61,10 @@ export default function InviteFriendCard() {
       <div>
         <p className="font-bold" style={{ fontSize: 15, color: '#5E4938' }}>חברה מביאה חברה 🤍</p>
         <p className="font-semibold mt-0.5" style={{ fontSize: 13, color: '#8C6E63', lineHeight: 1.5 }}>
-          שלחי לחברה את הלינק שלך. כשהיא נרשמת ושמה את מימו במסך הבית — שתיכן מקבלות ₪{amount} לאירועי הקהילה.
+          שלחי לחברה את הלינק שלך. כשהיא נרשמת ושמה את מימו במסך הבית, שתיכן מקבלות ₪{amount} לאירועי הקהילה.
         </p>
       </div>
-      {/* Brenda 12.9.26: the raw URL is not shown — a copy button instead. */}
+      {/* Brenda 12.9.26: the raw URL is not shown, a copy button instead. No em-dashes in her copy either. */}
       <button
         onClick={share}
         className="w-full py-3 rounded-2xl font-bold text-sm text-[#4A3A28] flex items-center justify-center gap-2 transition-all hover:brightness-95"
