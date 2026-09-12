@@ -136,10 +136,14 @@ export default function EventsTab() {
    *  then smallest — so the amount on the button is the amount that gets
    *  spent. A UI that promised one credit and burned another would be
    *  worse than no button. */
-  function creditFor(total: number): MyCredit | null {
+  function creditFor(total: number, eventDate: string): MyCredit | null {
     if (total <= 0) return null
     return credits
       .filter(c => Number(c.amount) >= total)
+      // A promo credit is tied to an event-date window (the DB refuses it
+      // outside). Offering it here and failing there would be worse.
+      .filter(c => (!c.valid_event_from || eventDate >= c.valid_event_from)
+        && (!c.valid_event_to || eventDate <= c.valid_event_to))
       .sort((a, b) => a.expires_at.localeCompare(b.expires_at) || Number(a.amount) - Number(b.amount))[0] ?? null
   }
 
@@ -577,7 +581,7 @@ export default function EventsTab() {
     if (pending.length > 0 && holdLive) {
       const link = paymentLinkFor(ev, pending.length)
       const total = ev.price * pending.length
-      const credit = creditFor(total)
+      const credit = creditFor(total, ev.event_date)
       return (
         <div className="mt-2 rounded-2xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
           <p className="text-[13px] font-bold" style={{ color: '#A35C3D' }}>
@@ -644,7 +648,7 @@ export default function EventsTab() {
     const clean = list.map(g => g.trim()).filter(Boolean)
     const blank = list.some(g => g.trim() === '')
     const total = ev.price * Math.max(clean.length, 1)
-    const credit = clean.length > 0 ? creditFor(total) : null
+    const credit = clean.length > 0 ? creditFor(total, ev.event_date) : null
 
     return (
       <div className="mt-2 rounded-2xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
@@ -876,7 +880,7 @@ export default function EventsTab() {
                   the option only existed before she tapped register. The
                   RPC always allowed it, the button just was not there. */}
               {(() => {
-                const credit = creditFor(ev.price * ((ev.my_guests?.length ?? 0) + 1))
+                const credit = creditFor(ev.price * ((ev.my_guests?.length ?? 0) + 1), ev.event_date)
                 if (!credit || ev.my_payment_claimed_at) return null
                 return (
                   <button
@@ -1016,7 +1020,7 @@ export default function EventsTab() {
                 // spend now comes back as a smaller credit, so a big one is
                 // no longer wasted on a cheap event.
                 const total = ev.price * (cleanGuests(ev).length + 1)
-                const credit = creditFor(total)
+                const credit = creditFor(total, ev.event_date)
                 if (!credit) return null
                 const change = creditChange(credit, total)
                 return (

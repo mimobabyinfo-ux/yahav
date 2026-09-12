@@ -42,6 +42,8 @@ import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
 import ActiveTimerBanner from './components/ActiveTimerBanner'
 import InstallGuide from './components/InstallGuide'
+import CreditWonModal, { creditWonSeen, markCreditWonSeen } from './components/dashboard/CreditWonModal'
+import type { MyCredit } from './lib/supabase'
 
 // Lazy: AdminPage is ~8,000 lines and pulls all of components/admin and
 // @dnd-kit with it. renderPage already gates it at RUNTIME; importing it
@@ -56,6 +58,19 @@ const publicFormId = new URLSearchParams(window.location.search).get('form')
 const publicBabyToken = new URLSearchParams(window.location.search).get('baby')
 const joinToken = new URLSearchParams(window.location.search).get('join')
 const isPartnerPage = new URLSearchParams(window.location.search).has('partner')
+// ?ref=<code> — חברה מביאה חברה (12.9.26). The friend lands here before she
+// has an account, so the code waits in localStorage until there is a
+// profile to attach it to (claim_referral, below). Stripped from the URL
+// so it does not survive into a share or a bookmark.
+const REF_LS_KEY = 'mimo_ref_code'
+{
+  const ref = new URLSearchParams(window.location.search).get('ref')
+  if (ref) {
+    try { localStorage.setItem(REF_LS_KEY, ref.trim().toUpperCase()) } catch { /* private mode */ }
+    const u = new URL(window.location.href); u.searchParams.delete('ref')
+    window.history.replaceState({}, '', u.pathname + (u.search || '') + u.hash)
+  }
+}
 const isRegisterPage = new URLSearchParams(window.location.search).has('register')
 // Task B: ?offer=<token> routes to PublicRegisterPage in offer mode.
 // Needs its own early-return gate at the same level as ?register so
@@ -137,10 +152,13 @@ function AppInner() {
   // the install (the first time we ever see it) and the fact that she is
   // still opening it that way. A mother in a browser tab writes nothing.
   const pwaPinged = useRef(false)
+  // Flips once the ping has been written (or skipped). The credit check
+  // below waits for it, because the promo credit is born from that write.
+  const [pwaPingDone, setPwaPingDone] = useState(false)
   useEffect(() => {
     if (pwaPinged.current) return
     if (!user || !profile || isGuest) return
-    if (!isStandalone()) return
+    if (!isStandalone()) { pwaPinged.current = true; setPwaPingDone(true); return }
     pwaPinged.current = true
     const now = new Date().toISOString()
     const patch: { pwa_last_open_at: string; pwa_installed_at?: string } =
@@ -148,7 +166,48 @@ function AppInner() {
     if (!profile.pwa_installed_at) patch.pwa_installed_at = now
     supabase.from('user_profiles').update(patch).eq('id', user.id)
       .then(({ error }) => { if (error) console.error('[pwa ping]', error) })
+      .then(() => setPwaPingDone(true))
   }, [user, profile, isGuest])
+
+  // חברה מביאה חברה: attach the inviter, once, as soon as there is a
+  // profile. The RPC refuses self-invites, second claims and anyone who
+  // already installed; whatever it answers, the code is spent.
+  useEffect(() => {
+    if (!user || !profile || isGuest) return
+    let code: string | null = null
+    try { code = localStorage.getItem(REF_LS_KEY) } catch { return }
+    if (!code) return
+    if (profile.referred_by) { try { localStorage.removeItem(REF_LS_KEY) } catch { /* */ } return }
+    supabase.rpc('claim_referral', { p_code: code }).then(({ data, error }) => {
+      if (error) { console.error('[referral]', error); return }
+      try { localStorage.removeItem(REF_LS_KEY) } catch { /* */ }
+      track('referral_claim', { result: String(data) })
+    })
+  }, [user, profile, isGuest]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "קיבלת 30 ₪" — Brenda 12.9.26. Promo credits (מבצע מסך הבית, חברה
+  // מביאה חברה) are granted by DB triggers; nobody tells her. So once per
+  // app load, after the ping that may have created one, look for a promo
+  // credit from the last day she has not been shown yet. The referrer's
+  // credit arrives while she is elsewhere, which is why this runs on
+  // every load and not only on the first standalone open.
+  const [wonCredit, setWonCredit] = useState<MyCredit | null>(null)
+  useEffect(() => {
+    if (!pwaPingDone || !user || !profile || isGuest) return
+    supabase.rpc('get_my_credits').then(({ data }) => {
+      const seen = creditWonSeen()
+      const since = Date.now() - 24 * 3600_000
+      const fresh = ((data ?? []) as MyCredit[]).find(c =>
+        (c.grant_note ?? '').startsWith('מבצע מסך הבית') || (c.grant_note ?? '').startsWith('חברה מביאה חברה')
+          ? !seen.has(c.id) && new Date(c.created_at).getTime() > since
+          : false)
+      if (fresh) { setWonCredit(fresh); track('credit_won_shown', { note: fresh.grant_note, amount: fresh.amount }) }
+    })
+  }, [pwaPingDone, user, profile, isGuest]) // eslint-disable-line react-hooks/exhaustive-deps
+  const closeWonCredit = useCallback(() => {
+    if (wonCredit) markCreditWonSeen(wonCredit.id)
+    setWonCredit(null)
+  }, [wonCredit])
 
   useEffect(() => {
     track('page_view', { page: currentPage })
@@ -426,6 +485,7 @@ function AppInner() {
             viewAsUser={viewAsUser} onToggleUserView={toggleUserView}
           />
           <InstallGuide />
+          {wonCredit && <CreditWonModal credit={wonCredit} onClose={closeWonCredit} onNavigate={navigate} />}
         </>
       )}
       <FormTriggerModal />

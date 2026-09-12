@@ -36,6 +36,13 @@ export type UserProfile = {
    *  it since. */
   pwa_installed_at: string | null
   pwa_last_open_at: string | null
+  /** חברה מביאה חברה (12.9.26). Her own 6-letter code goes into the
+   *  invite link (?ref=CODE); referred_by is who brought HER. Both
+   *  credits are granted by a DB trigger the first time the invited
+   *  mother opens the app from her home screen — the app only records
+   *  who invited whom (claim_referral). */
+  referral_code: string | null
+  referred_by: string | null
   family_id: string | null
   area: string | null
   /** Optional neighbourhood inside `area`. Free text; suggestions come
@@ -835,6 +842,12 @@ export type MyCredit = {
   grant_note: string | null
   created_at: string
   expires_at: string
+  /** A promo credit may pay only for events dated inside this window
+   *  (מבצע מסך הבית 10/2026: October–November). NULL = any event.
+   *  redeem_credit_for_event enforces the same rule, so the app must not
+   *  offer the credit on an event outside it. */
+  valid_event_from: string | null
+  valid_event_to: string | null
 }
 
 export type EventRegistration = {

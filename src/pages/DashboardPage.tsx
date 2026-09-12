@@ -19,6 +19,7 @@ import AgeGuideCard from '../components/dashboard/AgeGuideCard'
 import HomeAnnouncementsBanner from '../components/dashboard/HomeAnnouncementsBanner'
 import GraduateOfferModal from '../components/dashboard/GraduateOfferModal'
 import PendingPaymentStrip from '../components/dashboard/PendingPaymentStrip'
+import InviteFriendCard from '../components/dashboard/InviteFriendCard'
 import MimoLeaf from '../components/MimoLeaf'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import type { Page } from '../App'
@@ -336,6 +337,10 @@ export default function DashboardPage({ onNavigate }: Props) {
 
         {/* 3 · Community — Tier 2 */}
         <UpcomingEventsCard onNavigate={onNavigate} />
+
+        {/* חברה מביאה חברה — her invite link. Renders nothing while the
+            program is off (global_settings.referral_enabled). */}
+        <InviteFriendCard />
 
         {/* Age-matched product recommendation — what fits the baby's age
             right now, without digging through the store. Last of the

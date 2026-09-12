@@ -7,6 +7,10 @@ const SESSION_ID = `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 export type EventType =
   | 'page_view'
+  // חברה מביאה חברה + מבצע מסך הבית (12.9.26)
+  | 'referral_share'
+  | 'referral_claim'
+  | 'credit_won_shown'
   | 'button_click'
   | 'video_start'
   | 'video_end'

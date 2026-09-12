@@ -120,8 +120,10 @@ export default function MyBookingsTab() {
             {credits.map(c => (
               <div key={c.id} className="flex items-center justify-between rounded-2xl px-3 py-2" style={{ background: 'rgba(255,255,255,.6)' }}>
                 <span className="font-bold" style={{ fontSize: 15, color: '#5E4938' }}>₪{Number(c.amount)}</span>
-                <span className="font-semibold" style={{ fontSize: 12, color: '#8C6E63' }}>
-                  בתוקף עד {new Date(c.expires_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
+                <span className="font-semibold text-left" style={{ fontSize: 12, color: '#8C6E63' }}>
+                  {c.valid_event_to
+                    ? `לאירועים עד ${new Date(c.valid_event_to + 'T12:00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`
+                    : `בתוקף עד ${new Date(c.expires_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`}
                 </span>
               </div>
             ))}
