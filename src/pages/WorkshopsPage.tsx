@@ -1,5 +1,5 @@
-﻿import { useCallback, useEffect, useState, useMemo } from 'react'
-import { ExternalLink, MessageCircle, ShoppingBag, Star, X, CreditCard, CalendarDays, GraduationCap, Gift, Bell, Check } from 'lucide-react'
+﻿import { useEffect, useState, useMemo } from 'react'
+import { ExternalLink, MessageCircle, ShoppingBag, Star, X, CreditCard, CalendarDays, Gift, Bell, Check, ChevronLeft } from 'lucide-react'
 import { supabase, Workshop, type PublicCohort } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
@@ -13,10 +13,7 @@ import {
   graduateOfferDeadline,
   type GraduateOffer,
 } from '../hooks/useGraduateOffers'
-import { formatDate } from '../utils/dateUtils'
 import GiftCardModal from '../components/giftcard/GiftCardModal'
-import GiftCardSendForm from '../components/giftcard/GiftCardSendForm'
-import type { GiftCard } from '../components/giftcard/giftCard'
 import type { Page } from '../App'
 
 type WorkshopExt = Workshop & { whatsapp_number?: string }
@@ -354,19 +351,12 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts, offer }: { ws: Work
 // useWorkshopCategories) — edit them in the admin מוצרים tab.
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-type PurchasedRow = {
-  id: string
-  purchase_date: string
-  amount_paid: number | null
-  // Access window. Present = she can open the content world behind this
-  // product; the pro area applies exactly the same date test.
-  access_start_date: string | null
-  access_end_date: string | null
-  workshops: Workshop
-}
 
-export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page) => void } = {}) {
-  const { profile, user } = useAuth()
+// onNavigate is still accepted (App passes it) but unused since הרכישות שלי
+// moved to settings (12.9.26).
+export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?: (page: Page) => void } = {}) {
+  void _onNavigate
+  const { profile } = useAuth()
   const { track } = useTracker()
   const { ownerName, ownerWhatsapp } = useOwnerSettings()
   const { categories } = useWorkshopCategories()
@@ -375,7 +365,6 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
   const { byWorkshop: graduateOffers } = useGraduateOffers()
   const isPregnant = profile?.user_mode === 'pregnant'
   const [workshops, setWorkshops] = useState<WorkshopExt[]>([])
-  const [purchases, setPurchases] = useState<PurchasedRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<WorkshopExt | null>(null)
 
@@ -407,11 +396,9 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
     } catch { return null }
   })
   const [category, setCategory] = useState(isPregnant ? 'הריון' : 'all')
-  // גיפט קארד — the buy sheet, and the cards she already bought (a gift
-  // she paid for but never sent is money sitting in limbo, so it lives in
-  // הרכישות שלי until it reaches someone).
+  // גיפט קארד — the buy sheet. The cards she already bought live in
+  // settings → הרכישות שלי (MyPurchasesSection) since 12.9.26.
   const [giftOpen, setGiftOpen] = useState(false)
-  const [giftCards, setGiftCards] = useState<GiftCard[]>([])
   // ?gift=<workshop id> — Brenda 5.9.26: a link she can send, like the
   // registration link, that opens the gift sheet on one product. Read
   // once and stripped from the URL so a refresh does not reopen it.
@@ -426,7 +413,6 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
     } catch { return null }
   })
   const [giftInitialId, setGiftInitialId] = useState<string | null>(null)
-  const [tab, setTab] = useState<'store' | 'purchases'>('store')
   // Upcoming cohorts for ALL displayed products (one RPC call).
   const [cohorts, setCohorts] = useState<PublicCohort[]>([])
 
@@ -483,23 +469,6 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
     return m
   }, [cohorts])
 
-  const loadGiftCards = useCallback(() => {
-    if (!user) return
-    supabase.rpc('get_my_gift_cards').then(({ data }) => setGiftCards((data ?? []) as GiftCard[]))
-  }, [user])
-
-  useEffect(() => { loadGiftCards() }, [loadGiftCards])
-
-  useEffect(() => {
-    if (!user) return
-    supabase
-      .from('purchased_workshops')
-      .select('*, workshops(*)')
-      .eq('user_id', user.id)
-      .order('purchase_date', { ascending: false })
-      .then(({ data }) => setPurchases((data ?? []) as PurchasedRow[]))
-  }, [user])
-
   // Only show category chips that have at least one workshop
   const activeCategories = categories.filter(c =>
     workshops.some(w => w.workshop_type === c.name)
@@ -525,26 +494,9 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
           <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>מוצרים</h1>
         </div>
 
-        {/* Tab switcher */}
-        <div className="max-w-sm mx-auto mt-4 flex bg-white rounded-2xl border border-[#F0EAE0] p-1 gap-1">
-          <button
-            onClick={() => setTab('store')}
-            className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'store' ? 'shadow-sm' : ''}`}
-            style={tab === 'store' ? { background: '#E7C78A', color: '#4A3A28' } : { color: '#7B604C' }}
-          >
-            החנות
-          </button>
-          <button
-            onClick={() => setTab('purchases')}
-            className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'purchases' ? 'shadow-sm' : ''}`}
-            style={tab === 'purchases' ? { background: '#E7C78A', color: '#4A3A28' } : { color: '#7B604C' }}
-          >
-            הרכישות שלי {purchases.length + giftCards.length > 0 && `(${purchases.length + giftCards.length})`}
-          </button>
-        </div>
-
-        {/* Category filters — store only */}
-        {tab === 'store' && (
+        {/* Category filters. Brenda 12.9.26: the חנות / הרכישות שלי switcher
+            is gone; הרכישות שלי lives in settings under ניהול שיתופים. */}
+        {(
           <div className="max-w-sm mx-auto flex gap-2 mt-4 overflow-x-auto scroll-hide pb-1">
             {[{ key: 'all', label: 'הכל' }, ...activeCategories.map(cat => ({ key: cat.name, label: categoryLabel(cat) }))].map(c => (
               <button
@@ -563,7 +515,7 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
       </div>
 
       <div className="max-w-sm mx-auto px-4 pt-4 space-y-3">
-        {tab === 'store' ? (
+        {(
           <>
             {/* גיפט קארד — Brenda 19.8.26. Sits above the products because
                 it is a different intent: buying for someone else, not for
@@ -605,15 +557,13 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
                   <div key={ws.id} className="bg-white rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => openProduct(ws)}>
                     <div className="flex gap-3 p-4">
                       <div className="flex-1 min-w-0 space-y-2">
-                        {ws.workshop_type && (
-                          <span className="inline-block text-[13px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#F4EDE1', color: '#B98F4E' }}>
-                            {ws.workshop_type}
-                          </span>
-                        )}
+                        {/* Brenda 12.9.26: no category badge and no blurb on
+                            the card. Title, price, cohorts, and a way in.
+                            The category is a filter, not a label. */}
                         <h3 className="font-bold text-sm leading-snug" style={{ color: '#3D2E20' }}>{ws.title}</h3>
-                        {ws.description && (
-                          <p className="text-xs leading-relaxed line-clamp-2" style={{ color: '#818267' }}>{ws.description.split('\n')[0]}</p>
-                        )}
+                        <span className="inline-flex items-center gap-0.5 text-xs font-bold" style={{ color: '#8A6A2F' }}>
+                          לפרטים נוספים <ChevronLeft className="w-3.5 h-3.5" />
+                        </span>
                         {gradOffer ? (
                           <div className="space-y-1.5">
                             <GraduatePrice ws={ws} offer={gradOffer} size="card" />
@@ -702,86 +652,6 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
               })
             )}
           </>
-        ) : (
-          /* Purchases tab */
-          purchases.length === 0 && giftCards.length === 0 ? (
-            <div className="text-center py-16 space-y-3">
-              <ShoppingBag className="w-12 h-12 text-sand-200 mx-auto" />
-              <p className="text-sand-600 text-sm">עדיין אין רכישות</p>
-              <p className="text-xs text-sand-500">רכישות שתבצעי יופיעו כאן</p>
-            </div>
-          ) : (
-            <>
-            {/* Gift cards she bought. A 'paid' card with no recipient is
-                the one that matters — the gift is paid for and nobody
-                knows about it yet. */}
-            {giftCards.filter(g => g.status !== 'cancelled').map(g => (
-              <div key={g.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
-                <div className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-bold text-sand-800 flex items-center gap-1.5">🎁 גיפט קארד</p>
-                      <p className="text-xs text-sand-600 mt-0.5">{g.workshop_title}</p>
-                      <p className="text-[11px] text-sand-500 mt-0.5" dir="ltr" style={{ textAlign: 'right' }}>{g.code}</p>
-                    </div>
-                    <span className="text-sm font-bold flex-shrink-0" style={{ color: '#B98F4E' }}>₪{g.amount}</span>
-                  </div>
-
-                  {g.status === 'pending' ? (
-                    <p className="text-xs rounded-2xl py-2.5 px-3 leading-relaxed"
-                      style={{ background: '#FDF3E3', color: '#6E5836' }}>
-                      עדיין לא אישרנו את התשלום. ברגע שהוא יאושר תוכלי לשלוח את המתנה מכאן.
-                    </p>
-                  ) : g.status === 'redeemed' ? (
-                    <p className="text-xs rounded-2xl py-2.5 px-3" style={{ background: '#F1F3EA', color: '#4A5C31' }}>
-                      המתנה מומשה 🤍
-                    </p>
-                  ) : (
-                    <GiftCardSendForm card={g} onSent={loadGiftCards} compact />
-                  )}
-                </div>
-              </div>
-            ))}
-            {purchases.map(p => (
-              <div key={p.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
-                {p.workshops.image_url && (
-                  <img src={p.workshops.image_url} alt={p.workshops.title} className="w-full h-32 object-cover" />
-                )}
-                <div className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-bold text-sand-800">{p.workshops.title}</p>
-                      <p className="text-xs text-sand-600 mt-0.5">
-                        {p.amount_paid != null ? `שולם: ₪${p.amount_paid}` : ''}
-                        {' · '}{new Date(p.purchase_date).toLocaleDateString('he-IL')}
-                      </p>
-                    </div>
-                    {p.workshops.price != null && (
-                      <span className="text-sm font-bold text-mustard-600">₪{p.workshops.price}</span>
-                    )}
-                  </div>
-                  {/* Access is open today → the way into the content she
-                      paid for. The pro area has no nav tab, so without this
-                      button a course buyer has no route to her course. */}
-                  {onNavigate && p.access_start_date && p.access_end_date &&
-                   p.access_start_date <= formatDate(new Date()) &&
-                   p.access_end_date >= formatDate(new Date()) && (
-                    <button onClick={() => onNavigate('pro')}
-                      className="w-full flex items-center justify-center gap-2 font-bold py-2.5 rounded-2xl text-sm text-[#4A3A28]"
-                      style={{ background: '#E7C78A' }}>
-                      <GraduationCap className="w-4 h-4" /> לצפייה בתכנים ←
-                    </button>
-                  )}
-                  <a href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי! יש לי שאלה לגבי: ${p.workshops.title}`)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 bg-musgo-500 hover:bg-musgo-600 text-white font-semibold py-2.5 rounded-2xl text-sm transition-all">
-                    <MessageCircle className="w-4 h-4" /> צרי קשר על הסדנה
-                  </a>
-                </div>
-              </div>
-            ))}
-            </>
-          )
         )}
       </div>
 

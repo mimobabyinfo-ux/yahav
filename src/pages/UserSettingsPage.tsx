@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getBabyAge } from '../utils/dateUtils'
 import SharingManagementPanel from '../components/sharing/SharingManagementPanel'
+import MyPurchasesSection from '../components/settings/MyPurchasesSection'
 
 function genderEmoji(g: string | null) {
   return g === 'boy' ? '👶🏼' : g === 'girl' ? '👧🏼' : '👶🏼'
@@ -424,6 +425,12 @@ export default function UserSettingsPage() {
             <SharingManagementPanel />
           </section>
         )}
+
+        {/* הרכישות שלי — moved here from the store (Brenda 12.9.26). */}
+        <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
+          <h2 className="text-sm font-bold text-sand-700">הרכישות שלי</h2>
+          <MyPurchasesSection />
+        </section>
 
         {/* מצב לילה */}
         <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
