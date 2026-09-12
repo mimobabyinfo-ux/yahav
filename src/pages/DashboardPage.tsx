@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState, useCallback } from 'react'
-import { ChevronLeft, Settings as SettingsIcon, MessageCircle, Gift, Moon, Sun, Baby, Plus, HelpCircle } from 'lucide-react'
+import { ChevronLeft, Settings as SettingsIcon, MessageCircle, Gift, Moon, Sun, Baby, Plus, HelpCircle, GraduationCap } from 'lucide-react'
 import { openInstallGuide } from '../components/InstallGuide'
+import { isStandalone } from '../utils/webPush'
 import { supabase, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
@@ -14,12 +15,11 @@ import ActivityTimers from '../components/ActivityTimers'
 import LogEntryModal from '../components/LogEntryModal'
 import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard'
 import RecommendedWorkshopCard from '../components/dashboard/RecommendedWorkshopCard'
-import MyCoursesCard from '../components/dashboard/MyCoursesCard'
+import { hasOpenCourses } from '../components/dashboard/MyCoursesCard'
 import AgeGuideCard from '../components/dashboard/AgeGuideCard'
 import HomeAnnouncementsBanner from '../components/dashboard/HomeAnnouncementsBanner'
 import GraduateOfferModal from '../components/dashboard/GraduateOfferModal'
 import PendingPaymentStrip from '../components/dashboard/PendingPaymentStrip'
-import InviteFriendCard from '../components/dashboard/InviteFriendCard'
 import MimoLeaf from '../components/MimoLeaf'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import type { Page } from '../App'
@@ -54,7 +54,7 @@ export function readNightPref(): NightModePref {
 }
 
 export default function DashboardPage({ onNavigate }: Props) {
-  const { profile, selectedChild, children } = useAuth()
+  const { profile, selectedChild, children, purchasedWorkshops } = useAuth()
   const { ownerWhatsapp } = useOwnerSettings()
   const [modalType, setModalType] = useState<EntryType | null>(null)
   const [presetFeedingType, setPresetFeedingType] = useState<'breast' | 'bottle' | 'solid' | undefined>(undefined)
@@ -263,9 +263,26 @@ export default function DashboardPage({ onNavigate }: Props) {
                 <Moon style={{ width: 20, height: 20, color: '#7B604C' }} strokeWidth={2} />
               </button>
             )}
+            {/* Brenda 12.9.26: "התכנים שלי" moved off the feed and into
+                this row, to thin out the home screen. Same visibility
+                rule the card had: an open purchase, or admin. */}
+            {hasOpenCourses(purchasedWorkshops, !!profile?.is_admin) && (
+              <button
+                onClick={() => onNavigate('pro')}
+                className="rounded-full flex items-center justify-center transition-colors hover:brightness-95"
+                style={{ width: 44, height: 44, background: '#F6ECD8' }}
+                title="התכנים שלך"
+                aria-label="התכנים שלך"
+              >
+                <GraduationCap style={{ width: 22, height: 22, color: '#8A6A2F' }} strokeWidth={2} />
+              </button>
+            )}
             {/* Brenda 29.8.26: the how-to-install video has to be
                 reachable at any moment, not only in the one popup on the
-                first visit. Same circle as the gear, beside it. */}
+                first visit. Same circle as the gear, beside it.
+                Brenda 12.9.26: and not at all for a mother who is already
+                running the app from her home screen. */}
+            {!isStandalone() && (
             <button
               onClick={openInstallGuide}
               className="rounded-full flex items-center justify-center transition-colors hover:brightness-95"
@@ -275,6 +292,7 @@ export default function DashboardPage({ onNavigate }: Props) {
             >
               <HelpCircle style={{ width: 22, height: 22, color: '#7B604C' }} strokeWidth={2} />
             </button>
+            )}
             <a
               href="?settings"
               className="rounded-full flex items-center justify-center transition-colors hover:brightness-95"
@@ -319,34 +337,21 @@ export default function DashboardPage({ onNavigate }: Props) {
           </div>
         )}
 
-        {/* Yahav 26.8.26: "זה לא עמוס מדי? אולי כדאי לשנות את הסדר?"
-            He was right. The old order ran quick-log, her courses, the
-            guide, a product recommendation, and only then the community,
-            so two of the first four blocks were us selling. The rule now
-            is: what is happening with her baby, then what is happening in
-            the community, then anything we want from her.
-
-            Her courses stay above the guide: 37 of the 90 mothers have
-            bought something, the pro area has no nav tab, and this card is
-            their only door to it. It renders nothing for everyone else. */}
-        <MyCoursesCard onNavigate={onNavigate} />
+        {/* Brenda 12.9.26, "המסך בית מאוד עמוס": the feed is now
+            quick-log → the age-matched product → the age guide → upcoming
+            community events. "התכנים שלך" became an icon in the header
+            row, past meetups and חברה מביאה חברה moved to the community
+            page. Yahav's 26.8 rule (baby first, community second, selling
+            last) gave way to her call that the product sits right under
+            the journal. */}
+        <RecommendedWorkshopCard onNavigate={onNavigate} />
 
         {/* What her baby's age looks like right now, from Brenda's own
-            course material. This is what she came for after logging. */}
+            course material. */}
         <AgeGuideCard />
 
-        {/* 3 · Community — Tier 2 */}
+        {/* 3 · Community — upcoming only */}
         <UpcomingEventsCard onNavigate={onNavigate} />
-
-        {/* חברה מביאה חברה — her invite link. Renders nothing while the
-            program is off (global_settings.referral_enabled). */}
-        <InviteFriendCard />
-
-        {/* Age-matched product recommendation — what fits the baby's age
-            right now, without digging through the store. Last of the
-            content blocks on purpose: it is the only one here that exists
-            to sell something. */}
-        <RecommendedWorkshopCard onNavigate={onNavigate} />
 
         {/* The "גישה לסדנה פתוחה עד…" badge used to live here. It looked
             like a button, wasn't one, and led nowhere — the first thing a

@@ -14,6 +14,7 @@ import CommunityMemberSheet from '../components/community/CommunityMemberSheet'
 import EventsTab from '../components/community/EventsTab'
 import MyBookingsTab from '../components/community/MyBookingsTab'
 import MembershipCard from '../components/community/MembershipCard'
+import InviteFriendCard from '../components/dashboard/InviteFriendCard'
 
 type CommunityProfile = {
   id: string
@@ -318,7 +319,14 @@ export default function CommunityPage() {
         </div>
 
         {/* ── Events tab ── */}
-        {pageTab === 'events' && <EventsTab />}
+        {pageTab === 'events' && (
+          <>
+            <EventsTab />
+            {/* חברה מביאה חברה lives here, not on the home screen
+                (Brenda 12.9.26: the home screen was too crowded). */}
+            <InviteFriendCard />
+          </>
+        )}
 
         {/* ── ההזמנות שלי — what she already signed up for, with the
              calendar file. Same RPC as the events tab, filtered to her. */}

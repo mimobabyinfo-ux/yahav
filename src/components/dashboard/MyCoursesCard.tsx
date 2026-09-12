@@ -13,6 +13,15 @@ import type { Page } from '../../App'
  * Shown only when she has at least one workshop whose access window is open
  * today, so it stays invisible for everyone else.
  */
+/** Brenda 12.9.26: the card left the home feed; the same rule now decides
+ *  whether the header shows the "התכנים שלך" icon beside the settings gear. */
+export function hasOpenCourses(purchasedWorkshops: { access_start_date: string | null; access_end_date: string | null }[], isAdmin: boolean): boolean {
+  const today = formatDate(new Date())
+  return isAdmin || purchasedWorkshops.some(pw =>
+    !!pw.access_start_date && !!pw.access_end_date &&
+    pw.access_start_date <= today && pw.access_end_date >= today)
+}
+
 export default function MyCoursesCard({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const { purchasedWorkshops, profile } = useAuth()
   const [titles, setTitles] = useState<string[]>([])
