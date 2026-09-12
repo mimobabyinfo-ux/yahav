@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronRight, ChevronDown, MessageCircle, X } from 'lucide-react'
+import { ChevronRight, ChevronDown, MessageCircle, X, Lock } from 'lucide-react'
 import { supabase, Workshop } from '../../lib/supabase'
 import { signedMediaUrl } from '../../utils/signedMedia'
 import MyWorkshopMeetings from '../MyWorkshopMeetings'
@@ -26,41 +26,56 @@ type Props = {
   ownerName: string
   ownerWhatsapp: string
   motherName?: string | null
+  /** Admins see every meeting open, whatever cohort they sit in. */
+  isAdmin?: boolean
+  /** From ?course=<id>&meeting=N: land on that meeting (still gated). */
+  initialMeeting?: number | null
+  /** From ?course=<id>&topic=<key>: land in topic mode on that topic. */
+  initialTopic?: string | null
   onBack: () => void
   track: (event: EventType, meta?: EventData) => void
 }
 
-type MyCohort = { cohort_id: string; past: number[] }
+type MyCohort = { cohort_id: string; past: number[]; dates: Record<number, string> }
 
-export default function WorkshopProgram({ workshop, program, ownerName, ownerWhatsapp, motherName, onBack, track }: Props) {
+export default function WorkshopProgram({ workshop, program, ownerName, ownerWhatsapp, motherName, isAdmin = false, initialMeeting = null, initialTopic = null, onBack, track }: Props) {
   const { templates, exercises, topics, glossary } = program
+  const linkedTopic = initialTopic && topics.some(t => t.key === initialTopic) ? initialTopic : null
+  const linkedMeeting = initialMeeting && templates.some(t => t.meeting_number === initialMeeting) ? initialMeeting : null
 
   // Her cohort in THIS workshop: decides the landing meeting and which
   // cohort_sessions rows apply. Admins and mothers without a cohort just
   // land on meeting 1 with everything shown.
   const [mine, setMine] = useState<MyCohort | null>(null)
   const [sessions, setSessions] = useState<CohortSession[]>([])
-  const [meeting, setMeeting] = useState<number>(1)
-  const [topic, setTopic] = useState<string | null>(null)
+  const [meeting, setMeeting] = useState<number>(linkedMeeting ?? 1)
+  const [topic, setTopic] = useState<string | null>(linkedTopic)
   // ברנדה 5.9.26: "זה עמוס מדי שרואים הכל מול העיניים". שני כפתורים בלבד,
   // ורק אחרי הבחירה נפתחת הרשימה המתאימה: נושאים או מפגשים.
-  const [mode, setMode] = useState<'meetings' | 'topics'>('meetings')
+  const [mode, setMode] = useState<'meetings' | 'topics'>(linkedTopic ? 'topics' : 'meetings')
   // null = not touched yet: open in meeting 1 (where she meets it), folded after.
   const [warmupOpen, setWarmupOpen] = useState<boolean | null>(null)
   const [term, setTerm] = useState<GlossaryTerm | null>(null)
+  // Nothing is drawn until we know which meetings are hers to see: a
+  // locked meeting must not flash open for the second the RPC takes.
+  const [scheduleReady, setScheduleReady] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       const { data } = await supabase.rpc('get_my_cohort_schedule')
       if (cancelled) return
-      const rows = ((data ?? []) as { workshop_id: string; cohort_id: string; meeting_number: number; is_past: boolean }[])
+      setScheduleReady(true)
+      const rows = ((data ?? []) as { workshop_id: string; cohort_id: string; meeting_number: number; meeting_date: string; is_past: boolean; is_cancelled: boolean }[])
         .filter(r => r.workshop_id === workshop.id)
       if (rows.length === 0) return
       const cohortId = rows[0].cohort_id
       const past = rows.filter(r => r.is_past).map(r => r.meeting_number)
-      setMine({ cohort_id: cohortId, past })
-      setMeeting(Math.min(defaultMeeting(past), templates.length))
+      const dates: Record<number, string> = {}
+      for (const r of rows) if (!r.is_cancelled) dates[r.meeting_number] = r.meeting_date
+      setMine({ cohort_id: cohortId, past, dates })
+      // A link to a specific meeting wins over "where she is" (Brenda 12.9.26).
+      if (!linkedMeeting) setMeeting(Math.min(defaultMeeting(past), templates.length))
       const { data: cs } = await supabase
         .from('cohort_sessions').select('*').eq('cohort_id', cohortId)
       if (!cancelled) setSessions((cs ?? []) as CohortSession[])
@@ -70,6 +85,20 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
 
   const skippedIn = (n: number): Set<string> =>
     new Set(sessions.find(s => s.meeting_number === n)?.skipped_exercise_ids ?? [])
+
+  // ── Drip (Brenda 12.9.26) ────────────────────────────────────────────────
+  // "לא הכל פתוח מלכתחילה": a meeting opens the moment it starts (is_past
+  // comes from meeting_starts_at < now()), and stays open. Before that she
+  // sees the meeting's title, its date and the names of the exercises,
+  // blurred and not tappable. The warm-up opens together with meeting 1 and
+  // then stays open for the whole workshop. Admins and mothers with no
+  // cohort in this workshop (a manual grant, an old purchase) see everything:
+  // there is no date to gate on.
+  const gated = !!mine && !isAdmin
+  const maxPast = mine && mine.past.length > 0 ? Math.max(...mine.past) : 0
+  const isOpen = (n: number): boolean => !gated || n <= maxPast
+  const warmupOpenForHer = !gated || maxPast >= 1
+  const unlockDate = (n: number): string | null => mine?.dates[n] ?? null
 
   // Warm-up set: the first template's list (they are identical per workshop).
   const warmup: Exercise[] = useMemo(() => {
@@ -157,10 +186,11 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
             {templates.map(t => (
               <button key={t.id}
                 onClick={() => { setMeeting(t.meeting_number); track('program_meeting', { meeting: t.meeting_number }) }}
-                className="flex-shrink-0 rounded-full px-4 py-2 min-h-[40px] text-[13px] font-semibold whitespace-nowrap border transition-colors"
+                className="flex-shrink-0 rounded-full px-4 py-2 min-h-[40px] text-[13px] font-semibold whitespace-nowrap border transition-colors inline-flex items-center gap-1.5"
                 style={t.meeting_number === meeting
                   ? { background: '#2E2C24', color: '#fff', borderColor: '#2E2C24' }
-                  : { background: '#fff', color: '#4A443C', borderColor: '#E5DCD0' }}>
+                  : { background: '#fff', color: isOpen(t.meeting_number) ? '#4A443C' : '#A89F94', borderColor: '#E5DCD0' }}>
+                {!isOpen(t.meeting_number) && <Lock className="w-3 h-3 opacity-70" />}
                 {t.meeting_number}. {t.title}
               </button>
             ))}
@@ -169,11 +199,21 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
 
         {/* ── Body ── */}
         <div className="px-4 pt-5 space-y-4">
-          {mode === 'topics' && topic === null ? null : topic !== null ? (
+          {!scheduleReady ? (
+            <div className="flex justify-center py-10"><div className="w-7 h-7 border-2 border-sand-200 border-t-sand-500 rounded-full animate-spin" /></div>
+          ) : mode === 'topics' && topic === null ? null : topic !== null ? (
             <FilteredView
-              templates={templates} exercisesOf={exercisesOf} warmup={warmup}
+              templates={templates} exercisesOf={exercisesOf} warmup={warmupOpenForHer ? warmup : []}
+              isOpen={isOpen}
               topic={topic} topicLabel={topics.find(t => t.key === topic)?.label ?? ''}
               glossary={glossary} onTerm={openTerm} track={track}
+            />
+          ) : activeTemplate && !isOpen(activeTemplate.meeting_number) ? (
+            <LockedMeetingView
+              template={activeTemplate} items={exercisesOf(activeTemplate)}
+              date={unlockDate(activeTemplate.meeting_number)}
+              warmupCount={warmupCountFor(activeTemplate, warmup)} warmupOpen={warmupOpenForHer}
+              warmup={warmup} glossary={glossary} onTerm={openTerm} track={track}
             />
           ) : activeTemplate && (
             <MeetingView
@@ -306,10 +346,88 @@ function MeetingView({ template, lists, warmup, warmupOpen, onToggleWarmup, glos
   )
 }
 
-function FilteredView({ templates, exercisesOf, warmup, topic, topicLabel, glossary, onTerm, track }: {
+function warmupCountFor(t: SessionTemplate, warmup: Exercise[]): number {
+  return t.include_warmup ? warmup.length : 0
+}
+
+const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+function dateLabel(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const day = DAY_NAMES[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+  return `יום ${day}, ${d}.${m}`
+}
+
+/** A meeting that has not happened yet: the header, the date, and the
+ *  exercise names blurred. Nothing here is tappable and no video is loaded,
+ *  so there is nothing to "get around". The warm-up, if she already has it,
+ *  stays available above the locked list. */
+function LockedMeetingView({ template, items, date, warmupCount, warmupOpen, warmup, glossary, onTerm, track }: {
+  template: SessionTemplate
+  items: Exercise[]
+  date: string | null
+  warmupCount: number
+  warmupOpen: boolean
+  warmup: Exercise[]
+  glossary: GlossaryTerm[]
+  onTerm: (t: string) => void
+  track: Props['track']
+}) {
+  const [showWarmup, setShowWarmup] = useState(false)
+  return (
+    <>
+      <MeetingHeader template={template} />
+
+      <div className="rounded-2xl px-4 py-3.5 flex items-start gap-3" style={{ background: '#F5F1EB', border: '1px solid #E5DCD0' }}>
+        <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#7B604C' }} />
+        <div className="text-[14px] leading-relaxed" style={{ color: '#4A443C' }}>
+          <p className="font-bold">התוכן של המפגש ייפתח כאן אחרי שניפגש</p>
+          {date && <p className="text-[13px]" style={{ color: '#7B604C' }}>{dateLabel(date)}</p>}
+        </div>
+      </div>
+
+      {warmupCount > 0 && (
+        warmupOpen ? (
+          <section className="rounded-2xl border" style={{ background: '#FFF8EA', borderColor: '#F2E3C4' }}>
+            <button onClick={() => setShowWarmup(o => !o)} className="w-full flex items-center justify-between px-4 py-3 text-right">
+              <span className="font-bold text-sand-800 text-[15px]">החימום של מימו</span>
+              <span className="flex items-center gap-2 text-[12px] text-sand-500">
+                {warmup.length} שירים ותרגילים
+                <ChevronDown className={`w-4 h-4 transition-transform ${showWarmup ? 'rotate-180' : ''}`} />
+              </span>
+            </button>
+            {showWarmup && (
+              <div className="px-3 pb-3 space-y-2">
+                {warmup.map((e, i) => <ExerciseCard key={e.id} ex={e} index={i + 1} glossary={glossary} onTerm={onTerm} track={track} />)}
+              </div>
+            )}
+          </section>
+        ) : (
+          <div className="rounded-2xl border px-4 py-3 flex items-center justify-between" style={{ background: '#FFF8EA', borderColor: '#F2E3C4', opacity: 0.7 }}>
+            <span className="font-bold text-sand-800 text-[15px]">החימום של מימו</span>
+            <span className="flex items-center gap-1.5 text-[12px] text-sand-500">{warmupCount} שירים ותרגילים <Lock className="w-3.5 h-3.5" /></span>
+          </div>
+        )
+      )}
+
+      {/* The names only, blurred: she can see what is coming, not read it. */}
+      <section className="space-y-2 select-none pointer-events-none" aria-hidden="true">
+        {items.map(e => (
+          <article key={e.id} className="bg-white rounded-2xl px-4 py-3.5 border" style={{ borderColor: '#E5DCD0', opacity: 0.6 }}>
+            <h5 className="text-[17px] font-bold" style={{ color: '#2E2823', filter: 'blur(3px)' }}>{e.title}</h5>
+            <div className="mt-2 h-2.5 rounded-full" style={{ background: '#F0EBE3', width: '85%' }} />
+            <div className="mt-1.5 h-2.5 rounded-full" style={{ background: '#F0EBE3', width: '60%' }} />
+          </article>
+        ))}
+      </section>
+    </>
+  )
+}
+
+function FilteredView({ templates, exercisesOf, warmup, isOpen, topic, topicLabel, glossary, onTerm, track }: {
   templates: SessionTemplate[]
   exercisesOf: (t: SessionTemplate) => Exercise[]
   warmup: Exercise[]
+  isOpen: (meetingNumber: number) => boolean
   topic: string
   topicLabel: string
   glossary: GlossaryTerm[]
@@ -317,11 +435,18 @@ function FilteredView({ templates, exercisesOf, warmup, topic, topicLabel, gloss
   track: Props['track']
 }) {
   const wu = warmup.filter(e => e.topics.includes(topic))
-  const groups = templates
+  const all = templates
     .map(t => ({ t, items: exercisesOf(t).filter(e => e.topics.includes(topic)) }))
     .filter(g => g.items.length > 0)
+  const groups = all.filter(g => isOpen(g.t.meeting_number))
+  // Exercises of meetings that have not happened yet: counted, not shown.
+  const upcoming = all.filter(g => !isOpen(g.t.meeting_number)).reduce((n, g) => n + g.items.length, 0)
   if (wu.length === 0 && groups.length === 0) {
-    return <p className="text-sm text-sand-400 text-center py-8">אין עדיין תרגילים בנושא {topicLabel}.</p>
+    return (
+      <p className="text-sm text-sand-400 text-center py-8">
+        {upcoming > 0 ? `התרגילים בנושא ${topicLabel} ייפתחו כאן אחרי המפגשים הבאים.` : `אין עדיין תרגילים בנושא ${topicLabel}.`}
+      </p>
+    )
   }
   return (
     <>
@@ -341,6 +466,11 @@ function FilteredView({ templates, exercisesOf, warmup, topic, topicLabel, gloss
           {items.map(e => <ExerciseCard key={e.id} ex={e} glossary={glossary} onTerm={onTerm} track={track} />)}
         </section>
       ))}
+      {upcoming > 0 && (
+        <p className="text-[13px] text-center py-3 flex items-center justify-center gap-1.5" style={{ color: '#8C8177' }}>
+          <Lock className="w-3.5 h-3.5" /> {upcoming === 1 ? 'עוד תרגיל אחד בנושא ייפתח' : `עוד ${upcoming} תרגילים בנושא ייפתחו`} אחרי המפגשים הבאים
+        </p>
+      )}
     </>
   )
 }

@@ -389,8 +389,18 @@ export default function WorkshopsPage({ onNavigate }: { onNavigate?: (page: Page
   // Deep link from the home screen's age-matched card: it stashes the
   // product id, we open that product's sheet instead of dropping her
   // into the whole store to find it again.
+  // ?product=<workshop id> (Brenda 12.9.26) does the same from a link she
+  // sends: the product's page inside the app, not the public sale page.
+  // Read once and stripped, like ?gift below.
   const [pendingProductId, setPendingProductId] = useState<string | null>(() => {
     try {
+      const url = new URL(window.location.href)
+      const fromLink = url.searchParams.get('product')
+      if (fromLink) {
+        url.searchParams.delete('product')
+        window.history.replaceState({}, '', url.pathname + (url.search || '') + url.hash)
+        return fromLink
+      }
       const id = sessionStorage.getItem('mimo_open_product')
       sessionStorage.removeItem('mimo_open_product')
       return id

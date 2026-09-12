@@ -71,6 +71,16 @@ const checkinToken = new URLSearchParams(window.location.search).get('checkin')
 // opens the course itself; everything else is one tap away if she wants it.
 const isCoursePage = new URLSearchParams(window.location.search).has('course')
 const courseWorkshopId = new URLSearchParams(window.location.search).get('course') || null
+// ?course=<id>&meeting=3 / &topic=<key> — Brenda 12.9.26: a link straight
+// to one meeting's summary or one topic inside the workshop program, for
+// the WhatsApp group ("הסיכום של מפגש 3"). Only meaningful with ?course=.
+const deepMeetingRaw = Number(new URLSearchParams(window.location.search).get('meeting') ?? '')
+const deepMeeting: number | null = Number.isInteger(deepMeetingRaw) && deepMeetingRaw > 0 ? deepMeetingRaw : null
+const deepTopic: string | null = new URLSearchParams(window.location.search).get('topic') || null
+// ?product=<workshop id> — the product's own page INSIDE the app (not the
+// public registration page). Login still required; WorkshopsPage opens the
+// sheet, this only picks the landing tab. Brenda 12.9.26.
+const isProductPage = new URLSearchParams(window.location.search).has('product')
 const isThanksPage = new URLSearchParams(window.location.search).has('thanks')
 // ?gift=<workshop id> — a shareable link straight into the גיפט קארד sheet
 // for one product. Login is still required (the card is written on the
@@ -96,7 +106,7 @@ const REGS_LS_KEY = 'registrations_last_seen'
 
 function AppInner() {
   const { user, profile, loading, isGuest } = useAuth()
-  const [currentPage, setCurrentPage] = useState<Page>(isCoursePage ? 'pro' : isGiftPage ? 'workshops' : 'dashboard')
+  const [currentPage, setCurrentPage] = useState<Page>(isCoursePage ? 'pro' : (isGiftPage || isProductPage) ? 'workshops' : 'dashboard')
   // Brenda 17.8.26: "when I go into nursing/sleep/bottle FROM the journal
   // and press back, I want to come back to the journal, not to the home
   // screen." The log pages are opened from two places, so back has to
@@ -150,7 +160,7 @@ function AppInner() {
   // ?course wins: an admin opening a customer's welcome link wants to see
   // what the customer sees.
   useEffect(() => {
-    if (isCoursePage || isGiftPage) return
+    if (isCoursePage || isGiftPage || isProductPage) return
     if (profile?.is_admin && !viewAsUser) {
       setCurrentPage('admin')
     } else {
@@ -305,7 +315,7 @@ function AppInner() {
       case 'journal':    return isPregnant ? <PregnancyDashboard onNavigate={navigate} /> : <JournalPage onNavigate={navigate} />
       case 'benefits':   return <BenefitsPage />
       case 'workshops':  return <WorkshopsPage onNavigate={navigate} />
-      case 'pro':        return <ProAreaPage autoOpenWorkshopId={isCoursePage ? courseWorkshopId : null} />
+      case 'pro':        return <ProAreaPage autoOpenWorkshopId={isCoursePage ? courseWorkshopId : null} initialMeeting={isCoursePage ? deepMeeting : null} initialTopic={isCoursePage ? deepTopic : null} />
       case 'admin':      return (
         <Suspense fallback={<p className="text-center text-sand-400 text-sm py-12">טוען...</p>}>
           <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} overview={adminOverview} />

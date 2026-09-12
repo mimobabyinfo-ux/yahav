@@ -58,6 +58,19 @@ const IMAGE_APP = '/mimo_logo.png'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+// program_topics keys as of 12.9.26. Mirrored here rather than fetched so a
+// topic link never waits on a second database call; an unknown key just
+// gets the generic "לפי נושא" title.
+const TOPIC_LABELS: Record<string, string> = {
+  tummy: 'זמן בטן',
+  side: 'צד והתהפכויות',
+  calm: 'רוגע וויסות',
+  hands: 'ידיים, מבט ותקשורת',
+  balance: 'שיווי משקל ותנועה',
+  carry: 'הרמה, מנשא ונשיאה',
+  senses: 'מרקמים וחושים',
+}
+
 // Product name for a link that carries a workshop id (?register=, ?course=,
 // ?gift=, ?giftcard=). One REST call against Supabase with the anon key,
 // bounded to 1.5s so a slow database can never stall a preview; any
@@ -143,9 +156,33 @@ async function previewFor(url: URL): Promise<Preview> {
   }
   if (q.has('course')) {
     const t = await workshopTitle(q.get('course'))
+    // ?course=<id>&meeting=N / &topic=<key> (Brenda 12.9.26): a link into
+    // one meeting's summary or one topic of the workshop program.
+    const meeting = Number(q.get('meeting') ?? '')
+    if (Number.isInteger(meeting) && meeting > 0) {
+      return {
+        title: t ? `הסיכום של מפגש ${meeting} · ${t}` : `הסיכום של מפגש ${meeting} · מימו`,
+        description: 'מה עשינו במפגש, למה, ואיך ממשיכים בבית. מחכה לך באפליקציה של מימו.',
+      }
+    }
+    const topic = q.get('topic')
+    if (topic) {
+      const label = TOPIC_LABELS[topic] ?? null
+      return {
+        title: label ? `${label} · ${t ?? 'מימו'}` : `לפי נושא · ${t ?? 'מימו'}`,
+        description: 'כל התרגילים בנושא, מכל המפגשים, במקום אחד באפליקציה של מימו.',
+      }
+    }
     return {
       title: t ? `${t} · מימו` : 'הקורס הדיגיטלי של מימו',
       description: 'כל מה שחשוב לדעת בחודשים הראשונים, בקצב שלך, מתי שנוח לך.',
+    }
+  }
+  if (q.has('product')) {
+    const t = await workshopTitle(q.get('product'))
+    return {
+      title: t ? `${t} · מימו` : 'המוצרים של מימו',
+      description: 'כל הפרטים, המועדים וההרשמה, בתוך האפליקציה של מימו.',
     }
   }
   if (q.has('gift') || q.has('giftcard')) {
@@ -198,7 +235,8 @@ async function previewFor(url: URL): Promise<Preview> {
     }
   }
   return {
-    title: 'מימו · האפליקציה לאמהות טריות',
+    // Brenda 12.9.26: "האפליקציה של מימו", not "לאמהות טריות".
+    title: 'האפליקציה של מימו',
     description: 'יומן יומי לתינוק/ת, מפגשים וקהילה של אמהות. הכול במקום אחד.',
   }
 }

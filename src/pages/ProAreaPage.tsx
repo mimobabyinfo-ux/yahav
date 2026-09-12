@@ -20,7 +20,13 @@ type ActiveWorkshop = PurchasedWorkshop & { workshop: Workshop | null }
  * no longer auto-opens anything (Brenda 5.9.26: the tab always shows the
  * list, so the mother sees her workshop card and enters from there).
  */
-export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWorkshopId?: string | null } = {}) {
+export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting = null, initialTopic = null }: {
+  autoOpenWorkshopId?: string | null
+  /** ?course=<id>&meeting=N — land on that meeting inside the program. */
+  initialMeeting?: number | null
+  /** ?course=<id>&topic=<key> — land in topic mode on that topic. */
+  initialTopic?: string | null
+} = {}) {
   const { user, profile, hasActiveWorkshopAccess, purchasedWorkshops } = useAuth()
   const { track } = useTracker()
   const { ownerName, ownerWhatsapp } = useOwnerSettings()
@@ -233,6 +239,9 @@ export default function ProAreaPage({ autoOpenWorkshopId = null }: { autoOpenWor
         ownerName={ownerName}
         ownerWhatsapp={ownerWhatsapp}
         motherName={profile?.mother_name ?? null}
+        isAdmin={profile?.is_admin ?? false}
+        initialMeeting={autoOpenWorkshopId === selected.workshop_id ? initialMeeting : null}
+        initialTopic={autoOpenWorkshopId === selected.workshop_id ? initialTopic : null}
         onBack={() => { setSelected(null); setContent([]); setProgram(null); setPlayingId(null) }}
         track={track}
       />
