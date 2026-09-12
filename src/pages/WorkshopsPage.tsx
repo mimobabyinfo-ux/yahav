@@ -172,7 +172,7 @@ function WaitlistButton({ ws, compact = false }: { ws: WorkshopExt; compact?: bo
       className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-60 ${compact ? 'py-2.5' : 'py-3.5'}`}
       style={{ background: '#E7C78A' }}>
       <Bell className="w-4 h-4" />
-      {state === 'saving' ? 'רגע...' : 'עדכנו אותי כשייפתח מחזור'}
+      {state === 'saving' ? 'רגע...' : 'עדכנו אותי כשייפתח'}
     </button>
   )
 }
@@ -634,7 +634,7 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
                         <button onClick={() => openProduct(ws)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28]"
                           style={{ background: '#E7C78A' }}>
-                          <CalendarDays className="w-4 h-4" /> לבחירת מחזור והרשמה
+                          <CalendarDays className="w-4 h-4" /> להרשמה
                         </button>
                       ) : wsCohorts.length === 0 && ws.waitlist_enabled ? (
                         <WaitlistButton ws={ws} compact />
