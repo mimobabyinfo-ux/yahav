@@ -26,7 +26,9 @@ export type UserProfile = {
    *  'course_purchase' = the account was created automatically when she
    *  bought a digital course, so she may have no baby details and no
    *  interest in the tracker — a paying customer, not a lapsed signup. */
-  acquisition_source: 'app' | 'course_purchase' | null
+  /** 'instagram' etc. come from ?src=<name> on the link she arrived by
+   *  (App.tsx), stamped once on a fresh profile. */
+  acquisition_source: 'app' | 'course_purchase' | 'instagram' | string | null
   staff_notes: string | null
   last_active: string | null
   /** First / last time she was seen running the app from her home screen

@@ -63,11 +63,18 @@ const isPartnerPage = new URLSearchParams(window.location.search).has('partner')
 // profile to attach it to (claim_referral, below). Stripped from the URL
 // so it does not survive into a share or a bookmark.
 const REF_LS_KEY = 'mimo_ref_code'
+// ?src=<channel> (e.g. the Instagram post's link, 22.9.26): remembered the
+// same way and stamped on her profile as acquisition_source once, so we
+// can count how many mothers a post actually brought.
+const SRC_LS_KEY = 'mimo_src'
 {
-  const ref = new URLSearchParams(window.location.search).get('ref')
-  if (ref) {
-    try { localStorage.setItem(REF_LS_KEY, ref.trim().toUpperCase()) } catch { /* private mode */ }
-    const u = new URL(window.location.href); u.searchParams.delete('ref')
+  const params = new URLSearchParams(window.location.search)
+  const ref = params.get('ref')
+  const src = params.get('src')
+  if (ref) { try { localStorage.setItem(REF_LS_KEY, ref.trim().toUpperCase()) } catch { /* private mode */ } }
+  if (src) { try { localStorage.setItem(SRC_LS_KEY, src.trim().toLowerCase().slice(0, 32)) } catch { /* private mode */ } }
+  if (ref || src) {
+    const u = new URL(window.location.href); u.searchParams.delete('ref'); u.searchParams.delete('src')
     window.history.replaceState({}, '', u.pathname + (u.search || '') + u.hash)
   }
 }
@@ -184,6 +191,21 @@ function AppInner() {
       track('referral_claim', { result: String(data) })
     })
   }, [user, profile, isGuest]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // acquisition_source from ?src=: only onto a profile that has none yet
+  // (a mother who has been here for months did not "come from" the post).
+  useEffect(() => {
+    if (!user || !profile || isGuest) return
+    let src: string | null = null
+    try { src = localStorage.getItem(SRC_LS_KEY) } catch { return }
+    if (!src) return
+    try { localStorage.removeItem(SRC_LS_KEY) } catch { /* */ }
+    if (profile.acquisition_source && profile.acquisition_source !== 'app') return
+    const ageMs = Date.now() - new Date(profile.created_at).getTime()
+    if (ageMs > 24 * 3600_000) return
+    supabase.from('user_profiles').update({ acquisition_source: src }).eq('id', user.id)
+      .then(({ error }) => { if (error) console.error('[src]', error) })
+  }, [user, profile, isGuest])
 
   // "קיבלת 30 ₪" — Brenda 12.9.26. Promo credits (מבצע מסך הבית, חברה
   // מביאה חברה) are granted by DB triggers; nobody tells her. So once per
