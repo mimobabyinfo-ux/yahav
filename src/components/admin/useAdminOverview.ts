@@ -329,7 +329,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     if (loading) {
       return { candidates: [], unknownDobCount: 0, targetTitle: null, fromMonths: 2.5, toMonths: 6 }
     }
-    return deriveMegalimCandidates({
+    const r = deriveMegalimCandidates({
       workshops,
       cohorts,
       leads: leads.map(l => ({ ...l, cohort_id: leadCohortIds.get(l.id) ?? null })),
@@ -338,7 +338,11 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
       profiles: profileDobs,
       today: todayIsrael(),
     })
-  }, [loading, workshops, cohorts, leads, leadCohortIds, formDefs, formSubs, profileDobs])
+    // Brenda 14.9.26: "אופציה לרשום לא רלוונטי ושיעלם". Persisted in
+    // admin_task_dismissals under `megalim:<lead id>`, same table as the
+    // task טופל, so it survives a refresh and any device. Undo deletes it.
+    return { ...r, candidates: r.candidates.filter(c => !dismissals.has(`megalim:${c.leadId}`)) }
+  }, [loading, workshops, cohorts, leads, leadCohortIds, formDefs, formSubs, profileDobs, dismissals])
 
   const storeProducts = useMemo(
     () => workshops.filter(w => w.is_active && w.workshop_type != null),

@@ -60,6 +60,26 @@ function shortDate(iso: string): string {
   return new Date(iso + 'T00:00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })
 }
 
+/** Baby's age on a given date, the way Brenda says it: months, then weeks
+ *  for the remainder. Whole months are counted by calendar (born 3.5 →
+ *  one month on 3.6), the leftover days as weeks. */
+function ageOn(dob: string, at: string): string {
+  const b = new Date(dob + 'T00:00:00')
+  const d = new Date(at + 'T00:00:00')
+  if (d < b) {
+    const weeks = Math.round((b.getTime() - d.getTime()) / (7 * 86_400_000))
+    return weeks <= 0 ? 'ביום הלידה' : `${weeks === 1 ? 'שבוע' : `${weeks} שבועות`} לפני הלידה`
+  }
+  let months = (d.getFullYear() - b.getFullYear()) * 12 + (d.getMonth() - b.getMonth())
+  const anchor = new Date(b); anchor.setMonth(b.getMonth() + months)
+  if (anchor > d) { months--; anchor.setMonth(anchor.getMonth() - 1) }
+  const weeks = Math.floor((d.getTime() - anchor.getTime()) / (7 * 86_400_000))
+  const m = months === 0 ? '' : months === 1 ? 'חודש' : months === 2 ? 'חודשיים' : `${months} חודשים`
+  const w = weeks === 0 ? '' : weeks === 1 ? 'שבוע' : weeks === 2 ? 'שבועיים' : `${weeks} שבועות`
+  if (!m && !w) return 'נולד/ה היום'
+  return m && w ? `${m} ו${w}` : (m || w)
+}
+
 function agoHe(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
   if (days <= 0) return 'היום'
@@ -100,6 +120,11 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
   const [proposed, setProposed] = useState<string | null>(null)
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [paidLeads, setPaidLeads] = useState<PaidLead[]>([])
+  // Brenda 14.9.26 (מפגש אבות): "כמה הבייבי יהיה בתאריך שאני מתכנן". The
+  // baby's date of birth comes from her `children` row in the app; a
+  // waitlist row with no app account, or a mother who never added the
+  // baby, shows nothing. Youngest child wins when there are several.
+  const [dobByUser, setDobByUser] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [showRegistered, setShowRegistered] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<WorkshopWaitlistRow | null>(null)
@@ -115,6 +140,19 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
     ])
     setPaidLeads((pl ?? []) as PaidLead[])
     setRows((w ?? []) as WorkshopWaitlistRow[])
+    const userIds = [...new Set(((w ?? []) as WorkshopWaitlistRow[]).map(r => r.user_id).filter((x): x is string => !!x))]
+    if (userIds.length > 0) {
+      const { data: kids } = await supabase.from('children').select('user_id, dob').in('user_id', userIds)
+      const m = new Map<string, string>()
+      for (const k of (kids ?? []) as { user_id: string; dob: string | null }[]) {
+        if (!k.dob) continue
+        const cur = m.get(k.user_id)
+        if (!cur || k.dob > cur) m.set(k.user_id, k.dob)
+      }
+      setDobByUser(m)
+    } else {
+      setDobByUser(new Map())
+    }
     setProposed((ws as { waitlist_proposed_date: string | null } | null)?.waitlist_proposed_date ?? null)
     setCohorts((cs ?? []) as Cohort[])
     setLoading(false)
@@ -250,12 +288,19 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
           const history = r.response && r.proposed_date && r.proposed_date !== proposed
             ? `${r.response === 'yes' ? 'יכלה' : 'לא יכלה'} ב-${shortDate(r.proposed_date)}`
             : null
+          const dob = r.user_id ? dobByUser.get(r.user_id) ?? null : null
+          const ageLine = dob
+            ? (proposed ? `ב-${shortDate(proposed)} התינוק/ת: ${ageOn(dob, proposed)}` : `התינוק/ת היום: ${ageOn(dob, todayIso())}`)
+            : null
           return (
             <div key={r.id} className="flex items-center gap-2 rounded-2xl px-3 py-2"
               style={{ background: s === 'yes' ? '#EEF3E8' : s === 'no' ? '#F6F1EE' : '#FBF8F3', opacity: muted ? 0.75 : 1 }}>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold truncate" style={{ fontSize: fs, color: '#443327' }}>{r.name}</p>
                 <p style={{ fontSize: 11, color: '#A2937D' }} dir="ltr">{r.phone || r.email || 'אין פרטי קשר'}</p>
+                {ageLine && (
+                  <p className="font-semibold" style={{ fontSize: 11, color: '#8A6A2F' }}>{ageLine}</p>
+                )}
                 <p style={{ fontSize: 10.5, color: '#BCAE99' }}>
                   ביקשה {agoHe(r.created_at)}
                   {s === 'sent' && r.notified_at && ` · נשלח ${agoHe(r.notified_at)}${r.proposed_date ? '' : ' (בלי תאריך רשום)'}`}

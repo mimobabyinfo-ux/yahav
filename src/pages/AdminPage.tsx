@@ -6898,6 +6898,23 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
   // always displays the visible/total split so the user sees exactly
   // what an action will hit. Reset on tab switch (component unmount).
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Brenda 14.9.26: "מחכה לך: אופציה לסמן כטופל ואז שיעלם". Persisted in
+  // admin_task_dismissals as `inbox:<group>:<lead id>`, so the row stays
+  // hidden on every device until she restores it. Only the inbox hides
+  // it; the registration itself is untouched everywhere else.
+  const [inboxDone, setInboxDone] = useState<Set<string>>(new Set())
+  const [inboxRunning, setInboxRunning] = useState<string | null>(null)
+  async function markInboxDone(group: string, leadId: string) {
+    const key = `inbox:${group}:${leadId}`
+    setInboxRunning(key)
+    await supabase.from('admin_task_dismissals').upsert({ task_key: key, dismissed_at: new Date().toISOString() }, { onConflict: 'task_key' })
+    setInboxDone(prev => new Set(prev).add(key))
+    setInboxRunning(null)
+  }
+  async function restoreInbox() {
+    await supabase.from('admin_task_dismissals').delete().like('task_key', 'inbox:%')
+    setInboxDone(new Set())
+  }
 
   function toggleSelect(id: string) {
     setSelected(prev => {
@@ -6925,11 +6942,13 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
   }
 
   const load = useCallback(async () => {
-    const [{ data: l }, { data: w }, { data: c }] = await Promise.all([
+    const [{ data: l }, { data: w }, { data: c }, { data: dm }] = await Promise.all([
       supabase.from('registration_leads').select('*, workshops:selected_workshop_id(title)').order('created_at', { ascending: false }),
       supabase.from('workshops').select('*').order('display_order'),
       supabase.from('workshop_cohorts').select('*').order('start_date', { ascending: false }),
+      supabase.from('admin_task_dismissals').select('task_key').like('task_key', 'inbox:%'),
     ])
+    setInboxDone(new Set(((dm ?? []) as { task_key: string }[]).map(d => d.task_key)))
     // Brenda 11.8.26: a מומש registration with no cohort is an old
     // row from before cohorts existed — it can never become current,
     // so it stays out of the list AND out of every count on this page.
@@ -7278,18 +7297,22 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
       const dd = String(d.getDate()).padStart(2, '0')
       return `${y}-${m}-${dd}`
     })()
+    let hidden = 0
     for (const l of leads) {
       const eff = effectiveStatus(l, cohortById)
       const gap = gapByLeadId.get(l.id)
-      if (eff === 'pending') pending.push(l)
-      if (eff === 'paid' && l.selected_workshop_id && workshopIdsWithCohorts.has(l.selected_workshop_id) && !l.cohort_id) unassigned.push(l)
+      if (eff === 'pending') { if (inboxDone.has(`inbox:q2:${l.id}`)) hidden++; else pending.push(l) }
+      if (eff === 'paid' && l.selected_workshop_id && workshopIdsWithCohorts.has(l.selected_workshop_id) && !l.cohort_id) {
+        if (inboxDone.has(`inbox:q3:${l.id}`)) hidden++; else unassigned.push(l)
+      }
       if (eff === 'paid' && gap && !gap.isFilled) {
+        if (inboxDone.has(`inbox:q1:${l.id}`)) { hidden++; continue }
         const c = l.cohort_id ? cohortById.get(l.cohort_id) : null
         if (c && c.start_date <= soonLimit) q1urgent.push(l)
         else q1quiet.push(l)
       }
     }
-    return { pending, unassigned, q1urgent, q1quiet, total: pending.length + unassigned.length + q1urgent.length }
+    return { pending, unassigned, q1urgent, q1quiet, hidden, total: pending.length + unassigned.length + q1urgent.length }
   })()
   const unfilledByWorkshop = (() => {
     const m = new Map<string, number>()
@@ -7307,6 +7330,30 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
     else setWorkshopFilter(l.selected_workshop_id!)
     setShowAllAnyway(false)
   }
+
+  // Upcoming cohorts with the people in them (Brenda 14.9.26). Active,
+  // not started yet, soonest first. Paid = effective status paid; a
+  // pending row is shown too, marked, because she is a seat in flight.
+  const upcomingCohortRows = useMemo(() => {
+    const byCohort = new Map<string, { paid: RegistrationLead[]; pending: RegistrationLead[] }>()
+    for (const l of leads) {
+      if (!l.cohort_id) continue
+      const eff = effectiveStatus(l, cohortById)
+      if (eff !== 'paid' && eff !== 'pending') continue
+      const b = byCohort.get(l.cohort_id) ?? { paid: [], pending: [] }
+      ;(eff === 'paid' ? b.paid : b.pending).push(l)
+      byCohort.set(l.cohort_id, b)
+    }
+    return cohorts
+      .filter(c => c.is_active && !isCohortPast(c))
+      .sort((a, b) => a.start_date.localeCompare(b.start_date) || (a.start_time ?? '').localeCompare(b.start_time ?? ''))
+      .map(c => ({
+        cohort: c,
+        title: workshopById.get(c.workshop_id)?.title ?? 'סדנה',
+        paid: byCohort.get(c.id)?.paid ?? [],
+        pending: byCohort.get(c.id)?.pending ?? [],
+      }))
+  }, [leads, cohorts, cohortById, workshopById])
 
   // PR10 follow-up: non-urgent unfilled questionnaires (cohort further
   // than 7 days out, or no cohort date) collapse into one quiet footer
@@ -7347,6 +7394,15 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
                   שלחי תזכורת
                 </a>
               )}
+              <button
+                onClick={e => { e.stopPropagation(); markInboxDone('q1', l.id) }}
+                disabled={inboxRunning === `inbox:q1:${l.id}`}
+                className="whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1 rounded-xl disabled:opacity-40"
+                style={{ fontWeight: 700, fontSize: 13, color: '#4F5040', background: '#EDEDE6', padding: '6px 12px' }}
+                title="מסתיר מהרשימה הזו. ההרשמה עצמה לא משתנה"
+              >
+                <Check style={{ width: 14, height: 14 }} /> טופל
+              </button>
             </div>
           )
         })}
@@ -7528,6 +7584,15 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
                               </button>
                             </>
                           )}
+                          <button
+                            onClick={e => { e.stopPropagation(); markInboxDone(g.key, l.id) }}
+                            disabled={inboxRunning === `inbox:${g.key}:${l.id}`}
+                            className="whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1 rounded-xl disabled:opacity-40"
+                            style={{ fontWeight: 700, fontSize: 13, color: '#4F5040', background: '#EDEDE6', padding: '6px 12px' }}
+                            title="מסתיר מהרשימה הזו. ההרשמה עצמה לא משתנה"
+                          >
+                            <Check style={{ width: 14, height: 14 }} /> טופל
+                          </button>
                         </div>
                       )
                     })}
@@ -7546,6 +7611,58 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
               {renderQuietFooter(true)}
             </div>
           )}
+          {inboxGroups.hidden > 0 && (
+            <p style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
+              {inboxGroups.hidden === 1 ? 'פריט אחד סומן כטופל ומוסתר' : `${inboxGroups.hidden} פריטים סומנו כטופלו ומוסתרים`}
+              {' · '}
+              <button onClick={restoreInbox} className="hover:underline" style={{ fontWeight: 700, color: '#A35C3D' }}>החזרה של כולם</button>
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Brenda 14.9.26: "שיופיע לי בעמוד גם את המחזורים הקרובים עם הנרשמות
+          שנמצאות שם". Every active cohort that has not started yet, with
+          the names already in it, so she does not open each workshop to
+          count heads. Tap a name to drill into that registration. */}
+      {pickerMode && upcomingCohortRows.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-baseline gap-3">
+            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>מחזורים קרובים</h2>
+            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{upcomingCohortRows.length} מחזורים</span>
+          </div>
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+            {upcomingCohortRows.map(({ cohort, title, paid, pending }) => (
+              <div key={cohort.id} className="bg-white" style={{ border: '1px solid #E4DAD0', borderRadius: 18, padding: '14px 18px' }}>
+                <p className="font-bold" style={{ fontSize: 15, color: '#443327' }}>{title}</p>
+                <p className="mt-0.5 font-bold flex items-center gap-1" style={{ fontSize: 13, color: '#8A6A2F' }}>
+                  <CalendarDays style={{ width: 14, height: 14 }} />
+                  {cohortDateTimeLabel(cohort, { shortYear: true })}{cohort.label ? ` · ${cohort.label}` : ''}
+                </p>
+                <p className="mt-1 font-semibold" style={{ fontSize: 13, color: '#7B604C' }}>
+                  {paid.length} נרשמו{cohort.capacity ? ` מתוך ${cohort.capacity}` : ''}{pending.length > 0 ? ` · ${pending.length} ממתינות לתשלום` : ''}
+                </p>
+                {paid.length + pending.length === 0 ? (
+                  <p className="mt-2" style={{ fontSize: 13, color: '#A2937D' }}>עדיין אין נרשמות</p>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {paid.map(l => (
+                      <button key={l.id} onClick={() => drillToLead(l)} className="rounded-full hover:brightness-95"
+                        style={{ fontSize: 13, fontWeight: 600, color: '#4A3A28', background: '#F6ECD8', padding: '4px 10px' }}>
+                        {l.name}
+                      </button>
+                    ))}
+                    {pending.map(l => (
+                      <button key={l.id} onClick={() => drillToLead(l)} className="rounded-full hover:brightness-95" title="ממתינה לתשלום"
+                        style={{ fontSize: 13, fontWeight: 600, color: '#8B4A30', background: '#F5E2D8', padding: '4px 10px' }}>
+                        {l.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {/* ── Screen A / A1: header + the ONE chip row ── */}

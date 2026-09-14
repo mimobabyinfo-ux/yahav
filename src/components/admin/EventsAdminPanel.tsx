@@ -142,6 +142,8 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
   // cancels an event she had paid for, closed by hand when she gets a
   // seat somewhere else, because a Morning link cannot discount itself.
   const [credits, setCredits] = useState<OpenCredit[]>([])
+  // Brenda 14.9.26: "רשימה סגורה כזאת, לא מול העיניים כל הזמן".
+  const [creditsOpen, setCreditsOpen] = useState(false)
   // Registrants drill-down
   // Which registration row is asking "sure?". Deleting a person off a
   // list is not undoable, so it never happens on a single tap.
@@ -759,12 +761,16 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
 
       {credits.length > 0 && (
         <div className="bg-white rounded-3xl p-4 shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sand-800" style={{ fontSize: 15 }}>זיכויים פתוחים</h3>
-            <span className="text-[13px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#EADBDD', color: '#5E4938' }}>
-              {credits.length}
-            </span>
-          </div>
+          <button onClick={() => setCreditsOpen(v => !v)} className="w-full flex items-center justify-between text-right" aria-expanded={creditsOpen}>
+            <h3 className="font-bold text-sand-800 flex items-center gap-2" style={{ fontSize: 15 }}>
+              זיכויים פתוחים
+              <span className="text-[13px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#EADBDD', color: '#5E4938' }}>
+                {credits.length}
+              </span>
+            </h3>
+            <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: creditsOpen ? 'rotate(180deg)' : 'none' }} />
+          </button>
+          {creditsOpen && (<>
           <p className="text-xs text-sand-500">
             ביטלו אחרי שכבר שילמו, או קיבלו זיכוי על תשלום עודף. הכסף נשאר אצלנו והן יכולות לממש אותו בהרשמה לאירוע. אם הזיכוי גדול מהאירוע, ההפרש נשאר להן לפעם הבאה. מסמנים מומש רק כשסגרת את זה מחוץ לאפליקציה.
           </p>
@@ -788,6 +794,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
               </button>
             </div>
           ))}
+          </>)}
         </div>
       )}
 

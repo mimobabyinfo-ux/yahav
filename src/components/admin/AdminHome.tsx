@@ -72,7 +72,8 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
   // Yahav 26.8.26: he asked for open/close on the home cards. The admin
   // home has grown into a column of tall lists and he does not need all of
   // them at once; the ones he has dealt with should get out of the way.
-  const [openMegalim, setOpenMegalim] = useState(true)
+  // Brenda 14.9.26: "שיהיה בדיפולט סגור ואם אני רוצה אני אפתח".
+  const [openMegalim, setOpenMegalim] = useState(false)
   const [openCapacity, setOpenCapacity] = useState(true)
   const [showAllMegalim, setShowAllMegalim] = useState(false)
   const [busyToggle, setBusyToggle] = useState<string | null>(null)
@@ -421,6 +422,17 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                     >
                       <MessageCircle className="w-3.5 h-3.5" /> וואטסאפ
                     </a>
+                    {/* Brenda 14.9.26: not every graduate is a candidate.
+                        Persisted, with the same 10-second undo as טופל. */}
+                    <button
+                      onClick={() => dismissDerived(`megalim:${c.leadId}`, `${c.name} לא רלוונטית למגלים`)}
+                      disabled={busyToggle === `megalim:${c.leadId}`}
+                      className="flex-shrink-0 font-bold rounded-xl transition-all hover:brightness-95 disabled:opacity-40"
+                      style={{ fontSize: 13, padding: '6px 12px', background: '#EDEDE6', color: '#4F5040' }}
+                      title="מסתיר אותה מהרשימה הזו לתמיד"
+                    >
+                      לא רלוונטי
+                    </button>
                   </div>
                 ))}
                 {!showAllMegalim && megalim.candidates.length > 3 && (

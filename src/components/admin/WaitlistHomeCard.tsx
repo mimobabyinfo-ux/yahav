@@ -22,8 +22,9 @@ type Group = { workshopId: string; title: string; count: number }
 export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (id: string) => void }) {
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
-  // Holds people who are waiting on him, so it opens by default.
-  const [open, setOpen] = useState(true)
+  // Brenda 14.9.26: "אני לא רוצה שבדיפולט זה יהיה פתוח". The count on
+  // the header still says whether anyone is waiting.
+  const [open, setOpen] = useState(false)
   // Yahav 11.9.26: "אם אני עובד כרגע רק על מפגש אבות אני רוצה לראות רק את
   // המפגש אבות". Each product folds on its own; the choice is remembered
   // per browser so it survives a refresh.
