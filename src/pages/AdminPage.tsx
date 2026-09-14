@@ -7331,9 +7331,10 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
     setShowAllAnyway(false)
   }
 
-  // Upcoming cohorts with the people in them (Brenda 14.9.26). Active,
-  // not started yet, soonest first. Paid = effective status paid; a
-  // pending row is shown too, marked, because she is a seat in flight.
+  // The NEXT cohort of each workshop, with the people in it (Brenda
+  // 14.9.26: "את המחזור הקרוב של כל סדנה, לא את כל הסדנאות הפתוחות").
+  // One card per workshop, soonest first. Paid = effective status paid;
+  // a pending row is shown too, marked, because she is a seat in flight.
   const upcomingCohortRows = useMemo(() => {
     const byCohort = new Map<string, { paid: RegistrationLead[]; pending: RegistrationLead[] }>()
     for (const l of leads) {
@@ -7344,8 +7345,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
       ;(eff === 'paid' ? b.paid : b.pending).push(l)
       byCohort.set(l.cohort_id, b)
     }
-    return cohorts
-      .filter(c => c.is_active && !isCohortPast(c))
+    return [...nextCohortByWorkshop.values()]
       .sort((a, b) => a.start_date.localeCompare(b.start_date) || (a.start_time ?? '').localeCompare(b.start_time ?? ''))
       .map(c => ({
         cohort: c,
@@ -7353,7 +7353,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
         paid: byCohort.get(c.id)?.paid ?? [],
         pending: byCohort.get(c.id)?.pending ?? [],
       }))
-  }, [leads, cohorts, cohortById, workshopById])
+  }, [leads, nextCohortByWorkshop, cohortById, workshopById])
 
   // PR10 follow-up: non-urgent unfilled questionnaires (cohort further
   // than 7 days out, or no cohort date) collapse into one quiet footer
@@ -7628,8 +7628,8 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
       {pickerMode && upcomingCohortRows.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-baseline gap-3">
-            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>מחזורים קרובים</h2>
-            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{upcomingCohortRows.length} מחזורים</span>
+            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>המחזור הקרוב בכל סדנה</h2>
+            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{upcomingCohortRows.length} סדנאות</span>
           </div>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
             {upcomingCohortRows.map(({ cohort, title, paid, pending }) => (
