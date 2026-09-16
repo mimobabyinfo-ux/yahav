@@ -12,12 +12,43 @@ import { useAuth } from '../contexts/AuthContext'
 const SOCIAL_INSTAGRAM = 'https://www.instagram.com/mimo.brenlevin/'
 const SOCIAL_FACEBOOK = 'https://www.facebook.com/mimo.brenlevin'
 
-// Cohort chip label: DD/MM + optional HH:MM. Compact — the year is
-// implied (only upcoming cohorts are ever returned by the RPC).
+// Cohort chip label: weekday + DD/MM + optional HH:MM. Compact — the
+// year is implied (only upcoming cohorts are ever returned by the RPC).
+// Brenda 16.9.26: the weekday, because the bot message no longer names
+// one (it changes between cohorts) and this is where she should see it.
+const WEEKDAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+
+function weekdayOf(iso: string): string {
+  return WEEKDAYS_HE[new Date(iso + 'T12:00:00').getDay()]
+}
+
+function ddmm(iso: string): string {
+  const [, m, d] = iso.split('-')
+  return `${d}/${m}`
+}
+
 function cohortDateLabel(c: PublicCohort): string {
-  const [, m, d] = c.start_date.split('-')
   const t = c.start_time ? ` · ${c.start_time.slice(0, 5)}` : ''
-  return `${d}/${m}${t}`
+  return `יום ${weekdayOf(c.start_date)} · ${ddmm(c.start_date)}${t}`
+}
+
+/**
+ * The meetings that break the "same weekday, every week" rhythm. The
+ * 23/09 עטופים cohort meets 23/09, then 27/09 (a Sunday), then skips two
+ * weeks for the holidays. Those are the dates a mother must see before
+ * she picks, so the page lists every meeting and marks the odd ones.
+ * Returns null when the cohort is a plain weekly run: nothing to say.
+ */
+function irregularMeetings(c: PublicCohort): { date: string; odd: boolean }[] | null {
+  const dates = c.meeting_dates ?? []
+  if (dates.length < 2) return null
+  const day0 = new Date(dates[0] + 'T12:00:00')
+  const out = dates.map((d, i) => {
+    const dt = new Date(d + 'T12:00:00')
+    const expected = new Date(day0); expected.setDate(day0.getDate() + 7 * i)
+    return { date: d, odd: dt.getTime() !== expected.getTime() }
+  })
+  return out.some(x => x.odd) ? out : null
 }
 
 function isValidEmail(s: string) {
@@ -642,6 +673,20 @@ export default function PublicRegisterPage() {
                                     </span>
                                     <span className="text-sm font-bold text-sand-800">{cohortDateLabel(c)}</span>
                                   </span>
+                                  {(() => {
+                                    const irr = irregularMeetings(c)
+                                    if (!irr) return null
+                                    return (
+                                      <span className="block mt-1 text-[11px] leading-snug text-sand-500">
+                                        המפגשים:{' '}
+                                        {irr.map((m, i) => (
+                                          <span key={m.date} className={m.odd ? 'font-bold text-sand-700' : ''}>
+                                            {ddmm(m.date)}{m.odd ? ` (${weekdayOf(m.date)})` : ''}{i < irr.length - 1 ? ', ' : ''}
+                                          </span>
+                                        ))}
+                                      </span>
+                                    )
+                                  })()}
                                   <span className="block mt-1 text-[13px] leading-tight">
                                     {c.label && <span className="text-sand-500">{c.label} · </span>}
                                     {full ? (

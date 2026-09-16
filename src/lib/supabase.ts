@@ -327,6 +327,9 @@ export type PublicCohort = {
   label: string | null
   capacity: number | null
   registered_count: number
+  /** Dates of the not-cancelled meetings, in order (16.9.26). Null when
+   *  the cohort has no meetings laid out yet. */
+  meeting_dates: string[] | null
 }
 
 // Task B: scoped discount link for a workshop. Not shown on the
