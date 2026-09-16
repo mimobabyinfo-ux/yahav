@@ -650,7 +650,9 @@ export default function PublicRegisterPage() {
                       return (
                         <div className="mt-3 pt-3 border-t border-mustard-200/60" onClick={e => e.stopPropagation()}>
                           <p className="text-xs font-semibold text-sand-700 mb-2">באיזה מחזור תרצי להשתתף?</p>
-                          <div className="grid grid-cols-2 gap-2">
+                          {/* One card per row on the phone (16.9.26): two columns
+                              wrapped "ימי רביעי · 23/09 · 10:00" onto three lines. */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {list.map(c => {
                               const spotsLeft = c.capacity != null ? c.capacity - c.registered_count : null
                               const full = spotsLeft != null && spotsLeft <= 0
@@ -661,7 +663,7 @@ export default function PublicRegisterPage() {
                                   type="button"
                                   disabled={full}
                                   onClick={() => setSelectedCohort(c.id)}
-                                  className={`text-right p-2.5 rounded-xl border-2 transition-all ${
+                                  className={`text-right px-3.5 py-3 rounded-xl border-2 transition-all ${
                                     full
                                       ? 'border-sand-200 bg-sand-50 opacity-50 cursor-not-allowed'
                                       : chosen
@@ -681,12 +683,12 @@ export default function PublicRegisterPage() {
                                     const irr = irregularMeetings(c)
                                     if (!irr) return null
                                     return (
-                                      <span className="block mt-1.5 text-[11px] leading-snug text-sand-600">
-                                        <span className="font-bold text-sand-700">במחזור הזה יש שינויים בתאריכים:</span>
-                                        <br />
+                                      <span className="block mt-2 pt-2 border-t border-sand-100 text-xs text-sand-600">
+                                        <span className="block font-bold text-sand-700 mb-1">במחזור הזה יש שינויים בתאריכים:</span>
                                         {irr.map((m, i) => (
-                                          <span key={m.date} className={m.odd ? 'font-bold text-sand-800' : ''}>
-                                            יום {weekdayOf(m.date)} {ddmm(m.date)}{i < irr.length - 1 ? ' · ' : ''}
+                                          <span key={m.date} className={`flex items-baseline gap-2 leading-relaxed ${m.odd ? 'font-bold text-sand-800' : ''}`}>
+                                            <span className="text-sand-400 font-normal w-14 flex-shrink-0">מפגש {i + 1}</span>
+                                            <span>יום {weekdayOf(m.date)} {ddmm(m.date)}</span>
                                           </span>
                                         ))}
                                       </span>
