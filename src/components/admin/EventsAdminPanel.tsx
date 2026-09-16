@@ -4,6 +4,7 @@ import { supabase, type CommunityEvent, type ServicePartner } from '../../lib/su
 import ConfirmDialog from './ConfirmDialog'
 import StalledEventPaymentsCard from './StalledEventPaymentsCard'
 import { useSavedLibrary, SavedPaymentLinkField, SavedLocationFields, SavedLibraryPanel } from './SavedPickers'
+import ImageUploadField from './ImageUploadField'
 import { getBabyAge } from '../../utils/dateUtils'
 import { tagDef } from '../../constants/communityTags'
 
@@ -46,6 +47,7 @@ type Draft = {
   vendor_name: string
   /** Instagram of the person running it (Brenda 16.9.26). Handle or url. */
   vendor_instagram: string
+  image_url: string
   is_active: boolean
 }
 
@@ -54,7 +56,7 @@ const EMPTY_DRAFT: Draft = {
   event_date: '', start_time: '', end_time: '',
   location: '', location_link: '', capacity: '', price: '0',
   payment_link: '', payment_link_pair: '', morning_product_id: '', morning_product_id_pair: '',
-  vendor_id: '', vendor_name: '', vendor_instagram: '', is_active: true,
+  vendor_id: '', vendor_name: '', vendor_instagram: '', image_url: '', is_active: true,
 }
 
 type OpenCredit = {
@@ -269,6 +271,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
       vendor_id: ev.vendor_id ?? '',
       vendor_name: ev.vendor_name ?? '',
       vendor_instagram: ev.vendor_instagram ?? '',
+      image_url: ev.image_url ?? '',
       is_active: ev.is_active,
     })
     setEditingId(ev.id)
@@ -305,6 +308,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
       vendor_id: draft.vendor_id || null,
       vendor_name: draft.vendor_name.trim() || null,
       vendor_instagram: normalizeInstagram(draft.vendor_instagram),
+      image_url: draft.image_url.trim() || null,
       is_active: draft.is_active,
       updated_at: new Date().toISOString(),
     }
@@ -1015,6 +1019,10 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                 <input value={draft.vendor_instagram} onChange={e => setDraft(d => ({ ...d, vendor_instagram: e.target.value }))} dir="ltr" placeholder="@shem או קישור" className={inputCls} />
                 <p style={{ fontSize: 12, color: '#A2937D', marginTop: 4 }}>יוצג לאמהות בכרטיס האירוע ובדף ההרשמה החיצוני.</p>
               </div>
+
+              {/* Brenda 16.9.26: upload from the computer, not only a url. Shown
+                  on the public registration page (?event=). */}
+              <ImageUploadField value={draft.image_url} onChange={url => setDraft(d => ({ ...d, image_url: url }))} folder="events" label="תמונה לאירוע" />
 
               <div>
                 <label className={labelCls}>תיאור מפורט</label>

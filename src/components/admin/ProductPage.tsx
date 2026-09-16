@@ -5,6 +5,8 @@ import { useWorkshopCategories } from '../../hooks/useWorkshopCategories'
 import CohortsModal from './CohortsModal'
 import WaitlistPanel from './WaitlistPanel'
 import WorkshopOffersPanel from './WorkshopOffersPanel'
+import { useSavedLibrary, SavedPaymentLinkField } from './SavedPickers'
+import ImageUploadField from './ImageUploadField'
 
 // Design handoff phase 4 — "a product is a page". Full-page product
 // view: breadcrumb, hero, missing-payment-link banner, user-side
@@ -54,6 +56,8 @@ export default function ProductPage({ workshopId, onBack }: Props) {
     })
   }
   const [showCohortsManager, setShowCohortsManager] = useState(false)
+  // Brenda 16.9.26: payment links picked by name here too, same library as events.
+  const lib = useSavedLibrary()
 
   const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, gift_card_enabled: false, waitlist_enabled: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '', access_months: '2' })
 
@@ -245,8 +249,16 @@ export default function ProductPage({ workshopId, onBack }: Props) {
               <div><label className={labelCls} style={labelStyle}>{isPhysical ? 'מלאי' : 'מקסימום נרשמות למחזור'}</label>
                 <input value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} type="number" className={inputCls} style={inputStyle} /></div>
             </div>
-            <div><label className={labelCls} style={labelStyle}>קישור תשלום</label>
-              <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} dir="ltr" className={inputCls} style={missingLink ? { ...inputStyle, border: '1.5px solid #C97A5A' } : inputStyle} /></div>
+            <div style={missingLink ? { outline: '1.5px solid #C97A5A', borderRadius: 12, padding: 4 } : undefined}>
+              <SavedPaymentLinkField
+                label="קישור תשלום"
+                value={form.payment_link}
+                onChange={url => setForm(f => ({ ...f, payment_link: url }))}
+                links={lib.links}
+                onSaveNew={(name, url) => lib.saveLink(name, url, Number(form.price) || null)}
+                defaultName={form.title.trim() ? `${form.title.trim()} ₪${Number(form.price) || ''}` : ''}
+              />
+            </div>
             <div><label className={labelCls} style={labelStyle}>קטגוריה בחנות (ריק = סדנה דיגיטלית)</label>
               <select value={form.workshop_type} onChange={e => setForm(f => ({ ...f, workshop_type: e.target.value }))} className={inputCls} style={inputStyle}>
                 <option value="">סדנה דיגיטלית (לא בחנות)</option>
@@ -300,12 +312,9 @@ export default function ProductPage({ workshopId, onBack }: Props) {
               <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} className={`${inputCls} resize-none`} style={inputStyle} /></div>
             <div><label className={labelCls} style={labelStyle}>סיכום / נקודות מפתח</label>
               <textarea value={form.summary} onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} rows={2} className={`${inputCls} resize-none`} style={inputStyle} /></div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><label className={labelCls} style={labelStyle}>תמונה (URL)</label>
-                <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} dir="ltr" className={inputCls} style={inputStyle} /></div>
-              <div><label className={labelCls} style={labelStyle}>סרטון (URL)</label>
-                <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} dir="ltr" className={inputCls} style={inputStyle} /></div>
-            </div>
+            <ImageUploadField value={form.image_url} onChange={url => setForm(f => ({ ...f, image_url: url }))} folder="products" label="תמונת המוצר" />
+            <div><label className={labelCls} style={labelStyle}>סרטון (URL)</label>
+              <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} dir="ltr" className={inputCls} style={inputStyle} /></div>
             <div><label className={labelCls} style={labelStyle}>WhatsApp למוצר</label>
               <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} dir="ltr" className={inputCls} style={inputStyle} /></div>
             {!isPhysical && (
