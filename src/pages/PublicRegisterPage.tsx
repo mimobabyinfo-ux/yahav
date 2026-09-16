@@ -29,7 +29,9 @@ function ddmm(iso: string): string {
 
 function cohortDateLabel(c: PublicCohort): string {
   const t = c.start_time ? ` · ${c.start_time.slice(0, 5)}` : ''
-  return `יום ${weekdayOf(c.start_date)} · ${ddmm(c.start_date)}${t}`
+  // "ימי חמישי", not "יום חמישי": Brenda 16.9.26, it says the cohort
+  // runs on Thursdays, not that one thing happens on a Thursday.
+  return `ימי ${weekdayOf(c.start_date)} · ${ddmm(c.start_date)}${t}`
 }
 
 /**
