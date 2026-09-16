@@ -673,15 +673,18 @@ export default function PublicRegisterPage() {
                                     </span>
                                     <span className="text-sm font-bold text-sand-800">{cohortDateLabel(c)}</span>
                                   </span>
-                                  {(() => {
+                                  {/* Brenda 16.9.26: only once she taps the cohort. All the
+                                      dates up front on every card "is too much". */}
+                                  {chosen && (() => {
                                     const irr = irregularMeetings(c)
                                     if (!irr) return null
                                     return (
-                                      <span className="block mt-1 text-[11px] leading-snug text-sand-500">
-                                        המפגשים:{' '}
+                                      <span className="block mt-1.5 text-[11px] leading-snug text-sand-600">
+                                        <span className="font-bold text-sand-700">במחזור הזה יש שינויים בתאריכים:</span>
+                                        <br />
                                         {irr.map((m, i) => (
-                                          <span key={m.date} className={m.odd ? 'font-bold text-sand-700' : ''}>
-                                            {ddmm(m.date)}{m.odd ? ` (${weekdayOf(m.date)})` : ''}{i < irr.length - 1 ? ', ' : ''}
+                                          <span key={m.date} className={m.odd ? 'font-bold text-sand-800' : ''}>
+                                            יום {weekdayOf(m.date)} {ddmm(m.date)}{i < irr.length - 1 ? ' · ' : ''}
                                           </span>
                                         ))}
                                       </span>
