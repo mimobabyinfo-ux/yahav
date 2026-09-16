@@ -63,6 +63,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
  * extra_hold_expires_at, and confirm_event_payment_for_user turns it into
  * a seat exactly the way the thank-you page does.
  *
+ * v18 (16.9.26): a product id that no event carries yet is LEARNED from
+ * the payer's live hold instead of refused. See the block in process().
+ *
  * COURSES are matched separately, after events: a lead by email, or
  * workshops.morning_product_id for a raw link (the lead is created).
  *
@@ -193,10 +196,38 @@ async function process(payload: MorningPayload): Promise<void> {
   // -- A - community event ----------------------------------------------
   if (productId) {
     const { data: evs } = await admin
-      .from("community_events").select("id, title, price")
+      .from("community_events").select("id, title, price, morning_product_id, morning_product_id_pair")
       .or(`morning_product_id.eq.${productId},morning_product_id_pair.eq.${productId}`)
 
-    const candidates = evs ?? []
+    let candidates = evs ?? []
+
+    // -- v18 (16.9.26): A PRODUCT ID NOBODY HAS TYPED YET ------------------
+    // The pelvic-floor lecture: saved with the standing 30 ₪ link but no
+    // product id. Every payment on it landed here as no_seat_match against
+    // the two OLDER events that did carry the id, and the mothers were
+    // told to "complete your payment" after paying. Brenda never wants to
+    // paste a product id again, so an unknown id now goes into LEARN mode:
+    // the candidates are the upcoming priced events that still lack an
+    // id, the held seat decides exactly as below, and once a seat is
+    // confirmed the id is written onto that event. The DB trigger
+    // community_events_sync_product_ids copies it to saved_payment_links,
+    // so the next event on the same link is born with it.
+    //
+    // Learn mode is stricter than the normal path: no "payer_new" (a raw
+    // link paid cold cannot tell us which event it was for), and the
+    // total must equal the price or twice it, or we do not learn and the
+    // payment falls through to the course matching below.
+    let learning = false
+    if (candidates.length === 0) {
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" })
+      const { data: fresh } = await admin
+        .from("community_events").select("id, title, price, morning_product_id, morning_product_id_pair")
+        .gt("price", 0).gte("event_date", today)
+        .or("morning_product_id.is.null,morning_product_id_pair.is.null")
+      candidates = fresh ?? []
+      learning = candidates.length > 0
+    }
+
     if (candidates.length > 0) {
       // ONE LINK, SEVERAL EVENTS. Brenda runs a standing deposit link and a
       // standing double-deposit link and hangs every meeting at that price
@@ -245,12 +276,14 @@ async function process(payload: MorningPayload): Promise<void> {
 
       // 1 - the payer is the registrant. The clean case, and the only one
       //     that survives several holds being open at once.
-      const mine = payer ? unpaid.filter(h => h.user_id === payer.id) : []
+      //     In learn mode only a LIVE hold of hers counts: an abandoned
+      //     hold from last week must not teach us a product id.
+      const mine = payer ? (learning ? live : unpaid).filter(h => h.user_id === payer.id) : []
       if (mine.length === 1) {
         eventId = mine[0].event_id
         userId = payer!.id
         via = `payer_hold_${payer!.via}`
-      } else if (mine.length > 1) {
+      } else if (mine.length > 1 && !learning) {
         console.error("[morning-paid] payer holds seats on several events at this price:", scope)
         await record("community_event", `ambiguous_payer_holds(${mine.length}):${scope}`)
         return
@@ -266,7 +299,7 @@ async function process(payload: MorningPayload): Promise<void> {
 
       // 3 - several people are mid-checkout. Guessing here is how the Bit
       //     bug happened. Refuse and let Brenda assign it by hand.
-      if (!userId && live.length > 1) {
+      if (!userId && live.length > 1 && !learning) {
         console.error("[morning-paid] several live holds, cannot tell whose:", scope)
         await record("community_event", `ambiguous_holds(${live.length}):${scope}`)
         return
@@ -275,18 +308,26 @@ async function process(payload: MorningPayload): Promise<void> {
       // 4 - nobody is mid-checkout and we know the payer: a link paid cold.
       //     Only possible when the link belongs to exactly one event; on a
       //     shared link there is nothing to say which meeting she meant.
-      if (!userId && live.length === 0 && payer && candidates.length === 1) {
+      if (!userId && live.length === 0 && payer && candidates.length === 1 && !learning) {
         eventId = candidates[0].id
         userId = payer.id
         via = `payer_new_${payer.via}`
       }
 
       if (!userId || !eventId) {
-        console.log("[morning-paid] event payment, cannot tell whose seat:", email, payerPhone, scope)
-        await record("community_event", `no_seat_match:${scope}`)
-        return
+        if (learning) {
+          // Nothing to learn from: no hold of hers on an id-less event.
+          // Not an event payment as far as we can tell; let the course
+          // path have a look, and say so in the log if it does not match.
+          console.log("[morning-paid] unknown product id, no learnable seat:", email, payerPhone, scope)
+        } else {
+          console.log("[morning-paid] event payment, cannot tell whose seat:", email, payerPhone, scope)
+          await record("community_event", `no_seat_match:${scope}`)
+          return
+        }
       }
 
+      if (userId && eventId) {
       // A total that is neither the price nor twice it means the link in
       // Morning is not the link Brenda thinks it is. Confirm the seat
       // anyway - she was charged, she is coming - but shout about it.
@@ -294,6 +335,14 @@ async function process(payload: MorningPayload): Promise<void> {
       const priceOff = paidTotal != null && price > 0
         && paidTotal !== price && paidTotal !== price * 2
       const flag = priceOff ? ` !price_mismatch(paid ${paidTotal} vs ${price})` : ""
+
+      // In learn mode a wrong total is disqualifying, not a warning: the
+      // whole point is to bind this product id to this event's link, and
+      // a payment that does not fit the price is not evidence of that.
+      if (learning && (paidTotal == null || priceOff)) {
+        await record("community_event", `learn_refused_price(paid ${paidTotal} vs ${price}):${titleOf(eventId)}`)
+        return
+      }
 
       const { data: result, error: confErr } = await admin.rpc("confirm_event_payment_for_user", {
         p_event_id: eventId, p_user_id: userId, p_amount: paidTotal,
@@ -304,8 +353,23 @@ async function process(payload: MorningPayload): Promise<void> {
         return
       }
       console.log("[morning-paid] event payment confirmed:", titleOf(eventId), via, result)
-      await record("community_event", `${result}:${titleOf(eventId)} (via ${via})${flag}`)
+
+      // Learn: bind the id to the event (and, via the trigger, to the
+      // saved link). Twice the price is the link for two.
+      let learned = ""
+      if (learning) {
+        const ev = candidates.find(e => e.id === eventId)
+        const col = paidTotal === price * 2 ? "morning_product_id_pair" : "morning_product_id"
+        if (ev && (ev as Record<string, unknown>)[col] == null) {
+          const { error: learnErr } = await admin
+            .from("community_events").update({ [col]: productId }).eq("id", eventId)
+          learned = learnErr ? ` !learn_failed:${learnErr.message}` : ` learned:${col}`
+        }
+      }
+
+      await record("community_event", `${result}:${titleOf(eventId)} (via ${via})${flag}${learned}`)
       return
+      }
     }
   }
 
@@ -399,9 +463,10 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "GET") {
     return json({
-      ok: true, alive: true, version: 16,
+      ok: true, alive: true, version: 18,
       handles: ["community_event", "digital_course", "workshop"],
       seat_match: ["payer_hold", "single_live_hold", "payer_new"],
+      learns_product_ids: true,
       shared_product_ids: true,
       responds: "immediately, work runs in background",
       hold_window_min: HOLD_WINDOW_MIN,

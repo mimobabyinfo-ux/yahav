@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, X, XCircle, UserPlus, MessageCircle, CalendarDays
 import { supabase, type CommunityEvent, type ServicePartner } from '../../lib/supabase'
 import ConfirmDialog from './ConfirmDialog'
 import StalledEventPaymentsCard from './StalledEventPaymentsCard'
+import { useSavedLibrary, SavedPaymentLinkField, SavedLocationFields, SavedLibraryPanel } from './SavedPickers'
 import { getBabyAge } from '../../utils/dateUtils'
 import { tagDef } from '../../constants/communityTags'
 
@@ -43,6 +44,8 @@ type Draft = {
   morning_product_id_pair: string
   vendor_id: string
   vendor_name: string
+  /** Instagram of the person running it (Brenda 16.9.26). Handle or url. */
+  vendor_instagram: string
   is_active: boolean
 }
 
@@ -51,7 +54,7 @@ const EMPTY_DRAFT: Draft = {
   event_date: '', start_time: '', end_time: '',
   location: '', location_link: '', capacity: '', price: '0',
   payment_link: '', payment_link_pair: '', morning_product_id: '', morning_product_id_pair: '',
-  vendor_id: '', vendor_name: '', is_active: true,
+  vendor_id: '', vendor_name: '', vendor_instagram: '', is_active: true,
 }
 
 type OpenCredit = {
@@ -98,6 +101,15 @@ type WaitlistRow = {
   user_profiles: { mother_name: string | null; phone_number: string | null } | null
 }
 
+/** "@name", "name", or a full url all become a canonical instagram url. */
+function normalizeInstagram(raw: string): string | null {
+  const v = raw.trim()
+  if (!v) return null
+  if (/^https?:\/\//i.test(v)) return v
+  const handle = v.replace(/^@/, '').replace(/^instagram\.com\//i, '').replace(/\/+$/, '')
+  return handle ? `https://instagram.com/${handle}` : null
+}
+
 function todayLocalIso(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -116,6 +128,8 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
   const [events, setEvents] = useState<CommunityEvent[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [vendors, setVendors] = useState<ServicePartner[]>([])
+  // Saved payment links + locations, picked by name in the form (16.9.26).
+  const lib = useSavedLibrary()
   // Vendor check-in link share modal (Phase 1 of the vendor flow).
   const [checkinEvent, setCheckinEvent] = useState<CommunityEvent | null>(null)
   // Yahav 11.9.26: a public registration link per event, for mothers with
@@ -254,6 +268,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
       morning_product_id_pair: ev.morning_product_id_pair ?? '',
       vendor_id: ev.vendor_id ?? '',
       vendor_name: ev.vendor_name ?? '',
+      vendor_instagram: ev.vendor_instagram ?? '',
       is_active: ev.is_active,
     })
     setEditingId(ev.id)
@@ -289,6 +304,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
       morning_product_id_pair: draft.morning_product_id_pair.trim() || null,
       vendor_id: draft.vendor_id || null,
       vendor_name: draft.vendor_name.trim() || null,
+      vendor_instagram: normalizeInstagram(draft.vendor_instagram),
       is_active: draft.is_active,
       updated_at: new Date().toISOString(),
     }
@@ -879,6 +895,8 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
           and this is the follow-up on them. */}
       <StalledEventPaymentsCard />
 
+      <SavedLibraryPanel lib={lib} />
+
       {/* ── Create / edit modal ── */}
       {showForm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>
@@ -928,14 +946,15 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                 </div>
               </div>
 
-              <div>
-                <label className={labelCls}>מיקום</label>
-                <input value={draft.location} onChange={e => setDraft(d => ({ ...d, location: e.target.value }))} placeholder="פארק הירקון / הסטודיו ברמת גן..." className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>לינק ניווט (Waze / Google Maps)</label>
-                <input value={draft.location_link} onChange={e => setDraft(d => ({ ...d, location_link: e.target.value }))} dir="ltr" placeholder="https://..." className={inputCls} />
-              </div>
+              {/* Brenda 16.9.26: the studio is saved once and picked by
+                  name; the navigation link comes with it. */}
+              <SavedLocationFields
+                name={draft.location}
+                link={draft.location_link}
+                onChange={({ name, link }) => setDraft(d => ({ ...d, location: name, location_link: link }))}
+                locations={lib.locations}
+                onSaveNew={lib.saveLocation}
+              />
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -950,33 +969,33 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
 
               {Number(draft.price) > 0 && (
                 <>
-                <div>
-                  <label className={labelCls}>לינק תשלום *</label>
-                  <input value={draft.payment_link} onChange={e => setDraft(d => ({ ...d, payment_link: e.target.value }))} dir="ltr" placeholder="https://..." className={inputCls} />
-                </div>
-                <div>
-                  <label className={labelCls}>קישור תשלום לשתיים</label>
-                  <input value={draft.payment_link_pair} onChange={e => setDraft(d => ({ ...d, payment_link_pair: e.target.value }))} dir="ltr" placeholder="https://..." className={inputCls} />
-                  <p style={{ fontSize: 12, color: '#A2937D', marginTop: 4 }}>
-                    לינק Morning בסכום כפול. אמא שמביאה מישהי איתה תגיע אליו במקום לשלם פעמיים. בלעדיו האפליקציה תגיד לה לעבור בקישור הרגיל פעמיים.
-                  </p>
-                </div>
-
-                {/* Brenda 17.8.26: this is what lets Bit come back. With the
-                    product id here, Morning tells the server directly that
-                    the payment happened — the browser no longer has to come
-                    home for a seat to be confirmed. Without it the event
-                    still works, it just depends on the thank-you page. */}
-                <div className="rounded-xl p-3" style={{ background: '#FAF7F1' }}>
-                  <label className={labelCls}>מזהה מוצר ב-Morning (productId)</label>
-                  <input value={draft.morning_product_id} onChange={e => setDraft(d => ({ ...d, morning_product_id: e.target.value }))} dir="ltr" placeholder="למשל 4f2c…" className={inputCls} />
-                  <label className={labelCls} style={{ marginTop: 8 }}>מזהה המוצר של הקישור לשתיים</label>
-                  <input value={draft.morning_product_id_pair} onChange={e => setDraft(d => ({ ...d, morning_product_id_pair: e.target.value }))} dir="ltr" placeholder="אם יש קישור לשתיים" className={inputCls} />
-                  <p style={{ fontSize: 12, color: '#A2937D', marginTop: 6, lineHeight: 1.5 }}>
-                    עם המזהה הזה מורנינג מודיעה לנו ישירות שהתשלום עבר, גם אם האמא סגרה את הדפדפן או שילמה בביט.
-                    בלעדיו ההרשמה תאושר רק אם היא חוזרת לדף התודה.
-                  </p>
-                </div>
+                {/* Brenda 16.9.26: links are picked by NAME from the saved
+                    library. The Morning product id (17.8.26) is no longer
+                    typed here at all: it belongs to the link, the DB
+                    trigger copies it onto the event, and morning-paid v18
+                    learns it from the first payment on a link that does
+                    not have one yet. This is the fix for the pelvic-floor
+                    lecture, which was saved with the standing 30 ₪ link
+                    and no id, so every payment on it was logged as
+                    no_seat_match and the mothers were told to pay again. */}
+                <SavedPaymentLinkField
+                  label="לינק תשלום"
+                  required
+                  value={draft.payment_link}
+                  onChange={url => setDraft(d => ({ ...d, payment_link: url, morning_product_id: url === d.payment_link ? d.morning_product_id : '' }))}
+                  links={lib.links}
+                  onSaveNew={(name, url) => lib.saveLink(name, url, Number(draft.price) || null)}
+                  defaultName={draft.title.trim() ? `${draft.title.trim()} ₪${Number(draft.price) || ''}` : ''}
+                />
+                <SavedPaymentLinkField
+                  label="לינק תשלום לשתיים"
+                  value={draft.payment_link_pair}
+                  onChange={url => setDraft(d => ({ ...d, payment_link_pair: url, morning_product_id_pair: url === d.payment_link_pair ? d.morning_product_id_pair : '' }))}
+                  links={lib.links}
+                  onSaveNew={(name, url) => lib.saveLink(name, url, (Number(draft.price) || 0) * 2 || null)}
+                  defaultName={draft.title.trim() ? `${draft.title.trim()} (זוג) ₪${(Number(draft.price) || 0) * 2 || ''}` : ''}
+                  hint="לינק Morning בסכום כפול. אמא שמביאה מישהי איתה תגיע אליו במקום לשלם פעמיים. בלעדיו האפליקציה תגיד לה לעבור בקישור הרגיל פעמיים."
+                />
                 </>
               )}
 
@@ -991,10 +1010,15 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                 <label className={labelCls}>או שם מנחה חופשי</label>
                 <input value={draft.vendor_name} onChange={e => setDraft(d => ({ ...d, vendor_name: e.target.value }))} placeholder="למשל: ד״ר מיכל כהן" className={inputCls} />
               </div>
+              <div>
+                <label className={labelCls}>אינסטגרם של המנחה</label>
+                <input value={draft.vendor_instagram} onChange={e => setDraft(d => ({ ...d, vendor_instagram: e.target.value }))} dir="ltr" placeholder="@shem או קישור" className={inputCls} />
+                <p style={{ fontSize: 12, color: '#A2937D', marginTop: 4 }}>יוצג לאמהות בכרטיס האירוע ובדף ההרשמה החיצוני.</p>
+              </div>
 
               <div>
-                <label className={labelCls}>תיאור</label>
-                <textarea rows={3} value={draft.description} onChange={e => setDraft(d => ({ ...d, description: e.target.value }))} placeholder="מה הולך להיות, מה להביא, למי זה מתאים..." className={`${inputCls} resize-none`} />
+                <label className={labelCls}>תיאור מפורט</label>
+                <textarea rows={7} value={draft.description} onChange={e => setDraft(d => ({ ...d, description: e.target.value }))} placeholder={'מה הולך להיות במפגש, למי זה מתאים, מה להביא, על המנחה.\nשורה ריקה בין פסקאות נשמרת כמו שהיא.'} className={`${inputCls} resize-y`} />
               </div>
 
               <label className="flex items-center gap-2 cursor-pointer">

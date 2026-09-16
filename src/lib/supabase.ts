@@ -777,6 +777,8 @@ export type CommunityEvent = {
   morning_product_id_pair: string | null
   vendor_id: string | null
   vendor_name: string | null
+  /** Instagram url of the person running the event (16.9.26). */
+  vendor_instagram: string | null
   image_url: string | null
   is_active: boolean
   created_at: string
@@ -800,6 +802,7 @@ export type CommunityEventRow = {
   price: number
   payment_link: string | null
   vendor_name: string | null
+  vendor_instagram: string | null
   image_url: string | null
   /** Morning link priced for two, used when she brings exactly one guest. */
   payment_link_pair: string | null

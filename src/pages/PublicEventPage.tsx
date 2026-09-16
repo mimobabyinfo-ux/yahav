@@ -36,6 +36,8 @@ type PublicEvent = {
   location_link: string | null
   price: number
   image_url: string | null
+  vendor_name: string | null
+  vendor_instagram: string | null
   is_open: boolean
 }
 
@@ -245,6 +247,19 @@ export default function PublicEventPage({ eventId }: { eventId: string }) {
                 </p>
               )}
             </div>
+            {ev.vendor_name && (
+              <p className="text-sm text-sand-700">
+                בהנחיית {ev.vendor_name}
+                {ev.vendor_instagram && (
+                  <> · <a href={ev.vendor_instagram} target="_blank" rel="noopener noreferrer" className="underline">אינסטגרם</a></>
+                )}
+              </p>
+            )}
+            {!ev.vendor_name && ev.vendor_instagram && (
+              <p className="text-sm text-sand-700">
+                <a href={ev.vendor_instagram} target="_blank" rel="noopener noreferrer" className="underline">לאינסטגרם של המנחה</a>
+              </p>
+            )}
             {ev.description && (
               <p className="text-sm text-sand-600 leading-relaxed whitespace-pre-line">{ev.description}</p>
             )}

@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
-import { MapPin, Clock, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft } from 'lucide-react'
+import { MapPin, Clock, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft, Instagram } from 'lucide-react'
 import { supabase, type CommunityEventRow, type MyWaitlist, type MyCredit } from '../../lib/supabase'
 import { useTracker } from '../../hooks/useTracker'
 import { MimoLeafPair } from '../MimoLeaf'
@@ -833,15 +833,25 @@ export default function EventsTab() {
           {expanded && (
             <div className="mt-3 pt-3 border-t border-sand-200 space-y-2">
               {ev.description && (
-                <p className="text-xs text-sand-600 leading-relaxed whitespace-pre-line">{ev.description}</p>
+                <p className="text-[13px] text-sand-700 leading-relaxed whitespace-pre-line">{ev.description}</p>
               )}
-              {ev.location_link && (
-                <a href={ev.location_link} target="_blank" rel="noopener noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-600">
-                  <ExternalLink className="w-3 h-3" /> ניווט למיקום
-                </a>
-              )}
+              {/* Brenda 16.9.26: the vendor's Instagram, next to the map link. */}
+              <div className="flex items-center gap-4 flex-wrap">
+                {ev.location_link && (
+                  <a href={ev.location_link} target="_blank" rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-600">
+                    <ExternalLink className="w-3 h-3" /> ניווט למיקום
+                  </a>
+                )}
+                {ev.vendor_instagram && (
+                  <a href={ev.vendor_instagram} target="_blank" rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-600">
+                    <Instagram className="w-3 h-3" /> {ev.vendor_name ? `${ev.vendor_name} באינסטגרם` : 'לאינסטגרם של המנחה'}
+                  </a>
+                )}
+              </div>
             </div>
           )}
         </div>
