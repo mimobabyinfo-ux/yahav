@@ -614,6 +614,18 @@ export default function PublicRegisterPage() {
                         ) : (
                           w.price != null && <p className="text-xs font-bold text-mustard-600 mt-0.5">₪{w.price}</p>
                         )}
+                        {/* Brenda 16.9.26: where it meets, tappable into Maps / Waze. */}
+                        {w.location && (
+                          w.location_link ? (
+                            <a href={w.location_link} target="_blank" rel="noopener noreferrer"
+                              onClick={e => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 mt-1 text-xs font-semibold text-mustard-700 underline underline-offset-2">
+                              📍 {w.location}
+                            </a>
+                          ) : (
+                            <p className="mt-1 text-xs text-sand-600">📍 {w.location}</p>
+                          )
+                        )}
                       </div>
                       {!locked && w.description && (
                         <button

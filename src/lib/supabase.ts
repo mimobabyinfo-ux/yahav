@@ -239,6 +239,9 @@ export type Workshop = {
   workshop_type: string | null
   image_url: string | null
   video_url: string | null
+  /** Where it meets, by name + navigation link (16.9.26). Public page shows a pin. */
+  location: string | null
+  location_link: string | null
   category_id: string | null
   tags: string[] | null
   price: number | null

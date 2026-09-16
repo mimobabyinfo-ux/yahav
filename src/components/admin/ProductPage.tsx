@@ -5,7 +5,7 @@ import { useWorkshopCategories } from '../../hooks/useWorkshopCategories'
 import CohortsModal from './CohortsModal'
 import WaitlistPanel from './WaitlistPanel'
 import WorkshopOffersPanel from './WorkshopOffersPanel'
-import { useSavedLibrary, SavedPaymentLinkField } from './SavedPickers'
+import { useSavedLibrary, SavedPaymentLinkField, SavedLocationFields } from './SavedPickers'
 import ImageUploadField from './ImageUploadField'
 
 // Design handoff phase 4 — "a product is a page". Full-page product
@@ -59,7 +59,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
   // Brenda 16.9.26: payment links picked by name here too, same library as events.
   const lib = useSavedLibrary()
 
-  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, gift_card_enabled: false, waitlist_enabled: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '', access_months: '2' })
+  const [form, setForm] = useState({ title: '', description: '', summary: '', price: '', payment_link: '', image_url: '', video_url: '', location: '', location_link: '', stock_quantity: '', whatsapp_number: '', next_workshop_id: '', workshop_type: '', public_registration: false, gift_card_enabled: false, waitlist_enabled: false, linked_form_id: '', feedback_form_id: '', age_from: '', age_to: '', access_months: '2' })
 
   const load = useCallback(async () => {
     const [{ data: w }, { data: all }, { data: cs }, { data: leads }, { data: fs }] = await Promise.all([
@@ -86,6 +86,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
         title: ws.title, description: ws.description ?? '', summary: ws.summary ?? '',
         price: ws.price?.toString() ?? '', payment_link: ws.payment_link ?? '',
         image_url: ws.image_url ?? '', video_url: ws.video_url ?? '',
+        location: ws.location ?? '', location_link: ws.location_link ?? '',
         stock_quantity: ws.stock_quantity?.toString() ?? '',
         whatsapp_number: (ws as unknown as { whatsapp_number?: string }).whatsapp_number ?? '',
         next_workshop_id: ws.next_workshop_id ?? '', workshop_type: ws.workshop_type ?? '',
@@ -126,6 +127,8 @@ export default function ProductPage({ workshopId, onBack }: Props) {
       price: form.price ? parseFloat(form.price) : null,
       payment_link: form.payment_link || null,
       image_url: form.image_url || null,
+      location: form.location.trim() || null,
+      location_link: form.location_link.trim() || null,
       video_url: form.video_url || null,
       stock_quantity: form.stock_quantity ? parseInt(form.stock_quantity) : null,
       whatsapp_number: form.whatsapp_number || null,
@@ -315,6 +318,14 @@ export default function ProductPage({ workshopId, onBack }: Props) {
             <ImageUploadField value={form.image_url} onChange={url => setForm(f => ({ ...f, image_url: url }))} folder="products" label="תמונת המוצר" />
             <div><label className={labelCls} style={labelStyle}>סרטון (URL)</label>
               <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))} dir="ltr" className={inputCls} style={inputStyle} /></div>
+            {/* Brenda 16.9.26: a tappable location on the public register page. */}
+            <SavedLocationFields
+              name={form.location}
+              link={form.location_link}
+              onChange={({ name, link }) => setForm(f => ({ ...f, location: name, location_link: link }))}
+              locations={lib.locations}
+              onSaveNew={lib.saveLocation}
+            />
             <div><label className={labelCls} style={labelStyle}>WhatsApp למוצר</label>
               <input value={form.whatsapp_number} onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value }))} dir="ltr" className={inputCls} style={inputStyle} /></div>
             {!isPhysical && (
