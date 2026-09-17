@@ -19,6 +19,7 @@ import { hasOpenCourses } from '../components/dashboard/MyCoursesCard'
 import AgeGuideCard from '../components/dashboard/AgeGuideCard'
 import HomeAnnouncementsBanner from '../components/dashboard/HomeAnnouncementsBanner'
 import GraduateOfferModal from '../components/dashboard/GraduateOfferModal'
+import WhatsNewModal from '../components/dashboard/WhatsNewModal'
 import PendingPaymentStrip from '../components/dashboard/PendingPaymentStrip'
 import MimoLeaf from '../components/MimoLeaf'
 import PerkDetailsModal from '../components/PerkDetailsModal'
@@ -311,6 +312,10 @@ export default function DashboardPage({ onNavigate }: Props) {
         {/* Finished a workshop and has a discount waiting. Shows once,
             over everything, then never again. */}
         <GraduateOfferModal onNavigate={onNavigate} />
+
+        {/* Brenda 17.9.26: everything new since her last visit (events,
+            cohorts, flagged announcements), once, in one popup. */}
+        <WhatsNewModal onNavigate={onNavigate} />
 
         {/* Started paying for an event and never came back. One thin line,
             and nothing at all for everyone else. */}

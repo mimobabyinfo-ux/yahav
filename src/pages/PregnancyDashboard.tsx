@@ -13,6 +13,7 @@ import { pregnancyWeek, daysUntilDue } from '../utils/pregnancyWeek'
 import { PREGNANCY_REMINDER_TEMPLATES, PregnancyReminderTemplate } from '../data/pregnancyReminderTemplates'
 import { BUYING_SUBCATEGORIES, BuyingSubcategoryId } from '../data/buyingSubcategories'
 import type { Page } from '../App'
+import WhatsNewModal from '../components/dashboard/WhatsNewModal'
 
 type Props = { onNavigate: (page: Page) => void }
 type DashTab = 'medical' | 'buying' | 'reminders'
@@ -882,6 +883,9 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
         {dashTab === 'reminders' && (
           <CustomRemindersPanel currentWeek={week ?? undefined} />
         )}
+
+        {/* Brenda 17.9.26: everything new since her last visit, once, in one popup. */}
+        <WhatsNewModal onNavigate={onNavigate} />
 
         {/* ── Quick links + Graduation (always visible) ── */}
         <div className="grid grid-cols-2 gap-3 pt-1">

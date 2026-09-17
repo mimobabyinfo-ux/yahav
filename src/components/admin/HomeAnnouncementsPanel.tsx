@@ -9,7 +9,7 @@ import ConfirmDialog from './ConfirmDialog'
 // title + optional body/emoji, optional tap-through (store / benefits /
 // community / external URL), optional date window, on/off toggle.
 
-const EMPTY_FORM = { title: '', body: '', emoji: '', link_type: '', link_url: '', starts_at: '', ends_at: '' }
+const EMPTY_FORM = { title: '', body: '', emoji: '', link_type: '', link_url: '', starts_at: '', ends_at: '', popup: false }
 
 const LINK_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'ללא קישור (תצוגה בלבד)' },
@@ -58,6 +58,7 @@ export default function HomeAnnouncementsPanel() {
       link_url: a.link_url ?? '',
       starts_at: a.starts_at ?? '',
       ends_at: a.ends_at ?? '',
+      popup: !!a.popup_at,
     })
     setShowForm(true)
   }
@@ -80,6 +81,10 @@ export default function HomeAnnouncementsPanel() {
       link_url: form.link_type === 'url' ? form.link_url.trim() : null,
       starts_at: form.starts_at || null,
       ends_at: form.ends_at || null,
+      // Brenda 17.9.26: "להקפיץ בכניסה". Checking the box (or re-checking it
+      // after an edit) stamps now, so everyone who has not opened the app
+      // since sees it in the whats-new popup. Unchecking clears it.
+      popup_at: form.popup ? (editing?.popup_at ?? new Date().toISOString()) : null,
     }
     if (editing) {
       await supabase.from('home_announcements').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editing.id)
@@ -158,6 +163,13 @@ export default function HomeAnnouncementsPanel() {
               <input type="date" value={form.ends_at} onChange={e => setForm(f => ({ ...f, ends_at: e.target.value }))} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
             </div>
           </div>
+          <label className="flex items-start gap-2 cursor-pointer pt-1">
+            <input type="checkbox" checked={form.popup} onChange={e => setForm(f => ({ ...f, popup: e.target.checked }))} className="w-4 h-4 mt-0.5 accent-mustard-500" />
+            <span>
+              <span className="block text-sm text-sand-700 font-medium">להקפיץ בכניסה לאפליקציה</span>
+              <span className="block text-xs text-sand-400">כל אמא תראה את זה פעם אחת, בחלון "חדש במימו" בפעם הבאה שתיכנס. בלי הסימון זה רק הבאנר בדף הבית.</span>
+            </span>
+          </label>
           <div className="flex gap-2 pt-1">
             <button onClick={save} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50" style={{ background: '#C8A460', color: '#33281B' }}>
               {saving ? '...' : editing ? 'שמירה' : 'יצירה'}
@@ -183,6 +195,7 @@ export default function HomeAnnouncementsPanel() {
                 <p className="text-[13px] text-sand-500 truncate">
                   {LINK_OPTIONS.find(o => o.value === (a.link_type ?? ''))?.label}
                   {dateLabel(a) && ` · ${dateLabel(a)}`}
+                  {a.popup_at && ' · קופץ בכניסה'}
                 </p>
               </div>
               <button onClick={() => toggle(a)} className="flex-shrink-0" title={a.is_active ? 'פעיל. לחצי לכיבוי' : 'כבוי. לחצי להפעלה'}>

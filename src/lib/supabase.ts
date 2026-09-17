@@ -314,6 +314,7 @@ export type HomeAnnouncement = {
   ends_at: string | null   // YYYY-MM-DD
   is_active: boolean
   display_order: number
+  popup_at: string | null // set = also shown in the whats-new popup (WhatsNewModal) to anyone who has not opened the app since
   created_at: string
   updated_at: string
 }

@@ -780,7 +780,7 @@ export default function EventsTab() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
-                <p className="font-bold text-sand-800 text-sm leading-snug">{ev.title}</p>
+                <p className="font-bold text-sand-800 text-[15px] leading-snug">{ev.title}</p>
                 {/* Brenda 17.8.26: "leave the cost on the card top-left in
                     red, and nowhere else on the card." The price used to be
                     repeated on the guest row and inside the register button;
