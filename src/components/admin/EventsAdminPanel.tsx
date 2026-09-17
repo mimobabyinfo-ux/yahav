@@ -5,6 +5,7 @@ import ConfirmDialog from './ConfirmDialog'
 import StalledEventPaymentsCard from './StalledEventPaymentsCard'
 import { useSavedLibrary, SavedPaymentLinkField, SavedLocationFields, SavedLibraryPanel } from './SavedPickers'
 import ImageUploadField from './ImageUploadField'
+import EventDescription from '../community/EventDescription'
 import { getBabyAge } from '../../utils/dateUtils'
 import { tagDef } from '../../constants/communityTags'
 
@@ -1026,7 +1027,16 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
 
               <div>
                 <label className={labelCls}>תיאור מפורט</label>
-                <textarea rows={7} value={draft.description} onChange={e => setDraft(d => ({ ...d, description: e.target.value }))} placeholder={'מה הולך להיות במפגש, למי זה מתאים, מה להביא, על המנחה.\nשורה ריקה בין פסקאות נשמרת כמו שהיא.'} className={`${inputCls} resize-y`} />
+                <textarea rows={7} value={draft.description} onChange={e => setDraft(d => ({ ...d, description: e.target.value }))} placeholder={'מה הולך להיות במפגש, למי זה מתאים, מה להביא, על המנחה.\n\n- שורה שמתחילה במקף הופכת לנקודה ברשימה\n- נושא – הסבר: הנושא שלפני המקף יודגש לבד\n**טקסט בין שתי כוכביות** יוצא מודגש\nשורה ריקה מפרידה בין פסקאות.'} className={`${inputCls} resize-y`} />
+                <p style={{ fontSize: 12, color: '#A2937D', marginTop: 4 }}>
+                  עיצוב: שורה שמתחילה ב-"- " היא נקודה ברשימה. בתוך נקודה, מה שלפני " – " מודגש לבד. **כוכביות** = מודגש. שורה ריקה = פסקה חדשה.
+                </p>
+                {draft.description.trim() && (
+                  <div className="mt-2 rounded-xl border-2 border-dashed border-sand-200 bg-[#FBF8F2] px-3 py-2.5">
+                    <p style={{ fontSize: 11, color: '#A2937D', marginBottom: 6 }}>ככה זה ייראה לאמהות:</p>
+                    <EventDescription text={draft.description} />
+                  </div>
+                )}
               </div>
 
               <label className="flex items-center gap-2 cursor-pointer">

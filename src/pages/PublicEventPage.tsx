@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { CalendarDays, MapPin, Clock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
+import EventDescription from '../components/community/EventDescription'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 
 // ?event=<id> — registering for a community event WITHOUT the app.
@@ -261,7 +262,7 @@ export default function PublicEventPage({ eventId }: { eventId: string }) {
               </p>
             )}
             {ev.description && (
-              <p className="text-sm text-sand-600 leading-relaxed whitespace-pre-line">{ev.description}</p>
+              <EventDescription text={ev.description} />
             )}
             <p className="font-bold text-sand-800">
               {ev.price > 0 ? `₪${ev.price}` : 'ללא עלות'}

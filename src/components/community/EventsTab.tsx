@@ -5,6 +5,7 @@ import { useTracker } from '../../hooks/useTracker'
 import { MimoLeafPair } from '../MimoLeaf'
 import MembershipCard from './MembershipCard'
 import EventRemindersCard from './EventRemindersCard'
+import EventDescription from './EventDescription'
 
 // "הקהילה של מימו" — user-facing community events. Two views:
 // רשימה (monthly-grouped cards + month chips) and יומן (month calendar
@@ -747,7 +748,7 @@ export default function EventsTab() {
             <p className="font-bold text-sand-800 text-sm leading-snug">{ev.title}</p>
             <p className="text-xs text-sand-500 mt-0.5">{meta}</p>
             {ev.description && (
-              <p className="text-xs text-sand-600 leading-relaxed whitespace-pre-line mt-1.5">{ev.description}</p>
+              <EventDescription text={ev.description} size="sm" className="mt-1.5 !text-sand-600" />
             )}
           </div>
         </div>
@@ -833,7 +834,7 @@ export default function EventsTab() {
           {expanded && (
             <div className="mt-3 pt-3 border-t border-sand-200 space-y-2">
               {ev.description && (
-                <p className="text-[13px] text-sand-700 leading-relaxed whitespace-pre-line">{ev.description}</p>
+                <EventDescription text={ev.description} />
               )}
               {/* Brenda 16.9.26: the vendor's Instagram, next to the map link. */}
               <div className="flex items-center gap-4 flex-wrap">
