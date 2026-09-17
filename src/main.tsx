@@ -23,12 +23,21 @@ import App from './App.tsx'
 // The hadController guard is what stops the very first visit — where the
 // same event fires because there was no worker at all — from reloading a
 // page that is already current.
-// The reload WAITS for her to leave the screen. A deploy can land at any
-// moment of any day, and a reload is a hard reset of everything typed
-// but not yet saved — half an onboarding form, a bottle she is in the
-// middle of logging. So a new worker taking over only arms the reload;
-// it fires when the tab goes to the background, and she comes back to
-// the new build with nothing lost.
+// The reload WAITS until she comes BACK to the screen. A deploy can land
+// at any moment of any day, and a reload is a hard reset of everything
+// typed but not yet saved — half an onboarding form, a bottle she is in
+// the middle of logging. So a new worker taking over only arms the
+// reload; it fires when the tab becomes visible again.
+//
+// 17.9.26 (טל מרום): the reload used to fire the moment the tab went to
+// the BACKGROUND. On an iPhone, tapping "אני מגיעה!" on a paid event
+// opens the payment tab, which backgrounds the app tab — so the armed
+// reload fired right there, in the same tap, and killed the
+// register_for_event request before it left the phone. She saw a blank
+// screen, then the home screen, and the server never heard from her
+// (13 times in one evening, zero registrations). Reloading on RETURN
+// loses nothing more than reloading on leave did, and cannot interrupt
+// an action that is what took her away.
 if ('serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller
   let reloading = false
@@ -42,15 +51,12 @@ if ('serviceWorker' in navigator) {
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadController) return
-    if (document.visibilityState === 'hidden') reloadNow()
-    else pending = true
+    pending = true
   })
 
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      if (pending) reloadNow()
-      return
-    }
+    if (document.visibilityState !== 'visible') return
+    if (pending) { reloadNow(); return }
     // A PWA on a phone is rarely closed, only backgrounded. Ask for a new
     // worker whenever she comes back to it, so "open the app tomorrow"
     // picks up today's deploy instead of waiting for a cold start.
