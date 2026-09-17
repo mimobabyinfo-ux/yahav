@@ -198,6 +198,12 @@ async function previewFor(url: URL): Promise<Preview> {
       description: 'התשלום התקבל. הקישור הזה מכניס אותך ישר לאפליקציה.',
     }
   }
+  if (q.get('legal') === 'cancellation') {
+    return {
+      title: 'מדיניות ביטולים של מימו',
+      description: 'ביטול הרשמה לסדנה, היעדרות ממפגש והרשמה מוקדמת במקדמה, בשפה פשוטה.',
+    }
+  }
   if (q.has('legal')) {
     return {
       title: 'המסמכים של מימו',

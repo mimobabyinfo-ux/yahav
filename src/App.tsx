@@ -115,11 +115,11 @@ const isPublicGiftCardPage = new URLSearchParams(window.location.search).has('gi
 // Public: the edge function creates her account. Sits before the auth gate.
 const publicEventId = new URLSearchParams(window.location.search).get('event')
 const welcomeLeadId = new URLSearchParams(window.location.search).get('welcome')
-// ?legal=privacy|terms|accessibility — the three documents Israeli law
+// ?legal=privacy|terms|accessibility|cancellation — the documents Israeli law
 // expects a consumer service to publish. Public by necessity: the signup
 // screen links to them before there is an account to render a shell for.
 const legalDocParam = new URLSearchParams(window.location.search).get('legal')
-const legalDoc = (['privacy', 'terms', 'accessibility'] as const)
+const legalDoc = (['privacy', 'terms', 'accessibility', 'cancellation'] as const)
   .find(d => d === legalDocParam) ?? null
 const isSettingsPage = new URLSearchParams(window.location.search).has('settings')
 

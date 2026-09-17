@@ -33,12 +33,13 @@ export const LEGAL_OWNER = {
 
 export const LEGAL_LAST_UPDATED = '18 באוגוסט 2026'
 
-export type LegalDocId = 'privacy' | 'terms' | 'accessibility'
+export type LegalDocId = 'privacy' | 'terms' | 'accessibility' | 'cancellation'
 
 export const LEGAL_TITLES: Record<LegalDocId, string> = {
   privacy: 'מדיניות פרטיות',
   terms: 'תנאי שימוש',
   accessibility: 'הצהרת נגישות',
+  cancellation: 'מדיניות ביטולים',
 }
 
 /** The short notice that appears next to the consent checkbox at signup.
@@ -47,6 +48,15 @@ export const LEGAL_TITLES: Record<LegalDocId, string> = {
 export const SIGNUP_CONSENT_SUMMARY =
   'הפרטים שאת ממלאת נשמרים אצל מימו כדי לנהל את החשבון שלך, את היומן של התינוק ואת ההרשמות לאירועים. ' +
   'המסירה אינה חובה חוקית, אבל בלעדיה אי אפשר לפתוח חשבון. אפשר לעיין בפרטים, לתקן אותם או למחוק את החשבון בכל רגע.'
+
+/** The cancellation policy has its own version stamp: the date the text
+ *  last changed. It is written onto the lead next to policy_accepted_at, so
+ *  a dispute can be settled against the wording she actually approved,
+ *  not whatever the page says today. Bump it whenever the text changes. */
+export const CANCELLATION_POLICY_VERSION = '18 בספטמבר 2026'
+
+export const CANCELLATION_CONSENT_LABEL =
+  'קראתי ואני מאשרת את מדיניות הביטולים וההרשמה המוקדמת'
 
 export const MARKETING_CONSENT_LABEL =
   'אשמח לקבל עדכונים על סדנאות, מפגשים והטבות בוואטסאפ או במייל (לא חובה, אפשר להסיר בכל רגע)'
@@ -173,4 +183,49 @@ ${P.legalName}
 דוא"ל: ${P.email}
 
 נשמח לקבל פניות, הערות והצעות לשיפור. נטפל בכל פנייה בהקדם.`,
+
+  // Brenda 17.9.26: "אני רוצה להוסיף את זה לדף הרשמה לפני מעבר לתשלום,
+  // כמו אישור תנאי תשלום, כדי שלא יהיה לי פאדיחות עם אמהות שנרשמו".
+  // Her wording, tidied: one timeline instead of two documents repeating
+  // it, the makeup sentence aligned with the rule the app enforces (two
+  // makeups, next two cohorts), the deposit as something arranged with
+  // her (the app treats any Morning payment as payment in full, so a
+  // deposit cannot be a self-serve button yet), and a line reserving the
+  // statutory cancellation right — for a distance sale, חוק הגנת הצרכן
+  // סעיף 14ג allows cancellation within 14 days of the transaction (and
+  // at least two business days before the service) for at most 5% or
+  // 100 NIS, and no policy can take that away.
+  cancellation: `עודכן לאחרונה: ${CANCELLATION_POLICY_VERSION}
+
+כדי שנוכל להעניק לך את החוויה הטובה ביותר ולשמור על היערכות מדויקת, אלה הכללים לביטול הרשמה לסדנה. "מועד הסדנה" הוא המפגש הראשון של המחזור שנרשמת אליו.
+
+## ביטול הרשמה לסדנה
+· **עד 7 ימים לפני מועד הסדנה:** ניתן לבטל ללא עלות, בניכוי דמי סליקה בלבד.
+· **בין 7 ל-4 ימים לפני מועד הסדנה:** הביטול כרוך בדמי ביטול בסך 250 ש"ח.
+· **פחות מ-4 ימים לפני מועד הסדנה:** לא ניתן לקבל החזר כספי.
+
+## היעדרות ממפגש
+· לא יינתן החזר כספי על היעדרות ממפגש בודד.
+· ניתן להשלים עד שני מפגשים בשני המחזורים העוקבים, על בסיס מקום פנוי ובהרשמה מראש דרך האפליקציה.
+
+## הרשמה מוקדמת ושמירת מקום
+· ניתן לשמור מקום בסדנה לפני התשלום המלא במקדמה בסך 250 ש"ח, בתיאום איתנו.
+· את יתרת התשלום יש להשלים עד 4 ימים לפני מועד הסדנה.
+· **ביטול עד 7 ימים לפני מועד הסדנה:** המקדמה תוחזר בניכוי דמי סליקה בלבד.
+· **ביטול בין 7 ל-4 ימים לפני מועד הסדנה:** המקדמה תשמש כדמי ביטול ולא תוחזר.
+· **ביטול פחות מ-4 ימים לפני מועד הסדנה:** לא ניתן לקבל החזר כספי.
+· אם התשלום המלא לא יושלם עד 4 ימים לפני מועד הסדנה, המקום לא יישמר והמקדמה לא תוחזר.
+
+## דמי סליקה
+דמי הסליקה הם העמלה שחברת הסליקה גובה על העסקה. הם נגבים בפועל ואינם מוחזרים.
+
+## אירועי קהילה
+המדיניות הזו חלה על סדנאות בלבד. באירועי קהילה, ביטול אחרי תשלום אינו מזכה בהחזר כספי אלא בזיכוי לשימוש באירועי קהילה אחרים, לפי הכללים שמופיעים באפליקציה.
+
+## זכויותייך לפי חוק
+המדיניות הזו אינה גורעת מזכויות הביטול שלך לפי חוק הגנת הצרכן, התשמ"א-1981, ותקנות הגנת הצרכן (ביטול עסקה). בכל מקרה של סתירה, הוראות החוק גוברות.
+
+## צריכה לשנות משהו?
+דברי איתנו. אנחנו תמיד עושות מאמץ למצוא פתרונות ומועדים חלופיים במידת האפשר.
+דוא"ל: ${P.email}`,
 }

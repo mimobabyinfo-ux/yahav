@@ -34,6 +34,10 @@ export type CustomerRegistration = {
   selected_workshop_id: string | null
   source: string | null
   created_at: string
+  /** When she ticked the cancellation-policy box on the registration page
+   *  (18.9.26 onwards), and which wording. null = older lead or admin-made. */
+  policy_accepted_at: string | null
+  policy_version: string | null
   workshop: { id: string; title: string; linked_form_id: string | null; price: number | null } | null
   cohort: WorkshopCohort | null
   /** The offer she registered through, when there was one — the paid
@@ -448,6 +452,8 @@ async function assembleProfile(cluster: {
     selected_workshop_id: l.selected_workshop_id,
     source: l.source,
     created_at: l.created_at,
+    policy_accepted_at: l.policy_accepted_at ?? null,
+    policy_version: l.policy_version ?? null,
     workshop: l.workshops ?? null,
     cohort: l.cohort_id ? cohortMap.get(l.cohort_id) ?? null : null,
     offer: l.offer_id ? offerMap.get(l.offer_id) ?? null : null,

@@ -1276,6 +1276,11 @@ function RegistrationHistoryRow({
           : <span className="text-sand-400">ללא מחזור</span>}
         <span>· נרשמה {new Date(reg.created_at).toLocaleDateString('he-IL')}</span>
         {reg.source && <span>· מקור: {reg.source}</span>}
+        {reg.policy_accepted_at && (
+          <span title={reg.policy_version ? `גרסת המדיניות: ${reg.policy_version}` : undefined}>
+            · אישרה מדיניות ביטולים {new Date(reg.policy_accepted_at).toLocaleDateString('he-IL')}
+          </span>
+        )}
       </p>
       {linkedFormId && (
         <p className="text-xs font-semibold" style={{ color: sub ? '#4F5040' : '#8B4A30' }}>

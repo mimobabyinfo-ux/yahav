@@ -5,6 +5,7 @@ import { initPixel, pixelTrack } from '../utils/metaPixel'
 import { captureAdAttribution, getAdAttribution } from '../utils/adAttribution'
 import { Instagram, Facebook } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { CANCELLATION_CONSENT_LABEL, CANCELLATION_POLICY_VERSION } from '../constants/legal'
 
 // Mimo social profiles — shown as quiet icons at the bottom of the
 // public registration page (both the general form and per-product
@@ -124,6 +125,11 @@ export default function PublicRegisterPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  // Brenda 17.9.26: the cancellation policy is approved on this page,
+  // before payment, the way the terms are approved at signup. Required
+  // for a workshop (dates, cohorts); a digital course has nothing to
+  // cancel by date, so the box is not shown there.
+  const [policyAccepted, setPolicyAccepted] = useState(false)
 
   function toggleExpand(id: string) {
     setExpanded(prev => {
@@ -323,6 +329,7 @@ export default function PublicRegisterPage() {
       const hasAvailable = list.some(c => c.capacity == null || c.registered_count < c.capacity)
       if (hasAvailable && !selectedCohort) e.cohort = 'יש לבחור מחזור'
     }
+    if (!isDigitalCourse && !policyAccepted) e.policy = 'כדי להמשיך צריך לאשר את מדיניות הביטולים'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -377,6 +384,7 @@ export default function PublicRegisterPage() {
         offer_token: offer.token,
         source: source || 'offer',
         ...getAdAttribution(),
+        ...(policyAccepted ? { policy_accepted_at: new Date().toISOString(), policy_version: CANCELLATION_POLICY_VERSION } : {}),
       })
       if (error) {
         console.error('[offer-submit] registration_leads insert error:', error)
@@ -414,6 +422,7 @@ export default function PublicRegisterPage() {
       cohort_id: selectedCohort || null,
       ...(source ? { source } : {}),
       ...getAdAttribution(),
+      ...(policyAccepted ? { policy_accepted_at: new Date().toISOString(), policy_version: CANCELLATION_POLICY_VERSION } : {}),
     })
     if (error) {
       setSubmitting(false)
@@ -732,6 +741,26 @@ export default function PublicRegisterPage() {
             </div>
             {errors.workshop && <p className="text-xs text-red-500 mt-1">{errors.workshop}</p>}
           </div>
+
+          {!isDigitalCourse && (
+            <div>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={policyAccepted}
+                  onChange={e => { setPolicyAccepted(e.target.checked); if (e.target.checked) setErrors(prev => { const n = { ...prev }; delete n.policy; return n }) }}
+                  className="mt-0.5 w-4 h-4 flex-shrink-0 accent-[#C8A460]"
+                />
+                <span className="text-[13px] leading-relaxed text-sand-700">
+                  {CANCELLATION_CONSENT_LABEL}{' '}
+                  <a href="/?legal=cancellation" target="_blank" rel="noopener noreferrer" className="underline font-semibold" style={{ color: '#8C7D6B' }}>
+                    לקריאת המדיניות
+                  </a>
+                </span>
+              </label>
+              {errors.policy && <p className="text-xs text-red-500 mt-1.5">{errors.policy}</p>}
+            </div>
+          )}
 
           {errors.submit && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-600">{errors.submit}</div>
