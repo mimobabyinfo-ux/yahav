@@ -1,0 +1,14 @@
+-- Yahav 18.9.26: "אם העברנו את זה ל-9 זה אומר שהראשונה תמיד יכולה להיכנס
+-- גם לא 24 שעות לפני, כי אנחנו יודעים בוודאות שיש מקום אחד."
+--
+-- The seats ABOVE the cohort's registration capacity (makeup_extra_seats, or
+-- whatever a capacity_override adds) can never be taken by a registration and
+-- do not depend on anyone's absence. So they are certain the moment a request
+-- is made, and the oldest requests get them immediately
+-- (allocate_makeups_guaranteed). Seats that open through absences are still
+-- decided 24 hours before the meeting (allocate_makeups), and so are the
+-- rejections. request_makeup / change_makeup_target / cancel_makeup_request
+-- call it, and allocate_makeups_due sweeps every future meeting hourly.
+-- (Applied through the Supabase MCP on 18.9.26; the full SQL is in the
+-- Supabase migration history under the same name.)
+select 1;
