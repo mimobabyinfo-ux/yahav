@@ -122,13 +122,25 @@ const legalDocParam = new URLSearchParams(window.location.search).get('legal')
 const legalDoc = (['privacy', 'terms', 'accessibility', 'cancellation'] as const)
   .find(d => d === legalDocParam) ?? null
 const isSettingsPage = new URLSearchParams(window.location.search).has('settings')
+// ?tab=community[&sub=events|bookings|members] — where a push notification
+// lands (push-sw.js navigates to the url in the payload). The event
+// reminders and the waitlist offer have sent this since August, and until
+// 18.9.26 nothing read it, so every push opened the home screen. The sub
+// tab goes through the same sessionStorage key the dashboard teaser uses.
+const deepTab = new URLSearchParams(window.location.search).get('tab')
+const deepSub = new URLSearchParams(window.location.search).get('sub')
+if (deepTab === 'community' && deepSub && ['events', 'bookings', 'members'].includes(deepSub)) {
+  try { sessionStorage.setItem('mimo_community_tab', deepSub) } catch { /* private mode */ }
+}
+if (deepTab) window.history.replaceState({}, '', window.location.pathname)
 
 const FORMS_LS_KEY = 'forms_last_seen'
 const REGS_LS_KEY = 'registrations_last_seen'
 
 function AppInner() {
   const { user, profile, loading, isGuest } = useAuth()
-  const [currentPage, setCurrentPage] = useState<Page>(isCoursePage ? 'pro' : (isGiftPage || isProductPage) ? 'workshops' : 'dashboard')
+  const [currentPage, setCurrentPage] = useState<Page>(
+    isCoursePage ? 'pro' : (isGiftPage || isProductPage) ? 'workshops' : deepTab === 'community' ? 'community' : 'dashboard')
   // Brenda 17.8.26: "when I go into nursing/sleep/bottle FROM the journal
   // and press back, I want to come back to the journal, not to the home
   // screen." The log pages are opened from two places, so back has to

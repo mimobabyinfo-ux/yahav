@@ -217,6 +217,16 @@ async function whatsappWindow(apiKey: string, contactId: string): Promise<{
 // version deliberately never says "app" first - it says her workshop lives
 // there, which is the reason she has to care.
 
+// Yahav 18.9.26: two things every workshop mother asked Brenda anyway,
+// so they go into the welcome itself. Where the content lives (the
+// graduation-cap icon beside the gear on the home screen, which appears
+// the moment her access is open), and that a missed meeting can be made
+// up in one of the next two cohorts, marked in the app as early as she
+// knows. Workshop variants only: a course has no meetings.
+const WA_WHERE_AND_MAKEUP = `איפה זה באפליקציה? בראש מסך הבית, ליד גלגל ההגדרות, יש אייקון של כובע סיום. שם הסדנה שלך: הסיכומים, התרגילים ולוח המפגשים.
+
+לא תוכלי להגיע לאחד המפגשים? סמני את זה בלוח המפגשים ובחרי מועד להשלמה באחד משני המחזורים הבאים. אפשר להשלים עד שני מפגשים, על בסיס מקום פנוי, וכדאי לסמן ברגע שאת יודעת.`
+
 function waText(v: Variant, name: string, title: string, link: string, owner: string, startLabel: string): string {
   const hi = firstName(name) ? `היי ${firstName(name)} 🤍` : "היי יקירה 🤍"
   const sign = owner ? `\n${owner}` : ""
@@ -240,6 +250,8 @@ ${link}
 
 ${link}
 
+${WA_WHERE_AND_MAKEUP}
+
 נתראה במפגש הבא 🤍${sign}`
   }
 
@@ -251,6 +263,8 @@ ${link}
 הקישור הבא פותח לך חשבון ומכניס אותך ישר אליהם:
 
 ${link}
+
+${WA_WHERE_AND_MAKEUP}
 
 בדרך תגלי גם יומן למעקב אחרי הבייבי ואת קהילת האמהות שלנו. נתראה במפגש הבא 🤍${sign}`
   }
@@ -264,6 +278,8 @@ ${link}
 
 ${link}
 
+${WA_WHERE_AND_MAKEUP}
+
 נתראה ב-${startLabel} 🤍${sign}`
   }
 
@@ -274,6 +290,8 @@ ${link}
 הקישור הבא פותח לך חשבון, ושווה להיכנס כבר עכשיו:
 
 ${link}
+
+${WA_WHERE_AND_MAKEUP}
 
 בדרך תגלי גם יומן למעקב אחרי הבייבי ואת קהילת האמהות שלנו. נתראה ב-${startLabel} 🤍${sign}`
   }
@@ -286,6 +304,8 @@ ${link}
 הקישור הבא מכניס אותך פנימה:
 
 ${link}
+
+${WA_WHERE_AND_MAKEUP}
 
 נתראה בקרוב 🤍${owner ? `\n${owner}` : ""}`
 }
@@ -345,6 +365,16 @@ function emailHtml(v: Variant, name: string, title: string, link: string, startL
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#8A8370;">
       שמרי את המייל הזה. הקישור ממתין לך ולא פג תוקף.
     </p>
+    ${v === "course" ? "" : `
+    <hr style="border:none;border-top:1px solid #EFE8DC;margin:24px 0;" />
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.8;color:#6E5836;">
+      <strong style="color:#3D2E20;">איפה זה באפליקציה?</strong>
+      בראש מסך הבית, ליד גלגל ההגדרות, יש אייקון של כובע סיום. שם הסדנה שלך: הסיכומים, התרגילים ולוח המפגשים.
+    </p>
+    <p style="margin:0;font-size:14px;line-height:1.8;color:#6E5836;">
+      <strong style="color:#3D2E20;">לא תוכלי להגיע לאחד המפגשים?</strong>
+      סמני את זה בלוח המפגשים ובחרי מועד להשלמה באחד משני המחזורים הבאים. אפשר להשלים עד שני מפגשים, על בסיס מקום פנוי, וכדאי לסמן ברגע שאת יודעת.
+    </p>`}
     <hr style="border:none;border-top:1px solid #EFE8DC;margin:24px 0;" />
     <p style="margin:0;font-size:14px;line-height:1.8;color:#6E5836;">${tail}</p>
     <p style="margin:20px 0 0;font-size:13px;color:#8A8370;">

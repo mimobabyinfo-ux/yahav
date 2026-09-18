@@ -15,6 +15,13 @@
 // Secrets: RESEND_API_KEY. SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY מוזרקים.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import webpush from 'npm:web-push@3.6.7'
+
+// Yahav 18.9.26: a push next to the email, for the mothers who turned
+// notifications on. Same VAPID setup as notify-form-assignment. A push
+// that fails never blocks the email; the email is still the record.
+const PUSH_CONTACT = 'mailto:mimobaby.info@gmail.com'
+const FALLBACK_PUBLIC_KEY = 'BCBpBpEnxebSm2byEJl4vaJVMkPBCgOyXlUZQ_UtXfczlN99F-WgOcbXE8MaVDJzJH_ecr4u_kqAmMMHx5dsQ9g'
 
 const FROM_ADDRESS = 'מימו <noreply@mimo-baby.co.il>'
 const ALERT_TO = 'mimobaby.info@gmail.com'
@@ -31,6 +38,7 @@ type Notification = {
   makeup_date: string
   makeup_time: string | null
   makeup_cohort_label: string
+  mother_user_id: string | null
 }
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
@@ -100,10 +108,39 @@ async function sendEmail(apiKey: string, to: string, subject: string, html: stri
   }
 }
 
+// deno-lint-ignore no-explicit-any
+async function sendPush(admin: any, n: Notification): Promise<number> {
+  if (!n.mother_user_id) return 0
+  const { data: subs } = await admin
+    .from('push_subscriptions').select('endpoint, p256dh, auth')
+    .eq('user_id', n.mother_user_id).is('failed_at', null)
+  if (!subs || subs.length === 0) return 0
+  const when = `יום ${dayName(n.makeup_date)} ${ddmm(n.makeup_date)}${n.makeup_time ? ` בשעה ${n.makeup_time.slice(0, 5)}` : ''}`
+  const payload = JSON.stringify(n.status === 'confirmed'
+    ? { title: `יש לך מקום בהשלמה 🤍`, body: `מפגש ${n.meeting_number} של ${n.workshop_title}: ${when}, קבוצת ${n.makeup_cohort_label}.`, url: '/', tag: `makeup-${n.request_id}` }
+    : { title: `לגבי ההשלמה של מפגש ${n.meeting_number}`, body: `לא הצלחנו לשריין לך מקום הפעם. אפשר לבחור מועד אחר באפליקציה.`, url: '/', tag: `makeup-${n.request_id}` })
+  let sent = 0
+  for (const s of subs as { endpoint: string; p256dh: string; auth: string }[]) {
+    try {
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload)
+      sent++
+    } catch (e) {
+      const status = (e as { statusCode?: number })?.statusCode
+      if (status === 404 || status === 410) {
+        await admin.from('push_subscriptions').update({ failed_at: new Date().toISOString() }).eq('endpoint', s.endpoint)
+      }
+    }
+  }
+  if (sent > 0) await admin.from('push_notification_log').insert({ user_id: n.mother_user_id, kind: 'makeup_decision', ref_id: n.request_id })
+  return sent
+}
+
 Deno.serve(async (_req) => {
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
   const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+  const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY')
+  if (VAPID_PRIVATE) webpush.setVapidDetails(PUSH_CONTACT, Deno.env.get('VAPID_PUBLIC_KEY') ?? FALLBACK_PUBLIC_KEY, VAPID_PRIVATE)
 
   if (!SUPABASE_URL || !SERVICE_ROLE) {
     return new Response(JSON.stringify({ error: 'missing Supabase env' }), { status: 500 })
@@ -133,8 +170,11 @@ Deno.serve(async (_req) => {
   const sentIds: string[] = []
   const failures: string[] = []
   const noEmail: string[] = []
+  let pushed = 0
 
   for (const n of list) {
+    // Push first (it is the fast channel and never blocks the email).
+    if (VAPID_PRIVATE) pushed += await sendPush(supabase, n).catch(() => 0)
     // בלי כתובת אין למי לשלוח. מסמנים כטופל כדי שלא ננסה שוב כל שעה לנצח,
     // והשורה עדיין תופיע לברנדה במסך ההשלמות.
     if (!n.mother_email) { noEmail.push(n.request_id); sentIds.push(n.request_id); continue }
@@ -171,6 +211,7 @@ Deno.serve(async (_req) => {
     notifications: list.length,
     emails_sent: sentIds.length - noEmail.length,
     without_email: noEmail.length,
+    pushes_sent: pushed,
     failures,
   }
   console.log('[allocate-makeups]', JSON.stringify(summary))

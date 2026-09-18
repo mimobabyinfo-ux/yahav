@@ -125,6 +125,15 @@ export type CustomerEventWaitlistEntry = {
   event: CustomerEventLite | null
 }
 
+/** "אשמח פעם הבאה" (event_interest): she wanted the event, not this date. */
+export type CustomerEventInterest = {
+  id: string
+  event_id: string
+  reason: 'day' | 'time' | 'full' | 'other'
+  created_at: string
+  event: CustomerEventLite | null
+}
+
 export type CustomerCredit = {
   id: string
   amount: number
@@ -247,6 +256,7 @@ export type CustomerProfile = {
   // key on the auth user, not on a phone number.
   eventRegistrations: CustomerEventRegistration[]
   eventWaitlist: CustomerEventWaitlistEntry[]
+  eventInterest: CustomerEventInterest[]
   credits: CustomerCredit[]
 }
 
@@ -547,13 +557,14 @@ async function assembleProfile(cluster: {
 async function loadCommunity(userId: string | null): Promise<{
   eventRegistrations: CustomerEventRegistration[]
   eventWaitlist: CustomerEventWaitlistEntry[]
+  eventInterest: CustomerEventInterest[]
   credits: CustomerCredit[]
 }> {
-  const empty = { eventRegistrations: [], eventWaitlist: [], credits: [] }
+  const empty = { eventRegistrations: [], eventWaitlist: [], eventInterest: [], credits: [] }
   if (!userId) return empty
 
   const EVENT_COLS = 'id, title, emoji, event_date, start_time, location, price'
-  const [{ data: regRows }, { data: waitRows }, { data: creditRows }] = await Promise.all([
+  const [{ data: regRows }, { data: waitRows }, { data: creditRows }, { data: interestRows }] = await Promise.all([
     supabase
       .from('event_registrations')
       .select(
@@ -574,6 +585,10 @@ async function loadCommunity(userId: string | null): Promise<{
         'source_event:community_events!community_credits_source_event_id_fkey(title)',
       )
       .eq('user_id', userId),
+    supabase
+      .from('event_interest')
+      .select(`id, event_id, reason, created_at, community_events(${EVENT_COLS})`)
+      .eq('user_id', userId),
   ])
 
   type EventJoin = CustomerEventLite | CustomerEventLite[] | null
@@ -588,6 +603,10 @@ async function loadCommunity(userId: string | null): Promise<{
   }
   type WaitRow = {
     id: string; event_id: string; status: string; created_at: string
+    community_events: EventJoin
+  }
+  type InterestRow = {
+    id: string; event_id: string; reason: CustomerEventInterest['reason']; created_at: string
     community_events: EventJoin
   }
   type CreditRow = {
@@ -641,5 +660,10 @@ async function loadCommunity(userId: string | null): Promise<{
       })
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
 
-  return { eventRegistrations, eventWaitlist, credits }
+  const eventInterest: CustomerEventInterest[] =
+    ((interestRows ?? []) as unknown as InterestRow[])
+      .map(i => ({ id: i.id, event_id: i.event_id, reason: i.reason, created_at: i.created_at, event: oneEvent(i.community_events) }))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+
+  return { eventRegistrations, eventWaitlist, eventInterest, credits }
 }

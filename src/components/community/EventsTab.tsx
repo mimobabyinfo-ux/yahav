@@ -62,6 +62,14 @@ function rememberPaymentIntent(eventId: string) {
   } catch { /* private mode */ }
 }
 
+type InterestReason = 'day' | 'time' | 'full' | 'other'
+const INTEREST_LABELS: Record<InterestReason, string> = {
+  day: 'היום לא מתאים',
+  time: 'השעה לא מתאימה',
+  full: 'אין מקום',
+  other: 'אחר',
+}
+
 export default function EventsTab() {
   // Brenda 21.8.26 wants to know what a mother actually does in here, not
   // just that she reached the tab: which events she opened, and which of
@@ -107,6 +115,91 @@ export default function EventsTab() {
   // is possible only when full; when a spot frees the card highlights
   // "התפנה מקום" and registering auto-converts the entry (DB trigger).
   const [waitlists, setWaitlists] = useState<Record<string, MyWaitlist>>({})
+
+  // Yahav 18.9.26: "לא מסתדר לי הפעם, אשמח פעם הבאה". A mother who wants
+  // the event but not this date says so with one reason, so when the event
+  // runs again Brenda knows who to write to and on which day. Not a
+  // registration and not a waitlist entry (that one means THIS date): it
+  // holds no seat. event_id -> reason, from event_interest (own rows, RLS).
+  const [interest, setInterest] = useState<Record<string, InterestReason>>({})
+  const [interestOpen, setInterestOpen] = useState<Record<string, boolean>>({})
+
+  const loadInterest = useCallback(async () => {
+    const { data } = await supabase.from('event_interest').select('event_id, reason')
+    const m: Record<string, InterestReason> = {}
+    for (const r of (data ?? []) as { event_id: string; reason: InterestReason }[]) m[r.event_id] = r.reason
+    setInterest(m)
+  }, [])
+
+  async function saveInterest(ev: CommunityEventRow, reason: InterestReason) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    setBusyId(ev.id)
+    const { error } = await supabase.from('event_interest')
+      .upsert({ event_id: ev.id, user_id: user.id, reason }, { onConflict: 'event_id,user_id' })
+    setBusyId(null)
+    if (error) { showToast('שגיאה. נסי שוב'); return }
+    track('event_interest', { event_id: ev.id, title: ev.title, reason })
+    setInterest(prev => ({ ...prev, [ev.id]: reason }))
+    setInterestOpen(prev => ({ ...prev, [ev.id]: false }))
+    showToast('רשמנו. נעדכן אותך בפעם הבאה 🤍')
+  }
+
+  async function clearInterest(ev: CommunityEventRow) {
+    setBusyId(ev.id)
+    const { error } = await supabase.from('event_interest').delete().eq('event_id', ev.id)
+    setBusyId(null)
+    if (error) { showToast('שגיאה. נסי שוב'); return }
+    setInterest(prev => { const n = { ...prev }; delete n[ev.id]; return n })
+  }
+
+  /** The one-line "not this time" affordance under the register row, and
+   *  the reason picker it opens. Only for an event she is not in. */
+  function interestBlock(ev: CommunityEventRow) {
+    const mine = interest[ev.id]
+    if (mine) {
+      return (
+        <div className="mt-2 flex items-center justify-between gap-2 rounded-2xl px-3 py-2" style={{ background: '#FAF7F1' }}>
+          <p className="text-[12px] font-semibold" style={{ color: '#6E5836' }}>
+            רשמנו שתשמחי בפעם הבאה ({INTEREST_LABELS[mine]}) 🤍
+          </p>
+          <button onClick={() => clearInterest(ev)} disabled={busyId === ev.id}
+            className="text-[12px] font-bold text-sand-400 whitespace-nowrap disabled:opacity-40">
+            ביטול
+          </button>
+        </div>
+      )
+    }
+    if (!interestOpen[ev.id]) {
+      return (
+        <button
+          onClick={() => setInterestOpen(prev => ({ ...prev, [ev.id]: true }))}
+          className="mt-2 w-full text-center text-[12px] font-semibold underline decoration-dotted underline-offset-4"
+          style={{ color: '#8C7D6B' }}
+        >
+          לא מסתדר לי הפעם, אבל אשמח בפעם הבאה
+        </button>
+      )
+    }
+    return (
+      <div className="mt-2 rounded-2xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
+        <p className="text-[13px] font-bold" style={{ color: '#5E4938' }}>מה לא מסתדר הפעם?</p>
+        <div className="flex flex-wrap gap-1.5">
+          {(Object.keys(INTEREST_LABELS) as InterestReason[]).map(r => (
+            <button key={r} onClick={() => saveInterest(ev, r)} disabled={busyId === ev.id}
+              className="px-3 py-1.5 rounded-full text-[13px] font-bold disabled:opacity-40"
+              style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#6E5836' }}>
+              {INTEREST_LABELS[r]}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setInterestOpen(prev => ({ ...prev, [ev.id]: false }))}
+          className="text-[12px] font-semibold text-sand-400">
+          בעצם לא
+        </button>
+      </div>
+    )
+  }
 
   // Open credits from cancelled paid events. Brenda 17.8.26: credits are
   // NOT pooled — one credit pays for one event costing the same or less,
@@ -180,7 +273,7 @@ export default function EventsTab() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { load(); loadCredit() }, [load, loadCredit])
+  useEffect(() => { load(); loadCredit(); loadInterest() }, [load, loadCredit, loadInterest])
 
   function showToast(msg: string) {
     setToast(msg)
@@ -981,6 +1074,7 @@ export default function EventsTab() {
           ) : isFull && !myOffer ? (
             /* Full event — waitlist instead of a dead-end */
             onWaitlist ? (
+              <>
               <div className="flex gap-2">
                 <div className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold" style={{ background: '#F4EDE1', color: '#6E5836' }}>
                   ⏳ ברשימת ההמתנה (מקום {onWaitlist.my_position})
@@ -994,7 +1088,10 @@ export default function EventsTab() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
+              {interestBlock(ev)}
+              </>
             ) : (
+              <>
               <button
                 onClick={() => joinWaitlist(ev)}
                 disabled={busyId === ev.id}
@@ -1003,6 +1100,8 @@ export default function EventsTab() {
               >
                 {busyId === ev.id ? 'רגע...' : 'האירוע מלא. שמרי לי מקום בהמתנה 🤍'}
               </button>
+              {interestBlock(ev)}
+              </>
             )
           ) : (
             <>
@@ -1050,6 +1149,7 @@ export default function EventsTab() {
                   </button>
                 )
               })()}
+              {interestBlock(ev)}
             </>
           )}
           {/* Brenda 17.8.26: this was the "it still asks me to pay after I

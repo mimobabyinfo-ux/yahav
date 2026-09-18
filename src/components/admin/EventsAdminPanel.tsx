@@ -96,6 +96,20 @@ type RegistrantRow = {
 }
 
 // A waiting row in the simple waitlist (event_waitlist, admin RLS).
+// "לא מסתדר לי הפעם, אשמח פעם הבאה" (event_interest, 18.9.26). Not a seat:
+// a name and a reason, so the next run of this event knows who to invite
+// and on which day.
+type InterestRow = {
+  id: string
+  user_id: string
+  reason: 'day' | 'time' | 'full' | 'other'
+  created_at: string
+  user_profiles: { mother_name: string | null; phone_number: string | null } | null
+}
+const INTEREST_LABELS: Record<InterestRow['reason'], string> = {
+  day: 'היום לא מתאים', time: 'השעה לא מתאימה', full: 'אין מקום', other: 'אחר',
+}
+
 type WaitlistRow = {
   id: string
   user_id: string
@@ -171,6 +185,8 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
   // Waiting count per event — for the "המתנה: N" chip and the
   // freed-spot alert on event rows.
   const [waitCounts, setWaitCounts] = useState<Record<string, number>>({})
+  const [interestCounts, setInterestCounts] = useState<Record<string, number>>({})
+  const [regsInterest, setRegsInterest] = useState<InterestRow[]>([])
   // Phase 6: attended count per event (past-event fill = attended/registered)
   // + which events already have a check-in link (state pill).
   const [attendedCounts, setAttendedCounts] = useState<Record<string, number>>({})
@@ -187,10 +203,16 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
   const [calSelected, setCalSelected] = useState<CommunityEvent | null>(null)
 
   const loadWaitlistCounts = useCallback(async () => {
-    const { data } = await supabase.from('event_waitlist').select('event_id').eq('status', 'waiting')
+    const [{ data }, { data: ints }] = await Promise.all([
+      supabase.from('event_waitlist').select('event_id').eq('status', 'waiting'),
+      supabase.from('event_interest').select('event_id'),
+    ])
     const m: Record<string, number> = {}
     for (const w of (data ?? []) as { event_id: string }[]) m[w.event_id] = (m[w.event_id] ?? 0) + 1
     setWaitCounts(m)
+    const im: Record<string, number> = {}
+    for (const w of (ints ?? []) as { event_id: string }[]) im[w.event_id] = (im[w.event_id] ?? 0) + 1
+    setInterestCounts(im)
   }, [])
 
   const load = useCallback(async () => {
@@ -346,7 +368,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
     setRegsEvent(ev)
     setExpandedRegId(null)
     setRegsLoading(true)
-    const [{ data }, { data: wl }] = await Promise.all([
+    const [{ data }, { data: wl }, { data: ints }] = await Promise.all([
       supabase
         .from('event_registrations')
         .select('id, user_id, status, paid, paid_amount, payment_claimed_at, guest_names, substitute_name, created_at, user_profiles(mother_name, phone_number, email, area, baby_name, baby_dob, community_bio, community_tags, staff_notes)')
@@ -358,9 +380,15 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
         .eq('event_id', ev.id)
         .eq('status', 'waiting')
         .order('created_at'),
+      supabase
+        .from('event_interest')
+        .select('id, user_id, reason, created_at, user_profiles(mother_name, phone_number)')
+        .eq('event_id', ev.id)
+        .order('created_at'),
     ])
     setRegs((data ?? []) as unknown as RegistrantRow[])
     setRegsWaitlist((wl ?? []) as unknown as WaitlistRow[])
+    setRegsInterest((ints ?? []) as unknown as InterestRow[])
     setRegsLoading(false)
   }
 
@@ -678,6 +706,12 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                     ⏳ המתנה: {waitCounts[ev.id]}
                   </span>
                 )
+              )}
+              {(interestCounts[ev.id] ?? 0) > 0 && (
+                <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: '#EADBDD', color: '#5E4938' }}
+                  title="אמרו שישמחו בפעם הבאה">
+                  💭 פעם הבאה: {interestCounts[ev.id]}
+                </span>
               )}
             </div>
             <p className="font-semibold mt-0.5" style={{ fontSize: 14, color: '#7B604C' }}>
@@ -1382,6 +1416,40 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                   </div>
                 )
               })()}
+
+              {/* ── "אשמח פעם הבאה" — who wanted this event and why it did
+                  not work this time. The list to invite when it runs again. ── */}
+              {!regsLoading && regsInterest.length > 0 && (
+                <div className="pt-3 mt-3 border-t border-sand-100 space-y-2">
+                  <p className="text-sm font-bold text-sand-700">💭 ישמחו בפעם הבאה ({regsInterest.length})</p>
+                  <p className="text-[13px] text-sand-500">
+                    {(Object.keys(INTEREST_LABELS) as InterestRow['reason'][])
+                      .map(r => ({ r, n: regsInterest.filter(i => i.reason === r).length }))
+                      .filter(x => x.n > 0)
+                      .map(x => `${INTEREST_LABELS[x.r]}: ${x.n}`)
+                      .join(' · ')}
+                  </p>
+                  {regsInterest.map(i => {
+                    const name = i.user_profiles?.mother_name ?? '—'
+                    const phone = i.user_profiles?.phone_number
+                    const waText = `היי ${name.split(' ')[0]}! סימנת שתשמחי להגיע ל"${regsEvent.title}" בפעם הבאה 🤎 רציתי לספר לך שנפתח מועד חדש. אפשר להירשם באפליקציה: https://mimo-baby.co.il`
+                    return (
+                      <div key={i.id} className="flex items-center gap-2 border border-sand-100 rounded-2xl p-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-sand-800 truncate">{name}</p>
+                          <p className="text-[13px] text-sand-500">{INTEREST_LABELS[i.reason]} · {ddmm(i.created_at.slice(0, 10))}</p>
+                        </div>
+                        {phone && (
+                          <a href={`https://wa.me/${phone.replace(/\D/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(waText)}`} target="_blank" rel="noopener noreferrer"
+                            className="p-2 rounded-xl bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title="הודעה על מועד חדש">
+                            <MessageCircle className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

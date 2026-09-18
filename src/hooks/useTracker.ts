@@ -34,6 +34,8 @@ export type EventType =
   // passed through.
   | 'event_open'          // opened a community event card
   | 'event_register'      // registered for one
+  | 'event_interest'      // "not this time, next time" with a reason (18.9.26)
+  | 'push_enable'         // the home-screen notifications card: on / off / denied / later (18.9.26)
   | 'event_extra_seat'    // bought another ticket after she was already in
   | 'install_guide'       // watched the how-to-install video
   | 'community_tab'       // אירועים / ההזמנות שלי / חברות

@@ -977,6 +977,27 @@ function CommunityTabView({ profile, wide }: { profile: CustomerProfile; wide: b
         )}
       </div>
 
+      {/* ── "אשמח פעם הבאה" (18.9.26): events she wanted but not this date ── */}
+      {profile.eventInterest.length > 0 && (
+        <div className="space-y-2.5">
+          <div className="border-b border-sand-200 pb-1.5">
+            <h3 className="text-base font-bold text-sand-800">תשמח בפעם הבאה ({profile.eventInterest.length})</h3>
+          </div>
+          <div className="space-y-2">
+            {profile.eventInterest.map(i => (
+              <div key={i.id} className="rounded-2xl bg-[#F5F1EB] p-3.5 flex items-center gap-2">
+                <span className="text-sm font-semibold text-sand-800 flex-1 min-w-0 truncate">
+                  {i.event ? `${i.event.emoji ? i.event.emoji + ' ' : ''}${i.event.title}` : 'אירוע שנמחק'}
+                </span>
+                <span className="text-xs font-bold px-2 py-1 rounded-md flex-shrink-0" style={{ color: '#5E4938', background: '#EADBDD' }}>
+                  {({ day: 'היום לא מתאים', time: 'השעה לא מתאימה', full: 'אין מקום', other: 'אחר' } as const)[i.reason]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── Waitlist ── */}
       {waitlist.length > 0 && (
         <div className="space-y-2.5">

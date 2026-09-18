@@ -16,6 +16,7 @@ import LogEntryModal from '../components/LogEntryModal'
 import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard'
 import RecommendedWorkshopCard from '../components/dashboard/RecommendedWorkshopCard'
 import { hasOpenCourses } from '../components/dashboard/MyCoursesCard'
+import EnablePushCard from '../components/dashboard/EnablePushCard'
 import AgeGuideCard from '../components/dashboard/AgeGuideCard'
 import HomeAnnouncementsBanner from '../components/dashboard/HomeAnnouncementsBanner'
 import GraduateOfferModal from '../components/dashboard/GraduateOfferModal'
@@ -308,6 +309,9 @@ export default function DashboardPage({ onNavigate }: Props) {
         {/* Admin announcements — מבצעים/הנחות, top of the feed so they
             "pop" the moment the app opens */}
         <HomeAnnouncementsBanner onNavigate={onNavigate} />
+
+        {/* Yahav 18.9.26: the push opt-in, where every mother passes. */}
+        <EnablePushCard />
 
         {/* Finished a workshop and has a discount waiting. Shows once,
             over everything, then never again. */}
