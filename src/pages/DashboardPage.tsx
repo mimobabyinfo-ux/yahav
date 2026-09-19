@@ -24,6 +24,7 @@ import HomeAnnouncementsBanner from '../components/dashboard/HomeAnnouncementsBa
 import GraduateOfferModal from '../components/dashboard/GraduateOfferModal'
 import WhatsNewModal from '../components/dashboard/WhatsNewModal'
 import PendingPaymentStrip from '../components/dashboard/PendingPaymentStrip'
+import GraduateOfferStrip from '../components/dashboard/GraduateOfferStrip'
 import MimoLeaf from '../components/MimoLeaf'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import type { Page } from '../App'
@@ -328,6 +329,10 @@ export default function DashboardPage({ onNavigate }: Props) {
         {/* Started paying for an event and never came back. One thin line,
             and nothing at all for everyone else. */}
         <PendingPaymentStrip />
+
+        {/* Yahav 19.9.26: the graduate discount, with the days she has left,
+            on every visit until it expires or is used. */}
+        <GraduateOfferStrip onNavigate={onNavigate} />
 
         {/* 2 · Quick-log — Tier 1, always visible */}
         {selectedChild && (
