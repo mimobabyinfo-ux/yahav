@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { cachedQuery, invalidateQuery } from '../lib/queryCache'
 
 export type GraduateOffer = {
   grant_id: string
@@ -58,8 +59,13 @@ export function useGraduateOffers() {
 
   const load = useCallback(() => {
     if (!user) { setOffers([]); setLoading(false); return }
-    supabase.rpc('get_my_graduate_offers').then(({ data }) => {
-      setOffers((data ?? []) as GraduateOffer[])
+    // ~200ms of database work per call, asked by the home screen AND the
+    // store. Cached per user for five minutes; markSeen drops the cache.
+    cachedQuery<GraduateOffer[]>(`graduate_offers:${user.id}`, async () => {
+      const { data } = await supabase.rpc('get_my_graduate_offers')
+      return (data ?? []) as GraduateOffer[]
+    }, 5 * 60_000).then(rows => {
+      setOffers(rows)
       setLoading(false)
     })
   }, [user])
@@ -71,8 +77,9 @@ export function useGraduateOffers() {
   const markSeen = useCallback(async (grantId: string) => {
     setOffers(prev => prev.map(o =>
       o.grant_id === grantId ? { ...o, seen_at: new Date().toISOString() } : o))
+    if (user) invalidateQuery(`graduate_offers:${user.id}`)
     await supabase.rpc('mark_graduate_offer_seen', { p_grant_id: grantId })
-  }, [])
+  }, [user])
 
   const byWorkshop = new Map(offers.map(o => [o.workshop_id, o]))
 

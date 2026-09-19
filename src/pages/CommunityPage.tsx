@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { MessageCircle, MapPin, Filter, Phone, Check, Pencil, AlignLeft, Tag, WalletCards } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { cachedQuery, invalidateQuery } from '../lib/queryCache'
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
 import { getBabyAge } from '../utils/dateUtils'
@@ -150,8 +151,13 @@ export default function CommunityPage() {
   }, [profile])
 
   const loadMoms = useCallback(async () => {
-    const { data } = await supabase.from('community_profiles').select('*')
-    setProfiles((data ?? []) as CommunityProfile[])
+    // The members list is the heaviest read on this page and it changes
+    // when a mother joins, not between two visits: cached five minutes.
+    const rows = await cachedQuery<CommunityProfile[]>('community_profiles', async () => {
+      const { data } = await supabase.from('community_profiles').select('*')
+      return (data ?? []) as CommunityProfile[]
+    }, 5 * 60_000)
+    setProfiles(rows)
   }, [])
 
   const loadPregnant = useCallback(async () => {
@@ -187,6 +193,7 @@ export default function CommunityPage() {
     setRegisteredInSession(true)
     setEditMode(false)
     refreshProfile()
+    invalidateQuery('community_profiles') // her own row just changed
     if (isPregnant) loadPregnant()
     else loadMoms()
   }
@@ -202,6 +209,7 @@ export default function CommunityPage() {
       .eq('id', user.id)
     if (error) { setVisibleChecked(!next); return }
     refreshProfile()
+    invalidateQuery('community_profiles') // her own row just changed
     if (isPregnant) loadPregnant()
     else loadMoms()
   }

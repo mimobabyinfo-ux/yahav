@@ -3,6 +3,8 @@ import { ChevronLeft, Settings as SettingsIcon, MessageCircle, Gift, Moon, Sun, 
 import { openInstallGuide } from '../components/InstallGuide'
 import { isStandalone } from '../utils/webPush'
 import { supabase, PartnerPerk } from '../lib/supabase'
+import { getSettings } from '../lib/settings'
+import { cachedQuery } from '../lib/queryCache'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { useLastEntry } from '../hooks/useLastEntry'
@@ -90,9 +92,10 @@ export default function DashboardPage({ onNavigate }: Props) {
     setDayOverride(false)
   }
 
-  // Since-lines for the night rows.
-  const lastSleep = useLastEntry('sleep', refetchKey)
-  const lastFeeding = useLastEntry('feeding', refetchKey)
+  // Since-lines for the night rows — and only then. Two round trips the
+  // day screen never showed.
+  const lastSleep = useLastEntry('sleep', refetchKey, isNight)
+  const lastFeeding = useLastEntry('feeding', refetchKey, isNight)
 
   // Home perks are admin-controlled (global_settings.show_home_perks).
   const [featuredPerks, setFeaturedPerks] = useState<PartnerPerk[]>([])
@@ -102,21 +105,22 @@ export default function DashboardPage({ onNavigate }: Props) {
   const joinedAt = profile?.created_at ?? null
 
   useEffect(() => {
-    supabase.from('global_settings')
-      .select('setting_value')
-      .eq('setting_key', 'show_home_perks')
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.setting_value !== 'true') return
-        setShowPerks(true)
-        supabase.from('partner_perks')
+    let cancelled = false
+    getSettings().then(s => {
+      if (cancelled || s.show_home_perks !== 'true') return
+      setShowPerks(true)
+      cachedQuery<PartnerPerk[]>('partner_perks:featured', async () => {
+        const { data } = await supabase.from('partner_perks')
           .select('*')
           .eq('is_active', true)
           .eq('is_featured', true)
           .order('display_order')
-          // Expired perks (see utils/perkValidity) never reach the home strip.
-          .then(({ data: perks }) => setFeaturedPerks(activePerks((perks ?? []) as PartnerPerk[], joinedAt)))
-      })
+        return (data ?? []) as PartnerPerk[]
+      }, 5 * 60_000)
+        // Expired perks (see utils/perkValidity) never reach the home strip.
+        .then(perks => { if (!cancelled) setFeaturedPerks(activePerks(perks, joinedAt)) })
+    })
+    return () => { cancelled = true }
   }, [joinedAt])
 
   const openLogPage = (logType: string) => {

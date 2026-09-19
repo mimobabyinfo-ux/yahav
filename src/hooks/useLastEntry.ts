@@ -13,7 +13,9 @@ function parseEntryDateTime(entry_date: string, entry_time: string): Date | null
 // when refetchKey changes — typically bumped by the parent after a save —
 // and triggers a re-render every 60s so consumers using formatTimeSince()
 // see the elapsed text update without manually wiring an interval.
-export function useLastEntry(entryType: string, refetchKey: number = 0): Date | null {
+// `enabled` false skips the query (hooks cannot be conditional, but the
+// two since-lines on the home screen are only drawn in night mode).
+export function useLastEntry(entryType: string, refetchKey: number = 0, enabled: boolean = true): Date | null {
   const { user, selectedChild } = useAuth()
   const [last, setLast] = useState<Date | null>(null)
   const [, setTick] = useState(0)
@@ -24,7 +26,7 @@ export function useLastEntry(entryType: string, refetchKey: number = 0): Date | 
   }, [])
 
   useEffect(() => {
-    if (!user) return
+    if (!user || !enabled) return
     let cancelled = false
     async function load() {
       if (!user) return
@@ -44,7 +46,7 @@ export function useLastEntry(entryType: string, refetchKey: number = 0): Date | 
     }
     load()
     return () => { cancelled = true }
-  }, [user, selectedChild, entryType, refetchKey])
+  }, [user, selectedChild, entryType, refetchKey, enabled])
 
   return last
 }

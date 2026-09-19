@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, CalendarDays, Baby } from 'lucide-react'
 import { supabase, Workshop, type PublicCohort } from '../../lib/supabase'
+import { cachedQuery } from '../../lib/queryCache'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Page } from '../../App'
 
@@ -58,15 +59,19 @@ export default function RecommendedWorkshopCard({ onNavigate }: { onNavigate: (p
     if (ageMonths < 0) { setMatch(null); setNextCohort(null); return }
 
     Promise.all([
-      supabase
-        .from('workshops')
-        .select('*')
-        .eq('is_active', true)
-        .not('workshop_type', 'is', null)
-        .not('age_range_start_months', 'is', null)
-        .order('display_order'),
+      // The catalogue changes when Brenda edits it; cached ten minutes.
+      cachedQuery<Workshop[]>('workshops:by_age', async () => {
+        const { data } = await supabase
+          .from('workshops')
+          .select('*')
+          .eq('is_active', true)
+          .not('workshop_type', 'is', null)
+          .not('age_range_start_months', 'is', null)
+          .order('display_order')
+        return (data ?? []) as Workshop[]
+      }, 10 * 60_000),
       supabase.rpc('get_my_workshop_registrations'),
-    ]).then(([wsRes, myRes]) => {
+    ]).then(([wsRows, myRes]) => {
       if (cancelled) return
       // Anything she already registered for — at any status — is not a
       // recommendation. Suggesting a workshop she is enrolled in reads
@@ -74,7 +79,7 @@ export default function RecommendedWorkshopCard({ onNavigate }: { onNavigate: (p
       const mine = new Set(
         ((myRes.data ?? []) as { workshop_id: string }[]).map(r => r.workshop_id),
       )
-      const ws = ((wsRes.data ?? []) as Workshop[]).find(w =>
+      const ws = wsRows.find(w =>
         !mine.has(w.id) &&
         w.age_range_start_months != null &&
         ageMonths >= w.age_range_start_months &&

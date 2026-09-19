@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState, useMemo } from 'react'
 import { ExternalLink, MessageCircle, ShoppingBag, Star, X, CreditCard, CalendarDays, Gift, Bell, Check, ChevronLeft } from 'lucide-react'
 import { supabase, Workshop, type PublicCohort } from '../lib/supabase'
+import { cachedQuery } from '../lib/queryCache'
 import { useAuth } from '../contexts/AuthContext'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 import { useTracker } from '../hooks/useTracker'
@@ -417,22 +418,27 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
   const [cohorts, setCohorts] = useState<PublicCohort[]>([])
 
   useEffect(() => {
-    supabase
-      .from('workshops')
-      .select('*')
-      .eq('is_active', true)
-      .not('workshop_type', 'is', null)
-      .order('display_order')
-      .then(({ data }) => {
-        const ws = (data ?? []) as WorkshopExt[]
-        setWorkshops(ws)
-        setLoading(false)
-        const ids = ws.map(w => w.id)
-        if (ids.length === 0) return
-        supabase.rpc('get_public_cohorts', { p_workshop_ids: ids }).then(({ data: cs }) => {
-          setCohorts((cs ?? []) as PublicCohort[])
-        })
-      })
+    // Two round trips in a row (products, then their cohorts) behind a
+    // spinner, on every visit to the store. Cached: the catalogue for
+    // five minutes, the cohorts (seat counts move) for two.
+    cachedQuery<WorkshopExt[]>('workshops:store', async () => {
+      const { data } = await supabase
+        .from('workshops')
+        .select('*')
+        .eq('is_active', true)
+        .not('workshop_type', 'is', null)
+        .order('display_order')
+      return (data ?? []) as WorkshopExt[]
+    }, 5 * 60_000).then(ws => {
+      setWorkshops(ws)
+      setLoading(false)
+      const ids = ws.map(w => w.id)
+      if (ids.length === 0) return
+      cachedQuery<PublicCohort[]>(`public_cohorts:${ids.join(',')}`, async () => {
+        const { data: cs } = await supabase.rpc('get_public_cohorts', { p_workshop_ids: ids })
+        return (cs ?? []) as PublicCohort[]
+      }, 2 * 60_000).then(setCohorts)
+    })
   }, [])
 
   // Once the products are loaded, open the one the home card asked for.

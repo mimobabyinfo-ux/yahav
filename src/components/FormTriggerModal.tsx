@@ -2,6 +2,7 @@
 import { X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { cachedQuery } from '../lib/queryCache'
 
 type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating'; label: string; options?: string[]; required?: boolean }
 type FormRecord = {
@@ -31,14 +32,20 @@ export default function FormTriggerModal() {
 
   const checkTriggers = useCallback(async () => {
     if (!user || !profile || profile.is_admin) return
+    // Three round trips per check, and the trigger rules count days and
+    // video views — nothing that flips between two screens of the same
+    // visit. Once per tab session per user.
+    const onceKey = `mimo_form_triggers_checked:${user.id}`
+    try { if (sessionStorage.getItem(onceKey)) return } catch { /* private mode */ }
 
-    // Load active forms
-    const { data: forms } = await supabase
-      .from('forms')
-      .select('*')
-      .eq('is_active', true)
+    // Load active forms (cached; the same list serves every visit)
+    const forms = await cachedQuery<FormRecord[]>('forms:active', async () => {
+      const { data } = await supabase.from('forms').select('*').eq('is_active', true)
+      return (data ?? []) as FormRecord[]
+    }, 10 * 60_000)
+    try { sessionStorage.setItem(onceKey, '1') } catch { /* ignore */ }
 
-    if (!forms || forms.length === 0) return
+    if (forms.length === 0 || !forms.some(f => f.trigger_rule)) return
 
     // Load already-submitted form ids for this user
     const { data: existing } = await supabase

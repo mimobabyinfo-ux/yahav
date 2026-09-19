@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { getSettings } from '../lib/settings'
 
 export type OwnerSettings = {
   ownerName: string
@@ -18,19 +18,11 @@ export function useOwnerSettings(): OwnerSettings {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase
-      .from('global_settings')
-      .select('setting_key, setting_value')
-      .in('setting_key', ['owner_name', 'owner_whatsapp'])
-      .then(({ data }) => {
-        if (data) {
-          const name = data.find(r => r.setting_key === 'owner_name')?.setting_value
-          const wa = data.find(r => r.setting_key === 'owner_whatsapp')?.setting_value
-          if (name) setOwnerName(name)
-          if (wa) setOwnerWhatsapp(wa)
-        }
-        setLoading(false)
-      })
+    getSettings().then(s => {
+      if (s.owner_name) setOwnerName(s.owner_name)
+      if (s.owner_whatsapp) setOwnerWhatsapp(s.owner_whatsapp)
+      setLoading(false)
+    })
   }, [])
 
   return { ownerName, ownerWhatsapp, loading }

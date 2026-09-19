@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Sparkles, ChevronLeft, X, ChevronDown } from 'lucide-react'
 import { supabase, type AgeStage, type AgeStageTopic } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { cachedQuery } from '../../lib/queryCache'
 
 // "מה קורה אצל X עכשיו" — the age guide, in the shape Yahav asked for on
 // 24.8.26 after two rounds of cutting.
@@ -38,14 +39,16 @@ export default function AgeGuideCard() {
 
   useEffect(() => {
     let cancelled = false
-    supabase
-      .from('age_stages')
-      .select('*')
-      .eq('is_active', true)
-      .order('display_order')
-      .then(({ data }) => {
-        if (!cancelled) setStages((data ?? []) as AgeStage[])
-      })
+    // The guide changes when Brenda edits it, not between two taps on the
+    // home tab: cached for ten minutes (see lib/queryCache).
+    cachedQuery<AgeStage[]>('age_stages', async () => {
+      const { data } = await supabase
+        .from('age_stages')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order')
+      return (data ?? []) as AgeStage[]
+    }, 10 * 60_000).then(rows => { if (!cancelled) setStages(rows) })
     return () => { cancelled = true }
   }, [])
 

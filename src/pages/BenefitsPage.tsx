@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { Search, WalletCards, MapPin } from 'lucide-react'
 import { supabase, PartnerPerk } from '../lib/supabase'
+import { cachedQuery } from '../lib/queryCache'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
@@ -20,12 +21,15 @@ export default function BenefitsPage() {
   }, [])
 
   async function fetchPerks() {
-    const { data } = await supabase
-      .from('partner_perks')
-      .select('*')
-      .eq('is_active', true)
-      .order('display_order')
-    setPerks(data ?? [])
+    const rows = await cachedQuery<PartnerPerk[]>('partner_perks:active', async () => {
+      const { data } = await supabase
+        .from('partner_perks')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order')
+      return (data ?? []) as PartnerPerk[]
+    }, 5 * 60_000)
+    setPerks(rows)
     setLoading(false)
   }
 

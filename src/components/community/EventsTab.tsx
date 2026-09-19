@@ -1,6 +1,8 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
 import { MapPin, Clock, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft, Instagram } from 'lucide-react'
 import { supabase, type CommunityEventRow, type MyWaitlist, type MyCredit } from '../../lib/supabase'
+import { getSettings } from '../../lib/settings'
+import { invalidateQueryPrefix } from '../../lib/queryCache'
 import { useTracker } from '../../hooks/useTracker'
 import { MimoLeafPair } from '../MimoLeaf'
 import MembershipCard from './MembershipCard'
@@ -217,12 +219,10 @@ export default function EventsTab() {
   // it without a deploy; 48 is the default she chose.
   const [creditHours, setCreditHours] = useState(48)
   useEffect(() => {
-    supabase.from('global_settings').select('setting_value')
-      .eq('setting_key', 'credit_cancel_hours').maybeSingle()
-      .then(({ data }) => {
-        const n = Number(data?.setting_value)
-        if (Number.isFinite(n) && n > 0) setCreditHours(n)
-      })
+    getSettings().then(s => {
+      const n = Number(s.credit_cancel_hours)
+      if (Number.isFinite(n) && n > 0) setCreditHours(n)
+    })
   }, [])
 
   /** The credit that would pay for this event, or null.
@@ -267,6 +267,10 @@ export default function EventsTab() {
       supabase.rpc('get_my_waitlists'),
     ])
     setEvents((data ?? []) as CommunityEventRow[])
+    // The home card caches its own copy of these rows (lib/queryCache).
+    // Whatever changed here — she registered, cancelled — must not sit
+    // stale on the home screen until the cache expires.
+    invalidateQueryPrefix('community_events:')
     const m: Record<string, MyWaitlist> = {}
     for (const w of (wl ?? []) as MyWaitlist[]) m[w.event_id] = w
     setWaitlists(m)

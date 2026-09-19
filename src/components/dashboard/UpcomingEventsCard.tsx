@@ -2,6 +2,8 @@
 import { supabase, type CommunityEventRow } from '../../lib/supabase'
 import type { Page } from '../../App'
 import MimoLeaf from '../MimoLeaf'
+import { cachedQuery } from '../../lib/queryCache'
+import { useAuth } from '../../contexts/AuthContext'
 
 // Community card for the home dashboard. Tier-2 content card: white
 // surface, soft single-elevation shadow, date blocks instead of emoji
@@ -10,20 +12,26 @@ import MimoLeaf from '../MimoLeaf'
 const MONTHS_HE = ['ינו׳', 'פבר׳', 'מרץ', 'אפר׳', 'מאי', 'יוני', 'יולי', 'אוג׳', 'ספט׳', 'אוק׳', 'נוב׳', 'דצמ׳']
 
 export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: Page) => void }) {
+  const { user } = useAuth()
   const [events, setEvents] = useState<CommunityEventRow[]>([])
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    if (!user) return
     // Brenda 12.9.26: upcoming only on the home screen. Past meetups
     // stay on the community page, where there is room for them.
     const t = new Date()
     const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
-    supabase.rpc('get_community_events', { p_from: today }).then(({ data }) => {
-      const all = (data ?? []) as CommunityEventRow[]
+    // Shared with the community tab through the cache: the same RPC, the
+    // same rows, one round trip for both screens.
+    cachedQuery<CommunityEventRow[]>(`community_events:${user.id}:${today}`, async () => {
+      const { data } = await supabase.rpc('get_community_events', { p_from: today })
+      return (data ?? []) as CommunityEventRow[]
+    }, 3 * 60_000).then(all => {
       setEvents(all.filter(ev => ev.event_date >= today).slice(0, 3))
       setLoaded(true)
     })
-  }, [])
+  }, [user])
 
   function openEvents() {
     sessionStorage.setItem('mimo_community_tab', 'events')

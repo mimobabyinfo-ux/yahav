@@ -9,7 +9,7 @@
 // change them without a deploy.
 import { useEffect, useState } from 'react'
 import { Copy, Check, Share2 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { getSettings } from '../../lib/settings'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTracker } from '../../hooks/useTracker'
 
@@ -21,17 +21,11 @@ export default function InviteFriendCard() {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    supabase.from('global_settings').select('setting_key, setting_value')
-      .in('setting_key', ['referral_enabled', 'referral_amount'])
-      .then(({ data }) => {
-        for (const r of data ?? []) {
-          if (r.setting_key === 'referral_enabled') setEnabled(r.setting_value === 'true')
-          if (r.setting_key === 'referral_amount') {
-            const n = Number(r.setting_value)
-            if (Number.isFinite(n) && n > 0) setAmount(n)
-          }
-        }
-      })
+    getSettings().then(s => {
+      setEnabled(s.referral_enabled === 'true')
+      const n = Number(s.referral_amount)
+      if (Number.isFinite(n) && n > 0) setAmount(n)
+    })
   }, [])
 
   const code = profile?.referral_code

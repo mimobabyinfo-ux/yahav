@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { cachedQuery } from '../lib/queryCache'
 
 // Store categories are admin-managed rows in content_categories
 // (category_type 'workshop'). The NAME is the value stored in
@@ -25,13 +26,16 @@ export function useWorkshopCategories() {
   const [categories, setCategories] = useState<WorkshopCategory[]>([])
 
   const reload = useCallback(async () => {
-    const { data } = await supabase
-      .from('content_categories')
-      .select('id, name, slug, icon, display_order, is_active')
-      .in('category_type', ['workshop', 'both'])
-      .eq('is_active', true)
-      .order('display_order')
-    setCategories((data ?? []) as WorkshopCategory[])
+    const rows = await cachedQuery<WorkshopCategory[]>('content_categories:workshop', async () => {
+      const { data } = await supabase
+        .from('content_categories')
+        .select('id, name, slug, icon, display_order, is_active')
+        .in('category_type', ['workshop', 'both'])
+        .eq('is_active', true)
+        .order('display_order')
+      return (data ?? []) as WorkshopCategory[]
+    }, 10 * 60_000)
+    setCategories(rows)
   }, [])
 
   useEffect(() => { reload() }, [reload])

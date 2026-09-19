@@ -4,28 +4,13 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { supabase } from './lib/supabase'
 import { isStandalone } from './utils/webPush'
 import LoginPage from './pages/LoginPage'
-import OnboardingPage from './pages/OnboardingPage'
 import DashboardPage from './pages/DashboardPage'
-import PregnancyDashboard from './pages/PregnancyDashboard'
 import JournalPage from './pages/JournalPage'
 import BenefitsPage from './pages/BenefitsPage'
 import WorkshopsPage from './pages/WorkshopsPage'
 import ProAreaPage from './pages/ProAreaPage'
 import ServicesMarketplacePage from './pages/ServicesMarketplacePage'
 import CommunityPage from './pages/CommunityPage'
-import PublicFormPage from './pages/PublicFormPage'
-import PublicBabyPage from './pages/PublicBabyPage'
-import GuestJoinPage from './pages/GuestJoinPage'
-import PublicPartnerPage from './pages/PublicPartnerPage'
-import PublicRegisterPage from './pages/PublicRegisterPage'
-import PublicGiftCardPage from './pages/PublicGiftCardPage'
-import PublicEventPage from './pages/PublicEventPage'
-import VendorCheckinPage from './pages/VendorCheckinPage'
-import ThankYouPage from './pages/ThankYouPage'
-import WelcomeClaimPage from './pages/WelcomeClaimPage'
-import LegalPage from './pages/LegalPage'
-import ConsentGate from './pages/ConsentGate'
-import UserSettingsPage from './pages/UserSettingsPage'
 import SleepPage from './pages/log/SleepPage'
 import TummyTimePage from './pages/log/TummyTimePage'
 import BreastfeedingPage from './pages/log/BreastfeedingPage'
@@ -49,6 +34,30 @@ import type { MyCredit } from './lib/supabase'
 // @dnd-kit with it. renderPage already gates it at RUNTIME; importing it
 // statically still shipped Brenda's whole admin panel to every mother.
 const AdminPage = lazy(() => import('./pages/AdminPage'))
+
+// 19.9.26 (יהב: "לוקח זמן לדפים להיטען"): the same treatment for every
+// screen a mother does not see on a normal open. The public pages
+// (registration, thank-you, event, gift card, partner, form, shared baby,
+// welcome, vendor check-in, legal), the pregnancy dashboard, onboarding,
+// consent and settings together were ~300 KB of the main bundle that
+// every open downloaded — and re-downloaded after every deploy, because
+// the service worker precaches the whole file. Each is now its own
+// chunk, fetched the first time it is actually rendered.
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
+const PregnancyDashboard = lazy(() => import('./pages/PregnancyDashboard'))
+const PublicFormPage = lazy(() => import('./pages/PublicFormPage'))
+const PublicBabyPage = lazy(() => import('./pages/PublicBabyPage'))
+const GuestJoinPage = lazy(() => import('./pages/GuestJoinPage'))
+const PublicPartnerPage = lazy(() => import('./pages/PublicPartnerPage'))
+const PublicRegisterPage = lazy(() => import('./pages/PublicRegisterPage'))
+const PublicGiftCardPage = lazy(() => import('./pages/PublicGiftCardPage'))
+const PublicEventPage = lazy(() => import('./pages/PublicEventPage'))
+const VendorCheckinPage = lazy(() => import('./pages/VendorCheckinPage'))
+const ThankYouPage = lazy(() => import('./pages/ThankYouPage'))
+const WelcomeClaimPage = lazy(() => import('./pages/WelcomeClaimPage'))
+const LegalPage = lazy(() => import('./pages/LegalPage'))
+const ConsentGate = lazy(() => import('./pages/ConsentGate'))
+const UserSettingsPage = lazy(() => import('./pages/UserSettingsPage'))
 
 export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'community' | 'marketplace' | 'log-sleep' | 'log-tummy' | 'log-feeding-breast' | 'log-feeding-bottle' | 'log-feeding-solid' | 'log-diaper' | 'log-medical' | 'log-milestone' | 'log-note'
 export type AdminSection = 'home' | 'insights' | 'users' | 'workshops' | 'events' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'registrations' | 'makeups' | 'program' | 'settings'
@@ -527,10 +536,23 @@ function AppInner() {
   )
 }
 
+// One Suspense boundary around everything: a lazy page that has not
+// arrived yet shows the same pulsing logo the auth gate shows, instead
+// of a blank screen.
+function PageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-pulse"><MimoLogo size={120} /></div>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <AuthProvider>
-      <AppInner />
+      <Suspense fallback={<PageFallback />}>
+        <AppInner />
+      </Suspense>
     </AuthProvider>
   )
 }

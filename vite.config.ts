@@ -40,7 +40,11 @@ export default defineConfig({
         // precaching them made a first visit on cellular download 2.1 MB
         // before the app was usable. The app's own JS/CSS/icons still are.
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
-        globIgnores: ['**/products/**', '**/brand/**'],
+        // The admin panel is its own chunk (App.tsx lazy()) and is never
+        // rendered for a mother — yet the precache still pushed its 645 KB
+        // to every installed phone on every deploy that touched it.
+        // Brenda's browser caches it the normal way on first use.
+        globIgnores: ['**/products/**', '**/brand/**', '**/AdminPage-*.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,

@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase, UserProfile, Child, Family, PurchasedWorkshop } from '../lib/supabase'
 import type { ShareRole } from '../constants/shareRoles'
+import { clearQueryCache } from '../lib/queryCache'
 
 type AuthContextType = {
   user: User | null
@@ -43,109 +44,68 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
   const [familyMembers, setFamilyMembers] = useState<UserProfile[]>([])
   const [purchasedWorkshops, setPurchasedWorkshops] = useState<PurchasedWorkshop[]>([])
 
-  async function fetchPurchasedWorkshops(userId: string) {
-    const { data } = await supabase
-      .from('purchased_workshops')
-      .select('*')
-      .eq('user_id', userId)
-    setPurchasedWorkshops((data ?? []) as PurchasedWorkshop[])
+  // ── Boot: one round trip ──────────────────────────────────────────────
+  //
+  // יהב 19.9.26: "לפעמים לוקח זמן לדפים להיטען". Measured: this context used
+  // to open the app with SIX requests in a chain (profile → family →
+  // members → members again → children → purchases), each waiting for the
+  // one before, at ~500ms per round trip from Israel to the ap-northeast-1
+  // database. And auth-js fires onAuthStateChange twice on every open
+  // (INITIAL_SESSION, then SIGNED_IN) and again each time the tab comes
+  // back from the background — so the chain ran twice per open and once
+  // more per return. get_my_bootstrap returns the same rows, under the same
+  // RLS, in one call; loadedFor makes sure it runs once per signed-in user.
+  const loadedFor = useRef<string | null>(null)
+  const loadedAt = useRef(0)
+
+  type Bootstrap = {
+    profile: UserProfile | null
+    family: Family | null
+    members: UserProfile[]
+    children: Child[]
+    purchased_workshops: PurchasedWorkshop[]
   }
 
-  async function refreshPurchasedWorkshops() {
-    if (user) await fetchPurchasedWorkshops(user.id)
+  async function fetchBootstrap(): Promise<Bootstrap | null> {
+    const { data, error } = await supabase.rpc('get_my_bootstrap')
+    if (error || !data) {
+      if (error) console.error('[auth] bootstrap', error.message)
+      return null
+    }
+    const b = data as Partial<Bootstrap>
+    return {
+      profile: b.profile ?? null,
+      family: b.family ?? null,
+      members: b.members ?? [],
+      children: b.children ?? [],
+      purchased_workshops: b.purchased_workshops ?? [],
+    }
   }
 
-  const today = new Date().toISOString().split('T')[0]
-  const activeAccess = purchasedWorkshops.find(
-    pw => pw.access_start_date && pw.access_end_date &&
-          pw.access_start_date <= today && pw.access_end_date >= today
-  )
-  const hasActiveWorkshopAccess = !!activeAccess
-  const activeAccessUntil = activeAccess?.access_end_date ?? null
-
-  async function fetchProfile(userId: string) {
-    const { data } = await supabase
+  async function ensureGuestProfile(userId: string): Promise<boolean> {
+    // Anonymous/guest user: create minimal profile from sessionStorage
+    const guestFamilyId = sessionStorage.getItem('guestFamilyId')
+    if (!guestFamilyId) return false
+    const { data: newProfile } = await supabase
       .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
+      .upsert({
+        id: userId,
+        email: `guest-${userId.slice(0, 12)}@mimo.internal`,
+        family_id: guestFamilyId,
+        is_pro: false,
+        is_admin: false,
+        lead_status: 'new_lead',
+      }, { onConflict: 'id' })
+      .select()
       .maybeSingle()
-
-    if (!data) {
-      // Anonymous/guest user: create minimal profile from sessionStorage
-      const guestFamilyId = sessionStorage.getItem('guestFamilyId')
-      if (guestFamilyId) {
-        const { data: newProfile } = await supabase
-          .from('user_profiles')
-          .upsert({
-            id: userId,
-            email: `guest-${userId.slice(0, 12)}@mimo.internal`,
-            family_id: guestFamilyId,
-            is_pro: false,
-            is_admin: false,
-            lead_status: 'new_lead',
-          }, { onConflict: 'id' })
-          .select()
-          .maybeSingle()
-        setProfile(newProfile ?? null)
-        if (newProfile?.family_id) fetchFamily(newProfile.family_id)
-        return newProfile
-      }
-    }
-
-    setProfile(data ?? null)
-    if (data?.family_id) {
-      fetchFamily(data.family_id)
-    }
-    return data
+    return !!newProfile
   }
 
-  async function fetchFamily(familyId: string) {
-    const { data: fam } = await supabase
-      .from('families')
-      .select('*')
-      .eq('id', familyId)
-      .maybeSingle()
-    setFamily(fam ?? null)
-    const { data: members } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('family_id', familyId)
-    setFamilyMembers(members ?? [])
-  }
-
-  async function fetchChildren(userId: string, profileData?: UserProfile | null) {
-    // Fetch children for user + all family members if linked
-    const prof = profileData ?? profile
-    let userIds = [userId]
-    if (prof?.family_id) {
-      const { data: members } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('family_id', prof.family_id)
-      if (members && members.length > 0) {
-        userIds = members.map(m => m.id)
-      }
-    }
-    const { data } = await supabase
-      .from('children')
-      .select('*')
-      .in('user_id', userIds)
-      .order('created_at')
-    let list = data ?? []
-
-    // Guests: if family RLS blocked the lookup, fetch the invited child directly
-    if (list.length === 0) {
-      const guestChildId = sessionStorage.getItem('guestChildId')
-      if (guestChildId) {
-        const { data: directChild } = await supabase
-          .from('children')
-          .select('*')
-          .eq('id', guestChildId)
-          .maybeSingle()
-        if (directChild) list = [directChild]
-      }
-    }
-
+  function applyBootstrap(b: Bootstrap, list: Child[]) {
+    setProfile(b.profile)
+    setFamily(b.family)
+    setFamilyMembers(b.members)
+    setPurchasedWorkshops(b.purchased_workshops)
     setChildren(list)
     const guestChildId = sessionStorage.getItem('guestChildId')
     const preferred = guestChildId ? list.find(c => c.id === guestChildId) : null
@@ -161,6 +121,41 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       return preferred ?? list[0] ?? null
     })
   }
+
+  async function loadBootstrap(userId: string): Promise<UserProfile | null> {
+    let b = await fetchBootstrap()
+    if (b && !b.profile && await ensureGuestProfile(userId)) b = await fetchBootstrap()
+    if (!b) return null
+    let list = b.children
+    // Guests: if family RLS blocked the lookup, fetch the invited child directly
+    if (list.length === 0) {
+      const guestChildId = sessionStorage.getItem('guestChildId')
+      if (guestChildId) {
+        const { data: directChild } = await supabase
+          .from('children')
+          .select('*')
+          .eq('id', guestChildId)
+          .maybeSingle()
+        if (directChild) list = [directChild]
+      }
+    }
+    applyBootstrap(b, list)
+    loadedFor.current = userId
+    loadedAt.current = Date.now()
+    return b.profile
+  }
+
+  async function refreshPurchasedWorkshops() {
+    if (user) await loadBootstrap(user.id)
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  const activeAccess = purchasedWorkshops.find(
+    pw => pw.access_start_date && pw.access_end_date &&
+          pw.access_start_date <= today && pw.access_end_date >= today
+  )
+  const hasActiveWorkshopAccess = !!activeAccess
+  const activeAccessUntil = activeAccess?.access_end_date ?? null
 
   async function createFamily(name: string): Promise<string | null> {
     if (!user) return null
@@ -254,8 +249,8 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
       .then(() => {})
 
     // Force refresh so App.tsx sees the profile without waiting for onAuthStateChange
-    const prof = await fetchProfile(authData.user.id)
-    await fetchChildren(authData.user.id, prof as UserProfile | null)
+    setUser(authData.user)
+    await loadBootstrap(authData.user.id)
 
     // Directly set the invited child — don't rely on the if(!selectedChild) guard
     // which can silently no-op due to async race conditions
@@ -271,12 +266,14 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
     return true
   }
 
+  // All three refreshers are the same one-call reload: the rows travel
+  // together anyway, and one round trip is cheaper than three.
   async function refreshProfile() {
-    if (user) await fetchProfile(user.id)
+    if (user) await loadBootstrap(user.id)
   }
 
   async function refreshChildren() {
-    if (user) await fetchChildren(user.id)
+    if (user) await loadBootstrap(user.id)
   }
 
   /**
@@ -312,33 +309,58 @@ export function AuthProvider({ children: reactChildren }: { children: ReactNode 
   }
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id).then(prof => {
-          fetchChildren(session.user.id, prof as UserProfile | null)
-          fetchPurchasedWorkshops(session.user.id)
-        }).finally(() => setLoading(false))
-        flushPendingEventPayment()
-      } else {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const next = session?.user ?? null
+      if (!next) {
+        loadedFor.current = null
+        clearQueryCache()
+        setUser(null)
         setProfile(null)
         setChildren([])
         setSelectedChild(null)
         setPurchasedWorkshops([])
         setLoading(false)
+        return
       }
+      // Same person, same rows. INITIAL_SESSION + SIGNED_IN on every open,
+      // SIGNED_IN on every return from the background, TOKEN_REFRESHED
+      // every hour: none of these changes who she is. Keep the user object
+      // stable too, so hooks keyed on `user` do not refetch either.
+      // USER_UPDATED (ConsentGate stamping terms_accepted_at) does carry new
+      // metadata, so that one replaces the object without reloading rows.
+      setUser(prev => (prev && prev.id === next.id && event !== 'USER_UPDATED') ? prev : next)
+      if (loadedFor.current === next.id) return
+      if (loadedFor.current) clearQueryCache() // another account in the same tab
+      loadedFor.current = next.id
+      loadBootstrap(next.id).finally(() => setLoading(false))
+      flushPendingEventPayment()
     })
+
+    // A purchase confirmed by the Morning webhook while the app sat in the
+    // background used to show up because the SIGNED_IN storm refetched
+    // everything. Keep that one benefit, cheaply: on return, if the rows
+    // are older than ten minutes, reload them once in the background.
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      const uid = loadedFor.current
+      if (!uid || Date.now() - loadedAt.current < 10 * 60_000) return
+      loadBootstrap(uid)
+    }
+    document.addEventListener('visibilitychange', onVisible)
 
     const timeout = setTimeout(() => setLoading(false), 5000)
 
     return () => {
       subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', onVisible)
       clearTimeout(timeout)
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function signOut() {
     await supabase.auth.signOut()
+    loadedFor.current = null
+    clearQueryCache()
     setUser(null)
     setProfile(null)
     setChildren([])

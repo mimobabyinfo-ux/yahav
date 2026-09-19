@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
 import { Share2 } from 'lucide-react'
 import { supabase, DailyLogEntryWithDetails } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -13,8 +13,13 @@ import type { JournalTab } from '../components/journal/JournalTabs'
 import JournalViewSheet from '../components/journal/JournalViewSheet'
 import DayView from '../components/journal/DayView'
 import WeekView from '../components/journal/WeekView'
-import SummaryView from '../components/journal/SummaryView'
 import type { Page } from '../App'
+
+// The summary tab is the only place in the app that draws charts, and
+// recharts (with redux, immer and d3 behind it) is ~1 MB of source — half
+// of the main bundle before 19.9.26. It is downloaded the first time she
+// opens סיכום, not on every open of the app.
+const SummaryView = lazy(() => import('../components/journal/SummaryView'))
 
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 type TimelineFilter = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time'
@@ -311,14 +316,16 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
           />
         )}
         {tab === 'summary' && (
-          <SummaryView
-            refetchKey={refetchKey}
-            onNavigateToDay={(iso) => {
-              setSelectedDate(iso)
-              setTab('day')
-            }}
-            onOpenViews={() => setViewSheet(true)}
-          />
+          <Suspense fallback={<p className="text-center text-sand-400 text-sm py-12">טוענת סיכום...</p>}>
+            <SummaryView
+              refetchKey={refetchKey}
+              onNavigateToDay={(iso) => {
+                setSelectedDate(iso)
+                setTab('day')
+              }}
+              onOpenViews={() => setViewSheet(true)}
+            />
+          </Suspense>
         )}
         </div>
       </div>

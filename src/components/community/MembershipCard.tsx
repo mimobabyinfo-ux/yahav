@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { X, Ticket, Gift, Navigation } from 'lucide-react'
 import { supabase, type PartnerPerk } from '../../lib/supabase'
+import { cachedQuery } from '../../lib/queryCache'
 import { useAuth } from '../../contexts/AuthContext'
 import { perkValidity, perkValidityLabel } from '../../utils/perkValidity'
 import { perkBranches, branchMapUrl, type PerkBranch } from '../../utils/perkBranches'
@@ -42,12 +43,14 @@ export default function MembershipCard({ onClose, event }: Props) {
 
   useEffect(() => {
     if (event) return // ticket mode doesn't need the perks list
-    supabase.from('partner_perks')
-      .select('*')
-      .eq('is_active', true)
-      .eq('redeem_in_person', true) // online perks live in the benefits page, not on the card
-      .order('display_order')
-      .then(({ data }) => setPerks(data ?? []))
+    cachedQuery<PartnerPerk[]>('partner_perks:in_person', async () => {
+      const { data } = await supabase.from('partner_perks')
+        .select('*')
+        .eq('is_active', true)
+        .eq('redeem_in_person', true) // online perks live in the benefits page, not on the card
+        .order('display_order')
+      return (data ?? []) as PartnerPerk[]
+    }, 5 * 60_000).then(setPerks)
   }, [event])
 
   // Brenda 17.8.26: a perk can be limited to her first N days in the

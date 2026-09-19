@@ -2,6 +2,7 @@
 import { ChevronLeft, ExternalLink } from 'lucide-react'
 import { supabase, type HomeAnnouncement } from '../../lib/supabase'
 import { formatDate } from '../../utils/dateUtils'
+import { cachedQuery } from '../../lib/queryCache'
 import type { Page } from '../../App'
 
 // Admin-controlled home-page announcements (מבצעים / הנחות / הודעות).
@@ -14,12 +15,15 @@ export default function HomeAnnouncementsBanner({ onNavigate }: { onNavigate: (p
   const [items, setItems] = useState<HomeAnnouncement[]>([])
 
   useEffect(() => {
-    supabase
-      .from('home_announcements')
-      .select('*')
-      .eq('is_active', true)
-      .order('display_order')
-      .then(({ data }) => {
+    cachedQuery<HomeAnnouncement[]>('home_announcements', async () => {
+      const { data } = await supabase
+        .from('home_announcements')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order')
+      return (data ?? []) as HomeAnnouncement[]
+    }, 5 * 60_000)
+      .then(data => {
         // Date-window filter in Israel-calendar terms (formatDate is
         // Asia/Jerusalem-anchored) — RLS already filters is_active.
         const today = formatDate(new Date())
