@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
-import { MapPin, Clock, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft, Instagram } from 'lucide-react'
+import { MapPin, Clock, ExternalLink, Check, X, CalendarHeart, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown, Instagram } from 'lucide-react'
 import { supabase, type CommunityEventRow, type MyWaitlist, type MyCredit } from '../../lib/supabase'
 import { getSettings } from '../../lib/settings'
 import { invalidateQueryPrefix } from '../../lib/queryCache'
@@ -92,6 +92,10 @@ export default function EventsTab() {
   // settings screen she will never open. Until now the opt-in lived
   // inside ההזמנות שלי and only 3 mothers out of 57 had ever found it.
   const [justRegistered, setJustRegistered] = useState(false)
+  // Yahav 19.9.26: "מה כבר היה" starts folded. It only grows, and open by
+  // default it would end up burying the upcoming events it sits under.
+  const [pastOpen, setPastOpen] = useState(false)
+  const [pastAll, setPastAll] = useState(false)
   // Month chips (list view) — null = show all months
   const [monthFilter, setMonthFilter] = useState<string | null>(null)
   // רשימה / יומן view toggle + calendar month navigation
@@ -1292,11 +1296,26 @@ export default function EventsTab() {
           ))}
           {!monthFilter && past.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-sm font-bold text-sand-500 flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPastOpen(o => !o)}
+                aria-expanded={pastOpen}
+                className="w-full flex items-center gap-1.5 text-sm font-bold text-sand-500 bg-white/70 rounded-2xl px-3 py-2.5"
+              >
                 <CalendarHeart className="w-4 h-4 text-sand-400" />
-                מה כבר היה
-              </h2>
-              {past.slice(0, 6).map(ev => pastCard(ev))}
+                <span className="flex-1 text-right">מה כבר היה ({past.length})</span>
+                <ChevronDown className={`w-4 h-4 text-sand-400 transition-transform ${pastOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {pastOpen && (pastAll ? past : past.slice(0, 6)).map(ev => pastCard(ev))}
+              {pastOpen && !pastAll && past.length > 6 && (
+                <button
+                  type="button"
+                  onClick={() => setPastAll(true)}
+                  className="w-full text-center text-xs font-bold text-sand-500 py-1"
+                >
+                  ועוד {past.length - 6}
+                </button>
+              )}
             </div>
           )}
         </div>
