@@ -82,6 +82,9 @@ type RegistrantRow = {
   paid: boolean
   /** What she actually paid. The cancellation credit is this, not price x seats. */
   paid_amount: number | null
+  /** How (19.9.26): card = Morning, credit = a community credit, admin = by
+   *  hand. null on rows paid before that date that could not be traced. */
+  paid_via: 'card' | 'credit' | 'admin' | null
   /** She said she paid somewhere we cannot see it (Bit, cross-device).
    *  Needs Brenda's confirmation — it is a claim, not a payment. */
   payment_claimed_at: string | null
@@ -108,6 +111,14 @@ type InterestRow = {
 }
 const INTEREST_LABELS: Record<InterestRow['reason'], string> = {
   day: 'היום לא מתאים', time: 'השעה לא מתאימה', full: 'אין מקום', other: 'אחר',
+}
+
+/** "שילמה ₪30 בכרטיס" / "בזיכוי" / "סומן ידנית" — Yahav 19.9.26: until now
+ *  every paid seat read the same, and a credit looked like fresh money. */
+function paidLabel(r: { paid: boolean; paid_amount: number | null; paid_via: RegistrantRow['paid_via'] }): string {
+  if (!r.paid || r.paid_amount == null) return ''
+  const how = r.paid_via === 'credit' ? ' בזיכוי' : r.paid_via === 'card' ? ' בכרטיס' : r.paid_via === 'admin' ? ' (סומן ידנית)' : ''
+  return ` · שילמה ₪${Number(r.paid_amount)}${how}`
 }
 
 type WaitlistRow = {
@@ -371,7 +382,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
     const [{ data }, { data: wl }, { data: ints }] = await Promise.all([
       supabase
         .from('event_registrations')
-        .select('id, user_id, status, paid, paid_amount, payment_claimed_at, guest_names, substitute_name, created_at, user_profiles(mother_name, phone_number, email, area, baby_name, baby_dob, community_bio, community_tags, staff_notes)')
+        .select('id, user_id, status, paid, paid_amount, paid_via, payment_claimed_at, guest_names, substitute_name, created_at, user_profiles(mother_name, phone_number, email, area, baby_name, baby_dob, community_bio, community_tags, staff_notes)')
         .eq('event_id', ev.id)
         .order('created_at'),
       supabase
@@ -545,6 +556,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
         // so a payment confirmed by hand without one would credit ₪0.
         paid_amount: nowPaid ? (reg.paid_amount ?? (regsEvent?.price ?? 0) * seats) : null,
         paid_at: nowPaid ? new Date().toISOString() : null,
+        paid_via: nowPaid ? 'admin' : null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', reg.id)
@@ -563,6 +575,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
             status: 'registered', paid: true,
             paid_amount: reg.paid_amount ?? (regsEvent?.price ?? 0) * seats,
             paid_at: new Date().toISOString(),
+            paid_via: 'admin',
             payment_claimed_at: null, hold_expires_at: null,
             updated_at: new Date().toISOString(),
           }
@@ -1206,7 +1219,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                             {!r.user_profiles?.baby_name && !r.user_profiles?.baby_dob && !r.user_profiles?.area && (phone ?? 'אין טלפון בפרופיל')}
                             {cancelled && ' · ביטלה'}
                             {r.status === 'pending' && !r.payment_claimed_at && ' · באמצע תשלום'}
-                            {r.paid && r.paid_amount != null && ` · שילמה ₪${Number(r.paid_amount)}`}
+                            {paidLabel(r)}
                             {r.substitute_name && ` · במקומה מגיעה ${r.substitute_name}`}
                           </p>
                           {/* guest_names was fetched, counted into the seat
@@ -1271,7 +1284,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                         <div className="mt-2 rounded-2xl p-3 space-y-2" onClick={e => e.stopPropagation()} style={{ background: '#FAF7F1' }}>
                           <p className="text-[13px] font-bold" style={{ color: '#5E4938' }}>
                             ביטול ההרשמה של {name}
-                            {r.paid && r.paid_amount != null && ` · שילמה ₪${Number(r.paid_amount)}`}
+                            {paidLabel(r)}
                           </p>
                           {r.paid && Number(r.paid_amount ?? 0) > 0 ? (
                             <>

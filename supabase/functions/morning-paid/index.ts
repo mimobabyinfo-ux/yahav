@@ -66,6 +66,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
  * v18 (16.9.26): a product id that no event carries yet is LEARNED from
  * the payer's live hold instead of refused. See the block in process().
  *
+ * v19 (19.9.26): the payer's OWN several live holds are no longer an
+ * ambiguity; the most recently touched one takes the payment.
+ *
  * COURSES are matched separately, after events: a lead by email, or
  * workshops.morning_product_id for a raw link (the lead is created).
  *
@@ -278,15 +281,32 @@ async function process(payload: MorningPayload): Promise<void> {
       //     that survives several holds being open at once.
       //     In learn mode only a LIVE hold of hers counts: an abandoned
       //     hold from last week must not teach us a product id.
-      const mine = payer ? (learning ? live : unpaid).filter(h => h.user_id === payer.id) : []
+      let mine = payer ? (learning ? live : unpaid).filter(h => h.user_id === payer.id) : []
+      let mineNote = ""
+      if (mine.length > 1 && !learning) {
+        // v19 (19.9.26): נוף רוסו registered for two priced events thirty
+        // seconds apart and paid for one. Both were her own live holds, so
+        // v18 refused as ambiguous and nothing was confirmed until Yahav
+        // did it by hand. Between HER OWN holds there is no wrong seat to
+        // give away - it is her money on her registrations - and she pays
+        // them one after the other, so the payment that just arrived goes
+        // to the seat she touched last (holds are ordered updated_at desc).
+        // The next payment finds that one paid and lands on the other.
+        // Only live holds qualify; a stale hold from last week never wins.
+        const mineLive = mine.filter(h => live.includes(h))
+        if (mineLive.length >= 1) {
+          mine = [mineLive[0]]
+          mineNote = mineLive.length > 1 ? "_latest_of_" + mineLive.length : ""
+        } else {
+          console.error("[morning-paid] payer holds stale seats on several events at this price:", scope)
+          await record("community_event", `ambiguous_payer_holds(${mine.length}):${scope}`)
+          return
+        }
+      }
       if (mine.length === 1) {
         eventId = mine[0].event_id
         userId = payer!.id
-        via = `payer_hold_${payer!.via}`
-      } else if (mine.length > 1 && !learning) {
-        console.error("[morning-paid] payer holds seats on several events at this price:", scope)
-        await record("community_event", `ambiguous_payer_holds(${mine.length}):${scope}`)
-        return
+        via = `payer_hold_${payer!.via}${mineNote}`
       }
 
       // 2 - somebody else paid for a seat held moments ago. One live hold
@@ -463,7 +483,7 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "GET") {
     return json({
-      ok: true, alive: true, version: 18,
+      ok: true, alive: true, version: 19,
       handles: ["community_event", "digital_course", "workshop"],
       seat_match: ["payer_hold", "single_live_hold", "payer_new"],
       learns_product_ids: true,

@@ -1071,6 +1071,8 @@ function EventRegistrationRow({ reg }: { reg: CustomerEventRegistration }) {
         {amount != null && amount > 0 ? (
           <span className="text-sm font-bold flex-shrink-0" style={{ color: reg.paid ? '#443327' : '#8B4A30' }}>
             {formatIls(amount)}{!reg.paid && ' · לא שולם'}
+            {reg.paid && reg.paidVia === 'credit' && ' · בזיכוי'}
+            {reg.paid && reg.paidVia === 'admin' && ' · סומן ידנית'}
           </span>
         ) : (
           <span className="text-xs font-semibold flex-shrink-0" style={{ color: '#A2937D' }}>חינם</span>

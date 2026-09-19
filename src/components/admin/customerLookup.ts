@@ -108,6 +108,8 @@ export type CustomerEventRegistration = {
   status: EventRegStatus
   paid: boolean
   paid_amount: number | null
+  /** How it was paid (19.9.26): card / credit / admin; null when unknown. */
+  paidVia: 'card' | 'credit' | 'admin' | null
   /** Who she brought — one paid seat per name, on top of her own. */
   guestNames: string[]
   /** A further ticket bought after the fact; unpaid while it holds. */
@@ -568,7 +570,7 @@ async function loadCommunity(userId: string | null): Promise<{
     supabase
       .from('event_registrations')
       .select(
-        `id, event_id, status, paid, paid_amount, guest_names, extra_guest_names, ` +
+        `id, event_id, status, paid, paid_amount, paid_via, guest_names, extra_guest_names, ` +
         `substitute_name, created_at, community_events(${EVENT_COLS})`,
       )
       .eq('user_id', userId),
@@ -597,7 +599,7 @@ async function loadCommunity(userId: string | null): Promise<{
 
   type RegRow = {
     id: string; event_id: string; status: EventRegStatus; paid: boolean
-    paid_amount: number | null; guest_names: string[] | null
+    paid_amount: number | null; paid_via: 'card' | 'credit' | 'admin' | null; guest_names: string[] | null
     extra_guest_names: string[] | null; substitute_name: string | null
     created_at: string; community_events: EventJoin
   }
@@ -623,6 +625,7 @@ async function loadCommunity(userId: string | null): Promise<{
         status: r.status,
         paid: r.paid,
         paid_amount: r.paid_amount,
+        paidVia: r.paid_via ?? null,
         guestNames: r.guest_names ?? [],
         extraGuestNames: r.extra_guest_names ?? [],
         substituteName: r.substitute_name,
