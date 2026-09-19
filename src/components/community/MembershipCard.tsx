@@ -71,6 +71,9 @@ export default function MembershipCard({ onClose, event }: Props) {
       perk_id: perkId,
       user_id: profile?.id ?? null,
       action_type: 'navigate',
+    }).then(({ error }) => {
+      // .then() sends it; without it the lazy builder never fires (19.9.26).
+      if (error) console.error('[membership-card] navigate analytics failed:', error)
     })
   }
 

@@ -63,7 +63,14 @@ export default function WhatsNewModal({ onNavigate }: { onNavigate: (page: Page)
 
   function markSeen() {
     setOpen(false)
-    void supabase.rpc('mark_whats_new_seen')
+    // The .then() is what SENDS the request. A supabase-js builder is lazy:
+    // `void supabase.rpc(...)` on its own builds the call and never fires
+    // it. From 17.9 to 19.9.26 that is exactly what stood here, so nobody
+    // was ever marked as having seen the popup and it came back on every
+    // app open (30 of 31 rows in whats_new_seen never moved).
+    void supabase.rpc('mark_whats_new_seen').then(({ error }) => {
+      if (error) console.error('[whats-new] mark seen failed:', error)
+    })
   }
   function go(page: Page) {
     markSeen()
