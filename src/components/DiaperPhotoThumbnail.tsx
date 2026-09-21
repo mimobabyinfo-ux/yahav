@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -44,15 +45,22 @@ export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted, 
         )}
       </button>
 
-      {fullscreen && (
+      {/* Portal to <body>: the journal wraps its content in a positioned,
+          stacking-context ancestor, which trapped this `fixed` overlay inside
+          the list. It covered only the list (not the date bar or BottomNav),
+          centred the photo in the full list height instead of the screen, and
+          left the close button at the top of the list, off screen. Same fix as
+          BottomSheet. */}
+      {fullscreen && createPortal(
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
+          className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4"
           dir="rtl"
           onClick={() => setFullscreen(false)}
         >
           <button
             onClick={() => setFullscreen(false)}
-            className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white"
+            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
+            className="absolute right-4 p-2 bg-white/20 rounded-full text-white"
           >
             <X className="w-5 h-5" />
           </button>
@@ -79,7 +87,8 @@ export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted, 
             <Trash2 className="w-4 h-4" />
             {deleting ? 'מוחק...' : 'מחק מדיה'}
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
