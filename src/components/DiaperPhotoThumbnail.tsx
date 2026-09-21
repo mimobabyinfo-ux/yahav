@@ -34,8 +34,10 @@ export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted, 
 
   return (
     <>
+      {/* stopPropagation: the thumbnail sits inside the timeline card, whose
+          own onClick opens the entry for editing. */}
       <button
-        onClick={() => setFullscreen(true)}
+        onClick={e => { e.stopPropagation(); setFullscreen(true) }}
         className="flex-shrink-0 rounded-lg overflow-hidden border border-sand-100 hover:border-mustard-300 transition-colors"
       >
         {isVideo ? (
@@ -55,10 +57,10 @@ export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted, 
         <div
           className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4"
           dir="rtl"
-          onClick={() => setFullscreen(false)}
+          onClick={e => { e.stopPropagation(); setFullscreen(false) }}
         >
           <button
-            onClick={() => setFullscreen(false)}
+            onClick={e => { e.stopPropagation(); setFullscreen(false) }}
             style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
             className="absolute right-4 p-2 bg-white/20 rounded-full text-white"
           >
