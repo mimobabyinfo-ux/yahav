@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { RefreshCw, Check, Clock, Users, CalendarDays } from 'lucide-react'
+import { RefreshCw, Check, Clock, Users, CalendarDays, ChevronDown } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 // מסך ההשלמות. קריאה בלבד כמעט לגמרי, במכוון.
@@ -43,6 +43,33 @@ type Request = {
   makeup_cohort_label: string
   queue_position: number | null
   allocated_at: string | null
+  target_meeting_id: string
+}
+
+type Absence = {
+  absence_id: string
+  meeting_id: string
+  marked_at: string
+  mother_name: string | null
+  mother_phone: string | null
+  makeup: {
+    status: string
+    makeup_date: string
+    makeup_time: string | null
+    makeup_cohort_label: string
+  } | null
+}
+
+// 22.9.26 ברנדה: "אופציה לפתוח ולסגור כל אחד מהטאבים". המצב נשמר בדפדפן
+// כדי שהמסך ייפתח כמו שהשאירה אותו.
+type SectionKey = 'waiting' | 'incoming' | 'meetings'
+const OPEN_KEY = 'mimo_admin_makeups_open'
+function loadOpen(): Record<SectionKey, boolean> {
+  const dflt = { waiting: true, incoming: true, meetings: true }
+  try {
+    const raw = localStorage.getItem(OPEN_KEY)
+    return raw ? { ...dflt, ...JSON.parse(raw) } : dflt
+  } catch { return dflt }
 }
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
@@ -69,14 +96,30 @@ export default function MakeupsPanel() {
   const [roster, setRoster] = useState<Roster[]>([])
   const [requests, setRequests] = useState<Request[]>([])
   const [loading, setLoading] = useState(true)
+  const [absences, setAbsences] = useState<Absence[]>([])
   const [running, setRunning] = useState(false)
   const [note, setNote] = useState<string | null>(null)
+  const [open, setOpen] = useState<Record<SectionKey, boolean>>(loadOpen)
+  // 22.9.26 ברנדה: "כשאני רואה +1 משלימות או 1 שהודיעו שלא מגיעות הייתי רוצה
+  // ללחוץ על זה ולראות מי זה". מפגש אחד פתוח בכל פעם, לפי סוג הצ'יפ.
+  const [detail, setDetail] = useState<{ meetingId: string; kind: 'absent' | 'in' | 'waiting' } | null>(null)
+
+  function toggle(k: SectionKey) {
+    setOpen(prev => {
+      const next = { ...prev, [k]: !prev[k] }
+      try { localStorage.setItem(OPEN_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
+  function toggleDetail(meetingId: string, kind: 'absent' | 'in' | 'waiting') {
+    setDetail(prev => (prev && prev.meetingId === meetingId && prev.kind === kind ? null : { meetingId, kind }))
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
     const today = todayIso()
     const horizon = addDaysIso(today, 21)
-    const [{ data: r }, { data: q }] = await Promise.all([
+    const [{ data: r }, { data: q }, { data: a }] = await Promise.all([
       supabase
         .from('v_meeting_roster')
         .select('*')
@@ -88,9 +131,14 @@ export default function MakeupsPanel() {
         .select('*')
         .in('status', ['requested', 'confirmed', 'attended'])
         .order('makeup_date'),
+      supabase
+        .from('v_meeting_absences_admin')
+        .select('*')
+        .order('marked_at'),
     ])
     setRoster((r ?? []) as Roster[])
     setRequests((q ?? []) as Request[])
+    setAbsences((a ?? []) as Absence[])
     setLoading(false)
   }, [])
 
@@ -122,6 +170,8 @@ export default function MakeupsPanel() {
 
   const waiting = requests.filter(r => r.status === 'requested')
   const incoming = requests.filter(r => r.status === 'confirmed' || r.status === 'attended')
+  const isDetail = (meetingId: string, kind: 'absent' | 'in' | 'waiting') =>
+    detail?.meetingId === meetingId && detail.kind === kind
   const busyMeetings = roster.filter(r => !r.is_cancelled && (r.absent > 0 || r.makeups_in > 0 || r.makeups_waiting > 0))
 
   return (
@@ -157,11 +207,18 @@ export default function MakeupsPanel() {
               הוא תמיד אותם ארבעה שדות (מי, איזה מפגש, מאיפה, לאן), אז הוא
               נפרס לשתי משבצות עם תווית קטנה במקום להיסחב כמשפט. */}
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-sand-700 inline-flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => toggle('waiting')}
+              className="w-full flex items-center gap-1.5 text-sm font-bold text-sand-700 py-1"
+              aria-expanded={open.waiting}
+            >
               <Clock className="w-4 h-4 text-sand-400" />
               ממתינות לתשובה ({waiting.length})
-            </h3>
-            {waiting.length === 0 ? (
+              <ChevronDown className={`w-4 h-4 text-sand-400 mr-auto transition-transform ${open.waiting ? '' : '-rotate-90'}`} />
+            </button>
+            {open.waiting && (
+            waiting.length === 0 ? (
               <p className="text-sand-400 text-sm bg-sand-50 rounded-2xl px-4 py-3">
                 אף אחת לא ממתינה כרגע.
               </p>
@@ -195,16 +252,24 @@ export default function MakeupsPanel() {
                   </div>
                 </div>
               ))
+            )
             )}
           </section>
 
           {/* אושרו */}
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-sand-700 inline-flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => toggle('incoming')}
+              className="w-full flex items-center gap-1.5 text-sm font-bold text-sand-700 py-1"
+              aria-expanded={open.incoming}
+            >
               <Check className="w-4 h-4 text-sand-400" />
               משלימות שאושרו ({incoming.length})
-            </h3>
-            {incoming.length === 0 ? (
+              <ChevronDown className={`w-4 h-4 text-sand-400 mr-auto transition-transform ${open.incoming ? '' : '-rotate-90'}`} />
+            </button>
+            {open.incoming && (
+            incoming.length === 0 ? (
               <p className="text-sand-400 text-sm bg-sand-50 rounded-2xl px-4 py-3">
                 עדיין אין השלמות מאושרות.
               </p>
@@ -243,16 +308,24 @@ export default function MakeupsPanel() {
                   </div>
                 </div>
               ))
+            )
             )}
           </section>
 
           {/* המפגשים הקרובים שיש בהם תנועה */}
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-sand-700 inline-flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => toggle('meetings')}
+              className="w-full flex items-center gap-1.5 text-sm font-bold text-sand-700 py-1"
+              aria-expanded={open.meetings}
+            >
               <CalendarDays className="w-4 h-4 text-sand-400" />
               מפגשים קרובים עם שינויים
-            </h3>
-            {busyMeetings.length === 0 ? (
+              <ChevronDown className={`w-4 h-4 text-sand-400 mr-auto transition-transform ${open.meetings ? '' : '-rotate-90'}`} />
+            </button>
+            {open.meetings && (
+            busyMeetings.length === 0 ? (
               <p className="text-sand-400 text-sm bg-sand-50 rounded-2xl px-4 py-3">
                 בשלושת השבועות הקרובים אין היעדרויות ואין השלמות. הכל כרגיל.
               </p>
@@ -273,24 +346,74 @@ export default function MakeupsPanel() {
                       <Users className="w-3 h-3" /> {m.registered - m.absent + m.makeups_in}/{m.capacity} צפויות
                     </span>
                     {m.absent > 0 && (
-                      <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => toggleDetail(m.meeting_id, 'absent')}
+                        className={`text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-semibold ${isDetail(m.meeting_id, 'absent') ? 'ring-2 ring-amber-300' : ''}`}
+                      >
                         {m.absent} הודיעו שלא מגיעות
-                      </span>
+                      </button>
                     )}
                     {m.makeups_in > 0 && (
-                      <span className="text-mustard-700 bg-mustard-50 px-2 py-0.5 rounded-full font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => toggleDetail(m.meeting_id, 'in')}
+                        className={`text-mustard-700 bg-mustard-50 px-2 py-0.5 rounded-full font-semibold ${isDetail(m.meeting_id, 'in') ? 'ring-2 ring-mustard-300' : ''}`}
+                      >
                         +{m.makeups_in} משלימות
-                      </span>
+                      </button>
                     )}
                     {m.makeups_waiting > 0 && (
-                      <span className="text-sand-500 bg-sand-100 px-2 py-0.5 rounded-full">
+                      <button
+                        type="button"
+                        onClick={() => toggleDetail(m.meeting_id, 'waiting')}
+                        className={`text-sand-500 bg-sand-100 px-2 py-0.5 rounded-full ${isDetail(m.meeting_id, 'waiting') ? 'ring-2 ring-sand-300' : ''}`}
+                      >
                         {m.makeups_waiting} בתור
-                      </span>
+                      </button>
                     )}
                     {m.allocated_at && <span className="text-sand-400">הוקצה</span>}
                   </div>
+
+                  {isDetail(m.meeting_id, 'absent') && (
+                    <ul className="mt-2 space-y-1 border-t border-sand-100 pt-2">
+                      {absences.filter(a => a.meeting_id === m.meeting_id).map(a => (
+                        <li key={a.absence_id} className="flex items-baseline gap-2 flex-wrap text-[11px]">
+                          <span className="text-xs font-bold text-sand-800">{a.mother_name ?? '—'}</span>
+                          <span className="text-sand-400" dir="ltr">{a.mother_phone ?? ''}</span>
+                          {a.makeup ? (
+                            <span className="text-sand-500">
+                              {a.makeup.status === 'requested' ? 'ביקשה להשלים ב' : 'משלימה ב'}
+                              {dayName(a.makeup.makeup_date)} {ddmm(a.makeup.makeup_date)}
+                              {a.makeup.makeup_time ? ` ${a.makeup.makeup_time.slice(0, 5)}` : ''}
+                            </span>
+                          ) : (
+                            <span className="text-amber-700 font-semibold">לא ביקשה השלמה</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {(isDetail(m.meeting_id, 'in') || isDetail(m.meeting_id, 'waiting')) && (
+                    <ul className="mt-2 space-y-1 border-t border-sand-100 pt-2">
+                      {requests
+                        .filter(r => r.target_meeting_id === m.meeting_id &&
+                          (detail?.kind === 'in' ? r.status !== 'requested' : r.status === 'requested'))
+                        .map(r => (
+                          <li key={r.request_id} className="flex items-baseline gap-2 flex-wrap text-[11px]">
+                            <span className="text-xs font-bold text-sand-800">{r.mother_name ?? '—'}</span>
+                            <span className="text-sand-400" dir="ltr">{r.mother_phone ?? ''}</span>
+                            <span className="text-sand-500">
+                              פספסה מפגש {r.meeting_number} ב-{ddmm(r.missed_date)} (קבוצת {r.source_cohort_label})
+                            </span>
+                            {r.status === 'attended' && <span className="text-[#2E7D32]">✓ הגיעה</span>}
+                          </li>
+                        ))}
+                    </ul>
+                  )}
                 </div>
               ))
+            )
             )}
           </section>
         </>
