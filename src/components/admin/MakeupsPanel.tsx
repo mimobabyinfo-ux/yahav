@@ -202,6 +202,112 @@ export default function MakeupsPanel() {
         <p className="text-center text-sand-400 text-sm py-10">טוענת...</p>
       ) : (
         <>
+          {/* המפגשים הקרובים שיש בהם תנועה. ראשון מ-22.9.26, ברנדה: "זה הכי חשוב לי,
+              ככה אני יכולה להבין מי מגיע למפגשים הקרובים ומי לא". */}
+          <section className="space-y-2">
+            <button
+              type="button"
+              onClick={() => toggle('meetings')}
+              className="w-full flex items-center gap-1.5 text-sm font-bold text-sand-700 py-1"
+              aria-expanded={open.meetings}
+            >
+              <CalendarDays className="w-4 h-4 text-sand-400" />
+              מפגשים קרובים עם שינויים
+              <ChevronDown className={`w-4 h-4 text-sand-400 mr-auto transition-transform ${open.meetings ? '' : '-rotate-90'}`} />
+            </button>
+            {open.meetings && (
+            busyMeetings.length === 0 ? (
+              <p className="text-sand-400 text-sm bg-sand-50 rounded-2xl px-4 py-3">
+                בשלושת השבועות הקרובים אין היעדרויות ואין השלמות. הכל כרגיל.
+              </p>
+            ) : (
+              busyMeetings.map(m => (
+                <div key={m.meeting_id} className="rounded-2xl bg-white border border-sand-200 p-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-bold text-sand-800">
+                      {dayName(m.meeting_date)} {ddmm(m.meeting_date)}
+                      {m.start_time ? ` ${m.start_time.slice(0, 5)}` : ''}
+                    </span>
+                    <span className="text-[11px] text-sand-400">
+                      {m.workshop_title} · מפגש {m.meeting_number}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[11px]">
+                    <span className="inline-flex items-center gap-1 font-semibold text-sand-600 bg-sand-100 px-2 py-0.5 rounded-full">
+                      <Users className="w-3 h-3" /> {m.registered - m.absent + m.makeups_in}/{m.capacity} צפויות
+                    </span>
+                    {m.absent > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => toggleDetail(m.meeting_id, 'absent')}
+                        className={`text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-semibold ${isDetail(m.meeting_id, 'absent') ? 'ring-2 ring-amber-300' : ''}`}
+                      >
+                        {m.absent} הודיעו שלא מגיעות
+                      </button>
+                    )}
+                    {m.makeups_in > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => toggleDetail(m.meeting_id, 'in')}
+                        className={`text-mustard-700 bg-mustard-50 px-2 py-0.5 rounded-full font-semibold ${isDetail(m.meeting_id, 'in') ? 'ring-2 ring-mustard-300' : ''}`}
+                      >
+                        +{m.makeups_in} משלימות
+                      </button>
+                    )}
+                    {m.makeups_waiting > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => toggleDetail(m.meeting_id, 'waiting')}
+                        className={`text-sand-500 bg-sand-100 px-2 py-0.5 rounded-full ${isDetail(m.meeting_id, 'waiting') ? 'ring-2 ring-sand-300' : ''}`}
+                      >
+                        {m.makeups_waiting} בתור
+                      </button>
+                    )}
+                    {m.allocated_at && <span className="text-sand-400">הוקצה</span>}
+                  </div>
+
+                  {isDetail(m.meeting_id, 'absent') && (
+                    <ul className="mt-2 space-y-1 border-t border-sand-100 pt-2">
+                      {absences.filter(a => a.meeting_id === m.meeting_id).map(a => (
+                        <li key={a.absence_id} className="flex items-baseline gap-2 flex-wrap text-[11px]">
+                          <span className="text-xs font-bold text-sand-800">{a.mother_name ?? '—'}</span>
+                          <span className="text-sand-400" dir="ltr">{a.mother_phone ?? ''}</span>
+                          {a.makeup ? (
+                            <span className="text-sand-500">
+                              {a.makeup.status === 'requested' ? 'ביקשה להשלים ב' : 'משלימה ב'}
+                              {dayName(a.makeup.makeup_date)} {ddmm(a.makeup.makeup_date)}
+                              {a.makeup.makeup_time ? ` ${a.makeup.makeup_time.slice(0, 5)}` : ''}
+                            </span>
+                          ) : (
+                            <span className="text-amber-700 font-semibold">לא ביקשה השלמה</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {(isDetail(m.meeting_id, 'in') || isDetail(m.meeting_id, 'waiting')) && (
+                    <ul className="mt-2 space-y-1 border-t border-sand-100 pt-2">
+                      {requests
+                        .filter(r => r.target_meeting_id === m.meeting_id &&
+                          (detail?.kind === 'in' ? r.status !== 'requested' : r.status === 'requested'))
+                        .map(r => (
+                          <li key={r.request_id} className="flex items-baseline gap-2 flex-wrap text-[11px]">
+                            <span className="text-xs font-bold text-sand-800">{r.mother_name ?? '—'}</span>
+                            <span className="text-sand-400" dir="ltr">{r.mother_phone ?? ''}</span>
+                            <span className="text-sand-500">
+                              פספסה מפגש {r.meeting_number} ב-{ddmm(r.missed_date)} (קבוצת {r.source_cohort_label})
+                            </span>
+                            {r.status === 'attended' && <span className="text-[#2E7D32]">✓ הגיעה</span>}
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </div>
+              ))
+            )
+            )}
+          </section>
+
           {/* ממתינות בתור.
               ברנדה 3.9.26: "יותר מדי מלל, אני לא מצליח להבין מה רשום". המידע
               הוא תמיד אותם ארבעה שדות (מי, איזה מפגש, מאיפה, לאן), אז הוא
@@ -306,111 +412,6 @@ export default function MakeupsPanel() {
                       <p className="text-[11px] text-sand-500 truncate">קבוצת {r.makeup_cohort_label}</p>
                     </div>
                   </div>
-                </div>
-              ))
-            )
-            )}
-          </section>
-
-          {/* המפגשים הקרובים שיש בהם תנועה */}
-          <section className="space-y-2">
-            <button
-              type="button"
-              onClick={() => toggle('meetings')}
-              className="w-full flex items-center gap-1.5 text-sm font-bold text-sand-700 py-1"
-              aria-expanded={open.meetings}
-            >
-              <CalendarDays className="w-4 h-4 text-sand-400" />
-              מפגשים קרובים עם שינויים
-              <ChevronDown className={`w-4 h-4 text-sand-400 mr-auto transition-transform ${open.meetings ? '' : '-rotate-90'}`} />
-            </button>
-            {open.meetings && (
-            busyMeetings.length === 0 ? (
-              <p className="text-sand-400 text-sm bg-sand-50 rounded-2xl px-4 py-3">
-                בשלושת השבועות הקרובים אין היעדרויות ואין השלמות. הכל כרגיל.
-              </p>
-            ) : (
-              busyMeetings.map(m => (
-                <div key={m.meeting_id} className="rounded-2xl bg-white border border-sand-200 p-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-bold text-sand-800">
-                      {dayName(m.meeting_date)} {ddmm(m.meeting_date)}
-                      {m.start_time ? ` ${m.start_time.slice(0, 5)}` : ''}
-                    </span>
-                    <span className="text-[11px] text-sand-400">
-                      {m.workshop_title} · מפגש {m.meeting_number}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[11px]">
-                    <span className="inline-flex items-center gap-1 font-semibold text-sand-600 bg-sand-100 px-2 py-0.5 rounded-full">
-                      <Users className="w-3 h-3" /> {m.registered - m.absent + m.makeups_in}/{m.capacity} צפויות
-                    </span>
-                    {m.absent > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => toggleDetail(m.meeting_id, 'absent')}
-                        className={`text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-semibold ${isDetail(m.meeting_id, 'absent') ? 'ring-2 ring-amber-300' : ''}`}
-                      >
-                        {m.absent} הודיעו שלא מגיעות
-                      </button>
-                    )}
-                    {m.makeups_in > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => toggleDetail(m.meeting_id, 'in')}
-                        className={`text-mustard-700 bg-mustard-50 px-2 py-0.5 rounded-full font-semibold ${isDetail(m.meeting_id, 'in') ? 'ring-2 ring-mustard-300' : ''}`}
-                      >
-                        +{m.makeups_in} משלימות
-                      </button>
-                    )}
-                    {m.makeups_waiting > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => toggleDetail(m.meeting_id, 'waiting')}
-                        className={`text-sand-500 bg-sand-100 px-2 py-0.5 rounded-full ${isDetail(m.meeting_id, 'waiting') ? 'ring-2 ring-sand-300' : ''}`}
-                      >
-                        {m.makeups_waiting} בתור
-                      </button>
-                    )}
-                    {m.allocated_at && <span className="text-sand-400">הוקצה</span>}
-                  </div>
-
-                  {isDetail(m.meeting_id, 'absent') && (
-                    <ul className="mt-2 space-y-1 border-t border-sand-100 pt-2">
-                      {absences.filter(a => a.meeting_id === m.meeting_id).map(a => (
-                        <li key={a.absence_id} className="flex items-baseline gap-2 flex-wrap text-[11px]">
-                          <span className="text-xs font-bold text-sand-800">{a.mother_name ?? '—'}</span>
-                          <span className="text-sand-400" dir="ltr">{a.mother_phone ?? ''}</span>
-                          {a.makeup ? (
-                            <span className="text-sand-500">
-                              {a.makeup.status === 'requested' ? 'ביקשה להשלים ב' : 'משלימה ב'}
-                              {dayName(a.makeup.makeup_date)} {ddmm(a.makeup.makeup_date)}
-                              {a.makeup.makeup_time ? ` ${a.makeup.makeup_time.slice(0, 5)}` : ''}
-                            </span>
-                          ) : (
-                            <span className="text-amber-700 font-semibold">לא ביקשה השלמה</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {(isDetail(m.meeting_id, 'in') || isDetail(m.meeting_id, 'waiting')) && (
-                    <ul className="mt-2 space-y-1 border-t border-sand-100 pt-2">
-                      {requests
-                        .filter(r => r.target_meeting_id === m.meeting_id &&
-                          (detail?.kind === 'in' ? r.status !== 'requested' : r.status === 'requested'))
-                        .map(r => (
-                          <li key={r.request_id} className="flex items-baseline gap-2 flex-wrap text-[11px]">
-                            <span className="text-xs font-bold text-sand-800">{r.mother_name ?? '—'}</span>
-                            <span className="text-sand-400" dir="ltr">{r.mother_phone ?? ''}</span>
-                            <span className="text-sand-500">
-                              פספסה מפגש {r.meeting_number} ב-{ddmm(r.missed_date)} (קבוצת {r.source_cohort_label})
-                            </span>
-                            {r.status === 'attended' && <span className="text-[#2E7D32]">✓ הגיעה</span>}
-                          </li>
-                        ))}
-                    </ul>
-                  )}
                 </div>
               ))
             )
