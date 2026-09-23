@@ -36,6 +36,7 @@ import GiftCardsPanel from '../components/admin/GiftCardsPanel'
 import AppUsagePanel from '../components/admin/AppUsagePanel'
 import MakeupsPanel from '../components/admin/MakeupsPanel'
 import ProgramPanel from '../components/admin/ProgramPanel'
+import CrmLeadsPanel from '../components/admin/CrmLeadsPanel'
 import type { AdminOverview } from '../components/admin/useAdminOverview'
 import type { AdminTask } from '../components/admin/adminTasks'
 import { ChevronRight as CtxBack } from 'lucide-react'
@@ -68,6 +69,8 @@ const SECTION_TAB: Record<AdminSection, Tab> = {
 // the thumb on mobile.
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'home',      label: 'בית',           icon: <HomeIcon className="w-3.5 h-3.5" /> },
+  // יהב 23.9.26: מסך הלידים מה-CRM, עבודה יומיומית, לכן ליד בית.
+  { id: 'leads',     label: 'לידים',         icon: <Phone className="w-3.5 h-3.5" /> },
   { id: 'registrations', label: 'הרשמות',     icon: <ClipboardList className="w-3.5 h-3.5" /> },
   { id: 'forms',     label: 'שאלונים', icon: <FileText className="w-3.5 h-3.5" /> },
   { id: 'events',    label: 'אירועי קהילה',  icon: <Sparkles className="w-3.5 h-3.5" /> },
@@ -77,7 +80,6 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   // ברנדה 4.9.26: רוצה לראות את ההשלמות גם מהטלפון.
   { id: 'makeups',   label: 'השלמות',        icon: <CalendarDays className="w-3.5 h-3.5" /> },
   { id: 'users',     label: 'משתמשות',      icon: <Users className="w-3.5 h-3.5" /> },
-  { id: 'leads',     label: 'לידים',         icon: <Phone className="w-3.5 h-3.5" /> },
   { id: 'insights',  label: 'תובנות',        icon: <BarChart2 className="w-3.5 h-3.5" /> },
   { id: 'videos',    label: 'סרטונים',       icon: <Video className="w-3.5 h-3.5" /> },
   { id: 'tips',      label: 'מדריך גיל',      icon: <Baby className="w-3.5 h-3.5" /> },
@@ -245,7 +247,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'partners'   && <PartnersTab />}
-        {tab === 'leads'      && <LeadsTab />}
+        {tab === 'leads'      && <CrmLeadsPanel partnerLeads={<LeadsTab />} />}
         {tab === 'forms'      && <FormsTab />}
         {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} onClearFocus={() => setTaskContext(null)} />}
         {tab === 'makeups'    && <MakeupsPanel />}
@@ -257,7 +259,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
       <div className="hidden lg:block px-8 py-6">
         {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} onOpenProduct={id => { setTab('workshops'); openProductPage(id) }} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTabDesktop />}
-        {tab === 'leads'      && <LeadsTabDesktop />}
+        {tab === 'leads'      && <CrmLeadsPanel partnerLeads={<LeadsTabDesktop />} />}
         {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <><GiftCardsPanel /><WorkshopsTabDesktop onOpenProduct={openProductPage} /></>)}
         {tab === 'events'     && (
           <EventsAdminPanel

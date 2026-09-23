@@ -30,6 +30,7 @@ type NavItem = { id: AdminSection; label: string; icon: React.ReactNode }
 
 const PRIMARY: NavItem[] = [
   { id: 'home',          label: 'בית',              icon: <Home className="w-[18px] h-[18px]" /> },
+  { id: 'leads',         label: 'לידים',            icon: <Phone className="w-[18px] h-[18px]" /> },
   { id: 'registrations', label: 'הרשמות',           icon: <ClipboardList className="w-[18px] h-[18px]" /> },
   { id: 'forms',         label: 'שאלונים וטפסים',    icon: <FileText className="w-[18px] h-[18px]" /> },
   { id: 'workshops',     label: 'מוצרים ותשלומים',   icon: <GraduationCap className="w-[18px] h-[18px]" /> },
@@ -41,7 +42,6 @@ const MORE: NavItem[] = [
   { id: 'makeups',   label: 'השלמות',         icon: <CalendarDays className="w-[18px] h-[18px]" /> },
   { id: 'program',   label: 'תוכנית הסדנאות', icon: <BookOpen className="w-[18px] h-[18px]" /> },
   { id: 'users',     label: 'משתמשות',       icon: <Users className="w-[18px] h-[18px]" /> },
-  { id: 'leads',     label: 'לידים',          icon: <Phone className="w-[18px] h-[18px]" /> },
   { id: 'insights',  label: 'תובנות',         icon: <BarChart2 className="w-[18px] h-[18px]" /> },
   { id: 'videos',    label: 'סרטונים',        icon: <Video className="w-[18px] h-[18px]" /> },
   { id: 'tips',      label: 'מדריך גיל',       icon: <Baby className="w-[18px] h-[18px]" /> },
