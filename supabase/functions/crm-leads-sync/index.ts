@@ -2,7 +2,8 @@
 //
 // Mirrors every OPEN opportunity of the two GHL pipelines into public.crm_leads
 // (the admin "לידים" screen reads only from there), plus contacts whose last
-// message was inbound and who have no open opportunity into public.crm_inbound.
+// message was inbound and who have no open opportunity (never a lead, or wrote again
+// after being closed) into public.crm_inbound.
 // Runs every 5 minutes (pg_cron job 'crm-leads-sync-5min') and on demand from
 // the screen's refresh button.
 //
@@ -68,11 +69,25 @@ async function fetchPipeline(pipelineId: string, key: string) {
   return out
 }
 
+const DECLINE = /לא רלוונטי|לא מתאפשר|לא תודה|לא מעוניינ|לא מתאים|פחות מתאים|לצערי/
+const INQUIRY = /\?|פרטים|מתי|מחזור|להירשם|הרשמה|מחיר|עולה|כמה|מעוניינת|אשמח|רוצה|סדנ/
+function looksLikeInquiry(text: string): boolean {
+  return !DECLINE.test(text) && INQUIRY.test(text)
+}
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+}
+
 Deno.serve(async (req) => {
+  // The admin screen's refresh button calls this from the browser, so it needs CORS.
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
   const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const KEY = Deno.env.get('GHL_API_KEY')
-  if (!KEY) return new Response(JSON.stringify({ error: 'missing GHL_API_KEY' }), { status: 500 })
+  if (!KEY) return new Response(JSON.stringify({ error: 'missing GHL_API_KEY' }), { status: 500, headers: cors })
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE)
   const started = new Date().toISOString()
 
@@ -130,7 +145,7 @@ Deno.serve(async (req) => {
         .filter(n => n?.createdBy?.source !== 'WORKFLOW_NEW' && (n.bodyText || n.body))
         .sort((a, b) => String(b.dateAdded).localeCompare(String(a.dateAdded)))
         .slice(0, 8)
-        .map(n => ({ date: String(n.dateAdded).slice(0, 10), body: String(n.bodyText || n.body).slice(0, 1200) }))
+        .map(n => ({ date: String(n.dateAdded), body: String(n.bodyText || n.body).slice(0, 1200) }))
       const tasksRaw = Array.isArray(o.tasks) ? o.tasks : (o.tasks?.tasks ?? [])
       const openTasks = tasksRaw.filter((t: any) => !t.completed)
         .map((t: any) => ({ id: t.id ?? t._id, title: t.title, due: t.dueDate }))
@@ -175,16 +190,39 @@ Deno.serve(async (req) => {
     // Opportunities that are no longer open (won/lost/moved out) disappear from the queue.
     await sb.from('crm_leads').update({ is_open: false }).lt('synced_at', started).eq('is_open', true)
 
-    // 6. Inbound from contacts without an open opportunity (last 7 days)
+    // 6. Inbound from contacts with no open opportunity (last 7 days)
     const weekAgo = Date.now() - 7 * 86400000
-    const inboundRows = Object.values(inboundByContact)
+    const inboundCandidates = Object.values(inboundByContact)
       .filter((c: any) => !openContactIds.has(c.contactId) && c.lastMessageDate >= weekAgo)
-      .filter((c: any) => !(c.opportunities ?? []).some((op: any) => op.status === 'won'))
       .filter((c: any) => !IGNORE_PHONES.has(c.phone ?? '') && !!c.phone)
       // Customers chatting after they paid, and Instagram DMs (mostly other businesses and
       // the comment-to-DM flow), are not leads.
       .filter((c: any) => !(c.tags ?? []).some((t: string) => t.startsWith('שילמה')))
       .filter((c: any) => ['TYPE_WHATSAPP', 'TYPE_SMS', 'TYPE_FACEBOOK'].includes(c.lastMessageType))
+      // Only messages that read like an inquiry. Yahav 23.9.26 asked why Hadar Menda ("טסים
+      // לחול, כרגע לא רלוונטי") showed up. Declines and small talk ("תודה", "פייס") are out.
+      // This is a keyword heuristic, not understanding: the lead rounds still read everything.
+      .filter((c: any) => looksLikeInquiry(String(c.lastMessageBody ?? '')))
+    // Yahav 23.9.26: "Eden Danon עברה ללא נסגר, למה היא מעניינת אותי?" but also "ודנית
+    // איפה היא?" (closed as לא נסגר, then asked when the next cohort opens). Rule:
+    //   no opportunity at all                              -> show (new inquiry)
+    //   only closed opportunities, she wrote AFTER closing -> show (came back)
+    //   closed after her last message                      -> hide (already handled)
+    // The conversation payload's opportunities list is not reliable, so ask GHL.
+    const neverLead: any[] = []
+    for (const c of inboundCandidates) {
+      try {
+        const r = await ghlGet(`/opportunities/search?location_id=${LOCATION_ID}&contact_id=${c.contactId}&status=all&limit=20`, KEY)
+        const list = (r.opportunities ?? []) as any[]
+        if (list.some(o => o.status === 'open')) continue
+        if (list.length === 0) { neverLead.push({ ...c, _closedStage: null, _closedAt: null }); continue }
+        const last = list
+          .map(o => ({ at: [o.lastStatusChangeAt, o.lastStageChangeAt, o.createdAt].filter(Boolean).sort().pop(), stage: stageName[o.pipelineStageId] ?? o.status }))
+          .sort((a, b) => String(b.at).localeCompare(String(a.at)))[0]
+        if (c.lastMessageDate > new Date(last.at).getTime()) neverLead.push({ ...c, _closedStage: last.stage, _closedAt: last.at })
+      } catch { /* skip on error, next run retries */ }
+    }
+    const inboundRows = neverLead
       .map((c: any) => ({
         contact_id: c.contactId,
         name: c.fullName ?? c.contactName,
@@ -194,6 +232,8 @@ Deno.serve(async (req) => {
         last_message_text: String(c.lastMessageBody ?? '').slice(0, 500),
         channel: c.lastMessageType,
         has_open_opp: false,
+        closed_stage: c._closedStage,
+        closed_at: c._closedAt,
         synced_at: started,
       }))
     if (inboundRows.length) {
@@ -204,9 +244,9 @@ Deno.serve(async (req) => {
     await sb.from('crm_inbound').delete().lt('synced_at', started)
 
     const summary = { ok: true, open_leads: rows.length, inbound_without_opp: inboundRows.length }
-    return new Response(JSON.stringify(summary), { headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify(summary), { headers: { ...cors, 'Content-Type': 'application/json' } })
   } catch (e) {
     console.error('[crm-leads-sync]', String(e))
-    return new Response(JSON.stringify({ ok: false, error: String(e) }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ ok: false, error: String(e) }), { status: 500, headers: { ...cors, 'Content-Type': 'application/json' } })
   }
 })
