@@ -13,6 +13,7 @@ import WorkshopAccessModal from '../components/admin/WorkshopAccessModal'
 import CourseInsightsPanel from '../components/admin/CourseInsightsPanel'
 import FormSubmissionsView from '../components/admin/FormSubmissionsView'
 import FormSubmissionsModal from '../components/admin/FormSubmissionsModal'
+import { useCohortSplit } from '../components/admin/useCohortSplit'
 import AdminLargeModal from '../components/admin/AdminLargeModal'
 import ConfirmDialog from '../components/admin/ConfirmDialog'
 import WorkshopOffersPanel from '../components/admin/WorkshopOffersPanel'
@@ -2127,6 +2128,8 @@ function FormsTabDesktop() {
   const [filterQuestion, setFilterQuestion] = useState<string | null>(null)
   // Drill-down view tab: פרטי (rows) / מצטבר (distribution).
   const [subsTab, setSubsTab] = useState<'list' | 'aggregate'>('list')
+  // 23.9.26: answers split by cohort, the next group first (useCohortSplit).
+  const split = useCohortSplit(selected, submissions)
   const [closedFolders, setClosedFolders] = useState<Set<string>>(new Set())
   function toggleFolder(f: string) {
     setClosedFolders(prev => {
@@ -2380,7 +2383,7 @@ function FormsTabDesktop() {
               ))}
             </div>
             <button
-              onClick={() => exportCSV(selected, submissions, filterQuestion)}
+              onClick={() => exportCSV(selected, split.filtered, filterQuestion)}
               className="rounded-xl whitespace-nowrap transition-colors hover:bg-[#EDE6DA]"
               style={{ background: '#F5F2EA', color: '#5E4938', fontWeight: 700, fontSize: 12.5, padding: '8px 14px' }}
             >
@@ -2389,13 +2392,15 @@ function FormsTabDesktop() {
           </div>
         </div>
 
+        {split.bar}
+
         <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 18, padding: 18 }}>
           {loadingSubs ? (
             <p className="text-center py-10" style={{ fontWeight: 600, fontSize: 14, color: '#A2937D' }}>טוענת תשובות...</p>
           ) : subsTab === 'list' ? (
             <FormSubmissionsView
               form={selected}
-              submissions={submissions}
+              submissions={split.filtered}
               onDeleteSubmission={deleteSubmission}
               onFormSaved={refreshSelectedForm}
               isNewSubmission={s => !(s as Submission & { read_at?: string | null }).read_at}
@@ -2404,7 +2409,7 @@ function FormsTabDesktop() {
           ) : (
             <FormAggregatePanel
               form={selected}
-              submissions={submissions}
+              submissions={split.filtered}
               filterQuestion={filterQuestion}
               setFilterQuestion={setFilterQuestion}
             />
@@ -4973,6 +4978,8 @@ function FormsTab() {
   const [allSubmissions, setAllSubmissions] = useState<FormsPageSubmission[]>([])
   const [seenBumpTick, setSeenBumpTick] = useState(0)
   const [modalSeenCutoff, setModalSeenCutoff] = useState<string>(EPOCH)
+  // 23.9.26: answers split by cohort, the next group first (useCohortSplit).
+  const split = useCohortSplit(viewSubmissions, submissions)
 
   function copyFormLink(formId: string) {
     const url = `${window.location.origin}/?form=${formId}`
@@ -5463,26 +5470,26 @@ function FormsTab() {
         <FormSubmissionsModal
           key={viewSubmissions.id}
           formTitle={viewSubmissions.title}
-          count={submissions.length}
+          count={split.filtered.length}
           loading={loadingSubs}
           listContent={
-            <FormSubmissionsView
+            <div className="space-y-3">{split.bar}<FormSubmissionsView
               form={viewSubmissions}
-              submissions={submissions}
+              submissions={split.filtered}
               onDeleteSubmission={deleteSubmission}
               onFormSaved={refreshViewSubmissions}
               isNewSubmission={s => s.created_at > modalSeenCutoff}
-            />
+            /></div>
           }
           aggregateContent={
-            <FormAggregatePanel
+            <div className="space-y-3">{split.bar}<FormAggregatePanel
               form={viewSubmissions}
-              submissions={submissions}
+              submissions={split.filtered}
               filterQuestion={filterQuestion}
               setFilterQuestion={setFilterQuestion}
-            />
+            /></div>
           }
-          onExportCsv={() => exportCSV(viewSubmissions, submissions, filterQuestion)}
+          onExportCsv={() => exportCSV(viewSubmissions, split.filtered, filterQuestion)}
           onClose={() => setViewSubmissions(null)}
         />
       )}

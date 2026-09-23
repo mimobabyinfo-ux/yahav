@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronRight, ChevronDown, MessageCircle, X, Lock } from 'lucide-react'
 import { supabase, Workshop } from '../../lib/supabase'
 import { signedMediaUrl } from '../../utils/signedMedia'
@@ -235,10 +236,15 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
       </div>
 
       {/* ── Glossary sheet ── */}
-      {term && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center" onClick={() => setTerm(null)}>
+      {/* Portal + z-[100]: the sheet must sit above the fixed BottomNav (z-50).
+          Inside the page it was z-40 and trapped by ancestors, so the nav
+          covered everything but the first line (Brenda, 23.9.26). */}
+      {term && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-end justify-center" dir="rtl" onClick={() => setTerm(null)}>
           <div className="absolute inset-0 bg-black/30" />
-          <div className="relative w-full max-w-sm bg-white rounded-t-3xl p-5 pb-8 shadow-xl" onClick={e => e.stopPropagation()}>
+          <div className="relative w-full max-w-[480px] bg-white rounded-t-3xl p-5 shadow-xl overflow-y-auto"
+            style={{ maxHeight: '75vh', paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' }}
+            onClick={e => e.stopPropagation()}>
             <button onClick={() => setTerm(null)} className="absolute top-4 left-4 p-1.5 rounded-lg text-sand-400 hover:bg-sand-100">
               <X className="w-4 h-4" />
             </button>
@@ -246,7 +252,8 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
             <h3 className="text-lg font-bold text-sand-800 mb-2">{term.term}</h3>
             <p className="text-[15px] leading-relaxed text-[#4A443C]">{term.plain}</p>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
