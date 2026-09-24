@@ -5,7 +5,10 @@
 //   no_answer    -> no-answer counter +1 (max 3); ליד חדש moves to אין מענה
 //   callback     -> follow-up date (+ optional stage)
 //   registered   -> main: ליד נסגר (won) · followup: נרשמה למגלים (won)
-//   not_relevant -> main: לא נסגר (lost) · followup: לא רלוונטי (lost)
+//   not_relevant -> main: לא נסגר (lost) · followup: לא רלוונטי (lost).
+//                   Requires lost_reason_id (one of the CRM's existing lost reasons,
+//                   list in public.crm_lost_reasons). Yahav 24.9.26: a lead is never
+//                   closed as lost without a reason.
 //   stage        -> move to target_stage_id
 //   note         -> note only
 //   create_lead  -> new opportunity (ליד חדש) for a contact that wrote us and has none
@@ -132,9 +135,11 @@ Deno.serve(async (req) => {
     update.status = 'won'
     label = 'נרשמה'
   } else if (action === 'not_relevant') {
+    if (!p.lost_reason_id) return json({ ok: false, error: 'צריך לבחור סיבת אבדן' }, 400)
     update.pipelineStageId = isMain ? ST.main_lost : ST.fu_lost
     update.status = 'lost'
-    label = 'לא רלוונטי'
+    update.lostReasonId = p.lost_reason_id
+    label = `לא רלוונטי${p.lost_reason_label ? ` (${String(p.lost_reason_label).slice(0, 60)})` : ''}`
   } else if (action === 'stage') {
     if (!p.target_stage_id) return json({ ok: false, error: 'target_stage_id required' }, 400)
     update.pipelineStageId = p.target_stage_id
@@ -198,7 +203,12 @@ Deno.serve(async (req) => {
     last_action_at: new Date().toISOString(), last_action_label: `${label}${actor ? ' · ' + actor : ''} · ${today}`,
   }).eq('opp_id', oppId)
 
-  steps.readback = { stage: stageName, status: o2.status, no_answer: cfValue(o2, CF_NO_ANSWER), follow_up: toDate(cfValue(o2, CF_FOLLOW_UP)) }
+  // The reason must actually stick in the CRM, otherwise report it as a failure.
+  if (action === 'not_relevant' && o2.lostReasonId !== p.lost_reason_id) {
+    ok = false
+    steps.lost_reason = { ok: false, error: `CRM kept lostReasonId=${o2.lostReasonId ?? 'none'}` }
+  }
+  steps.readback = { stage: stageName, status: o2.status, no_answer: cfValue(o2, CF_NO_ANSWER), follow_up: toDate(cfValue(o2, CF_FOLLOW_UP)), lost_reason: o2.lostReasonId ?? null }
   await sb.from('crm_lead_actions').insert({
     opp_id: oppId, contact_id: contactId, lead_name: opp.name, action, note: noteText || null,
     callback_date: p.callback_date ?? null, target_stage_id: p.target_stage_id ?? null, actor,

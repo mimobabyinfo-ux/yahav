@@ -69,6 +69,31 @@ async function fetchPipeline(pipelineId: string, key: string) {
   return out
 }
 
+// Yahav 24.9.26: callback dates are often written only in the note ("קבענו
+// שמחר אתקשר - 24/09", "ביקשה שנחזור אליה עוד שבוע ב 30/09"). When the date
+// field is empty, take a dd/mm from the latest human note if the note talks
+// about calling back. A dd/mm with no callback wording is usually a cohort
+// date ("מעוניינת ב 15/10") and is ignored.
+const CALLBACK_WORDS = /אתקשר|להתקשר|לחזור|נחזור|שנחזור|חוזר אליה|אחזור|לדבר איתה|שנדבר|ליצור קשר|קבענו/
+function callbackFromNote(body: string, noteDate: string): string | null {
+  const text = body.replace(/<[^>]+>/g, ' ')
+  if (!CALLBACK_WORDS.test(text)) return null
+  const noteDay = noteDate.slice(0, 10)
+  const year = Number(noteDay.slice(0, 4))
+  const found: string[] = []
+  for (const m of text.matchAll(/(?<!\d)(\d{1,2})[./](\d{1,2})(?![./]?\d)/g)) {
+    const dd = Number(m[1]), mm = Number(m[2])
+    if (dd < 1 || dd > 31 || mm < 1 || mm > 12) continue
+    let iso = `${year}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+    if (iso < noteDay) iso = `${year + 1}${iso.slice(4)}`
+    // A callback is days or weeks away, not months (that would be a cohort date).
+    if ((new Date(iso).getTime() - new Date(noteDay).getTime()) / 86400000 > 21) continue
+    found.push(iso)
+  }
+  if (/מחר/.test(text)) found.push(new Date(new Date(noteDay).getTime() + 86400000).toISOString().slice(0, 10))
+  return found.length ? found.sort()[0] : null
+}
+
 const DECLINE = /לא רלוונטי|לא מתאפשר|לא תודה|לא מעוניינ|לא מתאים|פחות מתאים|לצערי/
 const INQUIRY = /\?|פרטים|מתי|מחזור|להירשם|הרשמה|מחיר|עולה|כמה|מעוניינת|אשמח|רוצה|סדנ/
 function looksLikeInquiry(text: string): boolean {
@@ -109,6 +134,26 @@ Deno.serve(async (req) => {
       if (!['TYPE_WHATSAPP', 'TYPE_SMS', 'TYPE_INSTAGRAM', 'TYPE_FACEBOOK', 'TYPE_EMAIL'].includes(c.lastMessageType)) continue
       inboundByContact[c.contactId] = c
     }
+    // 3b. She wrote, and only the bot answered (after-hours reply, "רגע לפני שנתחיל").
+    // The last message is then outbound, so the search above misses her. Count her as
+    // waiting when her last WhatsApp is newer than our last manual message.
+    // (Ksenya 21.9.26 was invisible this way.) Her own words are fetched separately.
+    try {
+      const bot = await ghlGet(`/conversations/search?locationId=${LOCATION_ID}&lastMessageDirection=outbound&lastMessageAction=automated&sortBy=last_message_date&sort=desc&limit=100`, KEY, '2021-04-15')
+      const weekAgo = Date.now() - 7 * 86400000
+      for (const c of bot.conversations ?? []) {
+        if (!c.contactId || inboundByContact[c.contactId]) continue
+        const lastIn = Number(c.lastInboundWhatsappMessageDate ?? 0)
+        if (!lastIn || lastIn < weekAgo || lastIn <= Number(c.lastManualMessageDate ?? 0)) continue
+        let text = ''
+        try {
+          const m = await ghlGet(`/conversations/${c.id}/messages?limit=10`, KEY, '2021-04-15')
+          const msgs = (m.messages?.messages ?? []) as any[]
+          text = String(msgs.find(x => x.direction === 'inbound' && x.body)?.body ?? '')
+        } catch { /* keep empty */ }
+        inboundByContact[c.contactId] = { ...c, lastMessageDate: lastIn, lastMessageBody: text, lastMessageType: 'TYPE_WHATSAPP', _bot: true }
+      }
+    } catch (e) { console.error('[crm-leads-sync] bot-answered search', String(e)) }
 
     // 4. Mimo app purchases, matched by phone
     const phones = [...new Set(opps.map(o => localPhone(o.contact?.phone)).filter(Boolean))] as string[]
@@ -150,6 +195,7 @@ Deno.serve(async (req) => {
       const openTasks = tasksRaw.filter((t: any) => !t.completed)
         .map((t: any) => ({ id: t.id ?? t._id, title: t.title, due: t.dueDate }))
       const inbound = o.contactId ? inboundByContact[o.contactId] : null
+      const noteCallback = notes[0] ? callbackFromNote(notes[0].body, notes[0].date) : null
       const app = pl ? appByPhone[pl] : undefined
       const product = cfValue(o, CF_PRODUCT)
       return {
@@ -169,6 +215,7 @@ Deno.serve(async (req) => {
         products: Array.isArray(product) ? product : product ? [String(product)] : [],
         no_answer: cfValue(o, CF_NO_ANSWER),
         follow_up_date: toDate(cfValue(o, CF_FOLLOW_UP)),
+        note_callback_date: noteCallback,
         crm_created_at: o.createdAt,
         stage_changed_at: o.lastStageChangeAt ?? null,
         crm_updated_at: o.updatedAt,
@@ -176,6 +223,7 @@ Deno.serve(async (req) => {
         open_tasks: openTasks,
         last_inbound_at: inbound ? new Date(inbound.lastMessageDate).toISOString() : null,
         last_inbound_text: inbound ? String(inbound.lastMessageBody ?? '').slice(0, 500) : null,
+        last_inbound_by_bot: !!inbound?._bot,
         app_summary: app ? app.summary.join(' · ') : null,
         app_paid_future: app?.paidFuture ?? false,
         synced_at: started,
@@ -242,6 +290,28 @@ Deno.serve(async (req) => {
     }
     // Contacts that now have an open opp, or answered by us (no longer last-inbound), drop out.
     await sb.from('crm_inbound').delete().lt('synced_at', started)
+
+    // 7. Lost reasons. GHL's API gives only lostReasonId, never the label (see CLAUDE.md),
+    // so the ids are collected from recently lost opportunities and the labels are typed
+    // once by hand in crm_lost_reasons. A new reason created in the CRM shows up here
+    // unlabeled; existing labels are never overwritten.
+    try {
+      const lost = await ghlGet(`/opportunities/search?location_id=${LOCATION_ID}&status=lost&limit=100`, KEY)
+      const count: Record<string, { n: number; example: string }> = {}
+      for (const o of (lost.opportunities ?? []) as any[]) {
+        if (!o.lostReasonId) continue
+        const e = (count[o.lostReasonId] ??= { n: 0, example: o.contact?.name ?? o.name ?? '' })
+        e.n++
+      }
+      const ids = Object.keys(count)
+      if (ids.length) {
+        const { data: have } = await sb.from('crm_lost_reasons').select('id').in('id', ids)
+        const known = new Set((have ?? []).map((r: any) => r.id))
+        const fresh = ids.filter(id => !known.has(id)).map(id => ({ id, example: count[id].example, uses: count[id].n }))
+        if (fresh.length) await sb.from('crm_lost_reasons').insert(fresh)
+        for (const id of ids.filter(id => known.has(id))) await sb.from('crm_lost_reasons').update({ uses: count[id].n }).eq('id', id)
+      }
+    } catch (e) { console.error('[crm-leads-sync] lost reasons', String(e)) }
 
     const summary = { ok: true, open_leads: rows.length, inbound_without_opp: inboundRows.length }
     return new Response(JSON.stringify(summary), { headers: { ...cors, 'Content-Type': 'application/json' } })
