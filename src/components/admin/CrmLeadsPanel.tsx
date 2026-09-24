@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Phone, MessageCircle, RefreshCw, Check, X, CalendarDays, StickyNote, UserPlus, ChevronDown, EyeOff, PhoneOff, Search, Sparkles, Flame, Clock, Coffee } from 'lucide-react'
+import { Phone, MessageCircle, RefreshCw, Check, X, CalendarDays, StickyNote, UserPlus, ChevronDown, EyeOff, PhoneOff, Search, Sparkles, Flame, Clock, Coffee, ScrollText, ArrowLeftRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import CallScript, { CallInsights } from './CallScript'
 
 /**
  * Admin "לידים" screen: the workshop leads from the CRM (MoreThan / GHL),
@@ -27,6 +28,10 @@ import { supabase } from '../../lib/supabase'
  * Yahav 24.9.26: the queue is split into דחוף / בינוני / נמוך instead of one
  * long list, and every card opens with WHY it is there and the date behind it.
  * "לא רלוונטי" now requires one of the CRM's lost reasons (crm_lost_reasons).
+ *
+ * 24.9.26 (later): "📞 שיחה עם תסריט" opens CallScript (sales script + call log,
+ * stats in the "למידה" tab). Leads can be handed to Brenda (crm_lead_owner); the
+ * יהב / ברנדה switch now shows only that person's leads ("כל הלידים" shows everyone).
  */
 
 type Note = { date: string; body: string }
@@ -169,8 +174,13 @@ function rulesFor(l: Lead): Rule | null {
   // Something already scheduled for later (callback date or open task): she waits for it.
   const scheduled = (!!callback && callback > today) || (l.open_tasks ?? []).some(t => t.due && t.due.slice(0, 10) > today)
 
+  // A thank-you right after we set a future callback is her answer to that call, not a new
+  // question (Ofir 24.9.26: callback for 27/9 at 17:27, "תודה… אסתכל על זה השבוע" at 17:31).
+  const replyToOurCall = scheduled && !!humanTouch && !!l.last_inbound_at && l.last_inbound_at > humanTouch
+    && (new Date(l.last_inbound_at).getTime() - new Date(humanTouch).getTime()) / 3600000 < 12
+
   // ── דחוף
-  if (l.last_inbound_at && hoursAgo(l.last_inbound_at) < 72 && (!lastTouch || l.last_inbound_at > lastTouch))
+  if (l.last_inbound_at && hoursAgo(l.last_inbound_at) < 72 && (!lastTouch || l.last_inbound_at > lastTouch) && !replyToOurCall)
     return { level: 'high', order: 1, reason: l.last_inbound_by_bot ? 'כתבה לנו, ורק הבוט ענה לה' : 'כתבה לנו ולא קיבלה מענה', action: 'לענות לה (ווטסאפ או שיחה)', date: l.last_inbound_at, dateLabel: ago(l.last_inbound_at) }
   if (main && l.stage_id === STAGE_NEW && !humanTouch && hoursAgo(l.crm_created_at) < 48)
     return { level: 'high', order: 2, reason: 'ליד חדש, עוד לא דיברו איתה', action: 'שיחה ראשונה', date: l.crm_created_at, dateLabel: `נכנס ${ago(l.crm_created_at)}` }
@@ -206,21 +216,24 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   const [inbound, setInbound] = useState<Inbound[]>([])
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [reasons, setReasons] = useState<LostReason[]>([])
+  const [owners, setOwners] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [actor, setActor] = useState<string>(() => { try { return localStorage.getItem('crm_actor') || 'יהב' } catch { return 'יהב' } })
-  const [view, setView] = useState<'queue' | 'upcoming' | 'graduates' | 'all'>('queue')
+  const [view, setView] = useState<'queue' | 'upcoming' | 'graduates' | 'all' | 'calls'>('queue')
   const [q, setQ] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const reloadTimer = useRef<number | null>(null)
 
   const load = useCallback(async () => {
-    const [l, i, c, r] = await Promise.all([
+    const [l, i, c, r, o] = await Promise.all([
       supabase.from('crm_leads').select('*').eq('is_open', true),
       supabase.from('crm_inbound').select('*').order('last_message_at', { ascending: false }),
       supabase.rpc('crm_cohort_occupancy'),
       supabase.from('crm_lost_reasons').select('id, label, example, uses').eq('active', true).order('sort').order('uses', { ascending: false }),
+      supabase.from('crm_lead_owner').select('opp_id, owner'),
     ])
+    setOwners(Object.fromEntries(((o.data ?? []) as Array<{ opp_id: string; owner: string }>).map(x => [x.opp_id, x.owner])))
     setReasons((r.data ?? []) as LostReason[])
     setLeads((l.data ?? []) as Lead[])
     setInbound((i.data ?? []) as Inbound[])
@@ -234,6 +247,10 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
       .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_leads' }, () => {
         if (reloadTimer.current) window.clearTimeout(reloadTimer.current)
         reloadTimer.current = window.setTimeout(load, 800)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_lead_owner' }, () => {
+        if (reloadTimer.current) window.clearTimeout(reloadTimer.current)
+        reloadTimer.current = window.setTimeout(load, 300)
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_inbound' }, () => {
         if (reloadTimer.current) window.clearTimeout(reloadTimer.current)
@@ -261,6 +278,20 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
     window.setTimeout(() => setToast(null), 3500)
   }
 
+  const ownerOf = useCallback((l: Lead) => owners[l.opp_id] ?? 'יהב', [owners])
+  const mine = useCallback((l: Lead) => ownerOf(l) === actor, [ownerOf, actor])
+  async function setOwner(l: Lead, to: string) {
+    const { error } = to === 'יהב'
+      ? await supabase.from('crm_lead_owner').delete().eq('opp_id', l.opp_id)
+      : await supabase.from('crm_lead_owner').upsert({ opp_id: l.opp_id, owner: to, set_by: actor, set_at: new Date().toISOString() })
+    if (error) { flash('לא הצלחתי להעביר: ' + error.message); return }
+    setOwners(o => { const n = { ...o }; if (to === 'יהב') delete n[l.opp_id]; else n[l.opp_id] = to; return n })
+    // Leave a trace in the CRM too, so it is visible there.
+    supabase.functions.invoke('crm-lead-action', { body: { action: 'note', opp_id: l.opp_id, contact_id: l.contact_id, actor, note: `הועבר לטיפול ${to}` } })
+    flash(`${l.name}: עבר לטיפול ${to}`)
+  }
+  const cardProps = { owner: ownerOf, onOwner: setOwner, cohorts }
+
   // ── derived lists ──
   const lastSync = useMemo(() => leads.reduce<string | null>((m, l) => (!m || (l.synced_at ?? '') > m ? l.synced_at : m), null), [leads])
   const freshRound = useMemo(() => leads.some(briefFresh), [leads])
@@ -268,7 +299,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   const queue = useMemo(() => {
     const items: Array<{ lead: Lead; rule: Rule; order: number }> = []
     for (const l of leads) {
-      if (l.app_paid_future) continue
+      if (l.app_paid_future || !mine(l)) continue
       if (isToday(l.last_action_at) && !(l.last_inbound_at && l.last_action_at && l.last_inbound_at > l.last_action_at)) continue
       let rule = rulesFor(l)
       const card = briefFresh(l) && l.brief_bucket === 'today' && !handledSinceBrief(l)
@@ -283,20 +314,22 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
       medium: sorted.filter(x => x.rule.level === 'medium'),
       low: sorted.filter(x => x.rule.level === 'low'),
     }
-  }, [leads])
+  }, [leads, mine])
   const queueCount = queue.high.length + queue.medium.length + queue.low.length
 
-  const registeredInApp = useMemo(() => leads.filter(l => l.app_paid_future && l.pipeline === 'main'), [leads])
+  const registeredInApp = useMemo(() => leads.filter(l => l.app_paid_future && l.pipeline === 'main' && mine(l)), [leads, mine])
   const handledToday = useMemo(() => leads.filter(l => isToday(l.last_action_at)), [leads])
   const upcoming = useMemo(() => {
     const today = todayIso()
     const in7 = new Date(Date.now() + 7 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
     const d = (l: Lead) => l.follow_up_date ?? l.note_callback_date
-    return leads.filter(l => { const x = d(l); return !!x && x > today && x <= in7 })
+    return leads.filter(l => { const x = d(l); return mine(l) && !!x && x > today && x <= in7 })
       .sort((a, b) => String(d(a)).localeCompare(String(d(b))))
-  }, [leads])
-  const graduates = useMemo(() => leads.filter(l => l.pipeline === 'followup' && l.stage_id === STAGE_ATUFIM_DONE && !l.app_paid_future), [leads])
-  const visibleInbound = useMemo(() => inbound.filter(i => !i.dismissed_at || i.last_message_at > i.dismissed_at), [inbound])
+  }, [leads, mine])
+  const graduates = useMemo(() => leads.filter(l => l.pipeline === 'followup' && l.stage_id === STAGE_ATUFIM_DONE && !l.app_paid_future && mine(l)), [leads, mine])
+  const othersCount = useMemo(() => leads.filter(l => !mine(l)).length, [leads, mine])
+  // People who wrote with no lead yet are Yahav's until someone opens a lead.
+  const visibleInbound = useMemo(() => actor !== 'יהב' ? [] : inbound.filter(i => !i.dismissed_at || i.last_message_at > i.dismissed_at), [inbound, actor])
   const all = useMemo(() => {
     const s = q.trim()
     const list = [...leads].sort((a, b) => String(b.crm_created_at).localeCompare(String(a.crm_created_at)))
@@ -324,6 +357,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
     { id: 'upcoming', label: 'בשבוע הקרוב', n: upcoming.length },
     { id: 'graduates', label: 'בוגרות עטופים', n: graduates.length },
     { id: 'all', label: 'כל הלידים', n: leads.length },
+    { id: 'calls', label: 'למידה', n: -1 },
   ]
 
   return (
@@ -337,6 +371,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
               מסונכרן עם ה-CRM {lastSync ? ago(lastSync) : ''}
               {freshRound ? ' · כולל הכרטיסים מהסבב של Claude' : ''}
             </p>
+            <p className="text-xs text-sand-600 mt-0.5">מציג את הלידים של <b>{actor}</b>{othersCount ? ` · ${othersCount} אצל ${actor === 'יהב' ? 'ברנדה' : 'יהב'}` : ''}</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex rounded-full bg-beige-100 p-0.5">
@@ -370,7 +405,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
           {tabs.map(t => (
             <button key={t.id} onClick={() => setView(t.id)}
               className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${view === t.id ? 'bg-sand-800 text-white' : 'bg-beige-100 text-sand-600'}`}>
-              {t.label} · {t.n}
+              {t.label}{t.n >= 0 ? ` · ${t.n}` : ''}
             </button>
           ))}
         </div>
@@ -425,7 +460,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
                     </div>
                   ))}
                   {list.map(({ lead, rule }) => (
-                    <LeadCard key={lead.opp_id} lead={lead} rule={rule} actor={actor} reasons={reasons} onDone={(m) => { flash(m); load() }} />
+                    <LeadCard key={lead.opp_id} lead={lead} rule={rule} actor={actor} reasons={reasons} {...cardProps} onDone={(m) => { flash(m); load() }} />
                   ))}
                 </div>
               </div>
@@ -436,7 +471,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
           {registeredInApp.length > 0 && (
             <Section title="נרשמו באפליקציה, עדיין פתוחות ב-CRM" hint="שילמו למחזור עתידי. לסמן נרשמה כדי לסגור את הליד.">
               <div className="grid gap-3 lg:grid-cols-2">
-                {registeredInApp.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} compact onDone={(m) => { flash(m); load() }} />)}
+                {registeredInApp.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
               </div>
             </Section>
           )}
@@ -459,7 +494,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
       {view === 'upcoming' && (
         <Section title="תאריך חזרה בשבעת הימים הקרובים">
           <div className="grid gap-3 lg:grid-cols-2">
-            {upcoming.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} compact onDone={(m) => { flash(m); load() }} />)}
+            {upcoming.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
           </div>
         </Section>
       )}
@@ -467,7 +502,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
       {view === 'graduates' && (
         <Section title="סיימו עטופים ולא רשומות לאף מגלים עתידי" hint="הזדמנות להמשך. ההרשמות נבדקות מול האפליקציה.">
           <div className="grid gap-3 lg:grid-cols-2">
-            {graduates.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} compact onDone={(m) => { flash(m); load() }} />)}
+            {graduates.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
           </div>
         </Section>
       )}
@@ -480,10 +515,12 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
               className="w-full rounded-full bg-white pr-9 pl-3 py-2 text-sm border border-beige-300" />
           </div>
           <div className="grid gap-3 lg:grid-cols-2">
-            {all.map(l => <LeadCard key={l.opp_id} lead={l} rule={rulesFor(l)} actor={actor} reasons={reasons} compact onDone={(m) => { flash(m); load() }} />)}
+            {all.map(l => <LeadCard key={l.opp_id} lead={l} rule={rulesFor(l)} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
           </div>
         </Section>
       )}
+
+      {view === 'calls' && <CallInsights />}
 
       {partnerLeads && (
         <Collapsible title="לידים מספקים (שיתופי פעולה)">{partnerLeads}</Collapsible>
@@ -542,9 +579,13 @@ const OUTCOMES: Array<{ id: Outcome; label: string; icon: React.ReactNode; cls: 
   { id: 'note', label: 'הערה', icon: <StickyNote className="w-3.5 h-3.5" />, cls: 'bg-beige-100 text-sand-700' },
 ]
 
-function LeadCard({ lead: l, rule, index, actor, reasons, compact, onDone }: {
+function LeadCard({ lead: l, rule, index, actor, reasons, compact, onDone, owner, onOwner, cohorts }: {
   lead: Lead; rule: Rule | null; index?: number; actor: string; reasons: LostReason[]; compact?: boolean; onDone: (msg: string) => void
+  owner: (l: Lead) => string; onOwner: (l: Lead, to: string) => void; cohorts: Cohort[]
 }) {
+  const [calling, setCalling] = useState(false)
+  const who = owner(l)
+  const other = who === 'ברנדה' ? 'יהב' : 'ברנדה'
   const [reason, setReason] = useState('')
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const [note, setNote] = useState('')
@@ -615,7 +656,10 @@ function LeadCard({ lead: l, rule, index, actor, reasons, compact, onDone }: {
             {l.follow_up_date ? ` · חזרה ${ddmm(l.follow_up_date)}` : l.note_callback_date ? ` · חזרה ${ddmm(l.note_callback_date)} (מההערה)` : ''}
           </p>
         </div>
-        {fresh && <span title="מהסבב של Claude" className="shrink-0 text-mustard-600"><Sparkles className="w-4 h-4" /></span>}
+        <div className="flex items-center gap-1 shrink-0">
+          {who === 'ברנדה' && <span className="text-[11px] font-bold bg-[#EDE3F5] text-[#5B3B7A] rounded-full px-2 py-0.5">בטיפול ברנדה</span>}
+          {fresh && <span title="מהסבב של Claude" className="text-mustard-600"><Sparkles className="w-4 h-4" /></span>}
+        </div>
       </div>
 
       {(what || why) && (
@@ -639,7 +683,9 @@ function LeadCard({ lead: l, rule, index, actor, reasons, compact, onDone }: {
       {l.last_action_label && <p className="text-[11px] text-sand-400">טיפול אחרון: {l.last_action_label}</p>}
 
       <div className="flex gap-2 flex-wrap">
+        <button onClick={() => setCalling(true)} className="btn-chip bg-mustard-400 text-sand-900"><ScrollText className="w-3.5 h-3.5" />שיחה עם תסריט</button>
         <ContactButtons phone={l.phone} />
+        <button onClick={() => onOwner(l, other)} className="btn-chip bg-beige-50 text-sand-600"><ArrowLeftRight className="w-3.5 h-3.5" />להעביר ל{other}</button>
         {(notes.length > 0 || tasks.length > 0) && (
           <button onClick={() => setShowNotes(s => !s)} className="btn-chip bg-beige-50 text-sand-500">
             הערות{tasks.length ? ' ומשימות' : ''} ({notes.length + tasks.length})
@@ -698,6 +744,7 @@ function LeadCard({ lead: l, rule, index, actor, reasons, compact, onDone }: {
           </div>
         </div>
       )}
+      {calling && <CallScript lead={l} actor={actor} reasons={reasons} cohorts={cohorts} onClose={() => setCalling(false)} onDone={onDone} />}
       </div>
     </div>
   )
