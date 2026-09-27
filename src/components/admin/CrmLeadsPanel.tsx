@@ -182,10 +182,13 @@ function rulesFor(l: Lead): Rule | null {
   // ── דחוף
   if (l.last_inbound_at && hoursAgo(l.last_inbound_at) < 72 && (!lastTouch || l.last_inbound_at > lastTouch) && !replyToOurCall)
     return { level: 'high', order: 1, reason: l.last_inbound_by_bot ? 'כתבה לנו, ורק הבוט ענה לה' : 'כתבה לנו ולא קיבלה מענה', action: 'לענות לה (ווטסאפ או שיחה)', date: l.last_inbound_at, dateLabel: ago(l.last_inbound_at) }
-  if (main && l.stage_id === STAGE_NEW && !humanTouch && hoursAgo(l.crm_created_at) < 48)
-    return { level: 'high', order: 2, reason: 'ליד חדש, עוד לא דיברו איתה', action: 'שיחה ראשונה', date: l.crm_created_at, dateLabel: `נכנס ${ago(l.crm_created_at)}` }
+  // Yahav 27.9.26: "למה עדי מלאך לא בראש סדר העדיפות ולידים חדשים שאין לי מושג מה הסטטוס שלהם כן?
+  // היא יותר פוטנציאלית לסגירה ועוד רשמתי תאריך חזרה היום". A callback we promised comes
+  // before a brand-new lead, and a warm one (המשך טיפול לסבב הקרוב) before the rest.
   if ((inWork || !main) && callback && callback <= today)
-    return { level: 'high', order: 3, reason: `קבענו לחזור אליה${fromNote ? ' (לפי ההערה)' : ''}`, action: 'שיחת המשך', date: callback, dateLabel: dateWord(callback) }
+    return { level: 'high', order: l.stage_id === STAGE_CONTINUE ? 2 : 2.5, reason: `קבענו לחזור אליה${fromNote ? ' (לפי ההערה)' : ''}`, action: 'שיחת המשך', date: callback, dateLabel: dateWord(callback) }
+  if (main && l.stage_id === STAGE_NEW && !humanTouch && hoursAgo(l.crm_created_at) < 48)
+    return { level: 'high', order: 3, reason: 'ליד חדש, עוד לא דיברו איתה', action: 'שיחה ראשונה', date: l.crm_created_at, dateLabel: `נכנס ${ago(l.crm_created_at)}` }
   if (!main) return null
 
   // ── בינוני
