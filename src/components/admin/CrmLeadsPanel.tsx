@@ -70,6 +70,7 @@ type Lead = {
   brief_at: string | null
   last_action_at: string | null
   last_action_label: string | null
+  retry_at: string | null
   synced_at: string | null
 }
 type Inbound = {
@@ -178,6 +179,37 @@ function ago(iso: string | null): string {
   return d === 1 ? 'אתמול' : `לפני ${d} ימים`
 }
 const briefFresh = (l: Lead) => !!l.brief_at && hoursAgo(l.brief_at) < BRIEF_FRESH_HOURS
+// Yahav 27.9.26: "אמהות שדיברתי איתן בבוקר ולא ענו, או ששלחתי הודעה ולא ענו, אני רוצה לנסות
+// שוב בערב. הלו"ז שלי הוא 10 או 17". A lead can be put back on the list for the next
+// calling slot (17:00 today, or 10:00 on the next working day) with crm_leads.retry_at.
+// It is a screen-only reminder: nothing about it is written to the CRM.
+function ilOffset(d: Date): string {
+  const part = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jerusalem', timeZoneName: 'shortOffset' })
+    .formatToParts(d).find(p => p.type === 'timeZoneName')?.value ?? 'GMT+3'
+  const m = part.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/)
+  return m ? `${m[1]}${m[2].padStart(2, '0')}:${m[3] ?? '00'}` : '+03:00'
+}
+function ilAt(ymd: string, hhmm: string): string {
+  return new Date(`${ymd}T${hhmm}:00${ilOffset(new Date(`${ymd}T12:00:00Z`))}`).toISOString()
+}
+/** Next calling slot: 17:00 today if it is before 17:00, otherwise 10:00 on the next Sun-Thu. */
+function nextSlot(): { at: string; label: string } {
+  const today = todayIso()
+  const hourIl = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jerusalem', hour: 'numeric', hour12: false }))
+  const dow = new Date(`${today}T12:00:00Z`).getUTCDay() // 0 = Sunday
+  if (hourIl < 17 && dow <= 4) return { at: ilAt(today, '17:00'), label: 'היום ב-17:00' }
+  let d = new Date(`${today}T12:00:00Z`)
+  do { d = new Date(d.getTime() + 86400000) } while (d.getUTCDay() > 4)
+  const ymd = d.toISOString().slice(0, 10)
+  const days = Math.round((d.getTime() - new Date(`${today}T12:00:00Z`).getTime()) / 86400000)
+  return { at: ilAt(ymd, '10:00'), label: days === 1 ? 'מחר ב-10:00' : `ב-${ddmm(ymd)} ב-10:00` }
+}
+const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit' })
+/** Retry is due: its time came, and nothing was done with her since it was set. */
+const retryDue = (l: Lead) => !!l.retry_at && new Date(l.retry_at).getTime() <= Date.now() && hoursAgo(l.retry_at) < 24
+  && !(l.last_action_at && l.last_action_at > l.retry_at)
+const retryWaiting = (l: Lead) => !!l.retry_at && new Date(l.retry_at).getTime() > Date.now()
+  && !(l.last_action_at && l.last_action_at > l.retry_at)
 const handledSinceBrief = (l: Lead) => !!l.last_action_at && (!l.brief_at || l.last_action_at > l.brief_at)
 
 type Level = 'high' | 'medium' | 'low'
@@ -354,13 +386,20 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   const openPhones = useMemo(() => new Set(leads.map(l => l.phone_local).filter(Boolean) as string[]), [leads])
   const visibleStalled = useMemo(() => stalled.filter(x => !x.normalized_phone || !openPhones.has(x.normalized_phone)), [stalled, openPhones])
 
+  // Re-evaluate every minute so a 17:00 retry appears at 17:00 without a reload.
+  const [tick, setTick] = useState(0)
+  useEffect(() => { const t = window.setInterval(() => setTick(x => x + 1), 60000); return () => window.clearInterval(t) }, [])
+
   const queue = useMemo(() => {
     const items: Array<{ lead: Lead; rule: Rule; order: number }> = []
     for (const l of leads) {
       if (l.app_paid_future || !mine(l)) continue
-      if (isToday(l.last_action_at) && !(l.last_inbound_at && l.last_action_at && l.last_inbound_at > l.last_action_at)) continue
+      const due = retryDue(l)
+      if (retryWaiting(l)) continue
+      if (!due && isToday(l.last_action_at) && !(l.last_inbound_at && l.last_action_at && l.last_inbound_at > l.last_action_at)) continue
       const st = l.phone_local ? stalledByPhone.get(l.phone_local) : undefined
       let rule = st ? stalledRule(st) : rulesFor(l)
+      if (due) rule = { level: 'high', order: 1.5, reason: `ביקשת לנסות שוב (${l.last_action_label ?? 'ניסיון קודם'})`, action: 'ניסיון נוסף: שיחה, ואם לא עונה הודעה', date: l.retry_at, dateLabel: `מ-${hhmm(l.retry_at!)}` }
       const card = briefFresh(l) && l.brief_bucket === 'today' && !handledSinceBrief(l)
       // A card from Claude's round with no rule behind it still belongs on today's list.
       if (!rule && card) rule = { level: 'medium', order: 7, reason: l.brief_why ?? 'מהסבב של Claude', action: l.brief_action ?? '' }
@@ -373,7 +412,11 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
       medium: sorted.filter(x => x.rule.level === 'medium'),
       low: sorted.filter(x => x.rule.level === 'low'),
     }
-  }, [leads, mine, stalledByPhone])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads, mine, stalledByPhone, tick])
+  const retryLater = useMemo(() => leads.filter(l => mine(l) && retryWaiting(l)).sort((a, b) => String(a.retry_at).localeCompare(String(b.retry_at))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [leads, mine, tick])
   const queueCount = queue.high.length + queue.medium.length + queue.low.length + visibleStalled.length
 
   const registeredInApp = useMemo(() => leads.filter(l => l.app_paid_future && l.pipeline === 'main' && mine(l)), [leads, mine])
@@ -622,6 +665,23 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
             </Section>
           )}
 
+          {retryLater.length > 0 && (
+            <Collapsible title={`יחזרו לרשימה בסבב הבא · ${retryLater.length}`}>
+              <div className="space-y-1.5">
+                {retryLater.map(l => (
+                  <div key={l.opp_id} className="bg-white rounded-xl px-3 py-2 text-sm flex justify-between items-center gap-2">
+                    <span className="min-w-0"><b className="text-sand-700">{l.name}</b> <span className="text-xs text-sand-500">· {l.last_action_label}</span></span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-sand-500">חוזרת ב-{hhmm(l.retry_at!)}{isToday(l.retry_at) ? '' : ` (${ddmm(l.retry_at)})`}</span>
+                      <button onClick={async () => { await supabase.from('crm_leads').update({ retry_at: new Date().toISOString() }).eq('opp_id', l.opp_id); load() }}
+                        className="btn-chip bg-beige-100 text-sand-600">עכשיו</button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Collapsible>
+          )}
+
           {handledToday.length > 0 && (
             <Collapsible title={`טופלו היום · ${handledToday.length}`}>
               <div className="space-y-1.5">
@@ -733,6 +793,8 @@ function LeadCard({ lead: l, rule, index, actor, reasons, compact, onDone, owner
   const [date, setDate] = useState('')
   const [stage, setStage] = useState('')
   const [closeTasks, setCloseTasks] = useState(true)
+  const [retry, setRetry] = useState(true)
+  const slot = nextSlot()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [showNotes, setShowNotes] = useState(false)
@@ -770,8 +832,10 @@ function LeadCard({ lead: l, rule, index, actor, reasons, compact, onDone, owner
       setErr('משהו לא נשמר ב-CRM. ' + (error?.message ?? JSON.stringify(data?.steps ?? {})).slice(0, 160))
       return
     }
+    const wantsRetry = retry && (outcome === 'no_answer' || outcome === 'note')
+    if (wantsRetry) await supabase.from('crm_leads').update({ retry_at: slot.at }).eq('opp_id', l.opp_id)
     setOutcome(null); setNote(''); setDate(''); setStage(''); setReason('')
-    onDone(`${l.name}: ${data.label} · נשמר ב-CRM`)
+    onDone(`${l.name}: ${data.label} · נשמר ב-CRM${wantsRetry ? ` · תחזור לרשימה ${slot.label}` : ''}`)
   }
 
   return (
@@ -843,7 +907,7 @@ function LeadCard({ lead: l, rule, index, actor, reasons, compact, onDone, owner
       {/* Outcome */}
       <div className="flex gap-1.5 flex-wrap pt-1 border-t border-beige-100">
         {OUTCOMES.map(o => (
-          <button key={o.id} onClick={() => { setOutcome(outcome === o.id ? null : o.id); setErr(null) }}
+          <button key={o.id} onClick={() => { setOutcome(outcome === o.id ? null : o.id); setRetry(o.id === 'no_answer'); setErr(null) }}
             className={`btn-chip ${o.cls} ${outcome === o.id ? 'ring-2 ring-sand-700' : ''}`}>{o.icon}{o.label}</button>
         ))}
       </div>
@@ -872,6 +936,12 @@ function LeadCard({ lead: l, rule, index, actor, reasons, compact, onDone, owner
           <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
             placeholder={outcome === 'note' ? 'מה לרשום?' : 'מה היה בשיחה? (לא חובה)'}
             className="w-full rounded-lg border border-beige-300 px-2 py-1.5 text-sm" />
+          {(outcome === 'no_answer' || outcome === 'note') && (
+            <label className="flex items-center gap-2 text-xs text-sand-700 font-bold">
+              <input type="checkbox" checked={retry} onChange={e => setRetry(e.target.checked)} />
+              להחזיר אותה לרשימה {slot.label}
+            </label>
+          )}
           {tasks.length > 0 && outcome !== 'note' && (
             <label className="flex items-center gap-2 text-xs text-sand-600">
               <input type="checkbox" checked={closeTasks} onChange={e => setCloseTasks(e.target.checked)} />
