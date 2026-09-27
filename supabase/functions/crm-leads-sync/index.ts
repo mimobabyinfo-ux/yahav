@@ -4,7 +4,7 @@
 // (the admin "לידים" screen reads only from there), plus contacts whose last
 // message was inbound and who have no open opportunity (never a lead, or wrote again
 // after being closed) into public.crm_inbound.
-// Runs every 5 minutes (pg_cron job 'crm-leads-sync-5min') and on demand from
+// Runs every 15 minutes since 27.9.26 (pg_cron job still named 'crm-leads-sync-5min') and on demand from
 // the screen's refresh button.
 //
 // Never writes to GHL. Brief_* columns (Claude's round cards) and last_action_*
@@ -98,6 +98,21 @@ const DECLINE = /לא רלוונטי|לא מתאפשר|לא תודה|לא מעו
 const INQUIRY = /\?|פרטים|מתי|מחזור|להירשם|הרשמה|מחיר|עולה|כמה|מעוניינת|אשמח|רוצה|סדנ/
 function looksLikeInquiry(text: string): boolean {
   return !DECLINE.test(text) && INQUIRY.test(text)
+}
+
+// 27.9.26: the Nano database ran out of Disk IO budget and stopped answering
+// (20:12-22:03). This function rewrote every open lead, notes jsonb included, every
+// 5 minutes even when nothing changed. Now each row carries sync_hash (its content
+// minus synced_at) and only rows whose hash changed are written.
+function stable(v: any): any {
+  if (Array.isArray(v)) return v.map(stable)
+  if (v && typeof v === 'object') return Object.fromEntries(Object.keys(v).sort().map(k => [k, stable(v[k])]))
+  return v
+}
+async function hashRow(r: Record<string, any>): Promise<string> {
+  const { synced_at: _s, sync_hash: _h, ...rest } = r
+  const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(JSON.stringify(stable(rest))))
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 const cors = {
@@ -231,12 +246,25 @@ Deno.serve(async (req) => {
       }
     }).filter(r => !IGNORE_PHONES.has(r.phone ?? ''))
 
-    if (rows.length) {
-      const { error } = await sb.from('crm_leads').upsert(rows, { onConflict: 'opp_id' })
+    const { data: haveLeads, error: haveErr } = await sb.from('crm_leads').select('opp_id, sync_hash, is_open')
+    if (haveErr) throw new Error('read crm_leads: ' + haveErr.message)
+    const leadHash = new Map((haveLeads ?? []).map((r: any) => [r.opp_id, r.is_open ? r.sync_hash : null]))
+    const changed: any[] = []
+    for (const r of rows as any[]) {
+      r.sync_hash = await hashRow(r)
+      if (leadHash.get(r.opp_id) !== r.sync_hash) changed.push(r)
+    }
+    if (changed.length) {
+      const { error } = await sb.from('crm_leads').upsert(changed, { onConflict: 'opp_id' })
       if (error) throw new Error('upsert crm_leads: ' + error.message)
     }
     // Opportunities that are no longer open (won/lost/moved out) disappear from the queue.
-    await sb.from('crm_leads').update({ is_open: false }).lt('synced_at', started).eq('is_open', true)
+    const openNow = new Set(rows.map((r: any) => r.opp_id))
+    const closedIds = (haveLeads ?? []).filter((r: any) => r.is_open && !openNow.has(r.opp_id)).map((r: any) => r.opp_id)
+    if (closedIds.length) await sb.from('crm_leads').update({ is_open: false }).in('opp_id', closedIds)
+    // The leads screen shows "מסונכרן עם ה-CRM לפני X" from max(synced_at). When nothing
+    // changed, stamp one row so that line stays true (one small write instead of all rows).
+    if (!changed.length && rows.length) await sb.from('crm_leads').update({ synced_at: started }).eq('opp_id', (rows[0] as any).opp_id)
 
     // 6. Inbound from contacts with no open opportunity (last 7 days)
     const weekAgo = Date.now() - 7 * 86400000
@@ -284,12 +312,22 @@ Deno.serve(async (req) => {
         closed_at: c._closedAt,
         synced_at: started,
       }))
-    if (inboundRows.length) {
-      const { error } = await sb.from('crm_inbound').upsert(inboundRows, { onConflict: 'contact_id' })
+    const { data: haveIn, error: haveInErr } = await sb.from('crm_inbound').select('contact_id, sync_hash')
+    if (haveInErr) throw new Error('read crm_inbound: ' + haveInErr.message)
+    const inHash = new Map((haveIn ?? []).map((r: any) => [r.contact_id, r.sync_hash]))
+    const inChanged: any[] = []
+    for (const r of inboundRows as any[]) {
+      r.sync_hash = await hashRow(r)
+      if (inHash.get(r.contact_id) !== r.sync_hash) inChanged.push(r)
+    }
+    if (inChanged.length) {
+      const { error } = await sb.from('crm_inbound').upsert(inChanged, { onConflict: 'contact_id' })
       if (error) throw new Error('upsert crm_inbound: ' + error.message)
     }
     // Contacts that now have an open opp, or answered by us (no longer last-inbound), drop out.
-    await sb.from('crm_inbound').delete().lt('synced_at', started)
+    const inNow = new Set(inboundRows.map((r: any) => r.contact_id))
+    const goneIn = (haveIn ?? []).map((r: any) => r.contact_id).filter((id: string) => !inNow.has(id))
+    if (goneIn.length) await sb.from('crm_inbound').delete().in('contact_id', goneIn)
 
     // 7. Lost reasons. GHL's API gives only lostReasonId, never the label (see CLAUDE.md),
     // so the ids are collected from recently lost opportunities and the labels are typed
@@ -305,15 +343,16 @@ Deno.serve(async (req) => {
       }
       const ids = Object.keys(count)
       if (ids.length) {
-        const { data: have } = await sb.from('crm_lost_reasons').select('id').in('id', ids)
+        const { data: have } = await sb.from('crm_lost_reasons').select('id, uses').in('id', ids)
         const known = new Set((have ?? []).map((r: any) => r.id))
+        const usesNow = Object.fromEntries((have ?? []).map((r: any) => [r.id, r.uses]))
         const fresh = ids.filter(id => !known.has(id)).map(id => ({ id, example: count[id].example, uses: count[id].n }))
         if (fresh.length) await sb.from('crm_lost_reasons').insert(fresh)
-        for (const id of ids.filter(id => known.has(id))) await sb.from('crm_lost_reasons').update({ uses: count[id].n }).eq('id', id)
+        for (const id of ids.filter(id => known.has(id) && usesNow[id] !== count[id].n)) await sb.from('crm_lost_reasons').update({ uses: count[id].n }).eq('id', id)
       }
     } catch (e) { console.error('[crm-leads-sync] lost reasons', String(e)) }
 
-    const summary = { ok: true, open_leads: rows.length, inbound_without_opp: inboundRows.length }
+    const summary = { ok: true, open_leads: rows.length, leads_written: changed.length, inbound_without_opp: inboundRows.length, inbound_written: inChanged.length }
     return new Response(JSON.stringify(summary), { headers: { ...cors, 'Content-Type': 'application/json' } })
   } catch (e) {
     console.error('[crm-leads-sync]', String(e))
