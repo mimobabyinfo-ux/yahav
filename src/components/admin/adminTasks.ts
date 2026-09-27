@@ -239,21 +239,11 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
     }
   }
 
-  // 3 · Pending payments older than 48h — aggregated into one line.
-  const cutoff = nowMs - 48 * 3600 * 1000
-  const stalePending = leads.filter(l => l.status === 'pending' && new Date(l.created_at).getTime() < cutoff)
-  if (stalePending.length > 0) {
-    tasks.push({
-      key: 'stale_pending',
-      title: `${stalePending.length} ממתינות לתשלום מעל 48 שעות`,
-      facts: [stalePending.slice(0, 2).map(l => l.name.split(' ')[0]).join(', ') + (stalePending.length > 2 ? '…' : '')],
-      severity: 'high',
-      section: 'registrations',
-      actionLabel: 'להרשמות',
-      sourceUpdatedAt: stalePending.reduce<string | null>((m, l) => (m == null || l.created_at > m ? l.created_at : m), null),
-      targetLeadIds: stalePending.map(l => l.id),
-    })
-  }
+  // 3 · (removed 27.9.26) "X ממתינות לתשלום מעל 48 שעות" used to live here.
+  //     Unpaid registrations now get an automatic email at ~24h
+  //     (remind-stalled-registrations) and, if still unpaid at 48h, a card
+  //     in the לידים screen with the reason on it (v_stalled_registrations).
+  //     Yahav: "בסוף זה ליד", so it belongs with the leads, not the home.
 
   // 4 · Opening questionnaire not filled — one line per linked form.
   //

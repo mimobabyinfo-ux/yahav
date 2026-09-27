@@ -83,6 +83,32 @@ type Inbound = {
 }
 type LostReason = { id: string; label: string | null; example: string | null; uses: number | null }
 type Cohort = { workshop: string; start_date: string; start_time: string | null; capacity: number | null; paid: number }
+/** 27.9.26: filled the registration page, went to Morning, never paid. From
+ *  v_stalled_registrations: only after 48h (the automatic email goes at ~24h,
+ *  remind-stalled-registrations), and never if she paid under another row. */
+type Stalled = {
+  id: string
+  name: string | null
+  phone: string | null
+  normalized_phone: string | null
+  created_at: string
+  reminded_at: string | null
+  workshop_title: string
+  price: number | null
+  payment_link: string | null
+  is_product: boolean
+  cohort_start: string | null
+}
+const shortTitle = (t: string) => t.replace('ליווי התפתחותי - ', '')
+function stalledRule(s: Stalled): Rule {
+  const when = s.cohort_start ? ` (מחזור ${ddmm(s.cohort_start)})` : ''
+  return {
+    level: 'high', order: 1.5,
+    reason: `נרשמה ל${shortTitle(s.workshop_title)}${when} ולא הסדירה תשלום`,
+    action: s.reminded_at ? `קיבלה מייל תזכורת ${ddmm(s.reminded_at)} ולא שילמה. לברר מה נתקע` : 'לברר מה נתקע בתשלום',
+    date: s.created_at, dateLabel: `נרשמה ${ago(s.created_at)}`,
+  }
+}
 
 const MAIN_STAGES: Array<{ id: string; name: string }> = [
   { id: 'aba91039-5ea0-4a93-9d1e-b38efa2695d2', name: 'ליד חדש' },
@@ -218,6 +244,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   const [leads, setLeads] = useState<Lead[]>([])
   const [inbound, setInbound] = useState<Inbound[]>([])
   const [cohorts, setCohorts] = useState<Cohort[]>([])
+  const [stalled, setStalled] = useState<Stalled[]>([])
   const [reasons, setReasons] = useState<LostReason[]>([])
   const [owners, setOwners] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -229,13 +256,15 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   const reloadTimer = useRef<number | null>(null)
 
   const load = useCallback(async () => {
-    const [l, i, c, r, o] = await Promise.all([
+    const [l, i, c, r, o, s] = await Promise.all([
       supabase.from('crm_leads').select('*').eq('is_open', true),
       supabase.from('crm_inbound').select('*').order('last_message_at', { ascending: false }),
       supabase.rpc('crm_cohort_occupancy'),
       supabase.from('crm_lost_reasons').select('id, label, example, uses').eq('active', true).order('sort').order('uses', { ascending: false }),
       supabase.from('crm_lead_owner').select('opp_id, owner'),
+      supabase.from('v_stalled_registrations').select('*').order('created_at', { ascending: false }),
     ])
+    setStalled((s.data ?? []) as Stalled[])
     setOwners(Object.fromEntries(((o.data ?? []) as Array<{ opp_id: string; owner: string }>).map(x => [x.opp_id, x.owner])))
     setReasons((r.data ?? []) as LostReason[])
     setLeads((l.data ?? []) as Lead[])
@@ -299,12 +328,23 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   const lastSync = useMemo(() => leads.reduce<string | null>((m, l) => (!m || (l.synced_at ?? '') > m ? l.synced_at : m), null), [leads])
   const freshRound = useMemo(() => leads.some(briefFresh), [leads])
 
+  // A stalled registration whose phone has an open CRM lead is shown ON that
+  // lead (with this as its reason); the rest get a card of their own.
+  const stalledByPhone = useMemo(() => {
+    const m = new Map<string, Stalled>()
+    for (const x of stalled) if (x.normalized_phone && !m.has(x.normalized_phone)) m.set(x.normalized_phone, x)
+    return m
+  }, [stalled])
+  const openPhones = useMemo(() => new Set(leads.map(l => l.phone_local).filter(Boolean) as string[]), [leads])
+  const visibleStalled = useMemo(() => stalled.filter(x => !x.normalized_phone || !openPhones.has(x.normalized_phone)), [stalled, openPhones])
+
   const queue = useMemo(() => {
     const items: Array<{ lead: Lead; rule: Rule; order: number }> = []
     for (const l of leads) {
       if (l.app_paid_future || !mine(l)) continue
       if (isToday(l.last_action_at) && !(l.last_inbound_at && l.last_action_at && l.last_inbound_at > l.last_action_at)) continue
-      let rule = rulesFor(l)
+      const st = l.phone_local ? stalledByPhone.get(l.phone_local) : undefined
+      let rule = st ? stalledRule(st) : rulesFor(l)
       const card = briefFresh(l) && l.brief_bucket === 'today' && !handledSinceBrief(l)
       // A card from Claude's round with no rule behind it still belongs on today's list.
       if (!rule && card) rule = { level: 'medium', order: 7, reason: l.brief_why ?? 'מהסבב של Claude', action: l.brief_action ?? '' }
@@ -317,8 +357,8 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
       medium: sorted.filter(x => x.rule.level === 'medium'),
       low: sorted.filter(x => x.rule.level === 'low'),
     }
-  }, [leads, mine])
-  const queueCount = queue.high.length + queue.medium.length + queue.low.length
+  }, [leads, mine, stalledByPhone])
+  const queueCount = queue.high.length + queue.medium.length + queue.low.length + visibleStalled.length
 
   const registeredInApp = useMemo(() => leads.filter(l => l.app_paid_future && l.pipeline === 'main' && mine(l)), [leads, mine])
   const handledToday = useMemo(() => leads.filter(l => isToday(l.last_action_at)), [leads])
@@ -343,6 +383,19 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   async function dismissInbound(i: Inbound) {
     await supabase.from('crm_inbound').update({ dismissed_at: new Date().toISOString() }).eq('contact_id', i.contact_id)
     load()
+  }
+  async function markStalledHandled(x: Stalled) {
+    const { error } = await supabase.from('registration_leads').update({ status: 'handled' }).eq('id', x.id)
+    if (error) { flash('לא הצלחתי לסמן: ' + error.message); return }
+    setStalled(list => list.filter(y => y.id !== x.id))
+    flash(`${x.name ?? ''}: סומן כטופל`)
+  }
+  function stalledWa(x: Stalled): string | undefined {
+    const base = waHref(x.phone)
+    if (!base) return undefined
+    const first = (x.name ?? '').trim().split(/\s+/)[0]
+    const text = `היי${first ? ` ${first}` : ''}, ראיתי שהתחלת להירשם ל${shortTitle(x.workshop_title)} והתשלום לא הושלם. הכל בסדר? אפשר לעזור במשהו?${x.payment_link ? `\nהקישור לתשלום: ${x.payment_link}` : ''}`
+    return `${base}?text=${encodeURIComponent(text)}`
   }
   async function createLead(i: Inbound) {
     const { data, error } = await supabase.functions.invoke('crm-lead-action', {
@@ -418,7 +471,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
         <>
           <div className="grid grid-cols-3 gap-2">
             {LEVELS.map(lv => {
-              const n = queue[lv.id].length + (lv.id === 'high' ? visibleInbound.length : 0)
+              const n = queue[lv.id].length + (lv.id === 'high' ? visibleInbound.length + visibleStalled.length : 0)
               return (
                 <a key={lv.id} href={`#lvl-${lv.id}`} className={`rounded-2xl px-3 py-2 ${lv.chip} flex items-center justify-between`}>
                   <span className="flex items-center gap-1.5 font-bold text-sm">{lv.icon}{lv.title}</span>
@@ -431,14 +484,39 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
           {LEVELS.map(lv => {
             const list = queue[lv.id]
             const inboundHere = lv.id === 'high' ? visibleInbound : []
-            if (!list.length && !inboundHere.length) return null
+            const stalledHere = lv.id === 'high' ? visibleStalled : []
+            if (!list.length && !inboundHere.length && !stalledHere.length) return null
             return (
               <div key={lv.id} id={`lvl-${lv.id}`} className="space-y-2 scroll-mt-4">
                 <div className={`rounded-2xl px-3 py-2 ${lv.chip}`}>
-                  <h3 className="font-bold text-sm flex items-center gap-1.5">{lv.icon}{lv.title} · {list.length + inboundHere.length}</h3>
+                  <h3 className="font-bold text-sm flex items-center gap-1.5">{lv.icon}{lv.title} · {list.length + inboundHere.length + stalledHere.length}</h3>
                   <p className="text-[11px] opacity-80">{lv.hint}</p>
                 </div>
                 <div className="grid gap-3 lg:grid-cols-2">
+                  {stalledHere.map(x => {
+                    const rule = stalledRule(x)
+                    return (
+                      <div key={x.id} className="bg-white rounded-2xl shadow-sm overflow-hidden flex">
+                        <div className={`w-1.5 shrink-0 ${lv.bar}`} />
+                        <div className="p-4 space-y-2 flex-1 min-w-0">
+                          <div className={`rounded-xl px-3 py-2 ${lv.chip}`}>
+                            <p className="text-sm font-bold">{rule.reason}</p>
+                            <p className="text-xs">{rule.dateLabel}{x.price ? ` · ₪${Number(x.price)}` : ''}</p>
+                          </div>
+                          <div>
+                            <p className="font-bold text-sand-800">{x.name}</p>
+                            <p className="text-xs text-sand-500" dir="ltr">{prettyPhone(x.normalized_phone)}</p>
+                          </div>
+                          <p className="text-xs text-sand-600">{rule.action}</p>
+                          <div className="flex gap-2 flex-wrap">
+                            {x.phone && <a href={telHref(x.phone)} className="btn-chip bg-sand-800 text-white"><Phone className="w-3.5 h-3.5" />חיוג</a>}
+                            {stalledWa(x) && <a href={stalledWa(x)} target="_blank" rel="noopener noreferrer" className="btn-chip bg-[#25D366] text-white"><MessageCircle className="w-3.5 h-3.5" />ווטסאפ</a>}
+                            <button onClick={() => markStalledHandled(x)} className="btn-chip bg-beige-100 text-sand-600"><Check className="w-3.5 h-3.5" />טופל</button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                   {inboundHere.map(i => (
                     <div key={i.contact_id} className="bg-white rounded-2xl shadow-sm overflow-hidden flex">
                       <div className={`w-1.5 shrink-0 ${lv.bar}`} />
