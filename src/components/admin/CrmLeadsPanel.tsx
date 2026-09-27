@@ -147,6 +147,21 @@ function prettyPhone(local: string | null): string {
   if (!local) return ''
   return local.length === 10 ? `${local.slice(0, 3)}-${local.slice(3)}` : local
 }
+// Yahav 27.9.26: "לחפש ליד לפי טלפון או שם". Digits match anywhere in the phone, in any
+// format (054-..., 054..., +97254...); letters match the name, case-insensitive.
+function searchDigits(s: string): string {
+  let d = s.replace(/\D/g, '')
+  if (d.startsWith('972')) d = '0' + d.slice(3)
+  return d
+}
+function matchesSearch(name: string | null, phoneLocal: string | null, s: string): boolean {
+  const t = s.trim().toLowerCase()
+  if (!t) return false
+  const d = searchDigits(t)
+  if (d.length >= 3 && (phoneLocal ?? '').includes(d)) return true
+  const letters = t.replace(/[\d\s+\-()]/g, '')
+  return !!letters && (name ?? '').toLowerCase().includes(t)
+}
 function telHref(p: string | null) { return p ? `tel:${p.replace(/[^\d+]/g, '')}` : undefined }
 function waHref(p: string | null) {
   if (!p) return undefined
@@ -252,6 +267,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   const [actor, setActor] = useState<string>(() => { try { return localStorage.getItem('crm_actor') || 'יהב' } catch { return 'יהב' } })
   const [view, setView] = useState<'queue' | 'upcoming' | 'graduates' | 'all' | 'calls'>('queue')
   const [q, setQ] = useState('')
+  const [closedHits, setClosedHits] = useState<Array<{ opp_id: string; name: string | null; phone_local: string | null; stage_name: string | null; status: string | null; crm_updated_at: string | null }>>([])
   const [toast, setToast] = useState<string | null>(null)
   const reloadTimer = useRef<number | null>(null)
 
@@ -373,12 +389,29 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   const othersCount = useMemo(() => leads.filter(l => !mine(l)).length, [leads, mine])
   // People who wrote with no lead yet are Yahav's until someone opens a lead.
   const visibleInbound = useMemo(() => actor !== 'יהב' ? [] : inbound.filter(i => !i.dismissed_at || i.last_message_at > i.dismissed_at), [inbound, actor])
-  const all = useMemo(() => {
-    const s = q.trim()
-    const list = [...leads].sort((a, b) => String(b.crm_created_at).localeCompare(String(a.crm_created_at)))
-    if (!s) return list
-    return list.filter(l => (l.name ?? '').includes(s) || (l.phone_local ?? '').includes(s.replace(/\D/g, '') || '@@') || (l.stage_name ?? '').includes(s))
-  }, [leads, q])
+  const all = useMemo(() => [...leads].sort((a, b) => String(b.crm_created_at).localeCompare(String(a.crm_created_at))), [leads])
+
+  // Search covers every open lead (both owners), plus leads that were open at some point
+  // since the screen started (23.9.26) and have since been closed.
+  const searching = q.trim().length > 0
+  const searchHits = useMemo(() => searching
+    ? leads.filter(l => matchesSearch(l.name, l.phone_local, q)).sort((a, b) => String(b.crm_created_at).localeCompare(String(a.crm_created_at)))
+    : [], [leads, q, searching])
+  useEffect(() => {
+    const t = q.trim()
+    if (!t) { setClosedHits([]); return }
+    const timer = window.setTimeout(async () => {
+      const d = searchDigits(t)
+      const safe = t.replace(/[,()%*]/g, ' ').trim()
+      const filters = [safe ? `name.ilike.%${safe}%` : '', d.length >= 3 ? `phone_local.ilike.%${d}%` : ''].filter(Boolean).join(',')
+      if (!filters) { setClosedHits([]); return }
+      const { data } = await supabase.from('crm_leads')
+        .select('opp_id, name, phone_local, stage_name, status, crm_updated_at')
+        .eq('is_open', false).or(filters).order('crm_updated_at', { ascending: false }).limit(20)
+      setClosedHits((data ?? []).filter((r: any) => matchesSearch(r.name, r.phone_local, t)))
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [q])
 
   async function dismissInbound(i: Inbound) {
     await supabase.from('crm_inbound').update({ dismissed_at: new Date().toISOString() }).eq('contact_id', i.contact_id)
@@ -465,9 +498,41 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
             </button>
           ))}
         </div>
+        <div className="relative">
+          <Search className="w-4 h-4 text-sand-400 absolute right-3 top-1/2 -translate-y-1/2" />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="חיפוש ליד לפי שם או טלפון"
+            className="w-full rounded-full bg-beige-50 pr-9 pl-9 py-2 text-sm border border-beige-300" />
+          {searching && (
+            <button onClick={() => setQ('')} title="לנקות" className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-sand-500 hover:bg-beige-200">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {view === 'queue' && (
+      {searching && (
+        <Section title={`תוצאות חיפוש · ${searchHits.length + closedHits.length}`} hint={searchHits.length + closedHits.length ? 'כל הלידים הפתוחים של יהב וברנדה, ולמטה לידים שנסגרו.' : 'לא נמצא ליד. אפשר לחפש לפי חלק מהשם או 3 ספרות ומעלה מהטלפון.'}>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {searchHits.map(l => <LeadCard key={l.opp_id} lead={l} rule={rulesFor(l)} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
+          </div>
+          {closedHits.length > 0 && (
+            <div className="space-y-1.5 mt-3">
+              <p className="text-xs font-bold text-sand-500 px-1">לידים שנסגרו</p>
+              {closedHits.map(c => (
+                <div key={c.opp_id} className="bg-white rounded-xl px-3 py-2 text-sm flex justify-between items-center gap-2">
+                  <span className="min-w-0">
+                    <b className="text-sand-700">{c.name}</b>
+                    <span className="text-xs text-sand-500"> · <span dir="ltr">{prettyPhone(c.phone_local)}</span> · {c.stage_name ?? c.status}{c.crm_updated_at ? ` · ${ddmm(c.crm_updated_at)}` : ''}</span>
+                  </span>
+                  <ContactButtons phone={c.phone_local} />
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {!searching && view === 'queue' && (
         <>
           <div className="grid grid-cols-3 gap-2">
             {LEVELS.map(lv => {
@@ -572,7 +637,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
         </>
       )}
 
-      {view === 'upcoming' && (
+      {!searching && view === 'upcoming' && (
         <Section title="תאריך חזרה בשבעת הימים הקרובים">
           <div className="grid gap-3 lg:grid-cols-2">
             {upcoming.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
@@ -580,7 +645,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
         </Section>
       )}
 
-      {view === 'graduates' && (
+      {!searching && view === 'graduates' && (
         <Section title="סיימו עטופים ולא רשומות לאף מגלים עתידי" hint="הזדמנות להמשך. ההרשמות נבדקות מול האפליקציה.">
           <div className="grid gap-3 lg:grid-cols-2">
             {graduates.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
@@ -588,20 +653,15 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
         </Section>
       )}
 
-      {view === 'all' && (
+      {!searching && view === 'all' && (
         <Section title="כל הלידים הפתוחים">
-          <div className="relative mb-2">
-            <Search className="w-4 h-4 text-sand-400 absolute right-3 top-1/2 -translate-y-1/2" />
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder="חיפוש לפי שם, טלפון או שלב"
-              className="w-full rounded-full bg-white pr-9 pl-3 py-2 text-sm border border-beige-300" />
-          </div>
           <div className="grid gap-3 lg:grid-cols-2">
             {all.map(l => <LeadCard key={l.opp_id} lead={l} rule={rulesFor(l)} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
           </div>
         </Section>
       )}
 
-      {view === 'calls' && <CallInsights />}
+      {!searching && view === 'calls' && <CallInsights />}
 
       {partnerLeads && (
         <Collapsible title="לידים מספקים (שיתופי פעולה)">{partnerLeads}</Collapsible>
