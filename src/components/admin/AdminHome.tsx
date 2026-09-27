@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronDown, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, Plus, RotateCcw, MessageCircle, Baby, X } from 'lucide-react'
+import { ChevronLeft, ChevronDown, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, Plus, RotateCcw, MessageCircle, Baby, X, CalendarDays } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { AdminOverview, MorningPayment } from './useAdminOverview'
@@ -121,6 +121,9 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
   const [adding, setAdding] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newSeverity, setNewSeverity] = useState<'high' | 'mid'>('mid')
+  // Brenda 27.9.26: a date next to a task, so she knows when it is
+  // relevant ("להזמין פופים ב-10/09"). Optional; empty = no date.
+  const [newDue, setNewDue] = useState('')
   const [savingTask, setSavingTask] = useState(false)
 
   async function addManualTask() {
@@ -129,12 +132,19 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
     await supabase.from('admin_tasks').insert({
       title: newTitle.trim(),
       severity: newSeverity,
+      due_date: newDue || null,
       created_by: profile?.id ?? null,
     })
     setSavingTask(false)
     setNewTitle('')
     setNewSeverity('mid')
+    setNewDue('')
     setAdding(false)
+    reload()
+  }
+
+  async function setTaskDue(id: string, due: string) {
+    await supabase.from('admin_tasks').update({ due_date: due || null }).eq('id', id)
     reload()
   }
 
@@ -247,7 +257,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
 
             {/* Quick-add manual task */}
             {adding && (
-              <div className="flex items-center gap-2 rounded-2xl px-3 py-2.5 mb-2" style={{ background: '#F6F3ED' }}>
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl px-3 py-2.5 mb-2" style={{ background: '#F6F3ED' }}>
                 <select
                   value={newSeverity}
                   onChange={e => setNewSeverity(e.target.value as 'high' | 'mid')}
@@ -263,8 +273,17 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                   onKeyDown={e => { if (e.key === 'Enter') addManualTask() }}
                   autoFocus
                   placeholder="מה צריך לעשות? (Enter לשמירה)"
-                  className="flex-1 min-w-0 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-mustard-400"
+                  className="flex-1 min-w-[180px] rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-mustard-400"
                   style={{ border: '1px solid #E9E2D6', color: '#443327' }}
+                />
+                <input
+                  type="date"
+                  value={newDue}
+                  onChange={e => setNewDue(e.target.value)}
+                  title="לאיזה תאריך? (לא חובה)"
+                  aria-label="תאריך למשימה"
+                  className="flex-shrink-0 rounded-xl px-2 py-2 text-sm bg-white focus:outline-none"
+                  style={{ border: '1px solid #E9E2D6', color: newDue ? '#443327' : '#A2937D', width: 132 }}
                 />
                 <button onClick={addManualTask} disabled={savingTask || !newTitle.trim()}
                   className="flex-shrink-0 font-bold rounded-xl disabled:opacity-40"
@@ -307,6 +326,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                       {t.detail && <span style={{ color: '#A2937D' }}> · {t.detail}</span>}
                       <span style={{ color: '#A2937D' }}> · משימה שלך</span>
                     </p>
+                    <TaskDueChip due={t.due_date} onChange={d => setTaskDue(t.id, d)} />
                     {t.link_section && (
                       <button onClick={() => onSection(t.link_section as AdminTaskSection)}
                         className="flex-shrink-0 flex items-center gap-0.5 font-bold rounded-xl transition-all hover:brightness-95"
@@ -734,5 +754,38 @@ function MonthPaymentsModal({
         </div>
       </div>
     </div>
+  )
+}
+
+/** The date on a manual task. Tap to set or change it (native picker).
+ *  Past = rust, today = gold, later = quiet. No date = a small calendar
+ *  icon, so a date can be added after the task was written. */
+function TaskDueChip({ due, onChange }: { due: string | null; onChange: (d: string) => void }) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
+  let label = ''
+  let bg = '#F6F3ED'
+  let color = '#8A7A63'
+  if (due) {
+    const [, m, d] = due.split('-').map(Number)
+    if (due < today) { label = `${d}/${m} · עבר`; bg = '#F6E3DA'; color = '#8B4A30' }
+    else if (due === today) { label = 'היום'; bg = '#F6ECD8'; color = '#6E5836' }
+    else label = `${d}/${m}`
+  }
+  return (
+    <label
+      className="relative flex-shrink-0 flex items-center gap-1 font-bold rounded-xl cursor-pointer"
+      style={{ fontSize: 12.5, padding: '5px 9px', background: bg, color }}
+      title={due ? 'שינוי תאריך' : 'הוספת תאריך'}
+    >
+      <CalendarDays className="w-3.5 h-3.5" />
+      {label}
+      <input
+        type="date"
+        value={due ?? ''}
+        onChange={e => onChange(e.target.value)}
+        className="absolute inset-0 opacity-0 cursor-pointer"
+        aria-label="תאריך למשימה"
+      />
+    </label>
   )
 }

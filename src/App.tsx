@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import { useTracker } from './hooks/useTracker'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
-import { supabase } from './lib/supabase'
+import { supabase, cameFromPasswordReset } from './lib/supabase'
 import { isStandalone } from './utils/webPush'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -58,6 +58,7 @@ const WelcomeClaimPage = lazy(() => import('./pages/WelcomeClaimPage'))
 const LegalPage = lazy(() => import('./pages/LegalPage'))
 const ConsentGate = lazy(() => import('./pages/ConsentGate'))
 const UserSettingsPage = lazy(() => import('./pages/UserSettingsPage'))
+const SetNewPasswordPage = lazy(() => import('./pages/SetNewPasswordPage'))
 
 export type Page = 'dashboard' | 'journal' | 'benefits' | 'workshops' | 'pro' | 'admin' | 'community' | 'marketplace' | 'log-sleep' | 'log-tummy' | 'log-feeding-breast' | 'log-feeding-bottle' | 'log-feeding-solid' | 'log-diaper' | 'log-medical' | 'log-milestone' | 'log-note'
 export type AdminSection = 'home' | 'insights' | 'users' | 'workshops' | 'events' | 'forms' | 'leads' | 'tips' | 'videos' | 'perks' | 'pregnancy' | 'partners' | 'registrations' | 'makeups' | 'program' | 'settings'
@@ -148,6 +149,15 @@ const REGS_LS_KEY = 'registrations_last_seen'
 
 function AppInner() {
   const { user, profile, loading, isGuest } = useAuth()
+  // שכחתי סיסמה: she arrived from the reset email. Show the new-password
+  // screen before anything else, until she saves one.
+  const [passwordReset, setPasswordReset] = useState(cameFromPasswordReset)
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange(evt => {
+      if (evt === 'PASSWORD_RECOVERY') setPasswordReset(true)
+    })
+    return () => data.subscription.unsubscribe()
+  }, [])
   const [currentPage, setCurrentPage] = useState<Page>(
     isCoursePage ? 'pro' : (isGiftPage || isProductPage) ? 'workshops' : deepTab === 'community' ? 'community' : 'dashboard')
   // Brenda 17.8.26: "when I go into nursing/sleep/bottle FROM the journal
@@ -375,6 +385,14 @@ function AppInner() {
   }
 
   if (!user) return <LoginPage />
+  if (passwordReset && !isGuest) {
+    return <SetNewPasswordPage onDone={() => {
+      setPasswordReset(false)
+      const u = new URL(window.location.href)
+      u.searchParams.delete('reset')
+      window.history.replaceState(null, '', u.pathname + u.search)
+    }} />
+  }
 
   // Consent before service, for every route in. The tick on the signup
   // form only guards that form — Google OAuth signs a new person up

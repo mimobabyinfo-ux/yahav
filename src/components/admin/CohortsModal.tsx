@@ -23,6 +23,7 @@ type Draft = {
   end_date: string    // YYYY-MM-DD or '' — auto-suggested start + 4 weeks, editable
   label: string
   capacity: string
+  hidden_seats: string
   notes: string
   is_active: boolean
 }
@@ -33,6 +34,7 @@ const EMPTY_DRAFT: Draft = {
   end_date: '',
   label: '',
   capacity: '',
+  hidden_seats: '',
   notes: '',
   is_active: true,
 }
@@ -78,6 +80,9 @@ export default function CohortsModal({ workshop, onClose }: Props) {
   // Per-cohort registration counts — populated by a single grouped
   // query after cohorts load. Empty for cohorts with no rows.
   const [counts, setCounts] = useState<Record<string, number>>({})
+  // 27.9.26: seats are taken only by registrations that are not pending
+  // payment. `counts` (all rows) stays for the delete warning.
+  const [takenCounts, setTakenCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -109,16 +114,20 @@ export default function CohortsModal({ workshop, onClose }: Props) {
       // round-trip for typical (low) row counts.
       supabase
         .from('registration_leads')
-        .select('cohort_id')
+        .select('cohort_id, status')
         .eq('selected_workshop_id', workshop.id)
         .not('cohort_id', 'is', null),
     ])
     setCohorts((rows ?? []) as WorkshopCohort[])
     const counter: Record<string, number> = {}
-    for (const r of (regs ?? []) as { cohort_id: string | null }[]) {
-      if (r.cohort_id) counter[r.cohort_id] = (counter[r.cohort_id] ?? 0) + 1
+    const taken: Record<string, number> = {}
+    for (const r of (regs ?? []) as { cohort_id: string | null; status: string }[]) {
+      if (!r.cohort_id) continue
+      counter[r.cohort_id] = (counter[r.cohort_id] ?? 0) + 1
+      if (r.status !== 'pending') taken[r.cohort_id] = (taken[r.cohort_id] ?? 0) + 1
     }
     setCounts(counter)
+    setTakenCounts(taken)
     setLoading(false)
   }, [workshop.id])
 
@@ -139,6 +148,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
       end_date: cohort.end_date ?? '',
       label: cohort.label ?? '',
       capacity: cohort.capacity?.toString() ?? '',
+      hidden_seats: cohort.hidden_seats ? String(cohort.hidden_seats) : '',
       notes: cohort.notes ?? '',
       is_active: cohort.is_active,
     })
@@ -160,6 +170,11 @@ export default function CohortsModal({ workshop, onClose }: Props) {
       setError('קיבולת חייבת להיות מספר חיובי')
       return
     }
+    const hidden = draft.hidden_seats.trim() ? parseInt(draft.hidden_seats, 10) : 0
+    if (!Number.isInteger(hidden) || hidden < 0) {
+      setError('מקומות מוסתרים חייבים להיות 0 או מספר חיובי')
+      return
+    }
     setSaving(true)
     setError(null)
     const payload = {
@@ -169,6 +184,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
       end_date: draft.end_date || null,
       label: draft.label.trim() || null,
       capacity: cap,
+      hidden_seats: hidden,
       notes: draft.notes.trim() || null,
       is_active: draft.is_active,
     }
@@ -255,7 +271,8 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                       </p>
                     )}
                     {visible.map(c => {
-                const count = counts[c.id] ?? 0
+                const count = takenCounts[c.id] ?? 0
+                const pendingHere = (counts[c.id] ?? 0) - count
                 // Effective capacity: per-cohort override, else the
                 // product's max (workshops.stock_quantity). Keeping the
                 // product field as the single source of truth means
@@ -292,7 +309,15 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                           {effCap == null && (
                             <span className="text-[10px] text-sand-400">קיבולת לא הוגדרה</span>
                           )}
+                          {pendingHere > 0 && (
+                            <span className="text-[10px] text-sand-400">+ {pendingHere} לא שילמו (לא תופסות מקום)</span>
+                          )}
                         </div>
+                        {effCap != null && (c.hidden_seats ?? 0) > 0 && effCap - count > 0 && (
+                          <p className="text-[11px] font-semibold mt-1" style={{ color: '#8A6A2F' }}>
+                            בעמוד ההרשמה: {(() => { const shown = Math.max(1, effCap - count - c.hidden_seats); return shown === 1 ? 'נותר מקום אחרון' : `נותרו ${shown} מקומות` })()} (באמת פנויים {effCap - count})
+                          </p>
+                        )}
                         {c.end_date && (
                           <p className="text-[10px] text-sand-400 mt-1">סיום: {ddmmyyyyhhmm(c.end_date, null)}</p>
                         )}
@@ -434,6 +459,20 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                     />
                     <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
                       אם משאירים ריק, המקסימום נלקח אוטומטית משדה המלאי של המוצר, וכל עדכון שם מתעדכן בכל המחזורים.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-sand-500 mb-1">מקומות להציג כתפוסים (אופציונלי)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={draft.hidden_seats}
+                      onChange={e => setDraft(d => ({ ...d, hidden_seats: e.target.value }))}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
+                    />
+                    <p className="text-[10px] text-sand-400 mt-1 leading-relaxed">
+                      כמה מקומות פנויים להציג לאמהות כאילו נתפסו, כדי ליצור תחושת דחיפות. למשל 3 פנויים ו-2 כאן, יוצג "נותר מקום אחרון". כל עוד יש מקום אמיתי, המחזור לא יוצג כמלא. הרשמה שלא שולמה לא תופסת מקום.
                     </p>
                   </div>
                   <div>

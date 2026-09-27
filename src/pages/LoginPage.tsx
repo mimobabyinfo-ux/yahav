@@ -16,6 +16,13 @@ function moveSessionToSessionStorage() {
 
 export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
+  // שכחתי סיסמה (27.9.26): a third view of the card, email only.
+  // request-password-reset emails her a link; SetNewPasswordPage takes
+  // it from there. A dead link lands back here with ?reset=1 and no
+  // session, so open this view with a note instead of a bare login.
+  const cameBackFromDeadLink = new URLSearchParams(window.location.search).get('reset') === '1'
+  const [forgot, setForgot] = useState(cameBackFromDeadLink)
+  const [resetSent, setResetSent] = useState(false)
   // Brenda 18.8.26: "my wife is nervous about the legal side — maybe add
   // a consent about sharing details at signup." חוק הגנת הפרטיות, after
   // תיקון 13 (in force 14.8.2025), makes the notice at the moment of
@@ -125,6 +132,16 @@ export default function LoginPage() {
     }
   }
 
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    const { error } = await supabase.functions.invoke('request-password-reset', { body: { email: email.trim() } })
+    setLoading(false)
+    if (error) { setError('לא הצלחנו לשלוח כרגע, נסי שוב בעוד רגע'); return }
+    setResetSent(true)
+  }
+
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
@@ -172,7 +189,57 @@ export default function LoginPage() {
         </p>
 
         {/* Card */}
-        {!signupSent && <div className="w-full bg-white rounded-3xl p-7 shadow-sm border border-[#F0EAE0] mt-2">
+        {!signupSent && forgot && (
+          <div className="w-full bg-white rounded-3xl p-7 shadow-sm border border-[#F0EAE0] mt-2">
+            <h2 className="font-display text-center mb-4" style={{ fontSize: '1.5rem', fontWeight: 400, color: '#5E4938' }}>
+              שכחתי סיסמה
+            </h2>
+            {resetSent ? (
+              <div className="text-center space-y-4">
+                <div className="w-14 h-14 mx-auto rounded-full flex items-center justify-center" style={{ background: '#F6ECD8' }}><Mail className="w-7 h-7" style={{ color: '#8A6A2F' }} /></div>
+                <p className="text-sm leading-relaxed" style={{ color: '#5A4B3C' }}>
+                  אם <strong>{email}</strong> רשום אצלנו, שלחנו אליו מייל עם קישור לבחירת סיסמה חדשה.
+                  <br />לא הגיע תוך כמה דקות? כדאי להציץ בספאם.
+                </p>
+                <button onClick={() => { setForgot(false); setResetSent(false) }} className="w-full font-bold py-3.5 rounded-2xl" style={{ background: '#E7C78A', color: '#4A3A28' }}>
+                  חזרה לכניסה
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgot} className="space-y-4">
+                <p className="text-sm text-center leading-relaxed" style={{ color: '#818267' }}>
+                  {cameBackFromDeadLink
+                    ? 'הקישור כבר לא בתוקף. אפשר לבקש קישור חדש כאן.'
+                    : 'כתבי את המייל שאיתו נרשמת ונשלח לך קישור לבחירת סיסמה חדשה.'}
+                </p>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="email@example.com"
+                  required
+                  className="w-full px-4 py-3.5 rounded-2xl text-right focus:outline-none"
+                  style={{ border: '1.5px solid #C6BDA0', color: '#3D2E20', background: 'white', fontSize: '0.95rem' }}
+                />
+                {error && (
+                  <div className="rounded-2xl p-3 text-sm text-center" style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{error}</div>
+                )}
+                <button type="submit" disabled={loading} className="w-full font-bold py-4 rounded-2xl disabled:opacity-50" style={{ background: '#E7C78A', color: '#4A3A28' }}>
+                  {loading ? '...' : 'שליחת קישור'}
+                </button>
+                <p className="text-xs text-center leading-relaxed" style={{ color: '#9C8A74' }}>
+                  נרשמת דרך Google? אין צורך בסיסמה, פשוט לחזור ולבחור "המשך עם Google".
+                </p>
+                <button type="button" onClick={() => { setForgot(false); setError('') }} className="w-full text-sm font-bold underline" style={{ color: '#A35C3D' }}>
+                  חזרה לכניסה
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {!signupSent && !forgot && <div className="w-full bg-white rounded-3xl p-7 shadow-sm border border-[#F0EAE0] mt-2">
           <h2
             className="font-display text-center mb-6"
             style={{ fontSize: '1.5rem', fontWeight: 400, color: '#5E4938' }}
@@ -242,6 +309,7 @@ export default function LoginPage() {
             </div>
 
             {mode === 'login' && (
+              <div className="flex items-center justify-between gap-2">
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -251,6 +319,10 @@ export default function LoginPage() {
                 />
                 <span className="text-sm" style={{ color: '#818267' }}>זכרי אותי</span>
               </label>
+              <button type="button" onClick={() => { setForgot(true); setError('') }} className="text-sm font-bold underline" style={{ color: '#A35C3D' }}>
+                שכחתי סיסמה
+              </button>
+              </div>
             )}
 
             {mode === 'signup' && (

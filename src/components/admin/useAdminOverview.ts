@@ -131,7 +131,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
         .eq('paid', false),
       supabase.from('home_announcements').select('*').order('display_order'),
       supabase.from('partner_leads').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
-      supabase.from('admin_tasks').select('*').eq('status', 'open').order('created_at', { ascending: false }),
+      supabase.from('admin_tasks').select('*').eq('status', 'open').order('due_date', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false }),
       supabase.from('admin_task_dismissals').select('*'),
       // Second source for a baby's age, behind the questionnaire: app
       // users who filled their profile.

@@ -3,6 +3,14 @@
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
+// שכחתי סיסמה (27.9.26): read BEFORE createClient, because the client
+// consumes the recovery hash (#...type=recovery) and clears it on init.
+// request-password-reset sends her to /?reset=1, so either signal counts.
+export const cameFromPasswordReset: boolean = typeof window !== 'undefined' && (
+  window.location.hash.includes('type=recovery') ||
+  new URLSearchParams(window.location.search).get('reset') === '1'
+)
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -410,6 +418,9 @@ export type WorkshopCohort = {
   start_time: string | null
   label: string | null
   capacity: number | null
+  /** 27.9.26: seats shown to mothers as taken though free (urgency).
+   *  get_public_cohorts subtracts it, never below 1 real free seat. */
+  hidden_seats: number
   notes: string | null
   is_active: boolean
   // End-of-workshop feedback. end_date drives WHEN the survey email

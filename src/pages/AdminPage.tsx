@@ -8053,6 +8053,29 @@ function RegistrationsGroupedView({
     return { noCohort, upcoming, past }
   }, [leads, cohortById])
 
+  // Brenda 27.9.26: "לא צריך לרשום ליווי התפתחותי - סדנת מגלים... זה גם
+  // ככה אחרי שנכנסים למגלים. אני רוצה לראות את התאריך והשעה". The long
+  // product title filled the row and truncated the date away. The date
+  // and time now lead; the product title is added only when the list
+  // mixes cohorts of more than one product (search, "show everything").
+  const multiWorkshop = useMemo(() => {
+    const ids = new Set<string>()
+    for (const g of [...groups.upcoming, ...groups.past]) ids.add(g.cohort.workshop_id)
+    return ids.size > 1
+  }, [groups])
+  function cohortHeaderLabel(c: WorkshopCohort): string {
+    const [y, m, d] = c.start_date.split('-').map(Number)
+    const wd = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'][new Date(y, m - 1, d).getDay()]
+    const time = c.start_time ? ` · ${c.start_time.slice(0, 5)}` : ''
+    return `יום ${wd} ${d}/${m}/${String(y).slice(2)}${time}`
+  }
+  function cohortSubLabel(c: WorkshopCohort): string {
+    const parts: string[] = []
+    if (c.label) parts.push(c.label)
+    if (multiWorkshop) parts.push(workshopById.get(c.workshop_id)?.title ?? '')
+    return parts.filter(Boolean).join(' · ')
+  }
+
   // A3: the panel's ‹ › arrows walk the list in display order.
   const navOrder = useMemo(() => [
     ...groups.noCohort,
@@ -8070,12 +8093,13 @@ function RegistrationsGroupedView({
   // hides some rows (B6: numbers must reconcile, so the denominator
   // is the cohort itself, not the filter).
   const cohortTotals = useMemo(() => {
-    const m = new Map<string, { total: number; hasForm: boolean; filled: number }>()
+    const m = new Map<string, { total: number; hasForm: boolean; filled: number; pending: number }>()
     for (const l of allLeads) {
       if (!l.cohort_id) continue
       let t = m.get(l.cohort_id)
-      if (!t) { t = { total: 0, hasForm: false, filled: 0 }; m.set(l.cohort_id, t) }
+      if (!t) { t = { total: 0, hasForm: false, filled: 0, pending: 0 }; m.set(l.cohort_id, t) }
       t.total++
+      if (l.status === 'pending') t.pending++
       const g = gapByLeadId.get(l.id)
       if (g) { t.hasForm = true; if (g.isFilled) t.filled++ }
     }
@@ -8112,8 +8136,8 @@ function RegistrationsGroupedView({
       {groups.upcoming.map(({ cohort, leads: gl }) => (
         <CohortGroup
           key={cohort.id}
-          headerLabel={workshopById.get(cohort.workshop_id)?.title ?? '—'}
-          subLabel={`${cohortDateTimeLabel(cohort)}${cohort.label ? ' · ' + cohort.label : ''}`}
+          headerLabel={cohortHeaderLabel(cohort)}
+          subLabel={cohortSubLabel(cohort)}
           totals={cohortTotals.get(cohort.id) ?? { total: gl.length, hasForm: false, filled: 0 }}
           capacity={cohort.capacity ?? workshopById.get(cohort.workshop_id)?.stock_quantity ?? null}
           leads={gl}
@@ -8128,8 +8152,8 @@ function RegistrationsGroupedView({
         <CohortGroup
           key={cohort.id}
           past
-          headerLabel={workshopById.get(cohort.workshop_id)?.title ?? '—'}
-          subLabel={`${cohortDateTimeLabel(cohort)}${cohort.label ? ' · ' + cohort.label : ''}`}
+          headerLabel={cohortHeaderLabel(cohort)}
+          subLabel={cohortSubLabel(cohort)}
           totals={cohortTotals.get(cohort.id) ?? { total: gl.length, hasForm: false, filled: 0 }}
           capacity={cohort.capacity ?? workshopById.get(cohort.workshop_id)?.stock_quantity ?? null}
           leads={gl}
@@ -8168,7 +8192,7 @@ function CohortGroup({
 }: {
   headerLabel: string
   subLabel: string
-  totals: { total: number; hasForm: boolean; filled: number }
+  totals: { total: number; hasForm: boolean; filled: number; pending?: number }
   capacity: number | null
   leads: RegistrationLead[]
   effectiveOf: (l: RegistrationLead) => RegistrationLead['status']
@@ -8191,9 +8215,15 @@ function CohortGroup({
     if (el) el.indeterminate = someSelected
   }
 
-  const countText = capacity != null
-    ? `${totals.total} מתוך ${capacity} נרשמו`
-    : totals.total === 1 ? 'נרשמת אחת' : `${totals.total} נרשמו`
+  // 27.9.26: a registration pending payment does not hold a seat, so
+  // the fullness counts only the others, and the pending ones are named
+  // separately instead of being folded into the seat count.
+  const pendingCount = leads.filter(l => l.status === 'pending').length
+  const takenCount = capacity != null ? totals.total - (totals.pending ?? pendingCount) : totals.total
+  const countText = (capacity != null
+    ? `${takenCount} מתוך ${capacity} נרשמו`
+    : totals.total === 1 ? 'נרשמת אחת' : `${totals.total} נרשמו`)
+    + (capacity != null && (totals.pending ?? pendingCount) > 0 ? ` · ${totals.pending ?? pendingCount} לא שילמו` : '')
 
   const qLine = totals.hasForm
     ? totals.filled === 0

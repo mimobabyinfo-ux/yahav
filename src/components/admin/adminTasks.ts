@@ -433,6 +433,8 @@ export type ManualTask = {
   status: 'open' | 'done'
   created_at: string
   done_at: string | null
+  /** Optional day the task is for (YYYY-MM-DD). */
+  due_date: string | null
 }
 
 /** Filter derived tasks through persisted dismissals. A dismissed task
