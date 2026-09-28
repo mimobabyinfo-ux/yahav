@@ -435,6 +435,10 @@ export type ManualTask = {
   done_at: string | null
   /** Optional day the task is for (YYYY-MM-DD). */
   due_date: string | null
+  /** 28.9.26: the customer the task is about (keys the customer card uses). */
+  customer_name?: string | null
+  customer_phone?: string | null
+  customer_email?: string | null
 }
 
 /** Filter derived tasks through persisted dismissals. A dismissed task

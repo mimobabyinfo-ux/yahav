@@ -391,6 +391,9 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
           </div>
         )}
 
+        {/* 28.9.26: open tasks linked to this customer (MyTasksCard). */}
+        {view.kind === 'loaded' && <CustomerTasksBanner profile={view.profile} />}
+
         {/* ── Tabs ── */}
         {view.kind === 'loaded' && (
           <div className="px-5 border-b flex-shrink-0 flex items-center gap-1 overflow-x-auto" style={{ borderColor: '#E9E2D6' }}>
@@ -1364,6 +1367,45 @@ function FormSubmissionInline({ submission }: { submission: CustomerFormSubmissi
           <SubmissionAnswers submission={submission} />
         </div>
       )}
+    </div>
+  )
+}
+
+/** Open admin tasks linked to this person ("שירלי חייבת 900 ש"ח במזומן").
+ *  Matched on the same keys the card uses: normalized phone or email.
+ *  טופל here closes the task, same as on the home screen. */
+function CustomerTasksBanner({ profile }: { profile: CustomerProfile }) {
+  type T = { id: string; title: string; detail: string | null; due_date: string | null }
+  const [tasks, setTasks] = useState<T[]>([])
+  const phone = profile.normalizedPhone
+  const email = profile.email?.toLowerCase().trim() || null
+  const load = useCallback(async () => {
+    const parts = [phone ? `customer_phone.eq.${phone}` : '', email ? `customer_email.ilike.${email}` : ''].filter(Boolean)
+    if (!parts.length) { setTasks([]); return }
+    const { data } = await supabase.from('admin_tasks').select('id, title, detail, due_date')
+      .eq('status', 'open').or(parts.join(',')).order('created_at', { ascending: true })
+    setTasks((data ?? []) as T[])
+  }, [phone, email])
+  useEffect(() => { load() }, [load])
+  if (!tasks.length) return null
+  return (
+    <div className="mx-5 mt-3 rounded-2xl px-3.5 py-2.5 space-y-1.5 flex-shrink-0" style={{ background: '#F6ECD8' }}>
+      <p className="font-bold" style={{ fontSize: 12.5, color: '#6E5836' }}>משימות פתוחות עליה</p>
+      {tasks.map(t => (
+        <div key={t.id} className="flex items-center gap-2">
+          <p className="flex-1 min-w-0" style={{ fontSize: 14, color: '#443327' }}>
+            <span className="font-bold">{t.title}</span>
+            {t.detail && <span style={{ color: '#8A7A63' }}> · {t.detail}</span>}
+            {t.due_date && <span style={{ color: '#8A7A63' }}> · עד {Number(t.due_date.slice(8, 10))}/{Number(t.due_date.slice(5, 7))}</span>}
+          </p>
+          <button
+            onClick={async () => { await supabase.from('admin_tasks').update({ status: 'done', done_at: new Date().toISOString() }).eq('id', t.id); load() }}
+            className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl bg-white"
+            style={{ fontSize: 12.5, padding: '4px 10px', color: '#4F5040' }}>
+            <Check className="w-3.5 h-3.5" /> טופל
+          </button>
+        </div>
+      ))}
     </div>
   )
 }

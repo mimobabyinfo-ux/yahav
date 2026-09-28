@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Check, Plus, RotateCcw, CalendarDays, Pencil, Trash2, X } from 'lucide-react'
+import { ChevronDown, Check, Plus, RotateCcw, CalendarDays, Pencil, Trash2, X, UserRound } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { ManualTask } from './adminTasks'
+import CustomerPicker, { type TaskCustomer } from './CustomerPicker'
+import { useOpenCustomer } from './CustomerCardContext'
 
 /**
  * "המשימות שלי" on the admin home.
@@ -16,6 +18,9 @@ import type { ManualTask } from './adminTasks'
  *   or overdue, so nothing dated is hidden. Opened, it shows everything,
  *   with edit (text, דחוף/רגיל, date), delete and טופל.
  * - Open/closed is remembered per browser.
+ * - 28.9.26: a task can be linked to a customer ("שירלי חייבת 900 ש\"ח במזומן").
+ *   Her name shows on the task and opens her customer card, and the card
+ *   shows her open tasks.
  */
 const OPEN_KEY = 'admin_my_tasks_open'
 const todayIl = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
@@ -23,6 +28,7 @@ const isDue = (t: ManualTask) => !!t.due_date && t.due_date <= todayIl()
 
 export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; reload: () => Promise<void> | void }) {
   const { profile } = useAuth()
+  const openCustomer = useOpenCustomer()
   const [open, setOpen] = useState<boolean>(() => { try { return localStorage.getItem(OPEN_KEY) === '1' } catch { return false } })
   function toggle() {
     setOpen(o => { const n = !o; try { localStorage.setItem(OPEN_KEY, n ? '1' : '0') } catch { /* private mode */ } return n })
@@ -60,6 +66,7 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
     showUndo(`נמחקה: ${t.title}`, async () => {
       await supabase.from('admin_tasks').insert({
         id: t.id, title: t.title, detail: t.detail, severity: t.severity, due_date: t.due_date,
+        customer_name: t.customer_name ?? null, customer_phone: t.customer_phone ?? null, customer_email: t.customer_email ?? null,
         status: 'open', created_at: t.created_at, created_by: profile?.id ?? null,
       })
       await reload()
@@ -76,13 +83,14 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
   const [newTitle, setNewTitle] = useState('')
   const [newSeverity, setNewSeverity] = useState<'high' | 'mid'>('mid')
   const [newDue, setNewDue] = useState('')
+  const [newCustomer, setNewCustomer] = useState<TaskCustomer | null>(null)
   const [saving, setSaving] = useState(false)
   async function add() {
     if (!newTitle.trim()) return
     setSaving(true)
-    await supabase.from('admin_tasks').insert({ title: newTitle.trim(), severity: newSeverity, due_date: newDue || null, created_by: profile?.id ?? null })
+    await supabase.from('admin_tasks').insert({ title: newTitle.trim(), severity: newSeverity, due_date: newDue || null, created_by: profile?.id ?? null, ...customerCols(newCustomer) })
     setSaving(false)
-    setNewTitle(''); setNewSeverity('mid'); setNewDue(''); setAdding(false)
+    setNewTitle(''); setNewSeverity('mid'); setNewDue(''); setNewCustomer(null); setAdding(false)
     if (!open) toggle()
     reload()
   }
@@ -93,15 +101,18 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
   const [eDetail, setEDetail] = useState('')
   const [eSeverity, setESeverity] = useState<'high' | 'mid'>('mid')
   const [eDue, setEDue] = useState('')
+  const [eCustomer, setECustomer] = useState<TaskCustomer | null>(null)
   function startEdit(t: ManualTask) {
     setEditId(t.id); setETitle(t.title); setEDetail(t.detail ?? '')
     setESeverity(t.severity === 'high' ? 'high' : 'mid'); setEDue(t.due_date ?? '')
+    setECustomer(t.customer_name ? { name: t.customer_name, phone: t.customer_phone ?? null, email: t.customer_email ?? null } : null)
   }
   async function saveEdit() {
     if (!editId || !eTitle.trim()) return
     setSaving(true)
     await supabase.from('admin_tasks').update({
       title: eTitle.trim(), detail: eDetail.trim() || null, severity: eSeverity, due_date: eDue || null,
+      ...customerCols(eCustomer),
     }).eq('id', editId)
     setSaving(false)
     setEditId(null)
@@ -144,6 +155,7 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
             className="flex-1 min-w-[180px] rounded-xl px-3 py-2 text-sm bg-white focus:outline-none" style={inputStyle} />
           <input type="date" value={newDue} onChange={e => setNewDue(e.target.value)} title="לאיזה תאריך? (לא חובה)" aria-label="תאריך למשימה"
             className="flex-shrink-0 rounded-xl px-2 py-2 text-sm bg-white focus:outline-none" style={{ ...inputStyle, color: newDue ? '#443327' : '#A2937D', width: 132 }} />
+          <CustomerPicker value={newCustomer} onChange={setNewCustomer} />
           <button onClick={add} disabled={saving || !newTitle.trim()} className="flex-shrink-0 font-bold rounded-xl disabled:opacity-40"
             style={{ fontSize: 13, padding: '8px 14px', background: '#C8A460', color: '#33281B' }}>
             {saving ? '...' : 'הוספה'}
@@ -179,6 +191,7 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
                   className="flex-1 min-w-[180px] rounded-xl px-3 py-2 text-sm bg-white focus:outline-none" style={inputStyle} aria-label="המשימה" />
                 <input type="date" value={eDue} onChange={e => setEDue(e.target.value)} aria-label="תאריך למשימה"
                   className="flex-shrink-0 rounded-xl px-2 py-2 text-sm bg-white focus:outline-none" style={{ ...inputStyle, width: 132 }} />
+                <CustomerPicker value={eCustomer} onChange={setECustomer} />
               </div>
               <input value={eDetail} onChange={e => setEDetail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEdit() }}
                 placeholder="פרטים (לא חובה)" className="w-full rounded-xl px-3 py-2 text-sm bg-white focus:outline-none" style={inputStyle} />
@@ -198,6 +211,13 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
                 <span className="font-bold" style={{ color: '#443327' }}>{t.title}</span>
                 {t.detail && <span style={{ color: '#A2937D' }}> · {t.detail}</span>}
               </button>
+              {t.customer_name && (
+                <button onClick={() => openCustomer({ phone: t.customer_phone, email: t.customer_email })}
+                  className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95"
+                  style={{ fontSize: 12.5, padding: '5px 9px', background: '#F6ECD8', color: '#6E5836' }} title="פתיחת כרטיס הלקוחה">
+                  <UserRound className="w-3.5 h-3.5" />{t.customer_name.split(' ')[0]}
+                </button>
+              )}
               <TaskDueChip due={t.due_date} onChange={d => setDue(t.id, d)} />
               <button onClick={() => startEdit(t)} className="flex-shrink-0 rounded-xl p-1.5 hover:bg-[#F6F3ED]" title="עריכה" aria-label="עריכה">
                 <Pencil className="w-3.5 h-3.5" style={{ color: '#8A7A63' }} />
@@ -213,6 +233,10 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
       )}
     </div>
   )
+}
+
+function customerCols(c: TaskCustomer | null) {
+  return { customer_name: c?.name ?? null, customer_phone: c?.phone ?? null, customer_email: c?.email ?? null }
 }
 
 /** The date on a task. Tap to set or change it (native picker).
