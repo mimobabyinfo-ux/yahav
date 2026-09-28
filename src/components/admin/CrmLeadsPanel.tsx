@@ -131,6 +131,7 @@ const STAGE_ATUFIM_DONE = '1fd2b172-bb7e-4a1f-b0a0-cd7243699708'
 const STAGE_CONTINUE = '741be362-a202-4510-950e-e857088df019'
 const STAGE_LATER = 'f778a38f-b28d-4447-9c8b-5328e21bc63a'
 const STAGE_FOLLOW_UP = 'cf13ba8f-f20b-42be-a74e-ad1aae1b736d'
+const STAGE_FU_MEGALIM_SENT = '26f94c8f-6b5f-4811-9f7f-ebc0209c45a2'
 const STAGE_MEGALIM_DONE = '329b295e-32e3-43b1-94fd-a0e113bd8510'
 /** Brenda 28.9.26: Mary Edrei (סיימה מגלים, bought everything) wrote a warm
  *  update about her baby and jumped to the top of the queue as "דחוף".
@@ -223,7 +224,7 @@ type Rule = { level: Level; order: number; reason: string; action: string; date?
 const LEVELS: Array<{ id: Level; title: string; hint: string; icon: React.ReactNode; bar: string; chip: string }> = [
   { id: 'high', title: 'דחוף', hint: 'כתבה ולא קיבלה מענה, ליד חדש, או שקבענו לחזור היום', icon: <Flame className="w-4 h-4" />, bar: 'bg-[#C8553D]', chip: 'bg-[#F7DED6] text-[#8B2E1C]' },
   { id: 'medium', title: 'בינוני', hint: 'ניסיון חוזר, משימה שעבר זמנה, בטיפול בלי תאריך', icon: <Clock className="w-4 h-4" />, bar: 'bg-mustard-400', chip: 'bg-mustard-100 text-sand-800' },
-  { id: 'low', title: 'נמוך', hint: 'כשיש זמן: 3 ניסיונות בלי מענה, פולואו אפ שהגיע זמנו (הודעה, לא שיחה), תקועים', icon: <Coffee className="w-4 h-4" />, bar: 'bg-sand-300', chip: 'bg-beige-100 text-sand-600' },
+  { id: 'low', title: 'נמוך', hint: 'כשיש זמן: 3 ניסיונות בלי מענה, פולואו אפ שלא נענה, תקועים', icon: <Coffee className="w-4 h-4" />, bar: 'bg-sand-300', chip: 'bg-beige-100 text-sand-600' },
 ]
 const daysSince = (iso: string | null) => Math.floor(hoursAgo(iso) / 24)
 function dateWord(iso: string): string {
@@ -268,6 +269,10 @@ function rulesFor(l: Lead): Rule | null {
     return { level: 'high', order: l.stage_id === STAGE_CONTINUE ? 2 : 2.5, reason: `קבענו לחזור אליה${fromNote ? ' (לפי ההערה)' : ''}`, action: 'שיחת המשך', date: callback, dateLabel: dateWord(callback) }
   if (main && l.stage_id === STAGE_NEW && !humanTouch && hoursAgo(l.crm_created_at) < 48)
     return { level: 'high', order: 3, reason: 'ליד חדש, עוד לא דיברו איתה', action: 'שיחה ראשונה', date: l.crm_created_at, dateLabel: `נכנס ${ago(l.crm_created_at)}` }
+  // Brenda 28.9.26: "נשלח פולואו-אפ מגלים" had no rule, so Yuval and Hadas sat
+  // there 3+ weeks without anyone seeing them. A week with no movement = a card.
+  if (l.stage_id === STAGE_FU_MEGALIM_SENT && daysSince(lastTouch ?? l.crm_created_at) >= 7)
+    return { level: 'low', order: 9.5, reason: `נשלח פולואו-אפ מגלים, ${daysSince(lastTouch ?? l.crm_created_at)} ימים בלי תזוזה`, action: 'הודעה אישית, או לסמן נרשמה / לא רלוונטי', date: lastTouch ?? l.crm_created_at, dateLabel: `מגע אחרון ${ago(lastTouch ?? l.crm_created_at)}` }
   if (!main) return null
 
   // ── בינוני
@@ -284,9 +289,16 @@ function rulesFor(l: Lead): Rule | null {
   // ── נמוך
   if (tries >= 3 && inWork && !scheduled)
     return { level: 'low', order: 8, reason: '3 ניסיונות בלי מענה', action: 'הודעה אחרונה, או לסגור עם סיבה', date: lastTouch ?? l.stage_changed_at, dateLabel: `ניסיון אחרון ${ago(lastTouch)}` }
-  // Only follow-ups that came due in the last two weeks; older ones are in "כל הלידים".
-  if (l.stage_id === STAGE_FOLLOW_UP && callback && callback <= today && daysSince(callback) <= 14)
-    return { level: 'low', order: 9, reason: 'הגיע תאריך הפולואו אפ', action: 'הודעת ווטסאפ (לא שיחה)', date: callback, dateLabel: dateWord(callback) }
+  // Brenda 28.9.26: a follow-up that got no answer used to vanish from every list
+  // (9 of 21 in פולואו אפ had a date 2+ weeks old). A week after the date with no
+  // reply from her: decide, close with a reason or set a new date.
+  if (l.stage_id === STAGE_FOLLOW_UP && callback && daysSince(callback) >= 7
+      && !(l.last_inbound_at && l.last_inbound_at.slice(0, 10) >= callback) && !scheduled)
+    return { level: 'low', order: 9, reason: `הפולואו אפ יצא ב-${ddmm(callback)} ולא ענתה`, action: 'לסגור עם סיבה, או לקבוע תאריך חדש', date: callback, dateLabel: dateWord(callback) }
+  // Brenda 28.9.26: no manual "הגיע תאריך הפולואו אפ" card. The CRM workflow already
+  // sends the follow-up WhatsApp at ~08:00 on that date (seen in the conversations of
+  // Carol Rosenstock and מיטל קרמני, 28.9). If she answers, the "כתבה לנו" rule above
+  // brings her back as דחוף.
   if (l.stage_id === STAGE_LATER && !callback && daysSince(lastTouch) >= 14)
     return { level: 'low', order: 10, reason: `רלוונטי בהמשך, בלי תאריך ובלי מגע ${daysSince(lastTouch)} ימים`, action: 'לקבוע תאריך חזרה', date: lastTouch ?? l.stage_changed_at, dateLabel: `מגע אחרון ${ago(lastTouch)}` }
   return null
