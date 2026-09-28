@@ -131,6 +131,12 @@ const STAGE_ATUFIM_DONE = '1fd2b172-bb7e-4a1f-b0a0-cd7243699708'
 const STAGE_CONTINUE = '741be362-a202-4510-950e-e857088df019'
 const STAGE_LATER = 'f778a38f-b28d-4447-9c8b-5328e21bc63a'
 const STAGE_FOLLOW_UP = 'cf13ba8f-f20b-42be-a74e-ad1aae1b736d'
+const STAGE_MEGALIM_DONE = '329b295e-32e3-43b1-94fd-a0e113bd8510'
+/** Brenda 28.9.26: Mary Edrei (סיימה מגלים, bought everything) wrote a warm
+ *  update about her baby and jumped to the top of the queue as "דחוף".
+ *  A mother who finished מגלים has nothing left to buy: she is a customer,
+ *  not a lead. Her messages get their own quiet list, never the sales queue. */
+const customerOnly = (l: Lead) => l.pipeline === 'followup' && l.stage_id === STAGE_MEGALIM_DONE
 const WORK_STAGES = [STAGE_NEW, STAGE_NO_ANSWER, STAGE_CONTINUE, STAGE_LATER]
 const ACTORS = ['יהב', 'ברנדה']
 const BRIEF_FRESH_HOURS = 14
@@ -393,7 +399,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   const queue = useMemo(() => {
     const items: Array<{ lead: Lead; rule: Rule; order: number }> = []
     for (const l of leads) {
-      if (l.app_paid_future || !mine(l)) continue
+      if (l.app_paid_future || !mine(l) || customerOnly(l)) continue
       const due = retryDue(l)
       if (retryWaiting(l)) continue
       if (!due && isToday(l.last_action_at) && !(l.last_inbound_at && l.last_action_at && l.last_inbound_at > l.last_action_at)) continue
@@ -414,6 +420,14 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leads, mine, stalledByPhone, tick])
+  // Customers (not leads) who wrote and nobody answered yet, last 7 days.
+  const customerMessages = useMemo(() => leads.filter(l => {
+    if (!customerOnly(l) || !mine(l) || !l.last_inbound_at || hoursAgo(l.last_inbound_at) > 168) return false
+    const touch = [l.last_action_at, l.notes?.[0]?.date ?? null].filter((x): x is string => !!x).sort().pop()
+    return !touch || l.last_inbound_at > touch
+  }).sort((a, b) => String(b.last_inbound_at).localeCompare(String(a.last_inbound_at))),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [leads, mine, tick])
   const retryLater = useMemo(() => leads.filter(l => mine(l) && retryWaiting(l)).sort((a, b) => String(a.retry_at).localeCompare(String(b.retry_at))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [leads, mine, tick])
@@ -663,6 +677,15 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
                 {registeredInApp.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
               </div>
             </Section>
+          )}
+
+          {customerMessages.length > 0 && (
+            <Collapsible title={`לקוחות שכתבו (לא ליד) · ${customerMessages.length}`}>
+              <p className="text-xs text-sand-500 mb-2">סיימו מגלים. לא מכירה, רק לא לשכוח לענות.</p>
+              <div className="grid gap-3 lg:grid-cols-2">
+                {customerMessages.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
+              </div>
+            </Collapsible>
           )}
 
           {retryLater.length > 0 && (

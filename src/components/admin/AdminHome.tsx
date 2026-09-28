@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronDown, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, Plus, RotateCcw, MessageCircle, Baby, X, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronDown, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, RotateCcw, MessageCircle, Baby, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { AdminOverview, MorningPayment } from './useAdminOverview'
@@ -7,6 +7,7 @@ import type { AdminTask, AdminTaskSection } from './adminTasks'
 import MimoLeaf from '../MimoLeaf'
 import UnclaimedPurchasesCard from './UnclaimedPurchasesCard'
 import WaitlistHomeCard from './WaitlistHomeCard'
+import MyTasksCard from './MyTasksCard'
 
 // Admin home ("בית") — answers "what needs me today" (design handoff §3).
 // Three blocks: greeting strip with counters, the derived task list
@@ -117,37 +118,6 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
     })
   }
 
-  // ── Manual task quick-add ──
-  const [adding, setAdding] = useState(false)
-  const [newTitle, setNewTitle] = useState('')
-  const [newSeverity, setNewSeverity] = useState<'high' | 'mid'>('mid')
-  // Brenda 27.9.26: a date next to a task, so she knows when it is
-  // relevant ("להזמין פופים ב-10/09"). Optional; empty = no date.
-  const [newDue, setNewDue] = useState('')
-  const [savingTask, setSavingTask] = useState(false)
-
-  async function addManualTask() {
-    if (!newTitle.trim()) return
-    setSavingTask(true)
-    await supabase.from('admin_tasks').insert({
-      title: newTitle.trim(),
-      severity: newSeverity,
-      due_date: newDue || null,
-      created_by: profile?.id ?? null,
-    })
-    setSavingTask(false)
-    setNewTitle('')
-    setNewSeverity('mid')
-    setNewDue('')
-    setAdding(false)
-    reload()
-  }
-
-  async function setTaskDue(id: string, due: string) {
-    await supabase.from('admin_tasks').update({ due_date: due || null }).eq('id', id)
-    reload()
-  }
-
   async function toggleAnnouncement(id: string, isActive: boolean) {
     setBusyToggle(id)
     await supabase.from('home_announcements').update({ is_active: !isActive, updated_at: new Date().toISOString() }).eq('id', id)
@@ -171,7 +141,16 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
   }
 
   const firstName = (profile?.mother_name ?? 'ברנדה').split(' ')[0]
-  const totalOpen = tasks.length + manualTasks.length
+  // Brenda 28.9.26: her own tasks moved to "המשימות שלי" (MyTasksCard), with
+  // editing. Tasks the system writes (a refund owed, link_section set) stay
+  // here, they are obligations. Her own tasks count in the greeting only
+  // when due today or overdue.
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
+  const myTasks = manualTasks.filter(t => !t.link_section)
+  const systemTasks = manualTasks.filter(t => !!t.link_section)
+  const myDueNow = myTasks.filter(t => !!t.due_date && t.due_date <= today).length
+  const attentionCount = tasks.length + systemTasks.length
+  const totalOpen = attentionCount + myDueNow
 
   return (
     <div dir="rtl">
@@ -242,56 +221,13 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               "אני רוצה שזה יהיה רק באירועי קהילה." It lives in
               EventsAdminPanel only, next to the events it is about. */}
 
+          <MyTasksCard tasks={myTasks} reload={reload} />
+
           {/* דורש תשומת לב — one line per task, טופל persists (phase 2) */}
           <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>דורש תשומת לב</h2>
-              <button
-                onClick={() => setAdding(a => !a)}
-                className="flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95"
-                style={{ fontSize: 13, padding: '6px 12px', background: '#C8A460', color: '#33281B' }}
-              >
-                <Plus className="w-3.5 h-3.5" /> משימה
-              </button>
             </div>
-
-            {/* Quick-add manual task */}
-            {adding && (
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl px-3 py-2.5 mb-2" style={{ background: '#F6F3ED' }}>
-                <select
-                  value={newSeverity}
-                  onChange={e => setNewSeverity(e.target.value as 'high' | 'mid')}
-                  className="flex-shrink-0 rounded-xl px-2 py-2 text-sm font-semibold bg-white focus:outline-none"
-                  style={{ border: '1px solid #E9E2D6', color: '#5E4938' }}
-                >
-                  <option value="mid">רגיל</option>
-                  <option value="high">דחוף</option>
-                </select>
-                <input
-                  value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') addManualTask() }}
-                  autoFocus
-                  placeholder="מה צריך לעשות? (Enter לשמירה)"
-                  className="flex-1 min-w-[180px] rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-mustard-400"
-                  style={{ border: '1px solid #E9E2D6', color: '#443327' }}
-                />
-                <input
-                  type="date"
-                  value={newDue}
-                  onChange={e => setNewDue(e.target.value)}
-                  title="לאיזה תאריך? (לא חובה)"
-                  aria-label="תאריך למשימה"
-                  className="flex-shrink-0 rounded-xl px-2 py-2 text-sm bg-white focus:outline-none"
-                  style={{ border: '1px solid #E9E2D6', color: newDue ? '#443327' : '#A2937D', width: 132 }}
-                />
-                <button onClick={addManualTask} disabled={savingTask || !newTitle.trim()}
-                  className="flex-shrink-0 font-bold rounded-xl disabled:opacity-40"
-                  style={{ fontSize: 13, padding: '8px 14px', background: '#C8A460', color: '#33281B' }}>
-                  {savingTask ? '...' : 'הוספה'}
-                </button>
-              </div>
-            )}
 
             {/* Undo row — visible ~10s after טופל */}
             {undo && (
@@ -310,23 +246,21 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               </div>
             )}
 
-            {totalOpen === 0 ? (
+            {attentionCount === 0 ? (
               <div className="flex items-center gap-3 rounded-2xl px-4 py-4" style={{ background: '#EDEDE6' }}>
                 <CheckCircle2 className="w-5 h-5 flex-shrink-0" style={{ color: '#4F5040' }} />
                 <p className="font-semibold" style={{ fontSize: 14, color: '#4F5040' }}>אין משימות פתוחות. הכול מטופל</p>
               </div>
             ) : (
               <div className="space-y-1.5">
-                {/* Manual tasks first — Brenda wrote them herself */}
-                {manualTasks.map(t => (
+                {/* System-written tasks (refund owed etc.) */}
+                {systemTasks.map(t => (
                   <div key={t.id} className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5 transition-colors hover:bg-[#FAF7F1]">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.severity === 'high' ? '#8B4A30' : '#C8A460' }} />
                     <p className="flex-1 min-w-0 truncate" style={{ fontSize: 14 }}>
                       <span className="font-bold" style={{ color: '#443327' }}>{t.title}</span>
                       {t.detail && <span style={{ color: '#A2937D' }}> · {t.detail}</span>}
-                      <span style={{ color: '#A2937D' }}> · משימה שלך</span>
                     </p>
-                    <TaskDueChip due={t.due_date} onChange={d => setTaskDue(t.id, d)} />
                     {t.link_section && (
                       <button onClick={() => onSection(t.link_section as AdminTaskSection)}
                         className="flex-shrink-0 flex items-center gap-0.5 font-bold rounded-xl transition-all hover:brightness-95"
@@ -754,38 +688,5 @@ function MonthPaymentsModal({
         </div>
       </div>
     </div>
-  )
-}
-
-/** The date on a manual task. Tap to set or change it (native picker).
- *  Past = rust, today = gold, later = quiet. No date = a small calendar
- *  icon, so a date can be added after the task was written. */
-function TaskDueChip({ due, onChange }: { due: string | null; onChange: (d: string) => void }) {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
-  let label = ''
-  let bg = '#F6F3ED'
-  let color = '#8A7A63'
-  if (due) {
-    const [, m, d] = due.split('-').map(Number)
-    if (due < today) { label = `${d}/${m} · עבר`; bg = '#F6E3DA'; color = '#8B4A30' }
-    else if (due === today) { label = 'היום'; bg = '#F6ECD8'; color = '#6E5836' }
-    else label = `${d}/${m}`
-  }
-  return (
-    <label
-      className="relative flex-shrink-0 flex items-center gap-1 font-bold rounded-xl cursor-pointer"
-      style={{ fontSize: 12.5, padding: '5px 9px', background: bg, color }}
-      title={due ? 'שינוי תאריך' : 'הוספת תאריך'}
-    >
-      <CalendarDays className="w-3.5 h-3.5" />
-      {label}
-      <input
-        type="date"
-        value={due ?? ''}
-        onChange={e => onChange(e.target.value)}
-        className="absolute inset-0 opacity-0 cursor-pointer"
-        aria-label="תאריך למשימה"
-      />
-    </label>
   )
 }
