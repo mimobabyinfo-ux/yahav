@@ -34,6 +34,13 @@ const ST = {
 }
 const CF_NO_ANSWER = 'aPUQYoxlqLCVRzZ6uuaU'
 const CF_FOLLOW_UP = 'hZjLFoO8BPcdElLqfibT'
+// Stage "פולואו אפ" in the main pipeline. The CRM's follow-up workflow fires on the
+// follow-up date but sends only if the contact has one of these tags (and removes the
+// tag after the first message). Brenda 1.10.26: a lead moved to פולואו אפ is עטופים
+// unless tagged otherwise, so without a tag we add the עטופים one.
+const STAGE_FOLLOW_UP = 'cf13ba8f-f20b-42be-a74e-ad1aae1b736d'
+const FOLLOW_UP_TAGS = ['פולואו אפ עטופים', 'פולואו-אפ מגלים', 'פולואו-אפ פרטני', 'פולואו-אפ כללי']
+const DEFAULT_FOLLOW_UP_TAG = 'פולואו אפ עטופים'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -163,6 +170,25 @@ Deno.serve(async (req) => {
     }
     steps.opportunity = { ok: r.ok, status: r.status, error: r.error }
     if (!r.ok) ok = false
+  }
+
+  // 1b. make sure the follow-up workflow will actually send something
+  const endsInFollowUp = isMain && (update.pipelineStageId === STAGE_FOLLOW_UP ||
+    (action === 'callback' && !update.pipelineStageId && opp.pipelineStageId === STAGE_FOLLOW_UP))
+  if (endsInFollowUp && contactId && steps.opportunity && (steps.opportunity as any).ok) {
+    const c = await ghl(`/contacts/${contactId}`, 'GET', KEY)
+    const tags: string[] = c.data?.contact?.tags ?? []
+    const has = FOLLOW_UP_TAGS.find(t => tags.includes(t))
+    if (has) {
+      steps.follow_up_tag = { ok: true, existing: has }
+    } else if (!c.ok) {
+      steps.follow_up_tag = { ok: false, error: 'could not read contact: ' + c.error }
+      ok = false
+    } else {
+      const t = await ghl(`/contacts/${contactId}/tags`, 'POST', KEY, { tags: [DEFAULT_FOLLOW_UP_TAG] })
+      steps.follow_up_tag = { ok: t.ok, added: DEFAULT_FOLLOW_UP_TAG, error: t.error }
+      if (!t.ok) ok = false
+    }
   }
 
   // 2. note on the contact
