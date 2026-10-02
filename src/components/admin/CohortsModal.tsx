@@ -62,6 +62,13 @@ function ddmmyyyyhhmm(date: string, time: string | null): string {
   return `${base} ${time.slice(0, 5)}`
 }
 
+const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+
+function dayName(date: string): string {
+  const [y, m, d] = date.split('-').map(Number)
+  return DAY_NAMES[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+}
+
 function todayLocalIso(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -292,7 +299,7 @@ export default function CohortsModal({ workshop, onClose }: Props) {
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-bold text-sand-800">{ddmmyyyyhhmm(c.start_date, c.start_time)}</span>
+                          <span className="text-sm font-bold text-sand-800">יום {dayName(c.start_date)}, {ddmmyyyyhhmm(c.start_date, c.start_time)}</span>
                           {c.label && <span className="text-xs text-sand-500">· {c.label}</span>}
                           {isPast && (
                             <span className="text-[10px] font-semibold text-sand-500 bg-sand-100 px-2 py-0.5 rounded-full">הסתיים</span>

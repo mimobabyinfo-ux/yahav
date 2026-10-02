@@ -160,7 +160,7 @@ export default function CohortMeetingsModal({ workshop, cohort, onClose, onChang
           <div className="min-w-0">
             <h3 className="font-bold text-sand-800">🗓️ מפגשי המחזור</h3>
             <p className="text-[11px] text-sand-500 truncate">
-              {workshop.title} · {ddmm(cohort.start_date)}
+              {workshop.title} · יום {dayName(cohort.start_date)}, {ddmm(cohort.start_date)}
               {cohort.start_time ? ` ${cohort.start_time.slice(0, 5)}` : ''}
             </p>
           </div>
