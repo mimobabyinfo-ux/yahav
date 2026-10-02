@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Check, Plus, RotateCcw, CalendarDays, Pencil, Trash2, X, UserRound } from 'lucide-react'
+import { ChevronDown, Check, Plus, RotateCcw, CalendarDays, Pencil, Trash2, X, UserRound, Copy, MessageCircle, AlignRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import type { ManualTask } from './adminTasks'
+import type { ManualTask, TaskAssignee } from './adminTasks'
 import CustomerPicker, { type TaskCustomer } from './CustomerPicker'
 import { useOpenCustomer } from './CustomerCardContext'
 
@@ -15,24 +15,91 @@ import { useOpenCustomer } from './CustomerCardContext'
  *   system writes (a refund owed, link_section = 'events') stay in
  *   "דורש תשומת לב", they are obligations, not her to-do list.
  * - Folded by default. Folded, it still shows the tasks that are due today
- *   or overdue, so nothing dated is hidden. Opened, it shows everything,
- *   with edit (text, דחוף/רגיל, date), delete and טופל.
- * - Open/closed is remembered per browser.
- * - 28.9.26: a task can be linked to a customer ("שירלי חייבת 900 ש\"ח במזומן").
- *   Her name shows on the task and opens her customer card, and the card
- *   shows her open tasks.
+ *   or overdue, so nothing dated is hidden.
+ * - 28.9.26: a task can be linked to a customer. Her name shows on the task
+ *   and opens her customer card.
+ *
+ * Yahav 2.10.26: "the tasks are becoming a big part of the admin, I want it
+ * tidier". There is ONE admin login shared by Brenda and Yahav, so:
+ * - Every task has an assignee (ברנדה / יהב, or none) shown as a chip, with a
+ *   ברנדה / יהב / הכל filter remembered per browser. Tap the chip to switch.
+ * - Opened, the list is grouped by time: היום ובאיחור, השבוע (7 days),
+ *   בהמשך (folded, with a count). A task for next month no longer weighs
+ *   the same as one for tomorrow.
+ * - The detail is no longer squeezed into one truncated line. Tap a task to
+ *   open it. Editing uses a real textarea, so multi-line details (a message
+ *   and a phone list) keep their line breaks. Before this, saving an edit
+ *   through the one-line input flattened them.
+ * - A detail with a "נוסח:" line followed by text, and lines with Israeli
+ *   mobile numbers, gets a "העתק נוסח" button and a WhatsApp button per
+ *   person that opens the chat with the text ready. Who was already sent is
+ *   remembered per browser.
+ * - "נמוך" severity is shown and kept (it used to be edited into רגיל).
  */
 const OPEN_KEY = 'admin_my_tasks_open'
+const WHO_KEY = 'admin_my_tasks_who'
+type WhoFilter = 'all' | 'brenda' | 'yahav'
+type Severity = 'high' | 'mid' | 'low'
+
+const WHO_LABEL: Record<TaskAssignee, string> = { brenda: 'ברנדה', yahav: 'יהב' }
+const SEVERITY_DOT: Record<Severity, string> = { high: '#8B4A30', mid: '#C8A460', low: '#D8CFC0' }
+const SEVERITY_LABEL: Record<Severity, string> = { high: 'דחוף', mid: 'רגיל', low: 'נמוך' }
+
 const todayIl = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
+function addDays(iso: string, days: number): string {
+  const d = new Date(iso + 'T12:00:00')
+  d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 const isDue = (t: ManualTask) => !!t.due_date && t.due_date <= todayIl()
 
-export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; reload: () => Promise<void> | void }) {
+function readLs(key: string): string | null { try { return localStorage.getItem(key) } catch { return null } }
+function writeLs(key: string, v: string) { try { localStorage.setItem(key, v) } catch { /* private mode */ } }
+
+// ── detail parsing: "נוסח:" block + phone lines ──
+const PHONE_RE = /(05\d)[-\s]?(\d{3})[-\s]?(\d{4})/
+type ParsedDetail = { message: string | null; people: { name: string; phone: string }[]; rest: string }
+export function parseDetail(detail: string | null): ParsedDetail {
+  if (!detail) return { message: null, people: [], rest: '' }
+  const lines = detail.split('\n')
+  let message: string | null = null
+  const used = new Set<number>()
+  const start = lines.findIndex(l => /^\s*נוסח\s*:?\s*$/.test(l))
+  if (start >= 0) {
+    used.add(start)
+    const body: string[] = []
+    for (let i = start + 1; i < lines.length; i++) {
+      if (!lines[i].trim()) { if (body.length) break; used.add(i); continue }
+      body.push(lines[i]); used.add(i)
+    }
+    message = body.join('\n').trim() || null
+  }
+  const people: { name: string; phone: string }[] = []
+  lines.forEach((l, i) => {
+    if (used.has(i)) return
+    const m = l.match(PHONE_RE)
+    if (!m) return
+    const name = l.replace(m[0], '').replace(/[·,:\-–]+\s*$/, '').trim() || m[0]
+    people.push({ name, phone: m[1] + m[2] + m[3] })
+    used.add(i)
+  })
+  const rest = lines.filter((_, i) => !used.has(i)).join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  return { message, people, rest }
+}
+const waLink = (phone: string, text: string | null) =>
+  `https://wa.me/972${phone.replace(/^0/, '')}${text ? `?text=${encodeURIComponent(text)}` : ''}`
+
+export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: ManualTask[]; reload: () => Promise<void> | void }) {
   const { profile } = useAuth()
   const openCustomer = useOpenCustomer()
-  const [open, setOpen] = useState<boolean>(() => { try { return localStorage.getItem(OPEN_KEY) === '1' } catch { return false } })
-  function toggle() {
-    setOpen(o => { const n = !o; try { localStorage.setItem(OPEN_KEY, n ? '1' : '0') } catch { /* private mode */ } return n })
-  }
+  const [open, setOpen] = useState<boolean>(() => readLs(OPEN_KEY) === '1')
+  function toggle() { setOpen(o => { const n = !o; writeLs(OPEN_KEY, n ? '1' : '0'); return n }) }
+  const [who, setWho] = useState<WhoFilter>(() => { const v = readLs(WHO_KEY); return v === 'brenda' || v === 'yahav' ? v : 'all' })
+  function pickWho(w: WhoFilter) { setWho(w); writeLs(WHO_KEY, w) }
+  const [laterOpen, setLaterOpen] = useState(false)
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  const tasks = who === 'all' ? allTasks : allTasks.filter(t => t.assignee === who)
 
   // ── undo after טופל / מחיקה (one slot, ~10s) ──
   const [undo, setUndo] = useState<{ label: string; run: () => Promise<void> } | null>(null)
@@ -65,7 +132,7 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
     setBusy(null)
     showUndo(`נמחקה: ${t.title}`, async () => {
       await supabase.from('admin_tasks').insert({
-        id: t.id, title: t.title, detail: t.detail, severity: t.severity, due_date: t.due_date,
+        id: t.id, title: t.title, detail: t.detail, severity: t.severity, due_date: t.due_date, assignee: t.assignee ?? null,
         customer_name: t.customer_name ?? null, customer_phone: t.customer_phone ?? null, customer_email: t.customer_email ?? null,
         status: 'open', created_at: t.created_at, created_by: profile?.id ?? null,
       })
@@ -77,18 +144,32 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
     await supabase.from('admin_tasks').update({ due_date: due || null }).eq('id', id)
     reload()
   }
+  // Chip tap: ברנדה → יהב → none → ברנדה
+  async function cycleAssignee(t: ManualTask) {
+    const next: TaskAssignee | null = t.assignee === 'brenda' ? 'yahav' : t.assignee === 'yahav' ? null : 'brenda'
+    await supabase.from('admin_tasks').update({ assignee: next }).eq('id', t.id)
+    reload()
+  }
 
   // ── quick add ──
   const [adding, setAdding] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  const [newSeverity, setNewSeverity] = useState<'high' | 'mid'>('mid')
+  const [newSeverity, setNewSeverity] = useState<Severity>('mid')
   const [newDue, setNewDue] = useState('')
+  const [newWho, setNewWho] = useState<TaskAssignee | ''>('')
   const [newCustomer, setNewCustomer] = useState<TaskCustomer | null>(null)
   const [saving, setSaving] = useState(false)
+  function startAdd() {
+    setAdding(a => !a)
+    setNewWho(who === 'all' ? '' : who)
+  }
   async function add() {
     if (!newTitle.trim()) return
     setSaving(true)
-    await supabase.from('admin_tasks').insert({ title: newTitle.trim(), severity: newSeverity, due_date: newDue || null, created_by: profile?.id ?? null, ...customerCols(newCustomer) })
+    await supabase.from('admin_tasks').insert({
+      title: newTitle.trim(), severity: newSeverity, due_date: newDue || null, assignee: newWho || null,
+      created_by: profile?.id ?? null, ...customerCols(newCustomer),
+    })
     setSaving(false)
     setNewTitle(''); setNewSeverity('mid'); setNewDue(''); setNewCustomer(null); setAdding(false)
     if (!open) toggle()
@@ -99,19 +180,20 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
   const [editId, setEditId] = useState<string | null>(null)
   const [eTitle, setETitle] = useState('')
   const [eDetail, setEDetail] = useState('')
-  const [eSeverity, setESeverity] = useState<'high' | 'mid'>('mid')
+  const [eSeverity, setESeverity] = useState<Severity>('mid')
   const [eDue, setEDue] = useState('')
+  const [eWho, setEWho] = useState<TaskAssignee | ''>('')
   const [eCustomer, setECustomer] = useState<TaskCustomer | null>(null)
   function startEdit(t: ManualTask) {
     setEditId(t.id); setETitle(t.title); setEDetail(t.detail ?? '')
-    setESeverity(t.severity === 'high' ? 'high' : 'mid'); setEDue(t.due_date ?? '')
+    setESeverity(t.severity); setEDue(t.due_date ?? ''); setEWho(t.assignee ?? '')
     setECustomer(t.customer_name ? { name: t.customer_name, phone: t.customer_phone ?? null, email: t.customer_email ?? null } : null)
   }
   async function saveEdit() {
     if (!editId || !eTitle.trim()) return
     setSaving(true)
     await supabase.from('admin_tasks').update({
-      title: eTitle.trim(), detail: eDetail.trim() || null, severity: eSeverity, due_date: eDue || null,
+      title: eTitle.trim(), detail: eDetail.trim() || null, severity: eSeverity, due_date: eDue || null, assignee: eWho || null,
       ...customerCols(eCustomer),
     }).eq('id', editId)
     setSaving(false)
@@ -119,9 +201,84 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
     reload()
   }
 
+  const today = todayIl()
+  const weekEnd = addDays(today, 7)
   const dueNow = tasks.filter(isDue)
-  const shown = open ? tasks : dueNow
+  const thisWeek = tasks.filter(t => !!t.due_date && t.due_date > today && t.due_date <= weekEnd)
+  const later = tasks.filter(t => !t.due_date || t.due_date > weekEnd)
   const inputStyle = { border: '1px solid #E9E2D6', color: '#443327' }
+
+  function renderTask(t: ManualTask) {
+    if (editId === t.id) return (
+      <div key={t.id} className="rounded-2xl px-3 py-3 space-y-2" style={{ background: '#F6F3ED' }}>
+        <div className="flex flex-wrap items-center gap-2">
+          <SeveritySelect value={eSeverity} onChange={setESeverity} style={inputStyle} />
+          <input value={eTitle} onChange={e => setETitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditId(null) }} autoFocus
+            className="flex-1 min-w-[180px] rounded-xl px-3 py-2 text-sm bg-white focus:outline-none" style={inputStyle} aria-label="המשימה" />
+          <WhoSelect value={eWho} onChange={setEWho} style={inputStyle} />
+          <input type="date" value={eDue} onChange={e => setEDue(e.target.value)} aria-label="תאריך למשימה"
+            className="flex-shrink-0 rounded-xl px-2 py-2 text-sm bg-white focus:outline-none" style={{ ...inputStyle, width: 132 }} />
+          <CustomerPicker value={eCustomer} onChange={setECustomer} />
+        </div>
+        <textarea value={eDetail} onChange={e => setEDetail(e.target.value)} rows={Math.min(14, Math.max(3, eDetail.split('\n').length + 1))}
+          placeholder={'פרטים (לא חובה)\nלהודעה לשליחה: שורה "נוסח:" ומתחתיה הטקסט. שורות עם שם וטלפון יקבלו כפתור וואטסאפ.'}
+          className="w-full rounded-xl px-3 py-2 text-sm bg-white focus:outline-none leading-relaxed" style={{ ...inputStyle, resize: 'vertical' }} />
+        <div className="flex items-center gap-2">
+          <button onClick={saveEdit} disabled={saving || !eTitle.trim()} className="font-bold rounded-xl disabled:opacity-40"
+            style={{ fontSize: 13, padding: '7px 14px', background: '#C8A460', color: '#33281B' }}>{saving ? '...' : 'שמירה'}</button>
+          <button onClick={() => setEditId(null)} className="flex items-center gap-1 font-bold rounded-xl"
+            style={{ fontSize: 13, padding: '7px 12px', background: '#fff', color: '#6E5836' }}><X className="w-3.5 h-3.5" /> ביטול</button>
+          <button onClick={() => remove(t)} disabled={busy === t.id} className="mr-auto flex items-center gap-1 font-bold rounded-xl disabled:opacity-40"
+            style={{ fontSize: 13, padding: '7px 12px', background: '#F6E3DA', color: '#8B4A30' }}><Trash2 className="w-3.5 h-3.5" /> מחיקה</button>
+        </div>
+      </div>
+    )
+    const isOpen = expanded === t.id
+    return (
+      <div key={t.id} className="rounded-2xl transition-colors" style={{ background: isOpen ? '#FAF7F1' : undefined }}>
+        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl hover:bg-[#FAF7F1]">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: SEVERITY_DOT[t.severity] }} title={SEVERITY_LABEL[t.severity]} />
+          <button onClick={() => setExpanded(isOpen ? null : t.id)} className="flex-1 min-w-0 flex items-center gap-1.5 text-right" style={{ fontSize: 14 }}
+            aria-expanded={isOpen} title={t.detail ? 'פתיחת הפרטים' : undefined}>
+            <span className="font-bold truncate" style={{ color: '#443327' }}>{t.title}</span>
+            {t.detail && <AlignRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#BCAE99' }} />}
+          </button>
+          <button onClick={() => cycleAssignee(t)} className="flex-shrink-0 font-bold rounded-xl transition-all hover:brightness-95"
+            style={{ fontSize: 12, padding: '4px 9px', ...(t.assignee === 'yahav' ? { background: '#E3EAE6', color: '#3F5A4C' } : t.assignee === 'brenda' ? { background: '#F3E1D6', color: '#8B4A30' } : { background: '#F6F3ED', color: '#A2937D' }) }}
+            title="למי המשימה? (לחיצה מחליפה)">
+            {t.assignee ? WHO_LABEL[t.assignee] : 'למי?'}
+          </button>
+          {t.customer_name && (
+            <button onClick={() => openCustomer({ phone: t.customer_phone, email: t.customer_email })}
+              className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95"
+              style={{ fontSize: 12.5, padding: '5px 9px', background: '#F6ECD8', color: '#6E5836' }} title="פתיחת כרטיס הלקוחה">
+              <UserRound className="w-3.5 h-3.5" />{t.customer_name.split(' ')[0]}
+            </button>
+          )}
+          <TaskDueChip due={t.due_date} onChange={d => setDue(t.id, d)} />
+          <button onClick={() => startEdit(t)} className="flex-shrink-0 rounded-xl p-1.5 hover:bg-[#F6F3ED]" title="עריכה" aria-label="עריכה">
+            <Pencil className="w-3.5 h-3.5" style={{ color: '#8A7A63' }} />
+          </button>
+          <button onClick={() => complete(t)} disabled={busy === t.id}
+            className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95 disabled:opacity-40"
+            style={{ fontSize: 13, padding: '6px 12px', background: '#EDEDE6', color: '#4F5040' }} title="סימון כטופל">
+            <Check className="w-3.5 h-3.5" /> טופל
+          </button>
+        </div>
+        {isOpen && <TaskDetail task={t} />}
+      </div>
+    )
+  }
+
+  function renderGroup(label: string, list: ManualTask[], accent?: boolean) {
+    if (!list.length) return null
+    return (
+      <div className="mt-3">
+        <p className="font-bold px-1 mb-1" style={{ fontSize: 12.5, color: accent ? '#8B4A30' : '#A2937D' }}>{label} · {list.length}</p>
+        <div className="space-y-1">{list.map(renderTask)}</div>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
@@ -136,23 +293,31 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
           )}
           <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: open ? 'rotate(180deg)' : 'none' }} />
         </button>
-        <button onClick={() => setAdding(a => !a)}
-          className="flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95"
-          style={{ fontSize: 13, padding: '6px 12px', background: '#C8A460', color: '#33281B' }}>
-          <Plus className="w-3.5 h-3.5" /> משימה
-        </button>
+        <div className="flex items-center gap-1.5">
+          <div className="flex rounded-xl p-0.5" style={{ background: '#F6F3ED' }} role="group" aria-label="סינון לפי אחראי">
+            {(['all', 'brenda', 'yahav'] as WhoFilter[]).map(w => (
+              <button key={w} onClick={() => pickWho(w)} className="font-bold rounded-lg transition-all"
+                style={{ fontSize: 12.5, padding: '4px 10px', background: who === w ? '#fff' : 'transparent', color: who === w ? '#443327' : '#A2937D', boxShadow: who === w ? '0 1px 2px rgba(0,0,0,.06)' : undefined }}
+                aria-pressed={who === w}>
+                {w === 'all' ? 'הכל' : WHO_LABEL[w]}
+              </button>
+            ))}
+          </div>
+          <button onClick={startAdd}
+            className="flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95"
+            style={{ fontSize: 13, padding: '6px 12px', background: '#C8A460', color: '#33281B' }}>
+            <Plus className="w-3.5 h-3.5" /> משימה
+          </button>
+        </div>
       </div>
 
       {adding && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl px-3 py-2.5 mt-3" style={{ background: '#F6F3ED' }}>
-          <select value={newSeverity} onChange={e => setNewSeverity(e.target.value as 'high' | 'mid')}
-            className="flex-shrink-0 rounded-xl px-2 py-2 text-sm font-semibold bg-white focus:outline-none" style={inputStyle}>
-            <option value="mid">רגיל</option>
-            <option value="high">דחוף</option>
-          </select>
+          <SeveritySelect value={newSeverity} onChange={setNewSeverity} style={inputStyle} />
           <input value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') add() }} autoFocus
             placeholder="מה צריך לעשות? (Enter לשמירה)"
             className="flex-1 min-w-[180px] rounded-xl px-3 py-2 text-sm bg-white focus:outline-none" style={inputStyle} />
+          <WhoSelect value={newWho} onChange={setNewWho} style={inputStyle} />
           <input type="date" value={newDue} onChange={e => setNewDue(e.target.value)} title="לאיזה תאריך? (לא חובה)" aria-label="תאריך למשימה"
             className="flex-shrink-0 rounded-xl px-2 py-2 text-sm bg-white focus:outline-none" style={{ ...inputStyle, color: newDue ? '#443327' : '#A2937D', width: 132 }} />
           <CustomerPicker value={newCustomer} onChange={setNewCustomer} />
@@ -174,64 +339,99 @@ export default function MyTasksCard({ tasks, reload }: { tasks: ManualTask[]; re
       )}
 
       {open && tasks.length === 0 && (
-        <p className="mt-3 text-sm" style={{ color: '#A2937D' }}>אין משימות פתוחות</p>
+        <p className="mt-3 text-sm" style={{ color: '#A2937D' }}>{who === 'all' ? 'אין משימות פתוחות' : `אין משימות פתוחות ל${WHO_LABEL[who]}`}</p>
       )}
 
-      {shown.length > 0 && (
-        <div className="space-y-1.5 mt-3">
-          {shown.map(t => editId === t.id ? (
-            <div key={t.id} className="rounded-2xl px-3 py-3 space-y-2" style={{ background: '#F6F3ED' }}>
-              <div className="flex flex-wrap items-center gap-2">
-                <select value={eSeverity} onChange={e => setESeverity(e.target.value as 'high' | 'mid')}
-                  className="flex-shrink-0 rounded-xl px-2 py-2 text-sm font-semibold bg-white focus:outline-none" style={inputStyle}>
-                  <option value="mid">רגיל</option>
-                  <option value="high">דחוף</option>
-                </select>
-                <input value={eTitle} onChange={e => setETitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditId(null) }} autoFocus
-                  className="flex-1 min-w-[180px] rounded-xl px-3 py-2 text-sm bg-white focus:outline-none" style={inputStyle} aria-label="המשימה" />
-                <input type="date" value={eDue} onChange={e => setEDue(e.target.value)} aria-label="תאריך למשימה"
-                  className="flex-shrink-0 rounded-xl px-2 py-2 text-sm bg-white focus:outline-none" style={{ ...inputStyle, width: 132 }} />
-                <CustomerPicker value={eCustomer} onChange={setECustomer} />
-              </div>
-              <input value={eDetail} onChange={e => setEDetail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEdit() }}
-                placeholder="פרטים (לא חובה)" className="w-full rounded-xl px-3 py-2 text-sm bg-white focus:outline-none" style={inputStyle} />
-              <div className="flex items-center gap-2">
-                <button onClick={saveEdit} disabled={saving || !eTitle.trim()} className="font-bold rounded-xl disabled:opacity-40"
-                  style={{ fontSize: 13, padding: '7px 14px', background: '#C8A460', color: '#33281B' }}>{saving ? '...' : 'שמירה'}</button>
-                <button onClick={() => setEditId(null)} className="flex items-center gap-1 font-bold rounded-xl"
-                  style={{ fontSize: 13, padding: '7px 12px', background: '#fff', color: '#6E5836' }}><X className="w-3.5 h-3.5" /> ביטול</button>
-                <button onClick={() => remove(t)} disabled={busy === t.id} className="mr-auto flex items-center gap-1 font-bold rounded-xl disabled:opacity-40"
-                  style={{ fontSize: 13, padding: '7px 12px', background: '#F6E3DA', color: '#8B4A30' }}><Trash2 className="w-3.5 h-3.5" /> מחיקה</button>
-              </div>
+      {!open && dueNow.length > 0 && <div className="space-y-1 mt-3">{dueNow.map(renderTask)}</div>}
+
+      {open && (
+        <>
+          {renderGroup('היום ובאיחור', dueNow, true)}
+          {renderGroup('השבוע', thisWeek)}
+          {later.length > 0 && (
+            <div className="mt-3">
+              <button onClick={() => setLaterOpen(o => !o)} className="flex items-center gap-1 font-bold px-1" style={{ fontSize: 12.5, color: '#A2937D' }} aria-expanded={laterOpen}>
+                בהמשך · {later.length}
+                <ChevronDown className="w-3.5 h-3.5 transition-transform" style={{ transform: laterOpen ? 'rotate(180deg)' : 'none' }} />
+              </button>
+              {laterOpen && <div className="space-y-1 mt-1">{later.map(renderTask)}</div>}
             </div>
-          ) : (
-            <div key={t.id} className="flex items-center gap-2 rounded-2xl px-3.5 py-2.5 transition-colors hover:bg-[#FAF7F1]">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.severity === 'high' ? '#8B4A30' : '#C8A460' }} title={t.severity === 'high' ? 'דחוף' : 'רגיל'} />
-              <button onClick={() => startEdit(t)} className="flex-1 min-w-0 truncate text-right" style={{ fontSize: 14 }} title="עריכה">
-                <span className="font-bold" style={{ color: '#443327' }}>{t.title}</span>
-                {t.detail && <span style={{ color: '#A2937D' }}> · {t.detail}</span>}
-              </button>
-              {t.customer_name && (
-                <button onClick={() => openCustomer({ phone: t.customer_phone, email: t.customer_email })}
-                  className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95"
-                  style={{ fontSize: 12.5, padding: '5px 9px', background: '#F6ECD8', color: '#6E5836' }} title="פתיחת כרטיס הלקוחה">
-                  <UserRound className="w-3.5 h-3.5" />{t.customer_name.split(' ')[0]}
-                </button>
-              )}
-              <TaskDueChip due={t.due_date} onChange={d => setDue(t.id, d)} />
-              <button onClick={() => startEdit(t)} className="flex-shrink-0 rounded-xl p-1.5 hover:bg-[#F6F3ED]" title="עריכה" aria-label="עריכה">
-                <Pencil className="w-3.5 h-3.5" style={{ color: '#8A7A63' }} />
-              </button>
-              <button onClick={() => complete(t)} disabled={busy === t.id}
-                className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95 disabled:opacity-40"
-                style={{ fontSize: 13, padding: '6px 12px', background: '#EDEDE6', color: '#4F5040' }} title="סימון כטופל">
-                <Check className="w-3.5 h-3.5" /> טופל
-              </button>
-            </div>
-          ))}
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/** The opened task: free text, the message to send, and a WhatsApp button per person. */
+function TaskDetail({ task }: { task: ManualTask }) {
+  const { message, people, rest } = parseDetail(task.detail)
+  const sentKey = `admin_task_wa_sent_${task.id}`
+  const [sent, setSent] = useState<Set<string>>(() => { try { return new Set(JSON.parse(readLs(sentKey) ?? '[]')) } catch { return new Set() } })
+  const [copied, setCopied] = useState(false)
+  function markSent(phone: string) {
+    setSent(prev => { const n = new Set(prev); n.add(phone); writeLs(sentKey, JSON.stringify([...n])); return n })
+  }
+  async function copy() {
+    if (!message) return
+    try { await navigator.clipboard.writeText(message); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch { /* no clipboard */ }
+  }
+  if (!task.detail) return <p className="px-5 pb-3 text-sm" style={{ color: '#A2937D' }}>אין פרטים. אפשר להוסיף בעריכה.</p>
+  return (
+    <div className="px-5 pb-3.5 space-y-2.5" style={{ fontSize: 13.5, color: '#5C4B3B' }}>
+      {rest && <p className="whitespace-pre-line leading-relaxed">{rest}</p>}
+      {message && (
+        <div className="rounded-2xl p-3 bg-white" style={{ border: '1px solid #EFE7DA' }}>
+          <p className="whitespace-pre-line leading-relaxed" style={{ color: '#443327' }}>{message}</p>
+          <button onClick={copy} className="mt-2 flex items-center gap-1 font-bold rounded-xl"
+            style={{ fontSize: 12.5, padding: '5px 10px', background: copied ? '#E3EAE6' : '#F6ECD8', color: copied ? '#3F5A4C' : '#6E5836' }}>
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />} {copied ? 'הועתק' : 'העתק נוסח'}
+          </button>
+        </div>
+      )}
+      {people.length > 0 && (
+        <div>
+          <p className="font-bold mb-1.5" style={{ fontSize: 12.5, color: '#A2937D' }}>
+            {message ? 'שליחה בוואטסאפ, הנוסח כבר בפנים' : 'וואטסאפ'} · נשלח ל-{people.filter(p => sent.has(p.phone)).length} מתוך {people.length}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {people.map(p => {
+              const done = sent.has(p.phone)
+              return (
+                <a key={p.phone} href={waLink(p.phone, message)} target="_blank" rel="noreferrer" onClick={() => markSent(p.phone)}
+                  className="flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95"
+                  style={{ fontSize: 12.5, padding: '5px 10px', background: done ? '#EDEDE6' : '#E3EAE6', color: done ? '#9A9A8A' : '#3F5A4C', textDecoration: done ? 'line-through' : undefined }}
+                  title={p.phone}>
+                  {done ? <Check className="w-3.5 h-3.5" /> : <MessageCircle className="w-3.5 h-3.5" />}{p.name}
+                </a>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>
+  )
+}
+
+function SeveritySelect({ value, onChange, style }: { value: Severity; onChange: (v: Severity) => void; style: React.CSSProperties }) {
+  return (
+    <select value={value} onChange={e => onChange(e.target.value as Severity)} aria-label="דחיפות"
+      className="flex-shrink-0 rounded-xl px-2 py-2 text-sm font-semibold bg-white focus:outline-none" style={style}>
+      <option value="mid">רגיל</option>
+      <option value="high">דחוף</option>
+      <option value="low">נמוך</option>
+    </select>
+  )
+}
+
+function WhoSelect({ value, onChange, style }: { value: TaskAssignee | ''; onChange: (v: TaskAssignee | '') => void; style: React.CSSProperties }) {
+  return (
+    <select value={value} onChange={e => onChange(e.target.value as TaskAssignee | '')} aria-label="למי המשימה"
+      className="flex-shrink-0 rounded-xl px-2 py-2 text-sm font-semibold bg-white focus:outline-none" style={{ ...style, color: value ? '#443327' : '#A2937D' }}>
+      <option value="">למי?</option>
+      <option value="brenda">ברנדה</option>
+      <option value="yahav">יהב</option>
+    </select>
   )
 }
 

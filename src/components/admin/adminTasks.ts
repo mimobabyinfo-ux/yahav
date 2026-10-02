@@ -254,9 +254,17 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
   // — the two extra had already sat through the workshop.
   const cohortDates = new Map(cohorts.map(c => [c.id, c]))
   const filledIndex = buildFilledIndex(linkedFormDefs, linkedSubmissions)
-  const unfilledByForm = new Map<string, { title: string; count: number; latest: string | null; leadIds: string[] }>()
+  const unfilledByForm = new Map<string, { title: string; count: number; latest: string | null; leadIds: string[]; firstStart: string }>()
+  // Yahav 2.10.26: "why does this interest me now? the new workshops are
+  // only on 14/10, 15/10, 19/10". A missing questionnaire only needs her
+  // in the last days before the first meeting, so it waits until the
+  // cohort starts within 3 days (same window as the under-filled event).
+  // Before that the registrations page still shows who has not filled it.
+  const formWindowEnd = addDays(today, 3)
   for (const lead of leads) {
     if (effectiveLeadStatus(lead, cohortDates, today, nowMs) !== 'paid') continue
+    const leadCohort = lead.cohort_id ? cohortDates.get(lead.cohort_id) : null
+    if (!leadCohort || leadCohort.start_date > formWindowEnd) continue
     const w = lead.selected_workshop_id ? workshops.find(x => x.id === lead.selected_workshop_id) : null
     if (!w?.linked_form_id) continue
     const form = linkedFormDefs.get(w.linked_form_id)
@@ -266,7 +274,8 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
     const isFilled = (!!phone && filledIndex.has(`${form.id}|p|${phone}`))
       || (!!emailL && filledIndex.has(`${form.id}|e|${emailL}`))
     if (!isFilled) {
-      const cur = unfilledByForm.get(form.id) ?? { title: form.title, count: 0, latest: null as string | null, leadIds: [] as string[] }
+      const cur = unfilledByForm.get(form.id) ?? { title: form.title, count: 0, latest: null as string | null, leadIds: [] as string[], firstStart: leadCohort.start_date }
+      if (leadCohort.start_date < cur.firstStart) cur.firstStart = leadCohort.start_date
       cur.count += 1
       cur.leadIds.push(lead.id)
       if (cur.latest == null || lead.created_at > cur.latest) cur.latest = lead.created_at
@@ -277,7 +286,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
     tasks.push({
       key: `unfilled_form:${formId}`,
       title: `${info.count} לא מילאו את "${info.title}"`,
-      facts: ['שאלון פתיחה'],
+      facts: ['שאלון פתיחה', `הסדנה מתחילה ${ddmm(info.firstStart)}`],
       severity: 'mid',
       // The answer to "who are they?" is the registrations list, not
       // the form itself — the form has nothing to act on.
@@ -327,19 +336,10 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
       })
     }
 
-    if (seats?.capacity && seats.taken >= seats.capacity) {
-      tasks.push({
-        key: `event_full:${ev.id}`,
-        title: `"${ev.title}" מלא`,
-        facts: [ddmm(ev.event_date), `${seats.taken}/${seats.capacity}`],
-        severity: 'mid',
-        section: 'events',
-        actionLabel: 'לרשימה',
-        sourceUpdatedAt: ev.updated_at ?? null,
-        targetId: ev.id,
-        targetView: 'registrants',
-      })
-    } else if (
+    // Yahav 2.10.26: "האירוע מלא" used to be a task here. A full event is
+    // good news, not something to do, so it lives in the events screen and
+    // in "כמה נרשמו" only.
+    if (
       seats?.capacity && ev.event_date <= in3 &&
       seats.taken < Math.ceil(seats.capacity * 0.5)
     ) {
@@ -358,13 +358,13 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
     }
   }
 
-  // 5 · Upcoming event (14 days) with no vendor at all.
-  const in14 = addDays(today, 14)
+  // 5 · Upcoming event (10 days, was 14 until 2.10.26) with no vendor at all.
+  const in10 = addDays(today, 10)
   for (const ev of events) {
-    if (ev.is_active && ev.event_date >= today && ev.event_date <= in14 && !ev.vendor_id && !ev.vendor_name) {
+    if (ev.is_active && ev.event_date >= today && ev.event_date <= in10 && !ev.vendor_id && !ev.vendor_name) {
       tasks.push({
         key: `event_no_vendor:${ev.id}`,
-        title: `"${ev.title}" בעוד פחות משבועיים בלי ספק`,
+        title: `"${ev.title}" בעוד פחות מ-10 ימים בלי ספק`,
         facts: [ddmm(ev.event_date)],
         severity: 'mid',
         section: 'events',
@@ -375,10 +375,11 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
     }
   }
 
-  // 6 · Upcoming event (7 days) with no check-in link yet.
-  const in7 = addDays(today, 7)
+  // 6 · Upcoming event (2 days, was 7 until 2.10.26) with no check-in link yet.
+  //     The link is made the day before; a week out it was only noise.
+  const in2 = addDays(today, 2)
   for (const ev of events) {
-    if (ev.is_active && ev.event_date >= today && ev.event_date <= in7 && !checkinEventIds.has(ev.id)) {
+    if (ev.is_active && ev.event_date >= today && ev.event_date <= in2 && !checkinEventIds.has(ev.id)) {
       tasks.push({
         key: `event_no_checkin:${ev.id}`,
         title: `ל"${ev.title}" אין עדיין קישור צ'ק-אין`,
@@ -422,6 +423,10 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
 
 // ─── Phase 2: persistence glue ───────────────────────────────────────────────
 
+/** Who a manual task is for. One admin login is shared by Brenda and
+ *  Yahav, so this is a label + filter, not a user id (2.10.26). */
+export type TaskAssignee = 'brenda' | 'yahav'
+
 /** Row shape of admin_tasks (manual tasks). */
 export type ManualTask = {
   id: string
@@ -439,6 +444,8 @@ export type ManualTask = {
   customer_name?: string | null
   customer_phone?: string | null
   customer_email?: string | null
+  /** 2.10.26: ברנדה / יהב, null = not assigned. */
+  assignee?: TaskAssignee | null
 }
 
 /** Filter derived tasks through persisted dismissals. A dismissed task

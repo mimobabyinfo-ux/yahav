@@ -76,6 +76,13 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
   // Brenda 14.9.26: "שיהיה בדיפולט סגור ואם אני רוצה אני אפתח".
   const [openMegalim, setOpenMegalim] = useState(false)
   const [openCapacity, setOpenCapacity] = useState(true)
+  // Yahav 2.10.26: the right column is reference, not action. Folded by
+  // default, remembered per browser.
+  const [openUserView, setOpenUserView] = useState<boolean>(() => { try { return localStorage.getItem('admin_home_user_view_open') === '1' } catch { return false } })
+  const [openPartners, setOpenPartners] = useState<boolean>(() => { try { return localStorage.getItem('admin_home_partners_open') === '1' } catch { return false } })
+  function toggleRemembered(key: string, set: (f: (v: boolean) => boolean) => void) {
+    set(v => { const n = !v; try { localStorage.setItem(key, n ? '1' : '0') } catch { /* private mode */ } return n })
+  }
   const [showAllMegalim, setShowAllMegalim] = useState(false)
   const [busyToggle, setBusyToggle] = useState<string | null>(null)
 
@@ -151,6 +158,12 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
   const myDueNow = myTasks.filter(t => !!t.due_date && t.due_date <= today).length
   const attentionCount = tasks.length + systemTasks.length
   const totalOpen = attentionCount + myDueNow
+  // Yahav 2.10.26: the October goal is to fill every workshop cohort to the
+  // end of the year, so that is the number on top. Same count as "כמה
+  // נרשמו" (every registration, any status), cohorts with a capacity only.
+  const yearEnd = `${today.slice(0, 4)}-12-31`
+  const cohortsToYearEnd = capacity.filter(r => r.kind === 'cohort' && r.date <= yearEnd && r.capacity != null)
+  const openSeats = cohortsToYearEnd.reduce((sum, r) => sum + Math.max(0, (r.capacity ?? 0) - r.count), 0)
 
   return (
     <div dir="rtl">
@@ -173,9 +186,16 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                 </h1>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="grid grid-cols-2 gap-3 mt-4">
               {([
-                { label: 'ממתינות לתשלום', value: String(counters.pendingPayment), sub: null, onClick: undefined },
+                // 2.10.26: "ממתינות לתשלום" moved to the לידים screen and
+                // "נרשמות פעילות" said nothing to act on; both replaced.
+                {
+                  label: 'מקומות פנויים עד סוף השנה',
+                  value: String(openSeats),
+                  sub: `${cohortsToYearEnd.length} מחזורים`,
+                  onClick: () => setOpenCapacity(true),
+                },
                 {
                   label: 'נכנס החודש',
                   value: `₪${counters.monthRevenue.toLocaleString()}`,
@@ -186,7 +206,6 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                   sub: `${monthPayments.length} תשלומים`,
                   onClick: () => setShowPayments(true),
                 },
-                { label: 'נרשמות פעילות', value: String(counters.activeRegistrations), sub: null, onClick: undefined },
               ] as { label: string; value: string; sub: string | null; onClick?: () => void }[]).map(c => (
                 <div
                   key={c.label}
@@ -221,8 +240,9 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               "אני רוצה שזה יהיה רק באירועי קהילה." It lives in
               EventsAdminPanel only, next to the events it is about. */}
 
-          <MyTasksCard tasks={myTasks} reload={reload} />
-
+          {/* Yahav 2.10.26: "דורש תשומת לב" sits ABOVE the tasks. It is where
+              the money is (a payment nobody matched, a mother who says she
+              paid), so it comes first. */}
           {/* דורש תשומת לב — one line per task, טופל persists (phase 2) */}
           <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
             <div className="flex items-center justify-between mb-3">
@@ -316,6 +336,8 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               </div>
             )}
           </div>
+
+          <MyTasksCard tasks={myTasks} reload={reload} />
 
           {/* מועמדות למגלים — graduates whose baby reached the right age.
               The CRM's follow-up is calendar-based (+14 days after
@@ -483,7 +505,11 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
         {/* ── Right column — מה המשתמשת רואה עכשיו ── */}
         <div className="space-y-5 min-w-0">
           <div className="bg-white rounded-3xl p-5 space-y-4" style={{ border: '1px solid #E9E2D6' }}>
-            <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>מה המשתמשת רואה עכשיו</h2>
+            <button onClick={() => toggleRemembered('admin_home_user_view_open', setOpenUserView)} className="w-full flex items-center justify-between" aria-expanded={openUserView}>
+              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>מה המשתמשת רואה עכשיו</h2>
+              <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: openUserView ? 'rotate(180deg)' : 'none' }} />
+            </button>
+            {openUserView && (<>
 
             {/* Home announcements — compact toggles */}
             <div>
@@ -560,11 +586,16 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                 </div>
               )}
             </div>
+            </>)}
           </div>
 
           {/* ספקים ואירועים */}
           <div className="bg-white rounded-3xl p-5 space-y-3" style={{ border: '1px solid #E9E2D6' }}>
-            <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>ספקים ואירועים</h2>
+            <button onClick={() => toggleRemembered('admin_home_partners_open', setOpenPartners)} className="w-full flex items-center justify-between" aria-expanded={openPartners}>
+              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>ספקים ואירועים</h2>
+              <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: openPartners ? 'rotate(180deg)' : 'none' }} />
+            </button>
+            {openPartners && (<>
             {eventsMissingVendor.length > 0 && (
               <div className="rounded-2xl px-3.5 py-3" style={{ background: '#F7EBE4' }}>
                 <p className="flex items-center gap-1.5 font-bold" style={{ fontSize: 13, color: '#8B4A30' }}>
@@ -587,6 +618,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               </span>
               <ChevronLeft className="w-4 h-4 flex-shrink-0" style={{ color: '#35505C' }} />
             </button>
+            </>)}
           </div>
         </div>
       </div>
