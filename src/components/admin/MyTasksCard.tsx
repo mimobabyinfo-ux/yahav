@@ -21,8 +21,8 @@ import { useOpenCustomer } from './CustomerCardContext'
  *
  * Yahav 2.10.26: "the tasks are becoming a big part of the admin, I want it
  * tidier". There is ONE admin login shared by Brenda and Yahav, so:
- * - Every task has an assignee (ברנדה / יהב / שנינו, or none; a shared task
- *   shows under both filters) shown as a chip, with a
+ * - Every task has an assignee (ברנדה / יהב / משותף, or none). Filter: יהב / ברנדה /
+ *   משותף / הכל; a shared task also shows under ברנדה and יהב shown as a chip, with a
  *   ברנדה / יהב / הכל filter remembered per browser. Tap the chip to switch.
  * - Opened, the list is grouped by time: היום ובאיחור, השבוע (7 days),
  *   בהמשך (folded, with a count). A task for next month no longer weighs
@@ -39,10 +39,10 @@ import { useOpenCustomer } from './CustomerCardContext'
  */
 const OPEN_KEY = 'admin_my_tasks_open'
 const WHO_KEY = 'admin_my_tasks_who'
-type WhoFilter = 'all' | 'brenda' | 'yahav'
+type WhoFilter = 'all' | 'brenda' | 'yahav' | 'both'
 type Severity = 'high' | 'mid' | 'low'
 
-const WHO_LABEL: Record<TaskAssignee, string> = { brenda: 'ברנדה', yahav: 'יהב', both: 'שנינו' }
+const WHO_LABEL: Record<TaskAssignee, string> = { brenda: 'ברנדה', yahav: 'יהב', both: 'משותף' }
 const WHO_CHIP: Record<TaskAssignee, { background: string; color: string }> = {
   brenda: { background: '#F3E1D6', color: '#8B4A30' },
   yahav: { background: '#E3EAE6', color: '#3F5A4C' },
@@ -100,13 +100,13 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
   const openCustomer = useOpenCustomer()
   const [open, setOpen] = useState<boolean>(() => readLs(OPEN_KEY) === '1')
   function toggle() { setOpen(o => { const n = !o; writeLs(OPEN_KEY, n ? '1' : '0'); return n }) }
-  const [who, setWho] = useState<WhoFilter>(() => { const v = readLs(WHO_KEY); return v === 'brenda' || v === 'yahav' ? v : 'all' })
+  const [who, setWho] = useState<WhoFilter>(() => { const v = readLs(WHO_KEY); return v === 'brenda' || v === 'yahav' || v === 'both' ? v : 'all' })
   function pickWho(w: WhoFilter) { setWho(w); writeLs(WHO_KEY, w) }
   const [laterOpen, setLaterOpen] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  // A shared task (שנינו) shows under both ברנדה and יהב.
-  const tasks = who === 'all' ? allTasks : allTasks.filter(t => t.assignee === who || t.assignee === 'both')
+  // A shared task (משותף) shows under ברנדה and יהב too; משותף alone shows only shared ones.
+  const tasks = who === 'all' ? allTasks : who === 'both' ? allTasks.filter(t => t.assignee === 'both') : allTasks.filter(t => t.assignee === who || t.assignee === 'both')
 
   // ── undo after טופל / מחיקה (one slot, ~10s) ──
   const [undo, setUndo] = useState<{ label: string; run: () => Promise<void> } | null>(null)
@@ -151,7 +151,7 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
     await supabase.from('admin_tasks').update({ due_date: due || null }).eq('id', id)
     reload()
   }
-  // Chip tap: ברנדה → יהב → שנינו → none → ברנדה
+  // Chip tap: ברנדה → יהב → משותף → none → ברנדה
   async function cycleAssignee(t: ManualTask) {
     const next: TaskAssignee | null = t.assignee === 'brenda' ? 'yahav' : t.assignee === 'yahav' ? 'both' : t.assignee === 'both' ? null : 'brenda'
     await supabase.from('admin_tasks').update({ assignee: next }).eq('id', t.id)
@@ -243,13 +243,16 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
     const isOpen = expanded === t.id
     return (
       <div key={t.id} className="rounded-2xl transition-colors" style={{ background: isOpen ? '#FAF7F1' : undefined }}>
-        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl hover:bg-[#FAF7F1]">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: SEVERITY_DOT[t.severity] }} title={SEVERITY_LABEL[t.severity]} />
-          <button onClick={() => setExpanded(isOpen ? null : t.id)} className="flex-1 min-w-0 flex items-center gap-1.5 text-right" style={{ fontSize: 14 }}
+        {/* Phone: the title gets its own line (up to two lines), the chips and
+            buttons go under it. From sm up it is one row, as before. */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-1.5 px-3.5 py-2.5 rounded-2xl hover:bg-[#FAF7F1]">
+          <button onClick={() => setExpanded(isOpen ? null : t.id)} className="w-full sm:w-auto sm:flex-1 min-w-0 flex items-center gap-2 text-right" style={{ fontSize: 14 }}
             aria-expanded={isOpen} title={t.detail ? 'פתיחת הפרטים' : undefined}>
-            <span className="font-bold truncate" style={{ color: '#443327' }}>{t.title}</span>
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: SEVERITY_DOT[t.severity] }} title={SEVERITY_LABEL[t.severity]} />
+            <span className="font-bold line-clamp-2 sm:line-clamp-none sm:truncate" style={{ color: '#443327' }}>{t.title}</span>
             {t.detail && <AlignRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#BCAE99' }} />}
           </button>
+          <div className="flex items-center gap-1.5 flex-shrink-0 mr-auto sm:mr-0">
           <button onClick={() => cycleAssignee(t)} className="flex-shrink-0 font-bold rounded-xl transition-all hover:brightness-95"
             style={{ fontSize: 12, padding: '4px 9px', ...(t.assignee ? WHO_CHIP[t.assignee] : { background: '#F6F3ED', color: '#A2937D' }) }}
             title="למי המשימה? (לחיצה מחליפה)">
@@ -271,6 +274,7 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
             style={{ fontSize: 13, padding: '6px 12px', background: '#EDEDE6', color: '#4F5040' }} title="סימון כטופל">
             <Check className="w-3.5 h-3.5" /> טופל
           </button>
+          </div>
         </div>
         {isOpen && <TaskDetail task={t} />}
       </div>
@@ -289,7 +293,7 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
 
   return (
     <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <button onClick={toggle} className="font-bold flex items-center gap-1.5 text-right" style={{ fontSize: 16, color: '#443327' }} aria-expanded={open}>
           המשימות שלי
           {tasks.length > 0 && <span className="font-display" style={{ color: '#8A6A2F' }}>· {tasks.length}</span>}
@@ -300,9 +304,9 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
           )}
           <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: open ? 'rotate(180deg)' : 'none' }} />
         </button>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 mr-auto">
           <div className="flex rounded-xl p-0.5" style={{ background: '#F6F3ED' }} role="group" aria-label="סינון לפי אחראי">
-            {(['all', 'brenda', 'yahav'] as WhoFilter[]).map(w => (
+            {(['yahav', 'brenda', 'both', 'all'] as WhoFilter[]).map(w => (
               <button key={w} onClick={() => pickWho(w)} className="font-bold rounded-lg transition-all"
                 style={{ fontSize: 12.5, padding: '4px 10px', background: who === w ? '#fff' : 'transparent', color: who === w ? '#443327' : '#A2937D', boxShadow: who === w ? '0 1px 2px rgba(0,0,0,.06)' : undefined }}
                 aria-pressed={who === w}>
@@ -346,7 +350,7 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
       )}
 
       {open && tasks.length === 0 && (
-        <p className="mt-3 text-sm" style={{ color: '#A2937D' }}>{who === 'all' ? 'אין משימות פתוחות' : `אין משימות פתוחות ל${WHO_LABEL[who]}`}</p>
+        <p className="mt-3 text-sm" style={{ color: '#A2937D' }}>{who === 'all' ? 'אין משימות פתוחות' : who === 'both' ? 'אין משימות משותפות פתוחות' : `אין משימות פתוחות ל${WHO_LABEL[who]}`}</p>
       )}
 
       {!open && dueNow.length > 0 && <div className="space-y-1 mt-3">{dueNow.map(renderTask)}</div>}
@@ -438,7 +442,7 @@ function WhoSelect({ value, onChange, style }: { value: TaskAssignee | ''; onCha
       <option value="">למי?</option>
       <option value="brenda">ברנדה</option>
       <option value="yahav">יהב</option>
-      <option value="both">שנינו</option>
+      <option value="both">משותף</option>
     </select>
   )
 }

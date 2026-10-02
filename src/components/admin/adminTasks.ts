@@ -444,7 +444,7 @@ export type ManualTask = {
   customer_name?: string | null
   customer_phone?: string | null
   customer_email?: string | null
-  /** 2.10.26: ברנדה / יהב / שנינו (both), null = not assigned. */
+  /** 2.10.26: ברנדה / יהב / משותף (both), null = not assigned. */
   assignee?: TaskAssignee | null
 }
 
