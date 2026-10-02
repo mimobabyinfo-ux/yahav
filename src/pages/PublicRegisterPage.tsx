@@ -662,26 +662,32 @@ export default function PublicRegisterPage() {
                       // room. Before this it was simply the next 3 by date, so
                       // when 15/10 and 18/11 filled up the page showed 14/10 +
                       // two greyed "מלא" cards and hid 26/11 and 23/12 entirely.
-                      // Full cohorts are not hidden (they show demand): the ones
-                      // that fall before the last open card shown are summed up
-                      // in one quiet line. More open ones sit behind "עוד תאריכים".
+                      // Full cohorts are not hidden (they show demand), see below.
                       // A cohort pre-chosen in the app store may be further out,
                       // so it is appended to keep the selection visible.
                       const all = cohortsByWorkshop.get(w.id) ?? []
                       const isFull = (c: PublicCohort) => c.capacity != null && c.capacity - c.registered_count <= 0
                       const open = all.filter(c => !isFull(c))
-                      const list = showAllCohorts ? [...open] : open.slice(0, 3)
-                      const hiddenOpen = open.length - list.length
-                      const lastShown = list[list.length - 1]
-                      const fullShown = all.filter(c => isFull(c) && (!lastShown || c.start_date <= lastShown.start_date))
+                      // 2.10.26 (second pass): one chronological list. Full cohorts
+                      // keep their place by date as a clear "מלא" card (the one-line
+                      // summary under the list was too small to notice, and the
+                      // demand is the point). The list runs up to the 3rd open
+                      // cohort; the rest of the open ones sit behind "עוד תאריכים".
+                      const openShown = showAllCohorts ? open : open.slice(0, 3)
+                      const hiddenOpen = open.length - openShown.length
+                      const lastOpen = openShown[openShown.length - 1]
+                      const list = all.filter(c => isFull(c)
+                        ? (!lastOpen || c.start_date <= lastOpen.start_date)
+                        : openShown.includes(c))
+                      const hasOpen = openShown.length > 0
                       const chosenExtra = selectedCohort && !list.some(c => c.id === selectedCohort)
                         ? open.find(c => c.id === selectedCohort)
                         : undefined
                       if (chosenExtra) list.push(chosenExtra)
-                      if (list.length === 0 && fullShown.length === 0) return null
+                      if (list.length === 0) return null
                       return (
                         <div className="mt-3 pt-3 border-t border-mustard-200/60" onClick={e => e.stopPropagation()}>
-                          {list.length > 0 && <p className="text-xs font-semibold text-sand-700 mb-2">באיזה מחזור תרצי להשתתף?</p>}
+                          <p className="text-xs font-semibold text-sand-700 mb-2">{hasOpen ? 'באיזה מחזור תרצי להשתתף?' : 'כל המחזורים הקרובים מלאים כרגע'}</p>
                           {/* One card per row on the phone (16.9.26): two columns
                               wrapped "ימי רביעי · 23/09 · 10:00" onto three lines. */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -697,17 +703,22 @@ export default function PublicRegisterPage() {
                                   onClick={() => setSelectedCohort(c.id)}
                                   className={`text-right px-3.5 py-3 rounded-xl border-2 transition-all ${
                                     full
-                                      ? 'border-sand-200 bg-sand-50 opacity-50 cursor-not-allowed'
+                                      ? 'border-red-200 bg-red-50/60 cursor-not-allowed'
                                       : chosen
                                         ? 'border-mustard-500 bg-white shadow-sm'
                                         : 'border-sand-200 bg-white hover:border-mustard-300'
                                   }`}
                                 >
                                   <span className="flex items-center gap-1.5">
-                                    <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${chosen ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
-                                      {chosen && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                    </span>
-                                    <span className="text-sm font-bold text-sand-800">{cohortDateLabel(c)}</span>
+                                    {!full && (
+                                      <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${chosen ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
+                                        {chosen && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                      </span>
+                                    )}
+                                    <span className={`text-sm font-bold ${full ? 'text-sand-500' : 'text-sand-800'}`}>{cohortDateLabel(c)}</span>
+                                    {full && (
+                                      <span className="mr-auto flex-shrink-0 bg-red-500 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">מלא</span>
+                                    )}
                                   </span>
                                   {/* Brenda 16.9.26: only once she taps the cohort. All the
                                       dates up front on every card "is too much". */}
@@ -729,7 +740,7 @@ export default function PublicRegisterPage() {
                                   <span className="block mt-1 text-[13px] leading-tight">
                                     {c.label && <span className="text-sand-500">{c.label} · </span>}
                                     {full ? (
-                                      <span className="font-bold text-red-500">המחזור מלא</span>
+                                      <span className="font-semibold text-red-600">{c.capacity != null ? `כל ${c.capacity} המקומות נתפסו` : 'המחזור מלא'}</span>
                                     ) : spotsLeft === 1 ? (
                                       <span className="font-bold text-amber-600">נותר מקום אחרון!</span>
                                     ) : spotsLeft != null && spotsLeft <= 3 ? (
@@ -750,13 +761,6 @@ export default function PublicRegisterPage() {
                             >
                               עוד תאריכים ({hiddenOpen})
                             </button>
-                          )}
-                          {fullShown.length > 0 && (
-                            <p className="mt-2 text-xs text-sand-500">
-                              {list.length === 0
-                                ? 'כל המחזורים הקרובים מלאים כרגע'
-                                : `${fullShown.length === 1 ? 'מחזור' : 'מחזורים'} ${(d => d.length > 1 ? d.slice(0, -1).join(', ') + ' ו-' + d[d.length - 1] : d[0])(fullShown.map(c => ddmm(c.start_date)))} ${fullShown.length === 1 ? 'כבר מלא' : 'כבר מלאים'}`}
-                            </p>
                           )}
                           {errors.cohort && <p className="text-xs text-red-500 mt-1.5">{errors.cohort}</p>}
                         </div>
