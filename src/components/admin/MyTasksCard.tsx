@@ -21,7 +21,8 @@ import { useOpenCustomer } from './CustomerCardContext'
  *
  * Yahav 2.10.26: "the tasks are becoming a big part of the admin, I want it
  * tidier". There is ONE admin login shared by Brenda and Yahav, so:
- * - Every task has an assignee (ברנדה / יהב, or none) shown as a chip, with a
+ * - Every task has an assignee (ברנדה / יהב / שנינו, or none; a shared task
+ *   shows under both filters) shown as a chip, with a
  *   ברנדה / יהב / הכל filter remembered per browser. Tap the chip to switch.
  * - Opened, the list is grouped by time: היום ובאיחור, השבוע (7 days),
  *   בהמשך (folded, with a count). A task for next month no longer weighs
@@ -41,7 +42,12 @@ const WHO_KEY = 'admin_my_tasks_who'
 type WhoFilter = 'all' | 'brenda' | 'yahav'
 type Severity = 'high' | 'mid' | 'low'
 
-const WHO_LABEL: Record<TaskAssignee, string> = { brenda: 'ברנדה', yahav: 'יהב' }
+const WHO_LABEL: Record<TaskAssignee, string> = { brenda: 'ברנדה', yahav: 'יהב', both: 'שנינו' }
+const WHO_CHIP: Record<TaskAssignee, { background: string; color: string }> = {
+  brenda: { background: '#F3E1D6', color: '#8B4A30' },
+  yahav: { background: '#E3EAE6', color: '#3F5A4C' },
+  both: { background: '#F6ECD8', color: '#6E5836' },
+}
 const SEVERITY_DOT: Record<Severity, string> = { high: '#8B4A30', mid: '#C8A460', low: '#D8CFC0' }
 const SEVERITY_LABEL: Record<Severity, string> = { high: 'דחוף', mid: 'רגיל', low: 'נמוך' }
 
@@ -99,7 +105,8 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
   const [laterOpen, setLaterOpen] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  const tasks = who === 'all' ? allTasks : allTasks.filter(t => t.assignee === who)
+  // A shared task (שנינו) shows under both ברנדה and יהב.
+  const tasks = who === 'all' ? allTasks : allTasks.filter(t => t.assignee === who || t.assignee === 'both')
 
   // ── undo after טופל / מחיקה (one slot, ~10s) ──
   const [undo, setUndo] = useState<{ label: string; run: () => Promise<void> } | null>(null)
@@ -144,9 +151,9 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
     await supabase.from('admin_tasks').update({ due_date: due || null }).eq('id', id)
     reload()
   }
-  // Chip tap: ברנדה → יהב → none → ברנדה
+  // Chip tap: ברנדה → יהב → שנינו → none → ברנדה
   async function cycleAssignee(t: ManualTask) {
-    const next: TaskAssignee | null = t.assignee === 'brenda' ? 'yahav' : t.assignee === 'yahav' ? null : 'brenda'
+    const next: TaskAssignee | null = t.assignee === 'brenda' ? 'yahav' : t.assignee === 'yahav' ? 'both' : t.assignee === 'both' ? null : 'brenda'
     await supabase.from('admin_tasks').update({ assignee: next }).eq('id', t.id)
     reload()
   }
@@ -244,7 +251,7 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
             {t.detail && <AlignRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#BCAE99' }} />}
           </button>
           <button onClick={() => cycleAssignee(t)} className="flex-shrink-0 font-bold rounded-xl transition-all hover:brightness-95"
-            style={{ fontSize: 12, padding: '4px 9px', ...(t.assignee === 'yahav' ? { background: '#E3EAE6', color: '#3F5A4C' } : t.assignee === 'brenda' ? { background: '#F3E1D6', color: '#8B4A30' } : { background: '#F6F3ED', color: '#A2937D' }) }}
+            style={{ fontSize: 12, padding: '4px 9px', ...(t.assignee ? WHO_CHIP[t.assignee] : { background: '#F6F3ED', color: '#A2937D' }) }}
             title="למי המשימה? (לחיצה מחליפה)">
             {t.assignee ? WHO_LABEL[t.assignee] : 'למי?'}
           </button>
@@ -431,6 +438,7 @@ function WhoSelect({ value, onChange, style }: { value: TaskAssignee | ''; onCha
       <option value="">למי?</option>
       <option value="brenda">ברנדה</option>
       <option value="yahav">יהב</option>
+      <option value="both">שנינו</option>
     </select>
   )
 }

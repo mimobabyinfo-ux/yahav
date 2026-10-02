@@ -425,7 +425,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
 
 /** Who a manual task is for. One admin login is shared by Brenda and
  *  Yahav, so this is a label + filter, not a user id (2.10.26). */
-export type TaskAssignee = 'brenda' | 'yahav'
+export type TaskAssignee = 'brenda' | 'yahav' | 'both'
 
 /** Row shape of admin_tasks (manual tasks). */
 export type ManualTask = {
@@ -444,7 +444,7 @@ export type ManualTask = {
   customer_name?: string | null
   customer_phone?: string | null
   customer_email?: string | null
-  /** 2.10.26: ברנדה / יהב, null = not assigned. */
+  /** 2.10.26: ברנדה / יהב / שנינו (both), null = not assigned. */
   assignee?: TaskAssignee | null
 }
 
