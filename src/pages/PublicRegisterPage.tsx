@@ -737,11 +737,11 @@ export default function PublicRegisterPage() {
                                       </span>
                                     )
                                   })()}
+                                  {/* A full card says it once, in the red "מלא" pill (2.10.26). */}
+                                  {(!full || c.label) && (
                                   <span className="block mt-1 text-[13px] leading-tight">
-                                    {c.label && <span className="text-sand-500">{c.label} · </span>}
-                                    {full ? (
-                                      <span className="font-semibold text-red-600">{c.capacity != null ? `כל ${c.capacity} המקומות נתפסו` : 'המחזור מלא'}</span>
-                                    ) : spotsLeft === 1 ? (
+                                    {c.label && <span className="text-sand-500">{c.label}{full ? '' : ' · '}</span>}
+                                    {full ? null : spotsLeft === 1 ? (
                                       <span className="font-bold text-amber-600">נותר מקום אחרון!</span>
                                     ) : spotsLeft != null && spotsLeft <= 3 ? (
                                       <span className="font-bold text-amber-600">נותרו {spotsLeft} מקומות</span>
@@ -749,6 +749,7 @@ export default function PublicRegisterPage() {
                                       <span className="text-green-700 font-semibold">יש מקום 🤍</span>
                                     )}
                                   </span>
+                                  )}
                                 </button>
                               )
                             })}
