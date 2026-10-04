@@ -107,6 +107,7 @@ Deno.serve(async (req) => {
     if (r.ok && noteText) {
       const n = await ghl(`/contacts/${p.contact_id}/notes`, 'POST', KEY, { body: `${actor ? actor + ' - ' : ''}${noteText}` })
       steps.note = { ok: n.ok, error: n.error }
+      if (!n.ok) ok = false
     }
     if (r.ok) await sb.from('crm_inbound').delete().eq('contact_id', p.contact_id)
     await sb.from('crm_lead_actions').insert({ opp_id: r.data?.opportunity?.id ?? null, contact_id: p.contact_id, lead_name: p.lead_name, action, note: noteText || null, actor, source: p.source ?? 'screen', created_by: userData?.user?.id ?? null, crm_ok: ok, crm_result: steps })
@@ -119,6 +120,7 @@ Deno.serve(async (req) => {
   const cur = await ghl(`/opportunities/${oppId}`, 'GET', KEY)
   if (!cur.ok) return json({ ok: false, error: 'opportunity not found: ' + cur.error }, 404)
   const opp = cur.data?.opportunity ?? cur.data
+  if (!opp) return json({ ok: false, error: 'empty opportunity response from GHL' }, 500)
   const contactId = opp.contactId ?? p.contact_id
   const isMain = opp.pipelineId === MAIN
 
