@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MessageCircle, Mail, Trash2, ChevronDown, ChevronUp, Settings } from 'lucide-react'
+import { type FormShowIf } from '../../lib/formFields'
 import { supabase } from '../../lib/supabase'
 import {
   resolveSubmitter,
@@ -18,10 +19,10 @@ import ConfirmDialog from './ConfirmDialog'
 
 type FormField = {
   id: string
-  type: 'text' | 'textarea' | 'select' | 'rating' | 'date' | 'info' | 'link'
+  type: 'text' | 'textarea' | 'select' | 'multiselect' | 'rating' | 'date' | 'info' | 'link'
   label: string
   options?: string[]
-  required?: boolean
+  required?: boolean; showIf?: FormShowIf | null; maxSelect?: number
   role?: FieldRole
 }
 

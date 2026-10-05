@@ -1,13 +1,14 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { isFieldVisible, toggleMulti, multiSelected, visibleAnswers, type FormShowIf } from '../lib/formFields'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
 type FormField = {
   id: string
-  type: 'text' | 'textarea' | 'select' | 'rating' | 'date' | 'info' | 'link'
+  type: 'text' | 'textarea' | 'select' | 'multiselect' | 'rating' | 'date' | 'info' | 'link'
   label: string
   options?: string[]
-  required?: boolean
+  required?: boolean; showIf?: FormShowIf | null; maxSelect?: number
 }
 
 type FormRecord = {
@@ -17,7 +18,7 @@ type FormRecord = {
   fields_json: FormField[]
 }
 
-const INPUT_TYPES = new Set(['text', 'textarea', 'select', 'rating', 'date'])
+const INPUT_TYPES = new Set(['text', 'textarea', 'select', 'multiselect', 'rating', 'date'])
 
 export default function PublicFormPage({ formId }: { formId: string }) {
   const [form, setForm] = useState<FormRecord | null>(null)
@@ -43,7 +44,7 @@ export default function PublicFormPage({ formId }: { formId: string }) {
     if (!form) return
     const errs: Record<string, boolean> = {}
     form.fields_json.forEach(f => {
-      if (INPUT_TYPES.has(f.type) && f.required && !answers[f.label]?.trim()) errs[f.label] = true
+      if (INPUT_TYPES.has(f.type) && f.required && isFieldVisible(f, answers) && !answers[f.label]?.trim()) errs[f.label] = true
     })
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     setErrors({})
@@ -51,7 +52,7 @@ export default function PublicFormPage({ formId }: { formId: string }) {
     await supabase.from('form_submissions').insert({
       form_id: form.id,
       user_id: null,
-      responses_json: answers,
+      responses_json: visibleAnswers(form.fields_json, answers),
     })
     setSubmitting(false)
     setSubmitted(true)
@@ -115,6 +116,7 @@ export default function PublicFormPage({ formId }: { formId: string }) {
         {/* Form */}
         <div className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm space-y-5">
           {form.fields_json.map(field => {
+            if (!isFieldVisible(field, answers)) return null
             /* ── Info block (display-only text) ── */
             if (field.type === 'info') {
               return (
@@ -177,6 +179,27 @@ export default function PublicFormPage({ formId }: { formId: string }) {
                       onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
                       className={`w-full max-w-full box-border px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none transition-colors ${errors[field.label] ? 'border-red-300 bg-red-50' : 'border-sand-200 focus:border-mustard-400'}`}
                     />
+                  </div>
+                )}
+
+                {field.type === 'multiselect' && (
+                  <div className="border border-sand-200 rounded-2xl overflow-hidden">
+                    {(field.options ?? []).map((opt, i) => {
+                      const selected = multiSelected(answers[field.label]).includes(opt)
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => setAnswers(a => ({ ...a, [field.label]: toggleMulti(a[field.label], opt, field.maxSelect) }))}
+                          className={`w-full flex items-start gap-3 px-4 py-4 text-right transition-colors ${i > 0 ? 'border-t border-sand-100' : ''} ${selected ? 'bg-mustard-50' : 'hover:bg-sand-50'}`}
+                        >
+                          <div className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
+                            {selected && <span className="text-white text-xs font-bold">✓</span>}
+                          </div>
+                          <span className={`text-sm flex-1 text-right leading-relaxed whitespace-pre-line ${selected ? 'font-semibold text-sand-800' : 'text-sand-600'}`}>{opt}</span>
+                        </button>
+                      )
+                    })}
+                    {field.maxSelect ? <p className="text-xs text-sand-400 px-4 py-2 border-t border-sand-100">אפשר לבחור עד {field.maxSelect}</p> : null}
                   </div>
                 )}
 

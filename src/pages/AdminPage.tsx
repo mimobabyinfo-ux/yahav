@@ -1,9 +1,10 @@
-﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Home as HomeIcon, BookOpen, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Baby, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
+import { multiSelected, type FormShowIf } from '../lib/formFields'
 import { supabase, UserProfile, type AgeStage, type AgeStageTopic, Video as VideoType, HomeworkTask, Workshop, PartnerPerk, PerkAnalytic, ContentCategory, GlobalSetting, PregnancyChecklistItem, PregnancyWeeklyGuide, ServicePartner, PartnerLead, WorkshopContent, type WorkshopCohort, type VendorAdminInfo } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { BUYING_SUBCATEGORIES } from '../data/buyingSubcategories'
@@ -2059,8 +2060,8 @@ function FormAggregatePanel({ form, submissions, filterQuestion, setFilterQuesti
             </div>
           )
         }
-        if (field.type === 'select') {
-          const counts = (field.options ?? []).map(opt => ({ opt, count: answers.filter(a => a === opt).length }))
+        if (field.type === 'select' || field.type === 'multiselect') {
+          const counts = (field.options ?? []).map(opt => ({ opt, count: answers.filter(a => multiSelected(a).includes(opt)).length }))
           return (
             <div key={field.id} className="bg-white border border-sand-200 rounded-xl p-4 shadow-sm">
               <p className="text-sm font-bold text-sand-800 mb-3 leading-snug">{field.label}</p>
@@ -2334,7 +2335,7 @@ function FormsTabDesktop() {
 
   const fieldTypes = [
     { value: 'text', label: 'שדה טקסט' }, { value: 'textarea', label: 'טקסט ארוך' },
-    { value: 'select', label: 'בחירה מרשימה' }, { value: 'rating', label: 'דירוג 1-5' },
+    { value: 'select', label: 'בחירה מרשימה' }, { value: 'multiselect', label: '☑ בחירה מרובה' }, { value: 'rating', label: 'דירוג 1-5' },
     { value: 'date', label: '📅 תאריך' },
     { value: 'info', label: '📋 בלוק טקסט' }, { value: 'link', label: '🔗 לינק' },
   ]
@@ -2518,7 +2519,14 @@ function FormsTabDesktop() {
                             {field.type !== 'link' && (
                               <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" rows={2} className="w-full px-3 py-1.5 border border-sand-200 rounded-lg text-xs focus:outline-none resize-none leading-relaxed" />
                             )}
-                            {field.type === 'select' && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
+                            {(field.type === 'select' || field.type === 'multiselect') && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
+                            {field.type === 'multiselect' && (
+                              <label className="flex items-center gap-2 text-xs text-sand-500">
+                                מקסימום בחירות
+                                <input type="number" min={0} value={field.maxSelect ?? ''} onChange={e => updateField(field.id, { maxSelect: e.target.value ? Number(e.target.value) : undefined })} placeholder="ללא" className="w-16 px-2 py-1 border border-sand-200 rounded-lg text-xs bg-white" />
+                              </label>
+                            )}
+                            {field.type !== 'link' && <ShowIfEditor field={field} fields={fields} idx={idx} onChange={showIf => updateField(field.id, { showIf })} />}
                             {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-sand-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
                             {!['info', 'link'].includes(field.type) && (
                               <label className="flex items-center gap-2 text-xs text-sand-500 cursor-pointer">
@@ -4717,7 +4725,41 @@ function PerksTab() {
 // Phase 5 / A4: optional `role` lets admin override the
 // formSubmissionResolver's heuristic per text field. Stored inside
 // fields_json — no migration needed.
-type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating' | 'date' | 'info' | 'link'; label: string; options?: string[]; required?: boolean; role?: 'name' | 'phone' | 'email' | 'none' }
+type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'multiselect' | 'rating' | 'date' | 'info' | 'link'; label: string; options?: string[]; required?: boolean; showIf?: FormShowIf | null; maxSelect?: number; role?: 'name' | 'phone' | 'email' | 'none' }
+// Conditional visibility editor: "show this field only if <earlier choice field> = <option>".
+function ShowIfEditor({ field, fields, idx, onChange }: { field: { showIf?: FormShowIf | null }; fields: { id: string; type: string; label: string; options?: string[] }[]; idx: number; onChange: (v: FormShowIf | null) => void }) {
+  const candidates = fields.slice(0, idx).filter(f => (f.type === 'select' || f.type === 'multiselect') && f.label.trim())
+  if (candidates.length === 0) return null
+  const cur = field.showIf ?? null
+  const ctrl = cur ? candidates.find(c => c.label === cur.field) : undefined
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs text-sand-500">
+      <span>הצג רק אם</span>
+      <select
+        value={cur?.field ?? ''}
+        onChange={e => onChange(e.target.value ? { field: e.target.value, equals: '' } : null)}
+        className="px-2 py-1 border border-sand-200 rounded-lg text-xs bg-white max-w-[180px]"
+      >
+        <option value="">תמיד מוצג</option>
+        {candidates.map(c => <option key={c.id} value={c.label}>{c.label.length > 40 ? c.label.slice(0, 40) + '…' : c.label}</option>)}
+      </select>
+      {ctrl && (
+        <>
+          <span>=</span>
+          <select
+            value={cur?.equals ?? ''}
+            onChange={e => onChange({ field: ctrl.label, equals: e.target.value })}
+            className="px-2 py-1 border border-sand-200 rounded-lg text-xs bg-white max-w-[180px]"
+          >
+            <option value="">בחרי תשובה</option>
+            {(ctrl.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </>
+      )}
+    </div>
+  )
+}
+
 type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[]; trigger_rule: { type: string; count: number } | null; is_active: boolean; public_link_enabled: boolean; folder: string | null; created_at: string }
 type Submission = { id: string; user_id: string; responses_json: Record<string, string>; created_at: string; user_profiles?: { mother_name: string | null; email: string } }
 type Assignment = { id: string; user_id: string; user_profiles?: { mother_name: string | null; email: string } }
@@ -5212,6 +5254,7 @@ function FormsTab() {
     { value: 'text',     label: 'שדה טקסט' },
     { value: 'textarea', label: 'טקסט ארוך' },
     { value: 'select',   label: 'בחירה מרשימה' },
+    { value: 'multiselect', label: '☑ בחירה מרובה (כמה תשובות)' },
     { value: 'rating',   label: 'דירוג 1-5' },
     { value: 'date',     label: '📅 תאריך' },
     { value: 'info',     label: '📋 בלוק טקסט (תצוגה בלבד)' },
@@ -5329,12 +5372,19 @@ function FormsTab() {
                                 <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" rows={2} className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white resize-none leading-relaxed" />
                               )}
 
-                              {field.type === 'select' && (
+                              {(field.type === 'select' || field.type === 'multiselect') && (
                                 <OptionsTagInput
                                   options={field.options ?? []}
                                   onChange={opts => updateField(field.id, { options: opts })}
                                 />
                               )}
+                              {field.type === 'multiselect' && (
+                                <label className="flex items-center gap-2 text-xs text-sand-500">
+                                  מקסימום בחירות
+                                  <input type="number" min={0} value={field.maxSelect ?? ''} onChange={e => updateField(field.id, { maxSelect: e.target.value ? Number(e.target.value) : undefined })} placeholder="ללא" className="w-16 px-2 py-1 border border-sand-200 rounded-lg text-xs bg-white" />
+                                </label>
+                              )}
+                              {field.type !== 'link' && <ShowIfEditor field={field} fields={fields} idx={idx} onChange={showIf => updateField(field.id, { showIf })} />}
 
                               {/* required toggle — not applicable for info/link */}
                               {field.type !== 'info' && field.type !== 'link' && (

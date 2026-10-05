@@ -1,10 +1,11 @@
-﻿import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { X } from 'lucide-react'
+import { isFieldVisible, toggleMulti, multiSelected, visibleAnswers, type FormShowIf } from '../lib/formFields'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { cachedQuery } from '../lib/queryCache'
 
-type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating'; label: string; options?: string[]; required?: boolean }
+type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'multiselect' | 'rating'; label: string; options?: string[]; required?: boolean; showIf?: FormShowIf | null; maxSelect?: number }
 type FormRecord = {
   id: string
   title: string
@@ -91,13 +92,13 @@ export default function FormTriggerModal() {
 
   async function submit() {
     if (!user || !pendingForm) return
-    const missing = pendingForm.fields_json.filter(f => f.required && !answers[f.label]?.trim())
+    const missing = pendingForm.fields_json.filter(f => f.required && isFieldVisible(f, answers) && !answers[f.label]?.trim())
     if (missing.length > 0) { alert(`שדות חובה: ${missing.map(f => f.label).join(', ')}`) ; return }
     setSubmitting(true)
     await supabase.from('form_submissions').insert({
       form_id: pendingForm.id,
       user_id: user.id,
-      responses_json: answers,
+      responses_json: visibleAnswers(pendingForm.fields_json, answers),
     })
     setSubmitting(false)
     setSubmitted(true)
@@ -133,7 +134,7 @@ export default function FormTriggerModal() {
           </div>
         ) : (
           <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-            {pendingForm.fields_json.map(field => (
+            {pendingForm.fields_json.filter(field => isFieldVisible(field, answers)).map(field => (
               <div key={field.id}>
                 <label className="block text-sm font-semibold text-sand-700 mb-1.5">{field.label}{field.required && <span className="text-red-400 mr-1">*</span>}</label>
                 {field.type === 'text' && (
@@ -167,6 +168,26 @@ export default function FormTriggerModal() {
                         {n}
                       </button>
                     ))}
+                  </div>
+                )}
+                {field.type === 'multiselect' && (
+                  <div className="border border-sand-200 rounded-2xl overflow-hidden">
+                    {(field.options ?? []).map((opt, i) => {
+                      const selected = multiSelected(answers[field.label]).includes(opt)
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => setAnswers(a => ({ ...a, [field.label]: toggleMulti(a[field.label], opt, field.maxSelect) }))}
+                          className={`w-full flex items-center gap-3 px-4 py-3.5 text-right transition-colors ${i > 0 ? 'border-t border-sand-100' : ''} ${selected ? 'bg-mustard-50' : 'hover:bg-sand-50'}`}
+                        >
+                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
+                            {selected && <span className="text-white text-xs font-bold">✓</span>}
+                          </div>
+                          <span className={`text-sm flex-1 text-right ${selected ? 'font-semibold text-sand-800' : 'text-sand-600'}`}>{opt}</span>
+                        </button>
+                      )
+                    })}
+                    {field.maxSelect ? <p className="text-xs text-sand-400 px-4 py-2 border-t border-sand-100">אפשר לבחור עד {field.maxSelect}</p> : null}
                   </div>
                 )}
                 {field.type === 'select' && (

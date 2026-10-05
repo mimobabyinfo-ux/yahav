@@ -1,9 +1,10 @@
-﻿import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { X, ClipboardList } from 'lucide-react'
+import { isFieldVisible, toggleMulti, multiSelected, visibleAnswers, type FormShowIf } from '../lib/formFields'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
-type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'rating' | 'date' | 'info' | 'link'; label: string; options?: string[]; required?: boolean }
+type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'multiselect' | 'rating' | 'date' | 'info' | 'link'; label: string; options?: string[]; required?: boolean; showIf?: FormShowIf | null; maxSelect?: number }
 type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[] }
 type AssignedTask = {
   id: string
@@ -48,7 +49,7 @@ export default function MyTasksPanel() {
     await supabase.from('form_submissions').insert({
       form_id: activeTask.form_id,
       user_id: user.id,
-      responses_json: answers,
+      responses_json: visibleAnswers(activeTask.forms.fields_json, answers),
     })
     await supabase.from('form_assignments').update({ completed_at: new Date().toISOString() }).eq('id', activeTask.id)
     setSubmitting(false)
@@ -129,6 +130,7 @@ export default function MyTasksPanel() {
               <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
                 {activeTask.forms.fields_json.map(field => {
                   if (field.type === 'link') return null
+                  if (!isFieldVisible(field, answers)) return null
                   if (field.type === 'info') return (
                     <div key={field.id} className="bg-sand-50 rounded-2xl p-4">
                       <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-line">{field.label}</p>
@@ -174,6 +176,24 @@ export default function MyTasksPanel() {
                               {n}
                             </button>
                           ))}
+                        </div>
+                      )}
+                      {field.type === 'multiselect' && (
+                        <div className="flex flex-wrap gap-2">
+                          {(field.options ?? []).map(opt => {
+                            const on = multiSelected(answers[field.label]).includes(opt)
+                            return (
+                              <button
+                                key={opt}
+                                onClick={() => setAnswers(a => ({ ...a, [field.label]: toggleMulti(a[field.label], opt, field.maxSelect) }))}
+                                className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${on ? 'text-white shadow-sm' : 'bg-sand-100 text-sand-600 hover:bg-mustard-50 hover:text-mustard-700'}`}
+                                style={on ? { background: '#E7C78A' } : {}}
+                              >
+                                {on ? '✓ ' : ''}{opt}
+                              </button>
+                            )
+                          })}
+                          {field.maxSelect ? <p className="w-full text-xs text-sand-400">אפשר לבחור עד {field.maxSelect}</p> : null}
                         </div>
                       )}
                       {field.type === 'select' && (
