@@ -116,7 +116,7 @@ export default function FormTriggerModal() {
   if (!pendingForm) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45" dir="rtl">
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45" dir="rtl">
       <div className="w-full max-w-md flex flex-col rounded-t-[28px] shadow-2xl overflow-hidden" style={{ background: SURVEY.sheet, maxHeight: '94vh' }}>
         <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3 bg-white" style={{ borderBottom: `1px solid ${SURVEY.border}` }}>
           <div className="flex-1 min-w-0">

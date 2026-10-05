@@ -4,6 +4,7 @@ import { visibleAnswers } from '../lib/formFields'
 import { SurveyFields, SurveyProgress, SurveySubmit, useSurveyProgress, scrollToField, SURVEY, type SurveyField } from './forms/SurveyFields'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useTracker } from '../hooks/useTracker'
 
 type FormRecord = { id: string; title: string; description: string | null; fields_json: SurveyField[] }
 type AssignedTask = {
@@ -18,6 +19,7 @@ type AssignedTask = {
 
 export default function MyTasksPanel() {
   const { user } = useAuth()
+  const { track } = useTracker()
   const [tasks, setTasks] = useState<AssignedTask[]>([])
   const [activeTask, setActiveTask] = useState<AssignedTask | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
@@ -56,6 +58,7 @@ export default function MyTasksPanel() {
       responses_json: visibleAnswers(activeTask.forms.fields_json, answers),
     })
     await supabase.from('form_assignments').update({ completed_at: new Date().toISOString() }).eq('id', activeTask.id)
+    track('form_submit', { form_id: activeTask.form_id })
     setSubmitting(false)
     setSubmitted(true)
     const linkField = activeTask.forms.fields_json.find(f => f.type === 'link')
@@ -70,6 +73,7 @@ export default function MyTasksPanel() {
   }
 
   function openTask(task: AssignedTask) {
+    track('form_open', { form_id: task.form_id, assignment_id: task.id })
     setActiveTask(task)
     setAnswers({})
     setShowMissing(false)
@@ -124,7 +128,7 @@ export default function MyTasksPanel() {
 
       {/* Form sheet */}
       {activeTask && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45" dir="rtl">
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45" dir="rtl">
           <div className="w-full max-w-md flex flex-col rounded-t-[28px] shadow-2xl overflow-hidden" style={{ background: SURVEY.sheet, maxHeight: '94vh' }}>
             <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3 bg-white" style={{ borderBottom: `1px solid ${SURVEY.border}` }}>
               <div className="flex-1 min-w-0">

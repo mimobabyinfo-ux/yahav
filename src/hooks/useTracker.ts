@@ -1,4 +1,4 @@
-﻿import { useCallback } from 'react'
+import { useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -26,6 +26,10 @@ export type EventType =
   // Digital course: which lesson she opened, and which she marked done.
   | 'lesson_open'
   | 'lesson_complete'
+  // Brenda 6.10.26: who opened an assigned form and who submitted it,
+  // so a stuck submission can be seen and followed up.
+  | 'form_open'
+  | 'form_submit'
   // Brenda 21.8.26: "אני רוצה לדעת מה האמהות עשו באפליקציה". Until now the
   // only thing ever written was page_view, so the admin could see that a
   // mother reached קהילה and nothing about what she did once she was
