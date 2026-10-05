@@ -64,7 +64,15 @@ export default function AddRegistrationModal({ mode, prefill, onClose, onSaved }
   )
 
   const matchingCohorts = useMemo(
-    () => cohorts.filter(c => c.workshop_id === workshopId),
+    // 6.10.26: the next cohort on top (upcoming soonest first), finished ones after.
+    () => {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
+      const mine = cohorts.filter(c => c.workshop_id === workshopId)
+      return [
+        ...mine.filter(c => c.start_date >= today).sort((a, b) => a.start_date.localeCompare(b.start_date)),
+        ...mine.filter(c => c.start_date < today),
+      ]
+    },
     [cohorts, workshopId],
   )
 

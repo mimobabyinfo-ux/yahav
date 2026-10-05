@@ -122,6 +122,16 @@ type OverviewLead = TaskLead & {
   workshop_offers: RegistrationOffer | null
 }
 
+/** The number on the בית badge = the greeting's "N דברים מחכים לך":
+ *  derived tasks + system tasks + her own tasks due today or overdue.
+ *  (6.10.26: the sidebar counted every open manual task, future ones too.) */
+export function homeBadgeCount(o: Pick<AdminOverview, 'tasks' | 'manualTasks'>): number {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
+  const system = o.manualTasks.filter(t => !!t.link_section).length
+  const mineDue = o.manualTasks.filter(t => !t.link_section && !!t.due_date && t.due_date <= today).length
+  return o.tasks.length + system + mineDue
+}
+
 export function useAdminOverview(enabled: boolean): AdminOverview {
   const [loading, setLoading] = useState(true)
   const [workshops, setWorkshops] = useState<Workshop[]>([])
@@ -189,7 +199,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
         .order('received_at', { ascending: false })
         .limit(500),
       // 6.10.26: recorded payments per registration (partial / cash).
-      supabase.from('lead_payments').select('lead_id, amount'),
+      supabase.from('lead_payments').select('lead_id, amount, morning_log_id'),
     ])
     const wsList = (ws.data ?? []) as Workshop[]
     setWorkshops(wsList)
@@ -199,7 +209,9 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     const leadRows = (lds.data ?? []) as unknown as OverviewLead[]
     setLeads(leadRows)
     const pm = new Map<string, { amount: number }[]>()
-    for (const r of (lps.data ?? []) as { lead_id: string; amount: number }[]) {
+    const attachedLogIds = new Set<string>()
+    for (const r of (lps.data ?? []) as { lead_id: string; amount: number; morning_log_id: string | null }[]) {
+      if (r.morning_log_id) attachedLogIds.add(r.morning_log_id)
       const list = pm.get(r.lead_id) ?? []
       list.push({ amount: Number(r.amount) })
       pm.set(r.lead_id, list)
@@ -238,6 +250,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     setUnmatchedPayments(((hooks.data ?? []) as (UnmatchedPayment & { outcome: string | null })[]).filter(h => {
       // 6.10.26: attached by hand, or closed as not-a-registration.
       if (h.outcome === 'manual_match' || h.outcome === 'dismissed') return false
+      if (attachedLogIds.has(h.id)) return false
       const d = h.detail ?? ''
       // Only deliveries where nobody got a seat. price_mismatch is
       // appended to CONFIRMED rows too — the seat was assigned, the amount
@@ -287,6 +300,17 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
 
   useEffect(() => {
     if (enabled) load()
+  }, [enabled, load])
+
+  // 6.10.26: any write to registrations / payments (customer card, list,
+  // assign-payment) announces itself; the home numbers follow without a
+  // page refresh. Same event name as CustomerCardModal.REGISTRATIONS_CHANGED_EVENT.
+  useEffect(() => {
+    if (!enabled) return
+    let t: ReturnType<typeof setTimeout> | null = null
+    const h = () => { if (t) clearTimeout(t); t = setTimeout(() => { load() }, 600) }
+    window.addEventListener('mimo:registrations-changed', h)
+    return () => { window.removeEventListener('mimo:registrations-changed', h); if (t) clearTimeout(t) }
   }, [enabled, load])
 
   // What each registration should cost: the agreed price, else the offer
@@ -393,11 +417,15 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     const wById = new Map(workshops.map(w => [w.id, w]))
     // Reg count per cohort — ALL leads regardless of status, the same
     // definition the public RPC and RegistrationsTab use.
+    // Seats = registrations that are not "ממתינה" (the 27.9 rule, same as the
+    // public page, CohortsModal and the product page). The drill-down list
+    // (leadIds) still includes everyone, pending too.
+    const statusById = new Map(leads.map(l => [l.id, l.status]))
     const byCohort = new Map<string, number>()
     const idsByCohort = new Map<string, string[]>()
     for (const [lid, cid] of leadCohortIds) {
       if (!cid) continue
-      byCohort.set(cid, (byCohort.get(cid) ?? 0) + 1)
+      if (statusById.get(lid) !== 'pending') byCohort.set(cid, (byCohort.get(cid) ?? 0) + 1)
       const list = idsByCohort.get(cid) ?? []
       list.push(lid)
       idsByCohort.set(cid, list)
@@ -431,7 +459,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
       })
     }
     return rows.sort((a, b) => a.date === b.date ? (a.time ?? '').localeCompare(b.time ?? '') : a.date.localeCompare(b.date))
-  }, [cohorts, events, workshops, leadCohortIds, eventRegCounts])
+  }, [cohorts, events, workshops, leadCohortIds, eventRegCounts, leads])
 
   // מועמדות למגלים — age-based, unlike the CRM's fixed +14d follow-up.
   const megalim = useMemo<MegalimCandidatesResult>(() => {

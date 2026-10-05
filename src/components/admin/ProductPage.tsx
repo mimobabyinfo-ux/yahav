@@ -56,6 +56,7 @@ export default function ProductPage({ workshopId, onBack }: Props) {
     })
   }
   const [showCohortsManager, setShowCohortsManager] = useState(false)
+  const [showPastCohorts, setShowPastCohorts] = useState(false)
   // Brenda 16.9.26: payment links picked by name here too, same library as events.
   const lib = useSavedLibrary()
 
@@ -66,18 +67,19 @@ export default function ProductPage({ workshopId, onBack }: Props) {
       supabase.from('workshops').select('*').eq('id', workshopId).maybeSingle(),
       supabase.from('workshops').select('id, title, display_order, is_active, workshop_type').order('display_order'),
       supabase.from('workshop_cohorts').select('*').eq('workshop_id', workshopId).order('start_date'),
-      supabase.from('registration_leads').select('cohort_id').eq('selected_workshop_id', workshopId),
+      supabase.from('registration_leads').select('cohort_id, status').eq('selected_workshop_id', workshopId),
       supabase.from('forms').select('id, title').eq('is_active', true).order('title'),
     ])
     const ws = (w ?? null) as Workshop | null
     setWorkshop(ws)
     setAllWorkshops((all ?? []) as Workshop[])
     setCohorts((cs ?? []) as WorkshopCohort[])
-    // Reg count per cohort — ALL leads regardless of status (same
-    // definition the public RPC uses for capacity).
+    // Seats per cohort. 6.10.26: unpaid registrations do not take a seat
+    // (the 27.9 rule in get_public_cohorts / CohortsModal); this page used
+    // to count them and showed fewer free seats than the cohorts manager.
     const m = new Map<string, number>()
-    for (const l of (leads ?? []) as { cohort_id: string | null }[]) {
-      if (l.cohort_id) m.set(l.cohort_id, (m.get(l.cohort_id) ?? 0) + 1)
+    for (const l of (leads ?? []) as { cohort_id: string | null; status: string }[]) {
+      if (l.cohort_id && l.status !== 'pending') m.set(l.cohort_id, (m.get(l.cohort_id) ?? 0) + 1)
     }
     setRegCountByCohort(m)
     setFormsList((fs ?? []) as { id: string; title: string }[])
@@ -232,6 +234,70 @@ export default function ProductPage({ workshopId, onBack }: Props) {
         </div>
       </div>
 
+      {/* 6.10.26: cohorts + waitlist are what she checks daily, so they
+          come before the long product form. */}
+      {/* Cohorts — INLINE with a fill bar each (not a modal over a table) */}
+      {!isPhysical && (
+        <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>מחזורים</h2>
+            <button onClick={() => setShowCohortsManager(true)}
+              className="font-bold rounded-xl transition-all hover:brightness-95"
+              style={{ fontSize: 13, padding: '6px 14px', background: '#F6ECD8', color: '#6E5836' }}>
+              📅 ניהול מחזורים
+            </button>
+          </div>
+          {cohorts.length === 0 ? (
+            <p className="text-sm py-2 text-center" style={{ color: '#A2937D' }}>אין מחזורים עדיין. "ניהול מחזורים" ליצירת הראשון</p>
+          ) : (
+            <div className="space-y-1.5">
+              {/* 6.10.26: upcoming first (soonest on top), finished folded. */}
+              {[...cohorts.filter(c => c.start_date >= todayIso()), ...(showPastCohorts ? cohorts.filter(c => c.start_date < todayIso()).reverse() : [])].map(c => {
+                // effectiveCapacity: cohort override ?? product per-cohort max
+                const cap = c.capacity ?? workshop.stock_quantity ?? null
+                const count = regCountByCohort.get(c.id) ?? 0
+                const ratio = cap ? Math.min(1, count / cap) : 0
+                const left = cap != null ? Math.max(0, cap - count) : null
+                const tight = left != null && left <= 3
+                const past = c.start_date < todayIso()
+                return (
+                  <div key={c.id} className={`flex items-center gap-3 rounded-2xl px-3.5 py-2.5 ${past || !c.is_active ? 'opacity-55' : ''}`} style={{ border: '1px solid #F1EBE1' }}>
+                    <span className="flex-shrink-0 font-display" style={{ fontSize: 15, color: '#443327', minWidth: 46 }}>{ddmm(c.start_date)}</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-semibold truncate" style={{ fontSize: 13, color: '#6B5842' }}>
+                        {c.start_time ? c.start_time.slice(0, 5) : 'ללא שעה'}
+                        {c.label && ` · ${c.label}`}
+                        {!c.is_active && ' · כבוי'}
+                        {past && ' · הסתיים'}
+                      </span>
+                      <span className="block mt-1.5 rounded-full overflow-hidden" style={{ height: 6, background: '#F1EBE1' }}>
+                        <span className="block h-full rounded-full" style={{ width: `${ratio * 100}%`, background: tight ? '#8B4A30' : '#C8A460' }} />
+                      </span>
+                    </span>
+                    <span className="flex-shrink-0 text-left" style={{ minWidth: 70 }}>
+                      <span className="block font-display" style={{ fontSize: 15, color: '#443327' }}>{count}{cap != null && `/${cap}`}</span>
+                      <span className="block font-semibold" style={{ fontSize: 12, color: tight ? '#8B4A30' : '#8A7A63' }}>
+                        {past ? 'הסתיים' : cap == null ? 'ללא הגבלה' : left === 0 ? 'מלא' : `נותרו ${left}`}
+                      </span>
+                    </span>
+                  </div>
+                )
+              })}
+              {cohorts.some(c => c.start_date < todayIso()) && (
+                <button onClick={() => setShowPastCohorts(v => !v)} className="font-bold pt-1" style={{ fontSize: 12.5, color: '#8A6A2F' }}>
+                  {showPastCohorts ? 'הסתרת מחזורים שהסתיימו' : `הצגת ${cohorts.filter(c => c.start_date < todayIso()).length} מחזורים שהסתיימו`}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Who asked to hear about the next cohort */}
+      {!isPhysical && (
+        <WaitlistPanel workshopId={workshop.id} workshopTitle={workshop.title} />
+      )}
+
       {/* Fields — two columns */}
       <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
         <div className="flex items-center justify-between mb-4">
@@ -352,62 +418,6 @@ export default function ProductPage({ workshopId, onBack }: Props) {
           </div>
         </div>
       </div>
-
-      {/* Cohorts — INLINE with a fill bar each (not a modal over a table) */}
-      {!isPhysical && (
-        <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>מחזורים</h2>
-            <button onClick={() => setShowCohortsManager(true)}
-              className="font-bold rounded-xl transition-all hover:brightness-95"
-              style={{ fontSize: 13, padding: '6px 14px', background: '#F6ECD8', color: '#6E5836' }}>
-              📅 ניהול מחזורים
-            </button>
-          </div>
-          {cohorts.length === 0 ? (
-            <p className="text-sm py-2 text-center" style={{ color: '#A2937D' }}>אין מחזורים עדיין. "ניהול מחזורים" ליצירת הראשון</p>
-          ) : (
-            <div className="space-y-1.5">
-              {cohorts.map(c => {
-                // effectiveCapacity: cohort override ?? product per-cohort max
-                const cap = c.capacity ?? workshop.stock_quantity ?? null
-                const count = regCountByCohort.get(c.id) ?? 0
-                const ratio = cap ? Math.min(1, count / cap) : 0
-                const left = cap != null ? Math.max(0, cap - count) : null
-                const tight = left != null && left <= 3
-                const past = c.start_date < todayIso()
-                return (
-                  <div key={c.id} className={`flex items-center gap-3 rounded-2xl px-3.5 py-2.5 ${past || !c.is_active ? 'opacity-55' : ''}`} style={{ border: '1px solid #F1EBE1' }}>
-                    <span className="flex-shrink-0 font-display" style={{ fontSize: 15, color: '#443327', minWidth: 46 }}>{ddmm(c.start_date)}</span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block font-semibold truncate" style={{ fontSize: 13, color: '#6B5842' }}>
-                        {c.start_time ? c.start_time.slice(0, 5) : 'ללא שעה'}
-                        {c.label && ` · ${c.label}`}
-                        {!c.is_active && ' · כבוי'}
-                        {past && ' · הסתיים'}
-                      </span>
-                      <span className="block mt-1.5 rounded-full overflow-hidden" style={{ height: 6, background: '#F1EBE1' }}>
-                        <span className="block h-full rounded-full" style={{ width: `${ratio * 100}%`, background: tight ? '#8B4A30' : '#C8A460' }} />
-                      </span>
-                    </span>
-                    <span className="flex-shrink-0 text-left" style={{ minWidth: 70 }}>
-                      <span className="block font-display" style={{ fontSize: 15, color: '#443327' }}>{count}{cap != null && `/${cap}`}</span>
-                      <span className="block font-semibold" style={{ fontSize: 12, color: tight ? '#8B4A30' : '#8A7A63' }}>
-                        {past ? 'הסתיים' : cap == null ? 'ללא הגבלה' : left === 0 ? 'מלא' : `נותרו ${left}`}
-                      </span>
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Who asked to hear about the next cohort */}
-      {!isPhysical && (
-        <WaitlistPanel workshopId={workshop.id} workshopTitle={workshop.title} />
-      )}
 
       {/* Discounted offer links — inline, same panel the modal used */}
       {!isPhysical && (

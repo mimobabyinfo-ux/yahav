@@ -34,6 +34,8 @@ export type UnmatchedPayment = {
   description?: string | null
   total: number | null
   detail: string | null
+  /** 'unmatched' (a workshop/course payment) or 'community_event'. */
+  outcome?: string | null
 }
 
 /** 6.10.26: a registration with recorded payments that do not yet cover
@@ -304,9 +306,10 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
   // Yahav 2.10.26: "why does this interest me now? the new workshops are
   // only on 14/10, 15/10, 19/10". A missing questionnaire only needs her
   // in the last days before the first meeting, so it waits until the
-  // cohort starts within 3 days (same window as the under-filled event).
+  // cohort starts within a week (6.10.26: was 3 days, which left the home
+  // silent while 7 of 8 in a cohort 8 days out had not answered).
   // Before that the registrations page still shows who has not filled it.
-  const formWindowEnd = addDays(today, 3)
+  const formWindowEnd = addDays(today, 7)
   for (const lead of leads) {
     if (effectiveLeadStatus(lead, cohortDates, today, nowMs) !== 'paid') continue
     const leadCohort = lead.cohort_id ? cohortDates.get(lead.cohort_id) : null

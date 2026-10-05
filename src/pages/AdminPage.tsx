@@ -39,7 +39,7 @@ import AppUsagePanel from '../components/admin/AppUsagePanel'
 import MakeupsPanel from '../components/admin/MakeupsPanel'
 import ProgramPanel from '../components/admin/ProgramPanel'
 import CrmLeadsPanel from '../components/admin/CrmLeadsPanel'
-import type { AdminOverview } from '../components/admin/useAdminOverview'
+import { homeBadgeCount, type AdminOverview } from '../components/admin/useAdminOverview'
 import { isFormFilled, type AdminTask } from '../components/admin/adminTasks'
 import { ChevronRight as CtxBack } from 'lucide-react'
 
@@ -75,9 +75,9 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'leads',     label: 'לידים',         icon: <Phone className="w-3.5 h-3.5" /> },
   { id: 'registrations', label: 'הרשמות',     icon: <ClipboardList className="w-3.5 h-3.5" /> },
   { id: 'forms',     label: 'שאלונים', icon: <FileText className="w-3.5 h-3.5" /> },
+  { id: 'workshops', label: 'מוצרים ותשלומים', icon: <GraduationCap className="w-3.5 h-3.5" /> },
   { id: 'events',    label: 'אירועי קהילה',  icon: <Sparkles className="w-3.5 h-3.5" /> },
-  { id: 'partners',  label: 'ספקי קהילה',     icon: <Link2 className="w-3.5 h-3.5" /> },
-  { id: 'workshops', label: 'מוצרים ותשלום', icon: <GraduationCap className="w-3.5 h-3.5" /> },
+  { id: 'partners',  label: 'ספקים',     icon: <Link2 className="w-3.5 h-3.5" /> },
   { id: 'program',   label: 'תוכנית הסדנאות', icon: <BookOpen className="w-3.5 h-3.5" /> },
   // ברנדה 4.9.26: רוצה לראות את ההשלמות גם מהטלפון.
   { id: 'makeups',   label: 'השלמות',        icon: <CalendarDays className="w-3.5 h-3.5" /> },
@@ -92,6 +92,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 
 export default function AdminPage({ defaultSection, unreadForms = 0, onFormsViewed, unreadRegistrations = 0, onRegistrationsViewed, overview }: { defaultSection?: AdminSection; unreadForms?: number; onFormsViewed?: () => void; unreadRegistrations?: number; onRegistrationsViewed?: () => void; overview?: AdminOverview }) {
   const { profile } = useAuth()
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
   const [tab, setTab] = useState<Tab>(() => {
     // Product deep-link (?admin=product&id=) wins the opening tab.
     if (new URLSearchParams(window.location.search).get('admin') === 'product') return 'workshops'
@@ -159,36 +160,51 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
 
   const tabLabel = TABS.find(t => t.id === tab)?.label ?? ''
 
+  // 6.10.26: the phone gets the same structure as the desktop sidebar: the
+  // daily sections first, the rest behind "עוד", and the SAME badges (home
+  // tasks, payment claims on events, product issues) that only the
+  // sidebar used to show.
+  const PRIMARY_IDS: Tab[] = ['home', 'leads', 'registrations', 'forms', 'workshops', 'events', 'partners']
+  function badgeFor(id: Tab): number {
+    if (id === 'home') return overview ? homeBadgeCount(overview) : 0
+    if (id === 'forms') return unreadForms
+    if (id === 'registrations') return unreadRegistrations
+    if (id === 'events') return overview?.paymentClaimCount ?? 0
+    if (id === 'workshops') return overview?.tasks.filter(t => t.section === 'workshops').length ?? 0
+    return 0
+  }
+  const mobileTabs = TABS.filter(t => mobileMoreOpen || PRIMARY_IDS.includes(t.id) || t.id === tab)
+
   return (
     // Phase 5 / A2 Part 3: any admin descendant can call
     // useOpenCustomer({ phone, email }) to summon the unified card.
     <CustomerCardProvider>
     <div className="min-h-screen pb-24 lg:pb-6" dir="rtl">
       {/* ── Mobile header (hidden on desktop, sidebar handles nav) ── */}
-      <div className="lg:hidden bg-white border-b border-sand-100 shadow-sm px-4 pt-5 pb-3">
+      <div className="lg:hidden bg-white border-b border-sand-100 shadow-sm px-4 pt-3 pb-2">
         <div className="max-w-sm mx-auto">
-          <div className="mb-3">
-            <h1 className="text-lg font-bold" style={{ color: '#5E4938' }}>פאנל ניהול</h1>
-            <p className="text-xs" style={{ color: '#7B604C' }}>Mimo CMS</p>
-          </div>
-          <div className="flex gap-1.5 overflow-x-auto scroll-hide pb-1">
-            {TABS.map(t => (
+          {/* 6.10.26: one compact line; the old two-line title cost a third of
+              the phone screen on every tab. */}
+          <p className="mb-2 font-bold" style={{ fontSize: 13, color: '#7B604C' }}>ניהול מימו · {tabLabel}</p>
+          <div className="flex gap-1.5 overflow-x-auto scroll-hide pb-1 pt-1.5 pe-1">
+            {mobileTabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-all flex-shrink-0 ${tab === t.id ? 'shadow-md' : 'bg-sand-50 hover:bg-sand-100'}`}
                 style={tab === t.id ? { background: '#E7C78A', color: '#3A2E18' } : { color: '#7B604C' }}>
                 {t.icon}{t.label}
-                {t.id === 'forms' && unreadForms > 0 && (
+                {badgeFor(t.id) > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-[3px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-                    {unreadForms > 99 ? '99+' : unreadForms}
-                  </span>
-                )}
-                {t.id === 'registrations' && unreadRegistrations > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-[3px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-                    {unreadRegistrations > 99 ? '99+' : unreadRegistrations}
+                    {badgeFor(t.id) > 99 ? '99+' : badgeFor(t.id)}
                   </span>
                 )}
               </button>
             ))}
+            <button onClick={() => setMobileMoreOpen(v => !v)}
+              className="flex items-center gap-1 px-3 py-2 rounded-xl text-[13px] font-semibold whitespace-nowrap flex-shrink-0 bg-sand-50"
+              style={{ color: '#7B604C' }}>
+              {mobileMoreOpen ? 'פחות' : 'עוד'}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${mobileMoreOpen ? 'rotate-180' : ''}`} />
+            </button>
           </div>
         </div>
       </div>
@@ -304,6 +320,20 @@ function LeadBadge({ status }: { status: string | null }) {
 }
 
 // ─── Users Tab ───────────────────────────────────────────────────────────────
+// 6.10.26: one search for every user list: name (any case), email, or
+// phone digits (050-1234567, 0501234567 and 972501234567 all match).
+function matchesUserSearch(u: { mother_name: string | null; email: string | null; phone_number?: string | null }, search: string): boolean {
+  const q = search.trim().toLowerCase()
+  if (!q) return true
+  if ((u.mother_name ?? '').toLowerCase().includes(q) || (u.email ?? '').toLowerCase().includes(q)) return true
+  const digits = q.replace(/\D/g, '')
+  if (digits.length >= 4) {
+    const p = (u.phone_number ?? '').replace(/\D/g, '').replace(/^972/, '0')
+    if (p.includes(digits.replace(/^972/, '0'))) return true
+  }
+  return false
+}
+
 type UserWithChildren = UserProfile & { childCount: number }
 
 // ─── משתמשות: product filter + the badges that go with it ────────────
@@ -569,7 +599,7 @@ function UsersTab() {
       if (u.acquisition_source !== 'course_purchase') return false
     } else if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
     if (!passesProductFilter(u, productFilter, byUser)) return false
-    return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
+    return matchesUserSearch(u, search)
   })
   const installedCount = users.filter(u => u.pwa_installed_at).length
 
@@ -605,7 +635,7 @@ function UsersTab() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="חפש לפי שם אמא..."
+          placeholder="שם, מייל או טלפון"
           className="w-full pr-9 pl-4 py-3 bg-white border border-sand-100 rounded-2xl text-sm text-sand-800 focus:outline-none focus:border-mustard-400 shadow-sm"
         />
       </div>
@@ -658,15 +688,15 @@ function UsersTab() {
 
           {/* Communication row */}
           <div className="flex gap-2">
-            <a
-              href={`https://wa.me/${u.phone_number?.replace(/\D/g, '') ?? ''}?text=${encodeURIComponent(`היי ${u.mother_name ?? ''}! 👋🏼`)}`}
+            {u.phone_number && <a
+              href={`https://wa.me/${u.phone_number?.replace(/\D/g, '').replace(/^0/, '972') ?? ''}?text=${encodeURIComponent(`היי ${u.mother_name ?? ''}! 👋🏼`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
             >
               <MessageCircle className="w-3.5 h-3.5" />
               WhatsApp
-            </a>
+            </a>}
             <a
               href={`mailto:${u.email}?subject=Mimo - עדכון עבורך&body=היי ${u.mother_name ?? ''}!`}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
@@ -827,7 +857,7 @@ function UsersTabDesktop() {
       if (u.acquisition_source !== 'course_purchase') return false
     } else if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
     if (!passesProductFilter(u, productFilter, byUser)) return false
-    return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
+    return matchesUserSearch(u, search)
   })
   const installedCount = users.filter(u => u.pwa_installed_at).length
   // The card's ‹ › arrows walk the list she is looking at, in its order.
@@ -1093,7 +1123,7 @@ function LeadsTabDesktop() {
   const filteredLeads = partnerLeads.filter(l => filterType === 'all' || l.action_type === filterType)
   const filteredCrm = crmUsers.filter(u => {
     if (statusFilter !== 'all' && u.lead_status !== statusFilter) return false
-    return !search || (u.mother_name ?? '').includes(search) || u.email.includes(search)
+    return matchesUserSearch(u, search)
   })
 
   async function updateStatus(id: string, status: string) {
@@ -1154,7 +1184,7 @@ function LeadsTabDesktop() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         {l.user_phone && (
-                          <a href={`https://wa.me/${l.user_phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                          <a href={`https://wa.me/${l.user_phone.replace(/\D/g, '').replace(/^0/, '972')}`} target="_blank" rel="noopener noreferrer"
                             className="p-1.5 rounded-lg hover:bg-green-50 text-gray-400 hover:text-green-600">
                             <MessageCircle className="w-3.5 h-3.5" />
                           </a>
@@ -2420,7 +2450,8 @@ function FormsTabDesktop() {
           )}
           {!loadingSubs && stat && stat.count > 0 && subsTab === 'list' && (
             <p className="pt-3" style={{ fontWeight: 600, fontSize: 12.5, color: '#A2937D' }}>
-              {stat.count === 1 ? 'תשובה אחת' : `${stat.count} תשובות`} · אחרונה {new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}
+              {/* 6.10.26: the number matches the list above it (cohort filter). */}
+              {split.filtered.length !== stat.count ? `${split.filtered.length} מתוך ${stat.count} תשובות` : stat.count === 1 ? 'תשובה אחת' : `${stat.count} תשובות`} · אחרונה {new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}
             </p>
           )}
         </div>
@@ -2894,9 +2925,9 @@ function InsightsTab() {
             : null}
         />
         <KpiCard
-          label="הכנסה משוערת החודש"
+          label="שווי הרשמות החודש (לפי מחירון)"
           value={`₪${money.revenueThis.toLocaleString()}`}
-          sub="לפי מחיר המוצר"
+          sub="לא כולל הנחות. הכסף שנכנס בפועל: בבית, ״נכנס החודש״"
         />
         <KpiCard
           label="תפוסת מחזורים פתוחים"
@@ -4221,7 +4252,7 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
           <textarea value={form.summary} onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} placeholder="סיכום / נקודות מפתח (מוצג בכרטיס הסדנה)" rows={3} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm resize-none" />
           <div className="flex gap-2">
             <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="מחיר (₪)" type="number" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" />
-            <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור רישום" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
+            <input value={form.payment_link} onChange={e => setForm(f => ({ ...f, payment_link: e.target.value }))} placeholder="קישור תשלום" className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl focus:outline-none focus:border-mustard-500 text-sm" dir="ltr" />
           </div>
           {/* Image upload or URL */}
           <div className="space-y-1.5">
@@ -4332,7 +4363,7 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
       <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleWorkshopsDragEnd}>
         <SortableContext items={visibleWorkshops.map(w => w.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
-          {workshops.map(w => (
+          {visibleWorkshops.map(w => (
             <SortableRow key={w.id} id={w.id}>
               {(dragHandle) => (
                 <div className={`bg-white rounded-2xl p-4 shadow-sm space-y-2 ${!w.is_active ? 'opacity-50' : ''}`}>
@@ -4826,7 +4857,7 @@ function AssignFormModal({ form, onClose }: { form: FormRecord; onClose: () => v
   }
 
   const filterable = allUsers.filter(u => !existingUserIds.has(u.id))
-  const filtered = filterable.filter(u => !search || (u.mother_name ?? '').includes(search) || u.email.includes(search))
+  const filtered = filterable.filter(u => matchesUserSearch(u, search))
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end p-4" onClick={onClose}>
@@ -6717,7 +6748,7 @@ function PartnersTab() {
                     <div className="flex items-center gap-4" style={{ borderTop: '1px solid #F0EBE3', paddingTop: 12, marginTop: 'auto' }}>
                       {p.whatsapp_number && (
                         <a
-                          href={`https://wa.me/${p.whatsapp_number.replace(/\D/g, '')}`}
+                          href={`https://wa.me/${p.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1"
@@ -6831,7 +6862,7 @@ function LeadsTab() {
             <div className="flex-1 min-w-0">
               <p className="font-bold text-sand-800 text-sm">{l.user_name ?? '—'}</p>
               {l.user_phone && (
-                <a href={`https://wa.me/${l.user_phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                <a href={`https://wa.me/${l.user_phone.replace(/\D/g, '').replace(/^0/, '972')}`} target="_blank" rel="noopener noreferrer"
                   className="text-xs text-green-600 font-semibold flex items-center gap-1 mt-0.5">
                   <Phone className="w-3 h-3" />{l.user_phone}
                 </a>
@@ -7088,6 +7119,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
   async function updateStatus(id: string, status: RegistrationLead['status']) {
     await supabase.from('registration_leads').update({ status }).eq('id', id)
     setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l))
+    window.dispatchEvent(new Event(REGISTRATIONS_CHANGED_EVENT))
   }
 
   // Phase 5 / A3 fix-2: cohorts keyed by id for fast effective-status
@@ -7310,6 +7342,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
     const idSet = new Set(visibleSelectedIds)
     await supabase.from('registration_leads').update({ status }).in('id', visibleSelectedIds)
     setLeads(prev => prev.map(l => idSet.has(l.id) ? { ...l, status } : l))
+    window.dispatchEvent(new Event(REGISTRATIONS_CHANGED_EVENT))
     // Selection NOT cleared — user may want to chain another action
     // (e.g. copy phones, then mark שילמה). Explicit × clears.
   }
@@ -7385,9 +7418,11 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
     // Urgency window for missing questionnaires: only cohorts starting
     // within the next 3 days are loud (Yahav: a week out = there's
     // time, don't shout). No cohort date = can't be urgent.
+    // 6.10.26: a week, not 3 days. With 3 days the page said "הכל מטופל"
+    // while 22 questionnaires were missing for cohorts starting in 8 days.
     const soonLimit = (() => {
       const d = new Date()
-      d.setDate(d.getDate() + 3)
+      d.setDate(d.getDate() + 7)
       const y = d.getFullYear()
       const m = String(d.getMonth() + 1).padStart(2, '0')
       const dd = String(d.getDate()).padStart(2, '0')
@@ -7420,11 +7455,11 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
   })()
   // Row click in the inbox drills into that lead's workshop (or the
   // פרטני bucket for dateless products).
+  // 6.10.26: a name opens HER card (status, cohort, payments, questionnaire)
+  // instead of dropping into the whole workshop list to find her again.
+  const openCustomerCard = useOpenCustomer()
   const drillToLead = (l: RegistrationLead) => {
-    const dateless = !l.selected_workshop_id || !workshopIdsWithCohorts.has(l.selected_workshop_id)
-    if (dateless) setShowPrivateSection(true)
-    else setWorkshopFilter(l.selected_workshop_id!)
-    setShowAllAnyway(false)
+    openCustomerCard({ phone: l.phone, email: l.email, leadId: l.id })
   }
 
   // The NEXT cohort of each workshop, with the people in it (Brenda
@@ -7463,7 +7498,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
           className="w-full flex items-center justify-between text-right"
           style={{ fontWeight: 600, fontSize: 14, color: '#7B604C', padding: '12px 20px' }}
         >
-          <span>עוד {inboxGroups.q1quiet.length} שאלונים לא מולאו, יש עוד זמן</span>
+          <span>עוד {inboxGroups.q1quiet.length} שאלונים לא מולאו למחזורים רחוקים יותר (מעל שבוע)</span>
           <ChevronDown className={`flex-shrink-0 transition-transform ${inboxOpen.quiet ? 'rotate-180' : ''}`} style={{ width: 16, height: 16 }} />
         </button>
         {inboxOpen.quiet && inboxGroups.q1quiet.map(l => {
@@ -7475,10 +7510,10 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
             <div
               key={l.id}
               onClick={() => drillToLead(l)}
-              className="flex items-center cursor-pointer border-t border-[#F0EBE3] hover:bg-[#FBF8F3] transition-colors"
-              style={{ padding: '15px 20px', gap: 16 }}
+              className="flex flex-wrap items-center cursor-pointer border-t border-[#F0EBE3] hover:bg-[#FBF8F3] transition-colors"
+              style={{ padding: '12px 16px', columnGap: 12, rowGap: 6 }}
             >
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0" style={{ flexBasis: 180 }}>
                 <p className="truncate" style={{ fontWeight: 700, fontSize: 17, color: '#443327' }}>{l.name}</p>
                 <p className="truncate" style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>
                   {wTitle} · {cohort ? `מחזור ${cohortDateTimeLabel(cohort, { shortYear: true })}` : 'אין מחזור'}
@@ -7516,7 +7551,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="שם, טלפון או אימייל"
+            placeholder="סינון הרשימה: שם, טלפון או אימייל"
             className="flex-1 min-w-0 bg-transparent focus:outline-none placeholder:text-[#7B604C]"
             style={{ fontSize: 15, color: '#443327', height: '100%' }}
           />
@@ -7550,66 +7585,6 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
         />
       )}
 
-      {/* ── לפי סדנה — workshop picker, the page's opening state ── */}
-      {pickerMode && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-baseline gap-3">
-            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>לפי סדנה</h2>
-            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{leads.length} הרשמות · {counts.pending + counts.paid} פעילות</span>
-            <button onClick={() => setShowAllAnyway(true)} className="hover:underline" style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D', marginInlineStart: 'auto' }}>
-              הצגת כל ההרשמות ברשימה אחת
-            </button>
-          </div>
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-            {pickerCards.cards.map(c => (
-              <button
-                key={c.id}
-                onClick={() => { setWorkshopFilter(c.id); setShowAllAnyway(false) }}
-                className="text-right transition-all hover:shadow-sm"
-                style={{ border: '1px solid #E4DAD0', borderRadius: 18, padding: '16px 18px', background: c.active > 0 ? '#fff' : '#FAF7F1' }}
-              >
-                <p className="font-bold" style={{ fontSize: 15, color: '#443327' }}>{c.title}</p>
-                {nextCohortByWorkshop.has(c.id) && (
-                  <p className="mt-1 font-bold flex items-center gap-1" style={{ fontSize: 13, color: '#8A6A2F' }}>
-                    <CalendarDays style={{ width: 14, height: 14 }} />
-                    מחזור קרוב · {cohortDateTimeLabel(nextCohortByWorkshop.get(c.id)!, { shortYear: true })}
-                  </p>
-                )}
-                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#7B604C' }}>
-                  {c.active > 0
-                    ? <><span style={{ color: '#8A6A2F', fontWeight: 700 }}>{c.active} פעילות</span> · {c.total} סה"כ</>
-                    : `${c.total} סה"כ · אין פעילות`}
-                </p>
-                {(unfilledByWorkshop.get(c.id) ?? 0) > 0 && (
-                  <span className="inline-block mt-2 whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: '#8B4A30', background: '#F5E2D8', padding: '4px 10px', borderRadius: 9999 }}>
-                    {unfilledByWorkshop.get(c.id)} שאלונים
-                  </span>
-                )}
-              </button>
-            ))}
-            {pickerCards.privTotal > 0 && (
-              <button
-                onClick={() => { setShowPrivateSection(true); setShowAllAnyway(false) }}
-                className="text-right transition-all hover:shadow-sm"
-                style={{ border: '1px solid #C3CDD2', borderRadius: 18, padding: '16px 18px', background: '#E4EBEF' }}
-              >
-                <p className="font-bold" style={{ fontSize: 15, color: '#3E5966' }}>פרטני וללא תאריך</p>
-                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#3E5966' }}>
-                  {pickerCards.privActive > 0 ? `${pickerCards.privActive} פעילות · ` : ''}{pickerCards.privTotal} סה"כ
-                </p>
-              </button>
-            )}
-          </div>
-          {pickerCards.hiddenCount > 0 && (
-            <p style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
-              {pickerCards.hiddenCount === 1 ? 'סדנה אחת ללא מחזור קרוב מוסתרת' : `${pickerCards.hiddenCount} סדנאות ללא מחזור קרוב מוסתרות`}
-              {' · '}
-              <button onClick={() => setShowAllAnyway(true)} className="hover:underline" style={{ fontWeight: 700, color: '#A35C3D' }}>לרשימה המלאה</button>
-            </p>
-          )}
-        </div>
-      )}
-
       {/* README-IA PR10: "מחכה לך" inbox — the page's needs-action queue. */}
       {pickerMode && (
         <div className="space-y-3">
@@ -7633,9 +7608,9 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
           ) : (
             <div className="bg-white" style={{ border: '1px solid #E4DAD0', borderRadius: 20, overflow: 'hidden' }}>
               {([
+                { key: 'q1', items: inboxGroups.q1urgent, stripBg: '#F5E2D8', stripBorder: '#E8C3B2', stripColor: '#713924', icon: <AlertCircle style={{ width: 17, height: 17, color: '#8B4A30' }} />, stripLabel: `${inboxGroups.q1urgent.length} שאלונים שחסרים לסדנאות הקרובות`, badge: { label: 'שאלון לא מולא', color: '#8B4A30', bg: '#F5E2D8' }, action: 'reminder' as const },
                 { key: 'q2', items: inboxGroups.pending, stripBg: '#F5E2D8', stripBorder: '#E8C3B2', stripColor: '#713924', icon: <CreditCard style={{ width: 17, height: 17, color: '#8B4A30' }} />, stripLabel: `${inboxGroups.pending.length} ממתינות לתשלום`, badge: { label: 'ממתינה לתשלום', color: '#8B4A30', bg: '#F5E2D8' }, action: null },
                 { key: 'q3', items: inboxGroups.unassigned, stripBg: '#E4EBEF', stripBorder: '#D3DEE4', stripColor: '#3E5966', icon: <CalendarDays style={{ width: 17, height: 17, color: '#3E5966' }} />, stripLabel: `${inboxGroups.unassigned.length} ללא שיבוץ למחזור`, badge: { label: 'ללא שיבוץ', color: '#3E5966', bg: '#E4EBEF' }, action: 'assign' as const },
-                { key: 'q1', items: inboxGroups.q1urgent, stripBg: '#F5E2D8', stripBorder: '#E8C3B2', stripColor: '#713924', icon: <AlertCircle style={{ width: 17, height: 17, color: '#8B4A30' }} />, stripLabel: `${inboxGroups.q1urgent.length} שאלונים שחסרים לסדנאות הקרובות`, badge: { label: 'שאלון לא מולא', color: '#8B4A30', bg: '#F5E2D8' }, action: 'reminder' as const },
               ]).filter(g => g.items.length > 0).map(g => {
                 const shown = inboxOpen[g.key] ? g.items : g.items.slice(0, 3)
                 return (
@@ -7653,10 +7628,10 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
                         <div
                           key={l.id}
                           onClick={() => drillToLead(l)}
-                          className="flex items-center cursor-pointer border-b border-[#F0EBE3] last:border-b-0 hover:bg-[#FBF8F3] transition-colors"
-                          style={{ padding: '15px 20px', gap: 16 }}
+                          className="flex flex-wrap items-center cursor-pointer border-b border-[#F0EBE3] last:border-b-0 hover:bg-[#FBF8F3] transition-colors"
+                          style={{ padding: '12px 16px', columnGap: 12, rowGap: 6 }}
                         >
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0" style={{ flexBasis: 180 }}>
                             <p className="truncate" style={{ fontWeight: 700, fontSize: 17, color: '#443327' }}>{l.name}</p>
                             <p className="truncate" style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>
                               {wTitle} · {cohort ? `מחזור ${cohortDateTimeLabel(cohort, { shortYear: true })}` : 'אין מחזור'}
@@ -7713,6 +7688,67 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
               {inboxGroups.hidden === 1 ? 'פריט אחד סומן כטופל ומוסתר' : `${inboxGroups.hidden} פריטים סומנו כטופלו ומוסתרים`}
               {' · '}
               <button onClick={restoreInbox} className="hover:underline" style={{ fontWeight: 700, color: '#A35C3D' }}>החזרה של כולם</button>
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* 6.10.26: the action queue comes first, the browse-by-workshop picker after it. */}
+      {/* ── לפי סדנה — workshop picker, the page's opening state ── */}
+      {pickerMode && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-baseline gap-3">
+            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>לפי סדנה</h2>
+            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{leads.length} הרשמות · {counts.pending + counts.paid} פעילות</span>
+            <button onClick={() => setShowAllAnyway(true)} className="hover:underline" style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D', marginInlineStart: 'auto' }}>
+              הצגת כל ההרשמות ברשימה אחת
+            </button>
+          </div>
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+            {pickerCards.cards.map(c => (
+              <button
+                key={c.id}
+                onClick={() => { setWorkshopFilter(c.id); setShowAllAnyway(false) }}
+                className="text-right transition-all hover:shadow-sm"
+                style={{ border: '1px solid #E4DAD0', borderRadius: 18, padding: '16px 18px', background: c.active > 0 ? '#fff' : '#FAF7F1' }}
+              >
+                <p className="font-bold" style={{ fontSize: 15, color: '#443327' }}>{c.title}</p>
+                {nextCohortByWorkshop.has(c.id) && (
+                  <p className="mt-1 font-bold flex items-center gap-1" style={{ fontSize: 13, color: '#8A6A2F' }}>
+                    <CalendarDays style={{ width: 14, height: 14 }} />
+                    מחזור קרוב · {cohortDateTimeLabel(nextCohortByWorkshop.get(c.id)!, { shortYear: true })}
+                  </p>
+                )}
+                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#7B604C' }}>
+                  {c.active > 0
+                    ? <><span style={{ color: '#8A6A2F', fontWeight: 700 }}>{c.active} פעילות</span> · {c.total} סה"כ</>
+                    : `${c.total} סה"כ · אין פעילות`}
+                </p>
+                {(unfilledByWorkshop.get(c.id) ?? 0) > 0 && (
+                  <span className="inline-block mt-2 whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: '#8B4A30', background: '#F5E2D8', padding: '4px 10px', borderRadius: 9999 }}>
+                    {unfilledByWorkshop.get(c.id)} שאלונים
+                  </span>
+                )}
+              </button>
+            ))}
+            {pickerCards.privTotal > 0 && (
+              <button
+                onClick={() => { setShowPrivateSection(true); setShowAllAnyway(false) }}
+                className="text-right transition-all hover:shadow-sm"
+                style={{ border: '1px solid #C3CDD2', borderRadius: 18, padding: '16px 18px', background: '#E4EBEF' }}
+              >
+                <p className="font-bold" style={{ fontSize: 15, color: '#3E5966' }}>פרטני וללא תאריך</p>
+                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#3E5966' }}>
+                  {pickerCards.privActive > 0 ? `${pickerCards.privActive} פעילות · ` : ''}{pickerCards.privTotal} סה"כ
+                </p>
+              </button>
+            )}
+          </div>
+          {pickerCards.hiddenCount > 0 && (
+            <p style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
+              {pickerCards.hiddenCount === 1 ? 'סדנה אחת ללא מחזור קרוב מוסתרת' : `${pickerCards.hiddenCount} סדנאות ללא מחזור קרוב מוסתרות`}
+              {' · '}
+              <button onClick={() => setShowAllAnyway(true)} className="hover:underline" style={{ fontWeight: 700, color: '#A35C3D' }}>לרשימה המלאה</button>
             </p>
           )}
         </div>
@@ -8000,7 +8036,7 @@ function RegistrationRow52({ lead: l, eff, gap, navOrder, navIndex, selected, on
   return (
     <div
       className="flex items-center"
-      style={{ height: 52, padding: '0 14px', gap: 12, background: selected ? '#FBF4E4' : undefined }}
+      style={{ minHeight: 52, padding: '6px 14px', gap: 12, background: selected ? '#FBF4E4' : undefined }}
     >
       <input
         type="checkbox"
@@ -8015,8 +8051,8 @@ function RegistrationRow52({ lead: l, eff, gap, navOrder, navIndex, selected, on
           { phone: l.phone, email: l.email, leadId: l.id },
           { list: navOrder.map(x => ({ phone: x.phone, email: x.email, leadId: x.id })), index: Math.max(0, navIndex) },
         )}
-        className="flex-1 min-w-0 flex items-center text-right"
-        style={{ gap: 12, height: '100%' }}
+        className="flex-1 min-w-0 flex flex-wrap items-center text-right"
+        style={{ columnGap: 10, rowGap: 2 }}
         title="פתיחת ההרשמה"
       >
         <span
@@ -8026,7 +8062,8 @@ function RegistrationRow52({ lead: l, eff, gap, navOrder, navIndex, selected, on
         >
           {regInitials(l.name)}
         </span>
-        <span className="truncate flex-shrink-0" style={{ width: 118, fontWeight: 700, fontSize: 14.5, color: '#443327' }}>
+        {/* 6.10.26: no fixed width; on a phone the chips wrap to a second line. */}
+        <span className="truncate min-w-0" style={{ maxWidth: 170, fontWeight: 700, fontSize: 14.5, color: '#443327' }}>
           {l.name}
         </span>
         <span className="flex-shrink-0 whitespace-nowrap" style={{ fontWeight: 800, fontSize: 12.5, color: st.color }}>

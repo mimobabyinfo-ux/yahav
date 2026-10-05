@@ -22,7 +22,7 @@ import MilestonePage from './pages/log/MilestonePage'
 import NotePage from './pages/log/NotePage'
 import BottomNav from './components/BottomNav'
 import AdminSidebar from './components/AdminSidebar'
-import { useAdminOverview } from './components/admin/useAdminOverview'
+import { useAdminOverview, homeBadgeCount } from './components/admin/useAdminOverview'
 import MimoLogo from './components/MimoLogo'
 import FormTriggerModal from './components/FormTriggerModal'
 import ActiveTimerBanner from './components/ActiveTimerBanner'
@@ -476,7 +476,7 @@ function AppInner() {
             onToggleUserView={toggleUserView}
             unreadForms={unreadForms}
             unreadRegistrations={unreadRegistrations}
-            taskCount={adminOverview.tasks.length + adminOverview.manualTasks.length}
+            taskCount={homeBadgeCount(adminOverview)}
             workshopIssues={adminOverview.tasks.filter(t => t.section === 'workshops').length}
             partnersWaiting={adminOverview.recentPartnerLeads}
             paymentClaims={adminOverview.paymentClaimCount}

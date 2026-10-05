@@ -2,6 +2,7 @@
 import { Plus, Pencil, Trash2, X, XCircle, UserPlus, MessageCircle, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown, Link2, Copy, RefreshCw, ExternalLink, Check } from 'lucide-react'
 import { supabase, type CommunityEvent, type ServicePartner } from '../../lib/supabase'
 import ConfirmDialog from './ConfirmDialog'
+import { useOpenCustomer } from './CustomerCardContext'
 import StalledEventPaymentsCard from './StalledEventPaymentsCard'
 import { useSavedLibrary, SavedPaymentLinkField, SavedLocationFields, SavedLibraryPanel } from './SavedPickers'
 import ImageUploadField from './ImageUploadField'
@@ -138,6 +139,10 @@ function normalizeInstagram(raw: string): string | null {
   return handle ? `https://instagram.com/${handle}` : null
 }
 
+function daysUntil(iso: string): number {
+  return Math.round((new Date(iso + 'T12:00:00').getTime() - new Date(todayLocalIso() + 'T12:00:00').getTime()) / 86400000)
+}
+
 function todayLocalIso(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -153,6 +158,7 @@ function weekdayHe(dateStr: string): string {
 }
 
 export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditId?: string; openRegsId?: string } = {}) {
+  const openCustomer = useOpenCustomer()
   const [events, setEvents] = useState<CommunityEvent[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [vendors, setVendors] = useState<ServicePartner[]>([])
@@ -197,6 +203,9 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
   // freed-spot alert on event rows.
   const [waitCounts, setWaitCounts] = useState<Record<string, number>>({})
   const [interestCounts, setInterestCounts] = useState<Record<string, number>>({})
+  // 6.10.26: "אמרה ששילמה" (Bit / transfer) waiting for Brenda, per event,
+  // so it shows on the row and not only on the home screen.
+  const [claimCounts, setClaimCounts] = useState<Record<string, number>>({})
   const [regsInterest, setRegsInterest] = useState<InterestRow[]>([])
   // Phase 6: attended count per event (past-event fill = attended/registered)
   // + which events already have a check-in link (state pill).
@@ -232,7 +241,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
     loadCredits()
     const [{ data: evs }, { data: regRows }, { data: partners }, { data: toks }] = await Promise.all([
       supabase.from('community_events').select('*').order('event_date', { ascending: true }),
-      supabase.from('event_registrations').select('event_id, status, guest_names'),
+      supabase.from('event_registrations').select('event_id, status, guest_names, paid, payment_claimed_at'),
       supabase.from('service_partners').select('*').eq('is_active', true).order('display_order'),
       supabase.from('event_checkin_tokens').select('event_id'),
     ])
@@ -242,7 +251,9 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
     // while people stand outside it.
     const counter: Record<string, number> = {}
     const attended: Record<string, number> = {}
-    for (const r of (regRows ?? []) as { event_id: string; status: string; guest_names: string[] | null }[]) {
+    const claims: Record<string, number> = {}
+    for (const r of (regRows ?? []) as { event_id: string; status: string; guest_names: string[] | null; paid: boolean | null; payment_claimed_at: string | null }[]) {
+      if (r.payment_claimed_at && !r.paid && r.status !== 'cancelled') claims[r.event_id] = (claims[r.event_id] ?? 0) + 1
       const seats = 1 + (r.guest_names?.length ?? 0)
       if (r.status === 'registered' || r.status === 'attended') {
         counter[r.event_id] = (counter[r.event_id] ?? 0) + seats
@@ -251,6 +262,7 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
     }
     setCounts(counter)
     setAttendedCounts(attended)
+    setClaimCounts(claims)
     setCheckinIds(new Set(((toks ?? []) as { event_id: string }[]).map(t => t.event_id)))
     setVendors((partners ?? []) as ServicePartner[])
     setLoading(false)
@@ -582,6 +594,9 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
         : { payment_claimed_at: null, updated_at: new Date().toISOString() })
       .eq('id', reg.id)
     if (regsEvent) openRegs(regsEvent)
+    // 6.10.26: the row chip and the home badge follow immediately.
+    load()
+    window.dispatchEvent(new Event('mimo:registrations-changed'))
   }
 
   const today = todayLocalIso()
@@ -669,7 +684,9 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
             : null)
       : (checkinIds.has(ev.id)
           ? { text: 'קישור צ\'ק-אין נוצר', color: '#4F5040', bg: '#EDEDE6' }
-          : ev.is_active
+          // 6.10.26: the link is made the day before; nag only inside 2 days
+          // (same rule as the home task), not for every event in the month.
+          : ev.is_active && daysUntil(ev.event_date) <= 2
             ? { text: 'אין קישור צ\'ק-אין', color: '#8B4A30', bg: '#F7EBE4' }
             : null)
     return (
@@ -706,6 +723,12 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                 <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: '#F1EBE1', color: '#A2937D' }}>
                   הסתיים
                 </span>
+              )}
+              {(claimCounts[ev.id] ?? 0) > 0 && (
+                <button type="button" onClick={e => { e.stopPropagation(); openRegs(ev) }}
+                  className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: '#8B4A30', color: '#fff' }}>
+                  💳 {claimCounts[ev.id] === 1 ? 'תשלום אחד' : `${claimCounts[ev.id]} תשלומים`} לאישור
+                </button>
               )}
               {(waitCounts[ev.id] ?? 0) > 0 && (
                 ev.capacity != null && count < ev.capacity && ev.event_date >= todayLocalIso() ? (
@@ -794,38 +817,6 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
           </div>
         </div>
       </div>
-
-      {/* Brenda 17.8.26: "I need control from the admin for these things —
-          in the end there are registrations and cancellations here." The
-          credit window lives in global_settings so it moves without a
-          deploy. Cancelling is always allowed; this only decides how late
-          a cancellation still earns the money back. */}
-      <div className="bg-white rounded-3xl p-4 shadow-sm">
-        <label className="block text-xs font-bold text-sand-700 mb-1.5">
-          ⏳ זיכוי על ביטול, עד כמה שעות לפני האירוע
-        </label>
-        <div className="flex items-center gap-2">
-          <input
-            type="number" min={0} inputMode="numeric"
-            value={cancelHours}
-            onChange={e => setCancelHours(e.target.value)}
-            className="w-24 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-500"
-          />
-          <button
-            onClick={saveCancelHours}
-            disabled={savingHours}
-            className="px-4 py-2 rounded-xl text-sm font-bold text-[#4A3A28] disabled:opacity-40"
-            style={{ background: '#E7C78A' }}
-          >
-            {savingHours ? 'שומר...' : 'שמירה'}
-          </button>
-          {hoursSaved && <span className="text-xs font-bold text-green-600">נשמר ✓</span>}
-        </div>
-        <p className="text-[11px] text-sand-400 mt-1.5 leading-relaxed">
-          ביטול תמיד אפשרי. אחרי החלון הזה ההרשמה מתבטלת והמקום מתפנה, אבל בלי זיכוי.
-        </p>
-      </div>
-
 
       {credits.length > 0 && (
         <div className="bg-white rounded-3xl p-4 shadow-sm space-y-2">
@@ -948,6 +939,41 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
       <StalledEventPaymentsCard />
 
       <SavedLibraryPanel lib={lib} />
+
+      {/* Brenda 17.8.26: "I need control from the admin for these things —
+          in the end there are registrations and cancellations here." The
+          credit window lives in global_settings so it moves without a
+          deploy. Cancelling is always allowed; this only decides how late
+          a cancellation still earns the money back. */}
+      {/* 6.10.26: a setting changed once in months, so it sits folded at the
+          bottom instead of above the events. */}
+      <details className="bg-white rounded-3xl p-4 shadow-sm">
+        <summary className="cursor-pointer text-xs font-bold text-sand-700">
+          ⏳ הגדרות: זיכוי על ביטול עד {cancelHours || '?'} שעות לפני האירוע
+        </summary>
+        <div className="mt-2">
+        <div className="flex items-center gap-2">
+          <input
+            type="number" min={0} inputMode="numeric"
+            value={cancelHours}
+            onChange={e => setCancelHours(e.target.value)}
+            className="w-24 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-500"
+          />
+          <button
+            onClick={saveCancelHours}
+            disabled={savingHours}
+            className="px-4 py-2 rounded-xl text-sm font-bold text-[#4A3A28] disabled:opacity-40"
+            style={{ background: '#E7C78A' }}
+          >
+            {savingHours ? 'שומר...' : 'שמירה'}
+          </button>
+          {hoursSaved && <span className="text-xs font-bold text-green-600">נשמר ✓</span>}
+        </div>
+        <p className="text-[11px] text-sand-400 mt-1.5 leading-relaxed">
+          ביטול תמיד אפשרי. אחרי החלון הזה ההרשמה מתבטלת והמקום מתפנה, אבל בלי זיכוי.
+        </p>
+        </div>
+      </details>
 
       {/* ── Create / edit modal ── */}
       {showForm && (
@@ -1201,7 +1227,12 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
               ) : regs.length === 0 ? (
                 <p className="text-center text-sand-400 text-sm py-8">עדיין אין נרשמות</p>
               ) : (
-                regs.map(r => {
+                // 6.10.26: a payment waiting for her confirmation first,
+                // cancelled registrations last.
+                [...regs].sort((a, b) => {
+                  const rank = (r: RegistrantRow) => (r.status === 'cancelled' ? 2 : r.payment_claimed_at && !r.paid ? 0 : 1)
+                  return rank(a) - rank(b)
+                }).map(r => {
                   const name = r.user_profiles?.mother_name ?? r.user_profiles?.email ?? '—'
                   const phone = r.user_profiles?.phone_number
                   const cancelled = r.status === 'cancelled'
@@ -1210,7 +1241,9 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
                       <div className="flex items-center gap-2 cursor-pointer" onClick={() => setExpandedRegId(cur => cur === r.id ? null : r.id)}>
                         <ChevronDown className={`w-4 h-4 text-sand-300 flex-shrink-0 transition-transform ${expandedRegId === r.id ? 'rotate-180' : ''}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-sand-800 truncate">{name}</p>
+                          {/* 6.10.26: the name opens her customer card. */}
+                          <button type="button" onClick={e => { e.stopPropagation(); openCustomer({ phone: r.user_profiles?.phone_number ?? null, email: r.user_profiles?.email ?? null }) }}
+                            className="block max-w-full text-sm font-bold text-sand-800 truncate hover:underline text-right">{name}</button>
                           <p className="text-[13px] text-sand-600">
                             {r.user_profiles?.baby_name && `${r.user_profiles.baby_name}`}
                             {r.user_profiles?.baby_dob && ` · ${getBabyAge(r.user_profiles.baby_dob)}`}

@@ -20,6 +20,22 @@ import type { RecentRegistration } from './useAdminOverview'
 
 const SEEN_KEY = 'admin_recent_regs_seen_at'
 
+// Read the previous visit and stamp this one ONCE per page load. AdminPage
+// mounts the home twice (mobile + desktop trees); a per-mount read made the
+// second copy always see "now" and never show anything as new.
+let seenCache: number | null = null
+function previousVisit(): number {
+  if (seenCache === null) {
+    let prev = 0
+    try {
+      prev = Date.parse(localStorage.getItem(SEEN_KEY) ?? '') || 0
+      localStorage.setItem(SEEN_KEY, new Date().toISOString())
+    } catch { /* private mode */ }
+    seenCache = prev
+  }
+  return seenCache
+}
+
 function whenHe(ts: string): string {
   const d = new Date(ts)
   const day = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
@@ -52,16 +68,13 @@ export default function RecentRegistrationsCard({ rows }: { rows: RecentRegistra
   const openCustomer = useOpenCustomer()
   const [showAll, setShowAll] = useState(false)
   const [open, setOpen] = useState<boolean>(() => { try { return localStorage.getItem('admin_recent_regs_open') !== '0' } catch { return true } })
-  // Read once per mount: rows newer than the previous visit get a dot.
-  const [seenAt] = useState<string>(() => {
-    let prev = ''
-    try { prev = localStorage.getItem(SEEN_KEY) ?? ''; localStorage.setItem(SEEN_KEY, new Date().toISOString()) } catch { /* private mode */ }
-    return prev
-  })
+  // Rows newer than the previous visit get a dot.
+  const [seenAt] = useState<number>(() => previousVisit())
+  const isNewRow = (r: RecentRegistration) => seenAt > 0 && Date.parse(r.created_at) > seenAt
 
   if (rows.length === 0) return null
   const week = rows.filter(r => Date.now() - new Date(r.created_at).getTime() < 7 * 86400000).length
-  const fresh = seenAt ? rows.filter(r => r.created_at > seenAt).length : 0
+  const fresh = rows.filter(isNewRow).length
   const shown = showAll ? rows : rows.slice(0, 5)
 
   function toggle() {
@@ -71,18 +84,18 @@ export default function RecentRegistrationsCard({ rows }: { rows: RecentRegistra
   return (
     <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
       <button onClick={toggle} className="w-full flex items-center justify-between gap-2" aria-expanded={open}>
-        <h2 className="font-bold flex items-center gap-2" style={{ fontSize: 16, color: '#443327' }}>
+        <span className="font-bold flex items-center gap-2 flex-wrap text-right" style={{ fontSize: 16, color: '#443327' }}>
           נרשמו לאחרונה
           <span className="font-display" style={{ color: '#8A6A2F' }}>· {week} השבוע</span>
           {fresh > 0 && <span className="font-bold rounded-full" style={{ fontSize: 11.5, padding: '2px 8px', background: '#C8A460', color: '#33281B' }}>{fresh} חדשות</span>}
-        </h2>
+        </span>
         <ChevronDown className="w-4 h-4 transition-transform flex-shrink-0" style={{ color: '#BCAE99', transform: open ? 'rotate(180deg)' : 'none' }} />
       </button>
 
       {open && (
         <div className="mt-3 space-y-1">
           {shown.map(r => {
-            const isNew = !!seenAt && r.created_at > seenAt
+            const isNew = isNewRow(r)
             return (
               <button
                 key={r.id}

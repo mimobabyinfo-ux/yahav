@@ -68,12 +68,19 @@ export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (i
   const total = groups.reduce((n, g) => n + g.act, 0)
   const quiet = groups.filter(g => !g.needsAction)
   const live = groups.filter(g => g.needsAction)
-  // Nothing to do anywhere: one quiet line, no card.
+  // Nothing to do anywhere: one quiet line naming who is parked for the
+  // next round (each product links to its page); nothing parked = no card.
   if (live.length === 0) {
+    const parked = quiet.filter(g => g.parked > 0)
+    if (parked.length === 0) return null
     return (
-      <p className="px-2" style={{ fontSize: 12.5, color: '#A2937D', fontWeight: 600 }}>
-        רשימות המתנה: אין מה לעשות כרגע · {quiet.map(g => `${g.title}${g.parked ? ` (${g.parked} לסבב הבא)` : ''}`).join(' · ')}
-        {onOpenProduct && quiet[0] && <> · <button onClick={() => onOpenProduct(quiet[0].workshopId)} className="underline">לעמוד המוצר</button></>}
+      <p className="px-2 flex flex-wrap gap-x-2" style={{ fontSize: 12.5, color: '#A2937D', fontWeight: 600 }}>
+        <span>רשימות המתנה: אין מה לעשות כרגע.</span>
+        {parked.map(g => (
+          <button key={g.workshopId} onClick={() => onOpenProduct?.(g.workshopId)} className="underline">
+            {g.title}: {g.parked} לסבב הבא
+          </button>
+        ))}
       </p>
     )
   }
@@ -117,7 +124,7 @@ export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (i
                 </button>
               </div>
               {!collapsed[g.workshopId] && (
-                <WaitlistOutreach workshopId={g.workshopId} workshopTitle={g.title} compact />
+                <WaitlistOutreach workshopId={g.workshopId} workshopTitle={g.title} compact onChanged={load} />
               )}
             </div>
           ))}

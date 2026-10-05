@@ -322,15 +322,18 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   const reloadTimer = useRef<number | null>(null)
 
   const load = useCallback(async () => {
-    const [l, i, c, r, o, s] = await Promise.all([
+    const [l, i, c, r, o, s, dm] = await Promise.all([
       supabase.from('crm_leads').select('*').eq('is_open', true),
       supabase.from('crm_inbound').select('*').order('last_message_at', { ascending: false }),
       supabase.rpc('crm_cohort_occupancy'),
       supabase.from('crm_lost_reasons').select('id, label, example, uses').eq('active', true).order('sort').order('uses', { ascending: false }),
       supabase.from('crm_lead_owner').select('opp_id, owner'),
       supabase.from('v_stalled_registrations').select('*').order('created_at', { ascending: false }),
+      supabase.from('admin_task_dismissals').select('task_key').like('task_key', 'stalled:%'),
     ])
-    setStalled((s.data ?? []) as Stalled[])
+    // 6.10.26: "טופל" on a stalled card is a dismissal, not a status.
+    const done = new Set(((dm.data ?? []) as { task_key: string }[]).map(d => d.task_key))
+    setStalled(((s.data ?? []) as Stalled[]).filter(x => !done.has(`stalled:${x.id}`)))
     setOwners(Object.fromEntries(((o.data ?? []) as Array<{ opp_id: string; owner: string }>).map(x => [x.opp_id, x.owner])))
     setReasons((r.data ?? []) as LostReason[])
     setLeads((l.data ?? []) as Lead[])
@@ -486,8 +489,13 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
     await supabase.from('crm_inbound').update({ dismissed_at: new Date().toISOString() }).eq('contact_id', i.contact_id)
     load()
   }
+  // 6.10.26: this used to set registration_leads.status = 'handled', which is
+  // "מומש" (she attended): an unpaid mother silently turned into a
+  // customer. Now it only hides the card (same table as the home "טופל");
+  // the registration stays "ממתינה" everywhere else.
   async function markStalledHandled(x: Stalled) {
-    const { error } = await supabase.from('registration_leads').update({ status: 'handled' }).eq('id', x.id)
+    const { error } = await supabase.from('admin_task_dismissals').upsert(
+      { task_key: `stalled:${x.id}`, dismissed_at: new Date().toISOString() }, { onConflict: 'task_key' })
     if (error) { flash('לא הצלחתי לסמן: ' + error.message); return }
     setStalled(list => list.filter(y => y.id !== x.id))
     flash(`${x.name ?? ''}: סומן כטופל`)

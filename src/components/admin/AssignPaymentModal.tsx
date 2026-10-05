@@ -23,6 +23,7 @@ export type AssignablePayment = {
   payer_email: string | null
   payer_phone?: string | null
   description?: string | null
+  outcome?: string | null
 }
 
 type Cand = {
@@ -131,15 +132,23 @@ export default function AssignPaymentModal({ payment, onClose, onDone }: {
     setBusy(false)
     if (e) { setError('השיוך נכשל. נסה שוב'); return }
     if ((data as { ok?: boolean; reason?: string } | null)?.ok === false) { setError('התשלום הזה כבר משויך להרשמה'); return }
+    window.dispatchEvent(new Event('mimo:registrations-changed'))
     onDone(); onClose()
   }
 
   async function closeWithout() {
-    setBusy(true)
-    await supabase.rpc('admin_close_payment', { p_log_id: payment.id, p_note: closeNote.trim() || null })
+    setBusy(true); setError(null)
+    const { data, error: e } = await supabase.rpc('admin_close_payment', { p_log_id: payment.id, p_note: closeNote.trim() || null })
     setBusy(false)
+    if (e || (data as { ok?: boolean } | null)?.ok === false) { setError('הסגירה נכשלה. נסה שוב'); return }
     onDone(); onClose()
   }
+
+  // A payment for a community EVENT that found no seat: it belongs to an
+  // event registration, not to a workshop registration, so the list below
+  // would be the wrong place. Confirm it in the event's registrants, then
+  // close it here.
+  const isEvent = payment.outcome === 'community_event'
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-6" style={{ background: 'rgba(40,30,20,0.45)' }} onClick={onClose}>
@@ -157,7 +166,16 @@ export default function AssignPaymentModal({ payment, onClose, onDone }: {
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-sand-100" aria-label="סגירה"><X className="w-4 h-4" style={{ color: '#8A7A63' }} /></button>
         </div>
 
-        <div className="px-5 pb-2 flex-shrink-0 space-y-2">
+        {isEvent && (
+          <div className="mx-5 mb-2 rounded-2xl px-3.5 py-3" style={{ background: '#EEF2F4' }}>
+            <p className="font-bold" style={{ fontSize: 13, color: '#35505C' }}>זה תשלום על אירוע קהילה</p>
+            <p style={{ fontSize: 12.5, color: '#35505C' }}>
+              סמני אותה כשילמה ברשימת הנרשמות של האירוע (אירועי קהילה ← נרשמות), ואז סגרי כאן עם "טופל באירוע".
+            </p>
+          </div>
+        )}
+
+        <div className={`px-5 pb-2 flex-shrink-0 space-y-2 ${isEvent ? 'hidden' : ''}`}>
           <div className="flex items-center gap-2" style={{ background: '#F8F4EC', border: '1px solid #E4DAD0', borderRadius: 14, padding: '0 12px', height: 40 }}>
             <Search className="w-4 h-4 flex-shrink-0" style={{ color: '#7B604C' }} />
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="חיפוש הרשמה לפי שם, טלפון או מייל" className="flex-1 min-w-0 bg-transparent focus:outline-none" style={{ fontSize: 14 }} />
@@ -169,7 +187,7 @@ export default function AssignPaymentModal({ payment, onClose, onDone }: {
           {error && <p style={{ fontSize: 12.5, color: '#8B4A30', fontWeight: 700 }}>{error}</p>}
         </div>
 
-        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-3 space-y-1.5">
+        <div className={`overflow-y-auto flex-1 min-h-0 px-5 pb-3 space-y-1.5 ${isEvent ? 'hidden' : ''}`}>
           {loading ? (
             <div className="py-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin" style={{ color: '#BCAE99' }} /></div>
           ) : ranked.length === 0 ? (
@@ -193,11 +211,12 @@ export default function AssignPaymentModal({ payment, onClose, onDone }: {
         </div>
 
         <div className="px-5 py-3 flex-shrink-0 border-t border-[#F0EBE3]">
-          {closing ? (
+          {error && isEvent && <p className="mb-2" style={{ fontSize: 12.5, color: '#8B4A30', fontWeight: 700 }}>{error}</p>}
+          {closing || isEvent ? (
             <div className="flex items-center gap-2">
-              <input value={closeNote} onChange={e => setCloseNote(e.target.value)} placeholder="למה? (בדיקה, תשלום פרטי...)" className="flex-1 min-w-0 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm" autoFocus />
+              <input value={closeNote} onChange={e => setCloseNote(e.target.value)} placeholder={isEvent ? 'טופל באירוע' : 'למה? (בדיקה, תשלום פרטי...)'} className="flex-1 min-w-0 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm" autoFocus />
               <button onClick={closeWithout} disabled={busy} className="font-bold" style={{ fontSize: 13, color: '#4F5040' }}>סגירה</button>
-              <button onClick={() => setClosing(false)} style={{ fontSize: 13, color: '#8A7A63' }}>ביטול</button>
+              {!isEvent && <button onClick={() => setClosing(false)} style={{ fontSize: 13, color: '#8A7A63' }}>ביטול</button>}
             </div>
           ) : (
             <button onClick={() => setClosing(true)} className="font-bold hover:underline" style={{ fontSize: 13, color: '#7B604C' }}>

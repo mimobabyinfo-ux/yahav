@@ -235,7 +235,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               <AssignPaymentModal payment={assigning} onClose={() => setAssigning(null)} onDone={reload} />
             )}
             {showPayments && (
-              <MonthPaymentsModal payments={monthPayments} total={counters.monthRevenue} onClose={() => setShowPayments(false)} onAssign={p => { setShowPayments(false); setAssigning({ id: p.id, received_at: p.received_at, total: p.total, payer_name: p.payer_name, payer_email: p.payer_email, description: p.description, detail: p.detail }) }} />
+              <MonthPaymentsModal payments={monthPayments} total={counters.monthRevenue} onClose={() => setShowPayments(false)} onAssign={p => { setShowPayments(false); setAssigning({ id: p.id, received_at: p.received_at, total: p.total, payer_name: p.payer_name, payer_email: p.payer_email, description: p.description, detail: p.detail, outcome: p.outcome }) }} />
             )}
           </div>
 

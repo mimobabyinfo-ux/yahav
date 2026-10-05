@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw, Check, Clock, Users, CalendarDays, ChevronDown } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useOpenCustomer } from './CustomerCardContext'
+
+// 6.10.26: names open the customer card (phone is the key the card uses).
+function NameLink({ name, phone, className }: { name: string | null; phone: string | null; className: string }) {
+  const open = useOpenCustomer()
+  if (!phone) return <span className={className}>{name ?? '—'}</span>
+  return <button type="button" onClick={() => open({ phone })} className={`${className} hover:underline text-right`}>{name ?? '—'}</button>
+}
 
 // מסך ההשלמות. קריאה בלבד כמעט לגמרי, במכוון.
 //
@@ -270,7 +278,7 @@ export default function MakeupsPanel() {
                     <ul className="mt-2 space-y-1 border-t border-sand-100 pt-2">
                       {absences.filter(a => a.meeting_id === m.meeting_id).map(a => (
                         <li key={a.absence_id} className="flex items-baseline gap-2 flex-wrap text-[11px]">
-                          <span className="text-xs font-bold text-sand-800">{a.mother_name ?? '—'}</span>
+                          <NameLink className="text-xs font-bold text-sand-800" name={a.mother_name} phone={a.mother_phone} />
                           <span className="text-sand-400" dir="ltr">{a.mother_phone ?? ''}</span>
                           {a.makeup ? (
                             <span className="text-sand-500">
@@ -292,7 +300,7 @@ export default function MakeupsPanel() {
                           (detail?.kind === 'in' ? r.status !== 'requested' : r.status === 'requested'))
                         .map(r => (
                           <li key={r.request_id} className="flex items-baseline gap-2 flex-wrap text-[11px]">
-                            <span className="text-xs font-bold text-sand-800">{r.mother_name ?? '—'}</span>
+                            <NameLink className="text-xs font-bold text-sand-800" name={r.mother_name} phone={r.mother_phone} />
                             <span className="text-sand-400" dir="ltr">{r.mother_phone ?? ''}</span>
                             <span className="text-sand-500">
                               פספסה מפגש {r.meeting_number} ב-{ddmm(r.missed_date)} (קבוצת {r.source_cohort_label})
@@ -332,7 +340,7 @@ export default function MakeupsPanel() {
               waiting.map(r => (
                 <div key={r.request_id} className="rounded-2xl bg-white border border-sand-200 p-3">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-bold text-sand-800">{r.mother_name ?? '—'}</span>
+                    <NameLink className="text-sm font-bold text-sand-800" name={r.mother_name} phone={r.mother_phone} />
                     <span className="text-[11px] text-sand-400" dir="ltr">{r.mother_phone ?? ''}</span>
                     {r.queue_position != null && (
                       <span className="text-[10px] font-semibold text-sand-600 bg-sand-100 px-2 py-0.5 rounded-full mr-auto flex-shrink-0">
@@ -383,7 +391,7 @@ export default function MakeupsPanel() {
               incoming.map(r => (
                 <div key={r.request_id} className="rounded-2xl bg-white border border-sand-200 p-3">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-bold text-sand-800">{r.mother_name ?? '—'}</span>
+                    <NameLink className="text-sm font-bold text-sand-800" name={r.mother_name} phone={r.mother_phone} />
                     <span className="text-[11px] text-sand-400" dir="ltr">{r.mother_phone ?? ''}</span>
                     <button
                       onClick={() => markAttended(r.request_id, r.status !== 'attended')}

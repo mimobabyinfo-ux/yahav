@@ -96,10 +96,13 @@ export default function LeadPaymentsSection({ leadId, listPrice, email, phone, s
     await load(); onChanged()
   }
 
+  // "Full" when it covers the agreed price (or nothing is known); a smaller
+  // amount is a part payment and the balance stays visible.
   async function attach(s: MorningSuggestion) {
     setBusy(true); setError(null)
+    const covers = due == null || Number(s.total) + bal.paid >= due - 0.5
     const { data, error: e } = await supabase.rpc('admin_assign_payment', {
-      p_log_id: s.id, p_lead_id: leadId, p_as_full: !bal.hasRows,
+      p_log_id: s.id, p_lead_id: leadId, p_as_full: covers,
     })
     setBusy(false)
     if (e || (data as { ok?: boolean } | null)?.ok === false) { setError('הצירוף נכשל'); return }
@@ -239,7 +242,7 @@ export default function LeadPaymentsSection({ leadId, listPrice, email, phone, s
           {error && <p style={{ fontSize: 12, color: '#8B4A30', fontWeight: 700 }}>{error}</p>}
           <div className="flex gap-2">
             <button onClick={add} disabled={busy} className="font-bold rounded-xl disabled:opacity-50" style={{ fontSize: 13, padding: '7px 16px', background: '#C8A460', color: '#33281B' }}>
-              {busy ? 'שומר...' : 'שמירה'}
+              {busy ? 'שומר...' : 'שמירת התשלום'}
             </button>
             <button onClick={() => setAdding(false)} className="font-semibold" style={{ fontSize: 13, color: '#7B604C' }}>ביטול</button>
           </div>

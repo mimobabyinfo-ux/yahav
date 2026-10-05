@@ -112,6 +112,13 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
   // ‹ › navigation swaps initialKey from the provider — re-seed.
   useEffect(() => { setActiveKey(initialKey) }, [initialKey])
 
+  // Silent refetch: same data, no spinner, no unmount, drafts untouched.
+  // Used after a payment is recorded inside the card (6.10.26).
+  const refresh = useCallback(async (key: CustomerKey) => {
+    const result = await lookupCustomer(key)
+    if (result.kind === 'one') setView({ kind: 'loaded', profile: result.profile })
+  }, [])
+
   const load = useCallback(async (key: CustomerKey) => {
     setView({ kind: 'loading' })
     const result = await lookupCustomer(key)
@@ -456,6 +463,7 @@ export default function CustomerCardModal({ initialKey, onClose, nav, onNavigate
               setConfirmDelete={setConfirmDelete}
               onDelete={deleteRegistration}
               onProfileChanged={() => { notifyRegistrationsChanged(); load(activeKey) }}
+              onPaymentsChanged={() => { notifyRegistrationsChanged(); refresh(activeKey) }}
             />
           )}
 
@@ -563,6 +571,7 @@ function RegistrationTabView({
   setConfirmDelete,
   onDelete,
   onProfileChanged,
+  onPaymentsChanged,
 }: {
   profile: CustomerProfile
   focused: CustomerRegistration | null
@@ -575,6 +584,7 @@ function RegistrationTabView({
   setConfirmDelete: (v: boolean) => void
   onDelete: () => void
   onProfileChanged: () => void
+  onPaymentsChanged: () => void
 }) {
   if (!draft) {
     return (
@@ -632,6 +642,17 @@ function RegistrationTabView({
           </p>
         )}
       </Field>
+
+      {/* 6.10.26: partial / cash / attached Morning payments, and the balance. */}
+      <LeadPaymentsSection
+        key={focused.id}
+        leadId={focused.id}
+        listPrice={registrationAmount(focused) == null ? null : Number(registrationAmount(focused))}
+        email={focused.email}
+        phone={focused.phone}
+        status={focused.status}
+        onChanged={onPaymentsChanged}
+      />
 
       <div className={wide ? 'grid grid-cols-2 gap-4' : 'space-y-4'}>
         <Field label="טלפון">
@@ -710,17 +731,6 @@ function RegistrationTabView({
           </Field>
         )
       })()}
-
-      {/* 6.10.26: partial / cash / attached Morning payments, and the balance. */}
-      <LeadPaymentsSection
-        key={focused.id}
-        leadId={focused.id}
-        listPrice={registrationAmount(focused)}
-        email={focused.email}
-        phone={focused.phone}
-        status={focused.status}
-        onChanged={onProfileChanged}
-      />
 
       <NotesField profile={profile} draft={draft} setDraft={setDraft} />
 

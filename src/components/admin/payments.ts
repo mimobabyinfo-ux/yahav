@@ -62,7 +62,7 @@ export type MorningSuggestion = {
 export async function findMorningSuggestions(email: string | null, phone: string | null): Promise<MorningSuggestion[]> {
   const ors: string[] = []
   const em = email?.trim().toLowerCase()
-  if (em && em.includes('@')) ors.push(`payer_email.ilike.${em}`)
+  if (em && em.includes('@') && !/[,()"]/.test(em)) ors.push(`payer_email.ilike."${em}"`)
   const digits = (phone ?? '').replace(/\D/g, '')
   const last9 = digits.slice(-9)
   if (last9.length === 9) ors.push(`payer_phone.ilike.%${last9}`)

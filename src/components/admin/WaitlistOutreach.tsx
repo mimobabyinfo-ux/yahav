@@ -129,11 +129,13 @@ export function summarizeWaitlist(rows: WorkshopWaitlistRow[], proposed: string 
   return { act, parked, registered, datePassed, needsAction: act > 0 || (datePassed && parked > 0) }
 }
 
-export default function WaitlistOutreach({ workshopId, workshopTitle, compact = false }: {
+export default function WaitlistOutreach({ workshopId, workshopTitle, compact = false, onChanged }: {
   workshopId: string
   workshopTitle: string
   /** Home card: tighter rows. Product page: roomier. */
   compact?: boolean
+  /** 6.10.26: the home card recounts after any change here. */
+  onChanged?: () => void
 }) {
   const [rows, setRows] = useState<WorkshopWaitlistRow[]>([])
   const [proposed, setProposed] = useState<string | null>(null)
@@ -211,6 +213,7 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
   async function saveProposed(date: string | null) {
     setProposed(date)
     await supabase.from('workshops').update({ waitlist_proposed_date: date }).eq('id', workshopId)
+    onChanged?.()
   }
 
   function messageFor(r: WorkshopWaitlistRow): string {
@@ -230,6 +233,7 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
     }
     await supabase.from('workshop_waitlist').update(patch).eq('id', r.id)
     setRows(prev => prev.map(x => x.id === r.id ? { ...x, ...patch } : x))
+    onChanged?.()
   }
 
   async function setResponse(r: WorkshopWaitlistRow, response: 'yes' | 'no' | 'registered' | null) {
@@ -243,6 +247,7 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
     }
     await supabase.from('workshop_waitlist').update(patch).eq('id', r.id)
     setRows(prev => prev.map(x => x.id === r.id ? { ...x, ...patch } : x))
+    onChanged?.()
   }
 
   async function confirmDelete() {
@@ -250,6 +255,7 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
     await supabase.from('workshop_waitlist').delete().eq('id', pendingDelete.id)
     setRows(prev => prev.filter(x => x.id !== pendingDelete.id))
     setPendingDelete(null)
+    onChanged?.()
   }
 
   if (loading || rows.length === 0) return null
