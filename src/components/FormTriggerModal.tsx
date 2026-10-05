@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { X } from 'lucide-react'
-import { visibleAnswers, type FormShowIf } from '../lib/formFields'
+import { visibleAnswers } from '../lib/formFields'
 import { SurveyFields, SurveyProgress, SurveySubmit, useSurveyProgress, scrollToField, SURVEY } from './forms/SurveyFields'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
