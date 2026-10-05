@@ -30,8 +30,19 @@ export type UnmatchedPayment = {
   received_at: string
   payer_name: string | null
   payer_email: string | null
+  payer_phone?: string | null
+  description?: string | null
   total: number | null
   detail: string | null
+}
+
+/** 6.10.26: a registration with recorded payments that do not yet cover
+ *  the agreed price (partial / cash still owed). */
+export type OpenBalance = {
+  leadId: string
+  name: string
+  left: number
+  workshopTitle: string | null
 }
 
 export type AdminTask = {
@@ -53,6 +64,9 @@ export type AdminTask = {
   targetView?: 'edit' | 'registrants'
   /** Phase 3: exact lead ids the destination should filter+pre-select. */
   targetLeadIds?: string[]
+  /** 6.10.26: an unmatched Morning payment — the home opens the
+   *  "למי שייך התשלום?" modal instead of navigating. */
+  payment?: UnmatchedPayment
 }
 
 // Minimal lead shape the rules need (subset of RegistrationsTab's
@@ -66,6 +80,8 @@ export type TaskLead = {
   created_at: string
   selected_workshop_id: string | null
   cohort_id: string | null
+  /** The app account linked to the registration, when there is one. */
+  user_id?: string | null
 }
 
 export type LinkedFormDef = {
@@ -73,10 +89,14 @@ export type LinkedFormDef = {
   title: string
   fields_json: { id: string; type: string; label: string; role?: 'name' | 'phone' | 'email' | 'none' }[]
   public_link_enabled: boolean
+  /** 23.9.26: an answer to THIS form counts as filling this one too (the
+   *  מגלים form names the עטופים form). */
+  counts_as_filled_by?: string | null
 }
 
 export type LinkedSubmission = {
   form_id: string
+  user_id?: string | null
   responses_json: Record<string, unknown>
   user_profiles?: { mother_name: string | null; email: string | null } | null
 }
@@ -104,6 +124,8 @@ export type AdminTaskInput = {
   eventWaiting: Map<string, number>
   /** Morning payments the webhook could not attach to anyone. */
   unmatchedPayments: UnmatchedPayment[]
+  /** Registrations whose recorded payments do not cover the agreed price. */
+  openBalances?: OpenBalance[]
   /** Israel-calendar today as YYYY-MM-DD (passed in for testability). */
   today: string
   /** Epoch ms "now" (passed in for testability). */
@@ -170,12 +192,36 @@ export function buildFilledIndex(defs: Map<string, LinkedFormDef>, subs: LinkedS
     const emailL = r.email?.toLowerCase().trim()
     if (phone) idx.add(`${sub.form_id}|p|${phone}`)
     if (emailL) idx.add(`${sub.form_id}|e|${emailL}`)
+    if (sub.user_id) idx.add(`${sub.form_id}|u|${sub.user_id}`)
   }
   return idx
 }
 
+/** Did this registration's mother fill the product's opening form?
+ *  One answer for every screen (6.10.26). She counts as filled when her
+ *  phone, email or app account matches an answer to the form, OR to the
+ *  form it accepts instead (counts_as_filled_by: an עטופים graduate
+ *  joining מגלים). Tal Marom showed "missing" because only the first was
+ *  checked, and her מגלים phone had two digits swapped. */
+export function isFormFilled(
+  formId: string,
+  lead: { phone: string | null; email: string | null; user_id?: string | null },
+  defs: Map<string, { counts_as_filled_by?: string | null }>,
+  filled: Set<string>,
+): boolean {
+  const phone = normalizeIlPhone(lead.phone ?? '')
+  const emailL = lead.email?.toLowerCase().trim()
+  const ids = [formId]
+  const prior = defs.get(formId)?.counts_as_filled_by
+  if (prior) ids.push(prior)
+  return ids.some(id =>
+    (!!phone && filled.has(`${id}|p|${phone}`)) ||
+    (!!emailL && filled.has(`${id}|e|${emailL}`)) ||
+    (!!lead.user_id && filled.has(`${id}|u|${lead.user_id}`)))
+}
+
 export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
-  const { workshops, cohorts, events, checkinEventIds, leads, linkedFormDefs, linkedSubmissions, paymentClaims, eventSeats, eventWaiting, unmatchedPayments, today, nowMs } = input
+  const { workshops, cohorts, events, checkinEventIds, leads, linkedFormDefs, linkedSubmissions, paymentClaims, eventSeats, eventWaiting, unmatchedPayments, openBalances = [], today, nowMs } = input
   const tasks: AdminTask[] = []
 
   const workshopIdsWithCohorts = new Set(cohorts.map(c => c.workshop_id))
@@ -269,10 +315,7 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
     if (!w?.linked_form_id) continue
     const form = linkedFormDefs.get(w.linked_form_id)
     if (!form) continue
-    const phone = normalizeIlPhone(lead.phone)
-    const emailL = lead.email?.toLowerCase().trim()
-    const isFilled = (!!phone && filledIndex.has(`${form.id}|p|${phone}`))
-      || (!!emailL && filledIndex.has(`${form.id}|e|${emailL}`))
+    const isFilled = isFormFilled(form.id, lead, linkedFormDefs, filledIndex)
     if (!isFilled) {
       const cur = unfilledByForm.get(form.id) ?? { title: form.title, count: 0, latest: null as string | null, leadIds: [] as string[], firstStart: leadCohort.start_date }
       if (leadCohort.start_date < cur.firstStart) cur.firstStart = leadCohort.start_date
@@ -300,18 +343,42 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
 
   // 4b · Money arrived and nobody got a seat. Highest severity there is:
   //      she has been paid and the payer has nothing to show for it.
+  //      6.10.26: the button opens "למי שייך התשלום?" (AssignPaymentModal)
+  //      with the likely registrations ranked; one tap attaches it.
   for (const u of unmatchedPayments) {
     tasks.push({
       key: `unmatched_payment:${u.id}`,
-      title: `תשלום שהגיע ולא שויך${u.total != null ? ` · ₪${u.total}` : ''}`,
+      title: `תשלום שהגיע ולא שויך${u.total != null ? ` · ₪${Number(u.total).toLocaleString()}` : ''}`,
       facts: [
         u.payer_name || u.payer_email || 'משלמת לא מזוהה',
+        u.description ?? '',
         new Date(u.received_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
       ].filter(Boolean),
       severity: 'high',
-      section: 'events',
-      actionLabel: 'לאירועים',
+      section: 'registrations',
+      actionLabel: 'לשיוך',
       sourceUpdatedAt: u.received_at,
+      payment: u,
+    })
+  }
+
+  // 4b' · Money still owed on a registration (partial / cash later).
+  //       Only registrations with recorded payments can owe; see payments.ts.
+  if (openBalances.length > 0) {
+    const total = openBalances.reduce((s, b) => s + b.left, 0)
+    tasks.push({
+      key: `open_balances:${openBalances.map(b => `${b.leadId}:${b.left}`).sort().join(',')}`,
+      title: openBalances.length === 1
+        ? `${openBalances[0].name} חייבת עוד ₪${openBalances[0].left.toLocaleString()}`
+        : `${openBalances.length} הרשמות עם יתרה לתשלום · ₪${total.toLocaleString()}`,
+      facts: openBalances.length === 1
+        ? [openBalances[0].workshopTitle ?? ''].filter(Boolean)
+        : openBalances.slice(0, 3).map(b => `${b.name.split(' ')[0]} ₪${b.left.toLocaleString()}`),
+      severity: 'mid',
+      section: 'registrations',
+      actionLabel: 'לרשימה',
+      sourceUpdatedAt: null,
+      targetLeadIds: openBalances.map(b => b.leadId),
     })
   }
 

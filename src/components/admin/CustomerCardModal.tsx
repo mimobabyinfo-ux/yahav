@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { X, MessageCircle, Mail, Phone, Copy, Check, ChevronDown, ChevronUp, Loader2, ChevronLeft, ChevronRight, Plus, Maximize2, Minimize2, Users, Clock, Gift } from 'lucide-react'
 import { supabase, type WorkshopCohort } from '../../lib/supabase'
 import AddRegistrationModal from './AddRegistrationModal'
+import LeadPaymentsSection from './LeadPaymentsSection'
 import {
   lookupCustomer,
   type CustomerKey,
@@ -709,6 +710,17 @@ function RegistrationTabView({
           </Field>
         )
       })()}
+
+      {/* 6.10.26: partial / cash / attached Morning payments, and the balance. */}
+      <LeadPaymentsSection
+        key={focused.id}
+        leadId={focused.id}
+        listPrice={registrationAmount(focused)}
+        email={focused.email}
+        phone={focused.phone}
+        status={focused.status}
+        onChanged={onProfileChanged}
+      />
 
       <NotesField profile={profile} draft={draft} setDraft={setDraft} />
 

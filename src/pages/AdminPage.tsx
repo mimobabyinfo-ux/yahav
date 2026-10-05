@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo, createContext, useContext } from 'react'
 import { Home as HomeIcon, BookOpen, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Baby, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
@@ -23,7 +23,8 @@ import { CustomerCardProvider, useOpenCustomer } from '../components/admin/Custo
 import { useUserProducts, shortProductName, type ProductFacet } from '../components/admin/useUserProducts'
 import { REGISTRATIONS_CHANGED_EVENT } from '../components/admin/CustomerCardModal'
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
-import { normalizeIlPhone } from '../components/admin/customerLookup'
+import { normalizeIlPhone, offerPrice } from '../components/admin/customerLookup'
+import { computeBalance } from '../components/admin/payments'
 import AddRegistrationModal from '../components/admin/AddRegistrationModal'
 import EventsAdminPanel from '../components/admin/EventsAdminPanel'
 import HomeAnnouncementsPanel from '../components/admin/HomeAnnouncementsPanel'
@@ -39,7 +40,7 @@ import MakeupsPanel from '../components/admin/MakeupsPanel'
 import ProgramPanel from '../components/admin/ProgramPanel'
 import CrmLeadsPanel from '../components/admin/CrmLeadsPanel'
 import type { AdminOverview } from '../components/admin/useAdminOverview'
-import type { AdminTask } from '../components/admin/adminTasks'
+import { isFormFilled, type AdminTask } from '../components/admin/adminTasks'
 import { ChevronRight as CtxBack } from 'lucide-react'
 
 type Tab = 'home' | 'users' | 'insights' | 'tips' | 'videos' | 'workshops' | 'events' | 'perks' | 'forms' | 'settings' | 'pregnancy' | 'partners' | 'leads' | 'registrations' | 'makeups' | 'program'
@@ -6865,8 +6866,16 @@ type RegistrationLead = {
   // Phase 5 / A1: attached cohort ("מחזור"). Nullable — existing
   // registrations remain valid until admin assigns one.
   cohort_id: string | null
+  user_id?: string | null
+  price_due?: number | null
   workshops?: { title: string } | null
+  workshop_offers?: { id: string; workshop_id: string; label: string | null; discount_type: 'fixed' | 'percent'; discount_value: number } | null
 }
+
+// 6.10.26: open balance per registration (only registrations with recorded
+// payments can owe, see components/admin/payments.ts). A context so the
+// row can read it without threading a prop through the grouped view.
+const RegBalanceContext = createContext<Map<string, number>>(new Map())
 
 // "DD/MM/YY HH:MM · label" or "DD/MM/YY · label" when no time set.
 // Used in group headers + (compact variant) the picker option.
@@ -6934,7 +6943,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
   // Phase 5 / A2 Stage 3: linked-form submissions for the gap report.
   // One batched query per RegistrationsTab load — admin scale, totally
   // fine. The resolver runs over these once to build filledIndex.
-  type LinkedFormDef = { id: string; title: string; fields_json: { id: string; type: string; label: string; role?: 'name' | 'phone' | 'email' | 'none' }[]; public_link_enabled: boolean }
+  type LinkedFormDef = { id: string; title: string; fields_json: { id: string; type: string; label: string; role?: 'name' | 'phone' | 'email' | 'none' }[]; public_link_enabled: boolean; counts_as_filled_by?: string | null }
   type LinkedSubmission = { id: string; form_id: string; user_id: string | null; responses_json: Record<string, unknown>; created_at: string; user_profiles?: { mother_name: string | null; email: string | null } | null }
   const [linkedFormDefs, setLinkedFormDefs] = useState<Map<string, LinkedFormDef>>(new Map())
   const [linkedSubmissions, setLinkedSubmissions] = useState<LinkedSubmission[]>([])
@@ -6962,6 +6971,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
   // hidden on every device until she restores it. Only the inbox hides
   // it; the registration itself is untouched everywhere else.
   const [inboxDone, setInboxDone] = useState<Set<string>>(new Set())
+  const [leadPayments, setLeadPayments] = useState<Map<string, { amount: number }[]>>(new Map())
   const [inboxRunning, setInboxRunning] = useState<string | null>(null)
   async function markInboxDone(group: string, leadId: string) {
     const key = `inbox:${group}:${leadId}`
@@ -7002,11 +7012,19 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
 
   const load = useCallback(async () => {
     const [{ data: l }, { data: w }, { data: c }, { data: dm }] = await Promise.all([
-      supabase.from('registration_leads').select('*, workshops:selected_workshop_id(title)').order('created_at', { ascending: false }),
+      supabase.from('registration_leads').select('*, workshops:selected_workshop_id(title), workshop_offers:offer_id(id, workshop_id, label, discount_type, discount_value)').order('created_at', { ascending: false }),
       supabase.from('workshops').select('*').order('display_order'),
       supabase.from('workshop_cohorts').select('*').order('start_date', { ascending: false }),
       supabase.from('admin_task_dismissals').select('task_key').like('task_key', 'inbox:%'),
     ])
+    const { data: lp } = await supabase.from('lead_payments').select('lead_id, amount')
+    const pm = new Map<string, { amount: number }[]>()
+    for (const r of (lp ?? []) as { lead_id: string; amount: number }[]) {
+      const list = pm.get(r.lead_id) ?? []
+      list.push({ amount: Number(r.amount) })
+      pm.set(r.lead_id, list)
+    }
+    setLeadPayments(pm)
     setInboxDone(new Set(((dm ?? []) as { task_key: string }[]).map(d => d.task_key)))
     // Brenda 11.8.26: a מומש registration with no cohort is an old
     // row from before cohorts existed — it can never become current,
@@ -7039,16 +7057,21 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
     // (known-working) and brings all columns the resolver needs.
     // Errors are logged to the console so future silent failures are
     // visible.
-    const [formsRes, subsRes] = await Promise.all([
-      supabase.from('forms').select('*').in('id', linkedFormIds),
+    // 6.10.26: also the form each one accepts instead (counts_as_filled_by:
+    // an עטופים answer counts for מגלים), so a graduate never reads "missing".
+    const formsRes = await supabase.from('forms').select('*').in('id', linkedFormIds)
+    if (formsRes.error) console.error('[gap-report] forms query error:', formsRes.error)
+    const baseDefs = (formsRes.data ?? []) as LinkedFormDef[]
+    const priorIds = baseDefs.map(f => f.counts_as_filled_by).filter((x): x is string => !!x && !linkedFormIds.includes(x))
+    const [priorRes, subsRes] = await Promise.all([
+      priorIds.length ? supabase.from('forms').select('*').in('id', priorIds) : Promise.resolve({ data: [] as LinkedFormDef[], error: null }),
       supabase
         .from('form_submissions')
         .select('id, form_id, user_id, responses_json, created_at, user_profiles(mother_name, email)')
-        .in('form_id', linkedFormIds),
+        .in('form_id', [...linkedFormIds, ...priorIds]),
     ])
-    if (formsRes.error) console.error('[gap-report] forms query error:', formsRes.error)
     if (subsRes.error) console.error('[gap-report] form_submissions query error:', subsRes.error)
-    setLinkedFormDefs(new Map(((formsRes.data ?? []) as LinkedFormDef[]).map(f => [f.id, f])))
+    setLinkedFormDefs(new Map([...baseDefs, ...((priorRes.data ?? []) as LinkedFormDef[])].map(f => [f.id, f])))
     setLinkedSubmissions((subsRes.data ?? []) as unknown as LinkedSubmission[])
   }, [])
   useEffect(() => { load() }, [load])
@@ -7124,6 +7147,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
       const emailL = r.email?.toLowerCase().trim()
       if (phone) idx.add(`${sub.form_id}|p|${phone}`)
       if (emailL) idx.add(`${sub.form_id}|e|${emailL}`)
+      if (sub.user_id) idx.add(`${sub.form_id}|u|${sub.user_id}`)
     }
     return idx
   }, [linkedSubmissions, linkedFormDefs])
@@ -7141,14 +7165,27 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
       if (!w?.linked_form_id) { m.set(lead.id, null); continue }
       const form = linkedFormDefs.get(w.linked_form_id)
       if (!form) { m.set(lead.id, null); continue }
-      const phone = normalizeIlPhone(lead.phone)
-      const emailL = lead.email?.toLowerCase().trim()
-      const isFilled = (!!phone && filledIndex.has(`${form.id}|p|${phone}`))
-        || (!!emailL && filledIndex.has(`${form.id}|e|${emailL}`))
+      const isFilled = isFormFilled(form.id, lead, linkedFormDefs, filledIndex)
       m.set(lead.id, { form: { id: form.id, title: form.title, public_link_enabled: form.public_link_enabled }, isFilled })
     }
     return m
   }, [leads, workshopById, linkedFormDefs, filledIndex])
+
+  const balanceByLead = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const l of leads) {
+      const rows = leadPayments.get(l.id)
+      if (!rows || l.status === 'pending') continue
+      const w = l.selected_workshop_id ? workshopById.get(l.selected_workshop_id) : undefined
+      let due: number | null = l.price_due != null ? Number(l.price_due) : (w?.price ?? null)
+      if (l.price_due == null && l.workshop_offers && w && l.workshop_offers.workshop_id === w.id) {
+        due = offerPrice(l.workshop_offers, w.price ?? null) ?? due
+      }
+      const b = computeBalance(rows, due)
+      if (b.left != null && b.left > 0) m.set(l.id, b.left)
+    }
+    return m
+  }, [leads, leadPayments, workshopById])
 
   const filtered = useMemo(() => {
     // Phase 3 focus mode (handoff §4): a task click lands here with the
@@ -7470,6 +7507,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
   }
 
   return (
+    <RegBalanceContext.Provider value={balanceByLead}>
     <div className="space-y-3" dir="rtl">
       {/* README-IA PR10: compact header — one search + new-registration. */}
       <div className="flex flex-wrap items-center gap-3">
@@ -7874,6 +7912,7 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
       })()}
 
     </div>
+    </RegBalanceContext.Provider>
   )
 }
 
@@ -7944,6 +7983,7 @@ function RegistrationRow52({ lead: l, eff, gap, navOrder, navIndex, selected, on
 }) {
   const openCustomer = useOpenCustomer()
   const st = REG_ROW_STATUS[eff]
+  const balanceLeft = useContext(RegBalanceContext).get(l.id) ?? null
   // Yahav: the phone in the row must be copyable. It sits OUTSIDE the
   // panel-opening button (nested buttons are invalid) — tapping the
   // number copies it and flashes a ✓; the rest of the row still opens
@@ -7995,6 +8035,11 @@ function RegistrationRow52({ lead: l, eff, gap, navOrder, navIndex, selected, on
         {gap && (
           <span className="flex-shrink-0 whitespace-nowrap" style={{ fontWeight: 800, fontSize: 12.5, color: gap.isFilled ? '#A2937D' : '#8B4A30' }}>
             {gap.isFilled ? 'שאלון מולא' : 'שאלון חסר'}
+          </span>
+        )}
+        {balanceLeft != null && (
+          <span className="flex-shrink-0 whitespace-nowrap rounded-full" style={{ fontWeight: 800, fontSize: 12, color: '#6E5836', background: '#F6ECD8', padding: '2px 8px' }}>
+            יתרה ₪{balanceLeft.toLocaleString()}
           </span>
         )}
         <span className="flex-1" />

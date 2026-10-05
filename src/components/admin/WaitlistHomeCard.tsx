@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Bell, ChevronDown } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import WaitlistOutreach from './WaitlistOutreach'
+import WaitlistOutreach, { summarizeWaitlist, type PaidLead } from './WaitlistOutreach'
+import type { WorkshopWaitlistRow } from '../../lib/supabase'
 
 /**
  * "ממתינות למחזור חדש" on the admin home.
@@ -17,7 +18,7 @@ import WaitlistOutreach from './WaitlistOutreach'
  * The per-product panel is WaitlistOutreach, shared with the product page.
  */
 
-type Group = { workshopId: string; title: string; count: number }
+type Group = { workshopId: string; title: string; count: number; act: number; parked: number; registered: number; datePassed: boolean; needsAction: boolean }
 
 export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (id: string) => void }) {
   const [groups, setGroups] = useState<Group[]>([])
@@ -40,21 +41,42 @@ export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (i
   }
 
   const load = useCallback(async () => {
-    const { data: w } = await supabase.from('workshop_waitlist').select('workshop_id')
-    const counts = new Map<string, number>()
-    for (const r of (w ?? []) as { workshop_id: string }[]) counts.set(r.workshop_id, (counts.get(r.workshop_id) ?? 0) + 1)
-    const ids = [...counts.keys()]
+    const { data: w } = await supabase.from('workshop_waitlist').select('*')
+    const rowsBy = new Map<string, WorkshopWaitlistRow[]>()
+    for (const r of (w ?? []) as WorkshopWaitlistRow[]) rowsBy.set(r.workshop_id, [...(rowsBy.get(r.workshop_id) ?? []), r])
+    const ids = [...rowsBy.keys()]
     if (ids.length === 0) { setGroups([]); setLoading(false); return }
-    const { data: ws } = await supabase.from('workshops').select('id, title').in('id', ids)
-    const titles = new Map((ws ?? []).map((x: { id: string; title: string }) => [x.id, x.title]))
-    setGroups(ids.map(id => ({ workshopId: id, title: titles.get(id) ?? 'מוצר', count: counts.get(id) ?? 0 }))
-      .sort((a, b) => b.count - a.count))
+    const [{ data: ws }, { data: pl }] = await Promise.all([
+      supabase.from('workshops').select('id, title, waitlist_proposed_date').in('id', ids),
+      supabase.from('registration_leads').select('selected_workshop_id, user_id, normalized_phone, created_at').in('selected_workshop_id', ids).eq('status', 'paid'),
+    ])
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
+    const info = new Map(((ws ?? []) as { id: string; title: string; waitlist_proposed_date: string | null }[]).map(x => [x.id, x]))
+    const paid = (pl ?? []) as (PaidLead & { selected_workshop_id: string })[]
+    setGroups(ids.map(id => {
+      const rows = rowsBy.get(id) ?? []
+      const sum = summarizeWaitlist(rows, info.get(id)?.waitlist_proposed_date ?? null, paid.filter(p => p.selected_workshop_id === id), today)
+      return { workshopId: id, title: info.get(id)?.title ?? 'מוצר', count: rows.length, ...sum }
+    }).sort((a, b) => Number(b.needsAction) - Number(a.needsAction) || b.act - a.act))
     setLoading(false)
   }, [])
   useEffect(() => { load() }, [load])
 
   if (loading || groups.length === 0) return null
-  const total = groups.reduce((n, g) => n + g.count, 0)
+  // 6.10.26: the number on the header is who needs a move from him, not
+  // everyone who ever asked (מפגש אבות read 13 with 5 already paid).
+  const total = groups.reduce((n, g) => n + g.act, 0)
+  const quiet = groups.filter(g => !g.needsAction)
+  const live = groups.filter(g => g.needsAction)
+  // Nothing to do anywhere: one quiet line, no card.
+  if (live.length === 0) {
+    return (
+      <p className="px-2" style={{ fontSize: 12.5, color: '#A2937D', fontWeight: 600 }}>
+        רשימות המתנה: אין מה לעשות כרגע · {quiet.map(g => `${g.title}${g.parked ? ` (${g.parked} לסבב הבא)` : ''}`).join(' · ')}
+        {onOpenProduct && quiet[0] && <> · <button onClick={() => onOpenProduct(quiet[0].workshopId)} className="underline">לעמוד המוצר</button></>}
+      </p>
+    )
+  }
 
   return (
     <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
@@ -76,14 +98,19 @@ export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (i
 
       {!open ? null : (
         <div className="space-y-5 mt-3">
-          {groups.map(g => (
+          {live.map(g => (
             <div key={g.workshopId}>
               <div className="flex items-center justify-between mb-2">
                 <button onClick={() => toggleGroup(g.workshopId)} className="font-bold text-right flex items-center gap-1.5"
                   style={{ fontSize: 13, color: '#6E5836' }} aria-expanded={!collapsed[g.workshopId]}>
                   <ChevronDown className="w-3.5 h-3.5 transition-transform"
                     style={{ color: '#BCAE99', transform: collapsed[g.workshopId] ? 'rotate(-90deg)' : 'none' }} />
-                  {g.title} · {g.count}
+                  {g.title} · {g.act > 0 ? `${g.act} לטיפול` : 'התאריך עבר'}
+                  {(g.parked > 0 || g.registered > 0) && (
+                    <span className="font-semibold" style={{ color: '#A2937D' }}>
+                      {g.registered > 0 && ` · ${g.registered} נרשמו`}{g.parked > 0 && ` · ${g.parked} לסבב הבא`}
+                    </span>
+                  )}
                 </button>
                 <button onClick={() => onOpenProduct?.(g.workshopId)} style={{ fontSize: 11, color: '#A2937D' }}>
                   לעמוד המוצר
@@ -94,6 +121,11 @@ export default function WaitlistHomeCard({ onOpenProduct }: { onOpenProduct?: (i
               )}
             </div>
           ))}
+          {quiet.length > 0 && (
+            <p style={{ fontSize: 12, color: '#A2937D' }}>
+              בלי פעולה כרגע: {quiet.map(g => `${g.title}${g.parked ? ` (${g.parked} לסבב הבא)` : ''}`).join(' · ')}
+            </p>
+          )}
         </div>
       )}
     </div>

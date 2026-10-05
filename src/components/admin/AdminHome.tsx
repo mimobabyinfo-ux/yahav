@@ -8,6 +8,9 @@ import MimoLeaf from '../MimoLeaf'
 import UnclaimedPurchasesCard from './UnclaimedPurchasesCard'
 import WaitlistHomeCard from './WaitlistHomeCard'
 import MyTasksCard from './MyTasksCard'
+import RecentRegistrationsCard from './RecentRegistrationsCard'
+import AssignPaymentModal from './AssignPaymentModal'
+import type { UnmatchedPayment } from './adminTasks'
 
 // Admin home ("בית") — answers "what needs me today" (design handoff §3).
 // Three blocks: greeting strip with counters, the derived task list
@@ -66,9 +69,11 @@ type Props = {
 
 export default function AdminHome({ overview, onSection, onOpenTask, onOpenProduct }: Props) {
   const { profile } = useAuth()
-  const { loading, tasks, manualTasks, counters, monthPayments, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
+  const { loading, tasks, manualTasks, counters, monthPayments, capacity, recentRegistrations, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
   // The הכנסות number opens into the payments behind it.
   const [showPayments, setShowPayments] = useState(false)
+  // 6.10.26: "למי שייך התשלום?" for an unmatched Morning payment.
+  const [assigning, setAssigning] = useState<UnmatchedPayment | null>(null)
 
   // Yahav 26.8.26: he asked for open/close on the home cards. The admin
   // home has grown into a column of tall lists and he does not need all of
@@ -186,7 +191,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                 </h1>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
               {([
                 // 2.10.26: "ממתינות לתשלום" moved to the לידים screen and
                 // "נרשמות פעילות" said nothing to act on; both replaced.
@@ -195,6 +200,11 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                   value: String(openSeats),
                   sub: `${cohortsToYearEnd.length} מחזורים`,
                   onClick: () => setOpenCapacity(true),
+                },
+                {
+                  label: 'נרשמו השבוע',
+                  value: String(recentRegistrations.filter(r => Date.now() - new Date(r.created_at).getTime() < 7 * 86400000).length),
+                  sub: `${recentRegistrations.filter(r => r.status === 'pending' && Date.now() - new Date(r.created_at).getTime() < 7 * 86400000).length} ממתינות לתשלום`,
                 },
                 {
                   label: 'נכנס החודש',
@@ -221,8 +231,11 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                 </div>
               ))}
             </div>
+            {assigning && (
+              <AssignPaymentModal payment={assigning} onClose={() => setAssigning(null)} onDone={reload} />
+            )}
             {showPayments && (
-              <MonthPaymentsModal payments={monthPayments} total={counters.monthRevenue} onClose={() => setShowPayments(false)} />
+              <MonthPaymentsModal payments={monthPayments} total={counters.monthRevenue} onClose={() => setShowPayments(false)} onAssign={p => { setShowPayments(false); setAssigning({ id: p.id, received_at: p.received_at, total: p.total, payer_name: p.payer_name, payer_email: p.payer_email, description: p.description, detail: p.detail }) }} />
             )}
           </div>
 
@@ -230,11 +243,6 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               which is the normal state — it only appears when a mother is
               actually stuck, and then it sits above everything else. */}
           <UnclaimedPurchasesCard />
-
-          {/* Yahav 26.8.26: the waitlist was only reachable from inside a
-              product, "מאוד לא אינטואיטיבי ולא זמין". Warm leads nobody
-              sees are the same as no leads. Renders nothing when empty. */}
-          <WaitlistHomeCard onOpenProduct={onOpenProduct} />
 
           {/* "נרשמו ולא השלימו תשלום" used to sit here too. Yahav 26.8.26:
               "אני רוצה שזה יהיה רק באירועי קהילה." It lives in
@@ -315,7 +323,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                       )}
                     </p>
                     <button
-                      onClick={() => (onOpenTask ? onOpenTask(t) : onSection(t.section))}
+                      onClick={() => (t.payment ? setAssigning(t.payment) : onOpenTask ? onOpenTask(t) : onSection(t.section))}
                       className="flex-shrink-0 flex items-center gap-0.5 font-bold rounded-xl transition-all hover:brightness-95"
                       style={{ fontSize: 13, padding: '6px 12px', background: '#F6ECD8', color: '#6E5836' }}
                     >
@@ -337,7 +345,102 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
             )}
           </div>
 
+          {/* 6.10.26: who registered, for WHICH cohort, paid, questionnaire.
+              Right under "דורש תשומת לב": the second thing Yahav looks for. */}
+          <RecentRegistrationsCard rows={recentRegistrations} />
+
           <MyTasksCard tasks={myTasks} reload={reload} />
+
+          {/* כמה נרשמו — split by kind.
+              Yahav 26.8.26: "בכמה נרשמו שזה יתחלק לי לאירועי קהילה
+              ולסדנאות, כשזה הכל ביחד זה מבלבל." He is right: a community
+              evening and a paid workshop cohort are different businesses
+              with different capacities, and a single date-sorted list
+              interleaved them so neither read as a whole. */}
+          <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
+            <button
+              onClick={() => setOpenCapacity(v => !v)}
+              className="w-full flex items-center justify-between mb-3"
+              aria-expanded={openCapacity}
+            >
+              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>כמה נרשמו</h2>
+              <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: openCapacity ? 'rotate(180deg)' : 'none' }} />
+            </button>
+            {!openCapacity ? null : capacity.length === 0 ? (
+              <p className="text-sm py-3 text-center" style={{ color: '#A2937D' }}>אין מחזורים או אירועים קרובים</p>
+            ) : (
+              <div className="space-y-4">
+                {([
+                  ['event', 'אירועי קהילה'],
+                  ['cohort', 'סדנאות'],
+                ] as const).map(([kind, label]) => {
+                  const group = capacity.filter(r => r.kind === kind)
+                  if (group.length === 0) return null
+                  return (
+                    <div key={kind}>
+                      <p className="font-bold mb-1.5 px-1" style={{ fontSize: 13, color: '#6E5836' }}>
+                        {label} · {group.length}
+                      </p>
+                      <div className="space-y-1">
+                {group.map(row => {
+                  const ratio = row.capacity ? Math.min(1, row.count / row.capacity) : 0
+                  const left = row.capacity != null ? Math.max(0, row.capacity - row.count) : null
+                  const tight = left != null && left <= 3
+                  return (
+                    <button
+                      key={`${row.kind}:${row.id}`}
+                      onClick={() => {
+                        // 6.10.26: a cohort opens ITS registrations, not the
+                        // whole registrations page.
+                        if (row.kind === 'cohort' && row.leadIds && row.leadIds.length > 0 && onOpenTask) {
+                          onOpenTask({
+                            key: `cohort:${row.id}`,
+                            title: `${row.title} · ${ddmm(row.date)}${row.time ? ` ${row.time}` : ''}`,
+                            facts: [], severity: 'mid', section: 'registrations', actionLabel: '',
+                            sourceUpdatedAt: null, targetLeadIds: row.leadIds,
+                          })
+                        } else {
+                          onSection(row.kind === 'cohort' ? 'registrations' : 'events')
+                        }
+                      }}
+                      className="w-full flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-right transition-colors hover:bg-[#FAF7F1]"
+                    >
+                      <span className="flex flex-col items-center justify-center flex-shrink-0 rounded-xl" style={{ width: 52, padding: '5px 0', background: '#F6F3ED' }}>
+                        <span className="font-display" style={{ fontSize: 16, lineHeight: 1, color: '#443327' }}>{ddmm(row.date)}</span>
+                        <span className="font-semibold" style={{ fontSize: 11, color: '#8A7A63' }}>{weekdayHe(row.date)}</span>
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block font-bold truncate" style={{ fontSize: 14, color: '#443327' }}>
+                          {row.title}
+                          {row.time && <span className="font-semibold" style={{ color: '#A2937D' }}> · {row.time}</span>}
+                        </span>
+                        <span className="block mt-1.5 rounded-full overflow-hidden" style={{ height: 6, background: '#F1EBE1' }}>
+                          <span className="block h-full rounded-full" style={{ width: `${ratio * 100}%`, background: tight ? '#8B4A30' : '#C8A460' }} />
+                        </span>
+                      </span>
+                      <span className="flex-shrink-0 text-left" style={{ minWidth: 74 }}>
+                        <span className="block font-display" style={{ fontSize: 16, color: '#443327' }}>
+                          {row.count}{row.capacity != null && `/${row.capacity}`}
+                        </span>
+                        <span className="block font-semibold" style={{ fontSize: 12, color: tight ? '#8B4A30' : '#8A7A63' }}>
+                          {row.capacity == null ? 'ללא הגבלה' : left === 0 ? 'מלא' : `נותרו ${left}`}
+                        </span>
+                      </span>
+                    </button>
+                  )
+                })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Yahav 26.8.26: the waitlist was only reachable from inside a
+              product. 6.10.26: moved below the capacity list, and it only
+              shows when someone on it needs an action. */}
+          <WaitlistHomeCard onOpenProduct={onOpenProduct} />
 
           {/* מועמדות למגלים — graduates whose baby reached the right age.
               The CRM's follow-up is calendar-based (+14 days after
@@ -428,78 +531,6 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
             )}
           </div>
 
-          {/* כמה נרשמו — split by kind.
-              Yahav 26.8.26: "בכמה נרשמו שזה יתחלק לי לאירועי קהילה
-              ולסדנאות, כשזה הכל ביחד זה מבלבל." He is right: a community
-              evening and a paid workshop cohort are different businesses
-              with different capacities, and a single date-sorted list
-              interleaved them so neither read as a whole. */}
-          <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-            <button
-              onClick={() => setOpenCapacity(v => !v)}
-              className="w-full flex items-center justify-between mb-3"
-              aria-expanded={openCapacity}
-            >
-              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>כמה נרשמו</h2>
-              <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: openCapacity ? 'rotate(180deg)' : 'none' }} />
-            </button>
-            {!openCapacity ? null : capacity.length === 0 ? (
-              <p className="text-sm py-3 text-center" style={{ color: '#A2937D' }}>אין מחזורים או אירועים קרובים</p>
-            ) : (
-              <div className="space-y-4">
-                {([
-                  ['event', 'אירועי קהילה'],
-                  ['cohort', 'סדנאות'],
-                ] as const).map(([kind, label]) => {
-                  const group = capacity.filter(r => r.kind === kind)
-                  if (group.length === 0) return null
-                  return (
-                    <div key={kind}>
-                      <p className="font-bold mb-1.5 px-1" style={{ fontSize: 13, color: '#6E5836' }}>
-                        {label} · {group.length}
-                      </p>
-                      <div className="space-y-1">
-                {group.map(row => {
-                  const ratio = row.capacity ? Math.min(1, row.count / row.capacity) : 0
-                  const left = row.capacity != null ? Math.max(0, row.capacity - row.count) : null
-                  const tight = left != null && left <= 3
-                  return (
-                    <button
-                      key={`${row.kind}:${row.id}`}
-                      onClick={() => onSection(row.kind === 'cohort' ? 'registrations' : 'events')}
-                      className="w-full flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-right transition-colors hover:bg-[#FAF7F1]"
-                    >
-                      <span className="flex flex-col items-center justify-center flex-shrink-0 rounded-xl" style={{ width: 52, padding: '5px 0', background: '#F6F3ED' }}>
-                        <span className="font-display" style={{ fontSize: 16, lineHeight: 1, color: '#443327' }}>{ddmm(row.date)}</span>
-                        <span className="font-semibold" style={{ fontSize: 11, color: '#8A7A63' }}>{weekdayHe(row.date)}</span>
-                      </span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block font-bold truncate" style={{ fontSize: 14, color: '#443327' }}>
-                          {row.title}
-                          {row.time && <span className="font-semibold" style={{ color: '#A2937D' }}> · {row.time}</span>}
-                        </span>
-                        <span className="block mt-1.5 rounded-full overflow-hidden" style={{ height: 6, background: '#F1EBE1' }}>
-                          <span className="block h-full rounded-full" style={{ width: `${ratio * 100}%`, background: tight ? '#8B4A30' : '#C8A460' }} />
-                        </span>
-                      </span>
-                      <span className="flex-shrink-0 text-left" style={{ minWidth: 74 }}>
-                        <span className="block font-display" style={{ fontSize: 16, color: '#443327' }}>
-                          {row.count}{row.capacity != null && `/${row.capacity}`}
-                        </span>
-                        <span className="block font-semibold" style={{ fontSize: 12, color: tight ? '#8B4A30' : '#8A7A63' }}>
-                          {row.capacity == null ? 'ללא הגבלה' : left === 0 ? 'מלא' : `נותרו ${left}`}
-                        </span>
-                      </span>
-                    </button>
-                  )
-                })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* ── Right column — מה המשתמשת רואה עכשיו ── */}
@@ -652,10 +683,13 @@ function MonthPaymentsModal({
   payments,
   total,
   onClose,
+  onAssign,
 }: {
   payments: MorningPayment[]
   total: number
   onClose: () => void
+  /** 6.10.26: open "למי שייך התשלום?" for an unmatched row. */
+  onAssign?: (p: MorningPayment) => void
 }) {
   // A payment Morning delivered that we could not attach to anyone. The
   // money is real and counts; the seat is the open question.
@@ -713,7 +747,11 @@ function MonthPaymentsModal({
               <p className="mt-0.5 flex flex-wrap gap-x-2" style={{ fontSize: 11.5, color: '#8A7A63' }}>
                 <span>{paymentDateHe(p.received_at)} · {paymentTimeHe(p.received_at)}</span>
                 {p.description && <span>· {p.description}</span>}
-                {p.outcome === 'unmatched' && <span style={{ color: '#8B4A30', fontWeight: 700 }}>· לא שויך</span>}
+                {p.outcome === 'unmatched' && (
+                  onAssign
+                    ? <button onClick={() => onAssign(p)} className="underline" style={{ color: '#8B4A30', fontWeight: 700 }}>· לא שויך, לשיוך</button>
+                    : <span style={{ color: '#8B4A30', fontWeight: 700 }}>· לא שויך</span>
+                )}
               </p>
             </div>
           ))}

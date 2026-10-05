@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, type Workshop, type WorkshopCohort, type CommunityEvent, type HomeAnnouncement } from '../../lib/supabase'
-import { deriveAdminTasks, applyDismissals, type AdminTask, type ManualTask, type TaskLead, type LinkedFormDef, type LinkedSubmission, type PaymentClaim, type UnmatchedPayment } from './adminTasks'
+import { deriveAdminTasks, applyDismissals, buildFilledIndex, isFormFilled, type AdminTask, type ManualTask, type TaskLead, type LinkedFormDef, type LinkedSubmission, type PaymentClaim, type UnmatchedPayment, type OpenBalance } from './adminTasks'
+import { offerPrice, type RegistrationOffer } from './customerLookup'
+import { computeBalance } from './payments'
 import { deriveMegalimCandidates, type MegalimCandidatesResult, type ProfileDob } from './megalimCandidates'
 
 // One shared fetch for the admin home screen + sidebar badges — called
@@ -40,6 +42,26 @@ function dedupePayments(rows: MorningPayment[]): MorningPayment[] {
   return kept.reverse()   // newest first, the order the UI reads in
 }
 
+/** 6.10.26 "נרשמו לאחרונה": one line per new registration with everything
+ *  Yahav used to piece together from the Morning / Grow emails. */
+export type RecentRegistration = {
+  id: string
+  name: string
+  phone: string
+  email: string
+  created_at: string
+  status: 'pending' | 'paid' | 'handled'
+  workshopTitle: string | null
+  cohort: { start_date: string; start_time: string | null } | null
+  /** Product has cohorts but she is not placed in one. */
+  needsCohort: boolean
+  /** null = the product has no opening questionnaire. */
+  formFilled: boolean | null
+  /** Recorded payments only (see payments.ts); null = no rows. */
+  balanceLeft: number | null
+  paidSum: number
+}
+
 export type CapacityRow = {
   kind: 'cohort' | 'event'
   id: string
@@ -48,6 +70,8 @@ export type CapacityRow = {
   time: string | null    // HH:MM
   count: number
   capacity: number | null
+  /** Cohort rows: the registrations in it, so a tap opens exactly them. */
+  leadIds?: string[]
 }
 
 /** One payment Morning actually charged, as it reached our webhook.
@@ -79,6 +103,8 @@ export type AdminOverview = {
    *  1 and then I'll go in." */
   paymentClaimCount: number
   capacity: CapacityRow[]
+  /** Registrations from the last 14 days, newest first. */
+  recentRegistrations: RecentRegistration[]
   /** עטופים graduates whose baby just reached the מגלים age window. */
   megalim: MegalimCandidatesResult
   announcements: HomeAnnouncement[]
@@ -89,13 +115,21 @@ export type AdminOverview = {
   reload: () => void
 }
 
+type OverviewLead = TaskLead & {
+  cohort_id: string | null
+  user_id: string | null
+  price_due: number | null
+  workshop_offers: RegistrationOffer | null
+}
+
 export function useAdminOverview(enabled: boolean): AdminOverview {
   const [loading, setLoading] = useState(true)
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [cohorts, setCohorts] = useState<WorkshopCohort[]>([])
   const [events, setEvents] = useState<CommunityEvent[]>([])
   const [checkinEventIds, setCheckinEventIds] = useState<Set<string>>(new Set())
-  const [leads, setLeads] = useState<TaskLead[]>([])
+  const [leads, setLeads] = useState<OverviewLead[]>([])
+  const [leadPayments, setLeadPayments] = useState<Map<string, { amount: number }[]>>(new Map())
   const [leadCohortIds, setLeadCohortIds] = useState<Map<string, string | null>>(new Map())
   const [eventRegCounts, setEventRegCounts] = useState<Map<string, number>>(new Map())
   const [formDefs, setFormDefs] = useState<Map<string, LinkedFormDef>>(new Map())
@@ -115,12 +149,12 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
 
   const load = useCallback(async () => {
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-    const [ws, cs, evs, toks, lds, evRegs, claims, anns, pls, mts, dms, dobs, wls, hooks, pays] = await Promise.all([
+    const [ws, cs, evs, toks, lds, evRegs, claims, anns, pls, mts, dms, dobs, wls, hooks, pays, lps] = await Promise.all([
       supabase.from('workshops').select('*').order('display_order'),
       supabase.from('workshop_cohorts').select('*').order('start_date'),
       supabase.from('community_events').select('*').order('event_date'),
       supabase.from('event_checkin_tokens').select('event_id'),
-      supabase.from('registration_leads').select('id, name, phone, email, status, created_at, selected_workshop_id, cohort_id'),
+      supabase.from('registration_leads').select('id, name, phone, email, status, created_at, selected_workshop_id, cohort_id, user_id, price_due, workshop_offers:offer_id(id, workshop_id, label, discount_type, discount_value)'),
       // guest_names too: the room fills by SEATS, not by rows. The home
       // screen used to count rows while the Events tab counted seats, so
       // the same event showed two different numbers.
@@ -141,7 +175,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
       // logged every delivery since 17.8; nothing read it until now, so a
       // payment could land with no registration and no signal at all.
       supabase.from('morning_webhook_log')
-        .select('id, received_at, payer_name, payer_email, total, detail, outcome')
+        .select('id, received_at, payer_name, payer_email, payer_phone, description, total, detail, outcome')
         .neq('outcome', 'digital_course')
         .gte('received_at', new Date(Date.now() - 30 * 86400000).toISOString())
         .order('received_at', { ascending: false })
@@ -154,14 +188,23 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
         .gte('received_at', new Date(Date.now() - 90 * 86400000).toISOString())
         .order('received_at', { ascending: false })
         .limit(500),
+      // 6.10.26: recorded payments per registration (partial / cash).
+      supabase.from('lead_payments').select('lead_id, amount'),
     ])
     const wsList = (ws.data ?? []) as Workshop[]
     setWorkshops(wsList)
     setCohorts((cs.data ?? []) as WorkshopCohort[])
     setEvents((evs.data ?? []) as CommunityEvent[])
     setCheckinEventIds(new Set(((toks.data ?? []) as { event_id: string }[]).map(t => t.event_id)))
-    const leadRows = (lds.data ?? []) as (TaskLead & { cohort_id: string | null })[]
+    const leadRows = (lds.data ?? []) as unknown as OverviewLead[]
     setLeads(leadRows)
+    const pm = new Map<string, { amount: number }[]>()
+    for (const r of (lps.data ?? []) as { lead_id: string; amount: number }[]) {
+      const list = pm.get(r.lead_id) ?? []
+      list.push({ amount: Number(r.amount) })
+      pm.set(r.lead_id, list)
+    }
+    setLeadPayments(pm)
     setLeadCohortIds(new Map(leadRows.map(l => [l.id, l.cohort_id])))
     // Two different questions, so two different counts.
     //  · taken  — how full the room is NOW. Must agree with the server's
@@ -192,10 +235,9 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     }
     setEventWaiting(wlCount)
     setPayments(dedupePayments((pays.data ?? []) as MorningPayment[]))
-    setUnmatchedPayments(((hooks.data ?? []) as {
-      id: string; received_at: string; payer_name: string | null
-      payer_email: string | null; total: number | null; detail: string | null
-    }[]).filter(h => {
+    setUnmatchedPayments(((hooks.data ?? []) as (UnmatchedPayment & { outcome: string | null })[]).filter(h => {
+      // 6.10.26: attached by hand, or closed as not-a-registration.
+      if (h.outcome === 'manual_match' || h.outcome === 'dismissed') return false
       const d = h.detail ?? ''
       // Only deliveries where nobody got a seat. price_mismatch is
       // appended to CONFIRMED rows too — the seat was assigned, the amount
@@ -227,11 +269,17 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
       setFormDefs(new Map())
       setFormSubs([])
     } else {
-      const [formsRes, subsRes] = await Promise.all([
-        supabase.from('forms').select('*').in('id', linkedFormIds),
-        supabase.from('form_submissions').select('id, form_id, responses_json, created_at, user_profiles(mother_name, email)').in('form_id', linkedFormIds),
+      // The forms an answer may come from: each product's form, plus the
+      // form it accepts instead (counts_as_filled_by).
+      const formsRes = await supabase.from('forms').select('*').in('id', linkedFormIds)
+      const defs = (formsRes.data ?? []) as LinkedFormDef[]
+      const allIds = Array.from(new Set([...linkedFormIds, ...defs.map(f => f.counts_as_filled_by).filter((x): x is string => !!x)]))
+      const extra = allIds.filter(id => !defs.some(d => d.id === id))
+      const [extraRes, subsRes] = await Promise.all([
+        extra.length ? supabase.from('forms').select('*').in('id', extra) : Promise.resolve({ data: [] as LinkedFormDef[] }),
+        supabase.from('form_submissions').select('id, form_id, user_id, responses_json, created_at, user_profiles(mother_name, email)').in('form_id', allIds),
       ])
-      setFormDefs(new Map(((formsRes.data ?? []) as LinkedFormDef[]).map(f => [f.id, f])))
+      setFormDefs(new Map([...defs, ...((extraRes.data ?? []) as LinkedFormDef[])].map(f => [f.id, f])))
       setFormSubs((subsRes.data ?? []) as unknown as LinkedSubmission[])
     }
     setLoading(false)
@@ -240,6 +288,60 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
   useEffect(() => {
     if (enabled) load()
   }, [enabled, load])
+
+  // What each registration should cost: the agreed price, else the offer
+  // price, else the product price.
+  const dueOf = useCallback((l: OverviewLead): number | null => {
+    if (l.price_due != null) return Number(l.price_due)
+    const w = workshops.find(x => x.id === l.selected_workshop_id)
+    const list = w?.price ?? null
+    if (l.workshop_offers && w && l.workshop_offers.workshop_id === w.id) {
+      const d = offerPrice(l.workshop_offers, list)
+      if (d != null) return d
+    }
+    return list
+  }, [workshops])
+
+  const openBalances = useMemo<OpenBalance[]>(() => {
+    const out: OpenBalance[] = []
+    for (const l of leads) {
+      const rows = leadPayments.get(l.id)
+      if (!rows || l.status === 'pending') continue
+      const b = computeBalance(rows, dueOf(l))
+      if (b.left != null && b.left > 0) {
+        out.push({ leadId: l.id, name: l.name, left: b.left, workshopTitle: workshops.find(w => w.id === l.selected_workshop_id)?.title ?? null })
+      }
+    }
+    return out
+  }, [leads, leadPayments, dueOf, workshops])
+
+  const recentRegistrations = useMemo<RecentRegistration[]>(() => {
+    if (loading) return []
+    const since = Date.now() - 14 * 86400000
+    const wById = new Map(workshops.map(w => [w.id, w]))
+    const cById = new Map(cohorts.map(c => [c.id, c]))
+    const withCohorts = new Set(cohorts.map(c => c.workshop_id))
+    const filled = buildFilledIndex(formDefs, formSubs)
+    return leads
+      .filter(l => new Date(l.created_at).getTime() >= since)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .map(l => {
+        const w = l.selected_workshop_id ? wById.get(l.selected_workshop_id) : undefined
+        const c = l.cohort_id ? cById.get(l.cohort_id) : undefined
+        const rows = leadPayments.get(l.id) ?? []
+        const b = computeBalance(rows, dueOf(l))
+        return {
+          id: l.id, name: l.name, phone: l.phone, email: l.email, created_at: l.created_at,
+          status: l.status,
+          workshopTitle: w?.title ?? null,
+          cohort: c ? { start_date: c.start_date, start_time: c.start_time } : null,
+          needsCohort: !c && !!w && withCohorts.has(w.id),
+          formFilled: w?.linked_form_id && formDefs.has(w.linked_form_id) ? isFormFilled(w.linked_form_id, l, formDefs, filled) : null,
+          balanceLeft: b.left,
+          paidSum: b.paid,
+        }
+      })
+  }, [loading, leads, workshops, cohorts, formDefs, formSubs, leadPayments, dueOf])
 
   const tasks = useMemo(() => {
     if (loading) return []
@@ -258,12 +360,13 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
       }])),
       eventWaiting,
       unmatchedPayments,
+      openBalances,
       today: todayIsrael(),
       nowMs: Date.now(),
     })
     // Persisted "טופל": hidden until the source row changes again.
     return applyDismissals(derived, dismissals)
-  }, [loading, workshops, cohorts, events, checkinEventIds, leads, formDefs, formSubs, dismissals, paymentClaims, eventSeatsTaken, eventWaiting, unmatchedPayments])
+  }, [loading, workshops, cohorts, events, checkinEventIds, leads, formDefs, formSubs, dismissals, paymentClaims, eventSeatsTaken, eventWaiting, unmatchedPayments, openBalances])
 
   // Everything Morning charged since the 1st of this month, Israel time.
   const monthPayments = useMemo<MorningPayment[]>(() => {
@@ -291,8 +394,13 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     // Reg count per cohort — ALL leads regardless of status, the same
     // definition the public RPC and RegistrationsTab use.
     const byCohort = new Map<string, number>()
-    for (const [, cid] of leadCohortIds) {
-      if (cid) byCohort.set(cid, (byCohort.get(cid) ?? 0) + 1)
+    const idsByCohort = new Map<string, string[]>()
+    for (const [lid, cid] of leadCohortIds) {
+      if (!cid) continue
+      byCohort.set(cid, (byCohort.get(cid) ?? 0) + 1)
+      const list = idsByCohort.get(cid) ?? []
+      list.push(lid)
+      idsByCohort.set(cid, list)
     }
     const rows: CapacityRow[] = []
     for (const c of cohorts) {
@@ -307,6 +415,7 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
         count: byCohort.get(c.id) ?? 0,
         // effectiveCapacity: cohort override ?? workshop per-cohort max.
         capacity: c.capacity ?? w?.stock_quantity ?? null,
+        leadIds: idsByCohort.get(c.id) ?? [],
       })
     }
     for (const ev of events) {
@@ -359,5 +468,5 @@ export function useAdminOverview(enabled: boolean): AdminOverview {
     [upcomingEvents],
   )
 
-  return { loading, tasks, manualTasks, counters, monthPayments, paymentClaimCount: paymentClaims.length, capacity, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload: load }
+  return { loading, tasks, manualTasks, counters, monthPayments, paymentClaimCount: paymentClaims.length, capacity, recentRegistrations, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload: load }
 }

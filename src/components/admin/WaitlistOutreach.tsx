@@ -34,7 +34,7 @@ import { supabase, type WorkshopWaitlistRow } from '../../lib/supabase'
 type Status = 'not_sent' | 'sent' | 'yes' | 'no' | 'registered'
 
 type Cohort = { id: string; start_date: string; is_active: boolean }
-type PaidLead = { user_id: string | null; normalized_phone: string | null; created_at: string }
+export type PaidLead = { user_id: string | null; normalized_phone: string | null; created_at: string }
 
 function waHref(phone: string | null, text: string): string | null {
   if (!phone) return null
@@ -110,6 +110,25 @@ export function statusOf(r: WorkshopWaitlistRow, proposed: string | null, paidLe
 
 const ORDER: Record<Status, number> = { not_sent: 0, sent: 1, yes: 2, no: 3, registered: 4 }
 
+/** 6.10.26 (Yahav: "ממתינות למחזור חדש עד מתי הן שם?"). Where a product's
+ *  waitlist stands, for the home card:
+ *  - act: someone needs a move from him (not asked yet, no answer, said
+ *    yes and has not registered), or the proposed date has passed
+ *  - parked: said "לא יכולה" for the current date; she waits for the next
+ *    round and comes back by herself when a new date is set
+ *  - registered: paid for this product after asking, out of the count. */
+export function summarizeWaitlist(rows: WorkshopWaitlistRow[], proposed: string | null, paidLeads: PaidLead[], today: string) {
+  let act = 0, parked = 0, registered = 0
+  for (const r of rows) {
+    const s = statusOf(r, proposed, paidLeads)
+    if (s === 'registered') registered++
+    else if (s === 'no') parked++
+    else act++
+  }
+  const datePassed = !!proposed && proposed < today
+  return { act, parked, registered, datePassed, needsAction: act > 0 || (datePassed && parked > 0) }
+}
+
 export default function WaitlistOutreach({ workshopId, workshopTitle, compact = false }: {
   workshopId: string
   workshopTitle: string
@@ -127,6 +146,7 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
   const [dobByUser, setDobByUser] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [showRegistered, setShowRegistered] = useState(false)
+  const [showParked, setShowParked] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<WorkshopWaitlistRow | null>(null)
 
   const load = useCallback(async () => {
@@ -178,7 +198,9 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
       .sort((a, b) => ORDER[a.s] - ORDER[b.s] || a.r.created_at.localeCompare(b.r.created_at)),
     [rows, proposed, paidLeads],
   )
-  const active = useMemo(() => withStatus.filter(x => x.s !== 'registered'), [withStatus])
+  const active = useMemo(() => withStatus.filter(x => x.s !== 'registered' && x.s !== 'no'), [withStatus])
+  // "לא יכולה" for the current date: parked for the next round, folded.
+  const parked = useMemo(() => withStatus.filter(x => x.s === 'no'), [withStatus])
   const registered = useMemo(() => withStatus.filter(x => x.s === 'registered'), [withStatus])
   const counts = useMemo(() => {
     const c: Record<Status, number> = { not_sent: 0, sent: 0, yes: 0, no: 0, registered: 0 }
@@ -233,6 +255,7 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
   if (loading || rows.length === 0) return null
 
   const fs = compact ? 12 : 13
+  const datePassed = !!proposed && proposed < todayIso()
 
   return (
     <div className="space-y-3">
@@ -262,6 +285,23 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
           <span style={{ fontSize: 11, color: '#7A8F63' }}>יש מחזור בתאריך הזה</span>
         )}
       </div>
+
+      {/* 6.10.26: the proposed date is behind us. Whoever could not make it
+          is waiting for the next round; a new date brings them all back as
+          "עוד לא נשלח", with their old answer kept as history. */}
+      {datePassed && (
+        <div className="rounded-2xl px-3 py-2.5" style={{ background: '#F5E2D8' }}>
+          <p className="font-bold" style={{ fontSize: 12.5, color: '#713924' }}>
+            התאריך המוצע ({shortDate(proposed!)}) כבר עבר.
+            {(counts.no + counts.sent + counts.not_sent + counts.yes) > 0 && ` ${counts.no + counts.sent + counts.not_sent + counts.yes} עדיין מחכות לסבב הבא.`}
+          </p>
+          <p style={{ fontSize: 11.5, color: '#8B4A30' }}>
+            {nextCohort && nextCohort.start_date !== proposed
+              ? <>יש מחזור ב-{shortDate(nextCohort.start_date)}. <button onClick={() => saveProposed(nextCohort.start_date)} className="font-bold underline">להציע אותו לכולן</button></>
+              : 'קבע תאריך חדש למעלה, וכולן יחזרו לרשימה לשליחה.'}
+          </p>
+        </div>
+      )}
 
       {/* Tally: the number he actually needs */}
       <div className="flex items-center gap-x-3 gap-y-1 flex-wrap" style={{ fontSize: 12 }}>
@@ -356,6 +396,33 @@ export default function WaitlistOutreach({ workshopId, workshopTitle, compact = 
           )
         })}
       </div>
+
+      {parked.length > 0 && (
+        <div>
+          <button onClick={() => setShowParked(v => !v)} className="font-semibold text-right" style={{ fontSize: 12, color: '#8A7A63' }}>
+            {proposed ? `לא יכלו ב-${shortDate(proposed)}` : 'לא יכלו'} · {parked.length}, נשמרות לסבב הבא {showParked ? '(הסתר)' : '(הצג)'}
+          </button>
+          {showParked && (
+            <div className="space-y-1.5 mt-1.5">
+              {parked.map(({ r }) => (
+                <div key={r.id} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: '#F6F1EE' }}>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate" style={{ fontSize: fs, color: '#443327' }}>{r.name}</p>
+                    <p style={{ fontSize: 10.5, color: '#A2937D' }} dir="ltr">{r.phone || r.email || ''}</p>
+                  </div>
+                  <button onClick={() => setResponse(r, 'yes')} className="rounded-lg font-semibold"
+                    style={{ fontSize: 11, padding: '5px 8px', background: '#fff', color: '#6E5836', border: '1px solid #E9E2D6' }}>
+                    בכל זאת יכולה?
+                  </button>
+                  <button onClick={() => setPendingDelete(r)} title="הסרה מהרשימה" className="p-1">
+                    <Trash2 className="w-4 h-4" style={{ color: '#E2B4AA' }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {showRegistered && registered.length > 0 && (
         <div className="space-y-1.5">
