@@ -559,17 +559,25 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
                 const isFeatured = ws.display_order === 1
                 const wsCohorts = cohortsByWorkshop.get(ws.id) ?? []
                 const gradOffer = graduateOffers.get(ws.id) ?? null
+                // Brenda 5.10.26: complementary products (פוף, רעשן, תיק)
+                // get no details sheet and no "לפרטים נוספים". The card is
+                // the whole story: title, price, photo, buy.
+                const noDetails = ws.workshop_type === 'מוצרים משלימים'
                 return (
-                  <div key={ws.id} className="bg-white rounded-3xl shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-md" onClick={() => openProduct(ws)}>
+                  <div key={ws.id}
+                    className={`bg-white rounded-3xl shadow-sm overflow-hidden ${noDetails ? '' : 'cursor-pointer active:scale-[0.98] transition-all hover:shadow-md'}`}
+                    onClick={noDetails ? undefined : () => openProduct(ws)}>
                     <div className="flex gap-3 p-4">
                       <div className="flex-1 min-w-0 space-y-2">
                         {/* Brenda 12.9.26: no category badge and no blurb on
                             the card. Title, price, cohorts, and a way in.
                             The category is a filter, not a label. */}
                         <h3 className="font-bold text-sm leading-snug" style={{ color: '#3D2E20' }}>{ws.title}</h3>
-                        <span className="inline-flex items-center gap-0.5 text-xs font-bold" style={{ color: '#8A6A2F' }}>
-                          לפרטים נוספים <ChevronLeft className="w-3.5 h-3.5" />
-                        </span>
+                        {!noDetails && (
+                          <span className="inline-flex items-center gap-0.5 text-xs font-bold" style={{ color: '#8A6A2F' }}>
+                            לפרטים נוספים <ChevronLeft className="w-3.5 h-3.5" />
+                          </span>
+                        )}
                         {gradOffer ? (
                           <div className="space-y-1.5">
                             <GraduatePrice ws={ws} offer={gradOffer} size="card" />
