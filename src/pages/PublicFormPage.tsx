@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react'
-import { isFieldVisible, toggleMulti, multiSelected, visibleAnswers, type FormShowIf } from '../lib/formFields'
+import { visibleAnswers } from '../lib/formFields'
+import { SurveyFields, SurveyProgress, SurveySubmit, useSurveyProgress, scrollToField, SURVEY, type SurveyField } from '../components/forms/SurveyFields'
 import { supabase } from '../lib/supabase'
 import MimoLogo from '../components/MimoLogo'
 
-type FormField = {
-  id: string
-  type: 'text' | 'textarea' | 'select' | 'multiselect' | 'rating' | 'date' | 'info' | 'link'
-  label: string
-  options?: string[]
-  required?: boolean; showIf?: FormShowIf | null; maxSelect?: number
-}
+type FormField = SurveyField
 
 type FormRecord = {
   id: string
@@ -18,7 +13,6 @@ type FormRecord = {
   fields_json: FormField[]
 }
 
-const INPUT_TYPES = new Set(['text', 'textarea', 'select', 'multiselect', 'rating', 'date'])
 
 export default function PublicFormPage({ formId }: { formId: string }) {
   const [form, setForm] = useState<FormRecord | null>(null)
@@ -26,7 +20,7 @@ export default function PublicFormPage({ formId }: { formId: string }) {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [errors, setErrors] = useState<Record<string, boolean>>({})
+  const [showMissing, setShowMissing] = useState(false)
 
   useEffect(() => {
     supabase
@@ -40,14 +34,11 @@ export default function PublicFormPage({ formId }: { formId: string }) {
       })
   }, [formId])
 
+  const { missing, requiredTotal, answeredRequired } = useSurveyProgress(form?.fields_json, answers)
+
   async function submit() {
     if (!form) return
-    const errs: Record<string, boolean> = {}
-    form.fields_json.forEach(f => {
-      if (INPUT_TYPES.has(f.type) && f.required && isFieldVisible(f, answers) && !answers[f.label]?.trim()) errs[f.label] = true
-    })
-    if (Object.keys(errs).length > 0) { setErrors(errs); return }
-    setErrors({})
+    if (missing.length > 0) { setShowMissing(true); scrollToField(missing[0].id); return }
     setSubmitting(true)
     await supabase.from('form_submissions').insert({
       form_id: form.id,
@@ -100,147 +91,25 @@ export default function PublicFormPage({ formId }: { formId: string }) {
   }
 
   return (
-    <div className="min-h-screen p-4" style={{ background: bg }} dir="rtl">
-      <div className="max-w-sm mx-auto space-y-4 pt-8">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <MimoLogo size={60} />
-          <h1 className="text-xl font-bold text-sand-800">{form.title}</h1>
+    <div className="min-h-screen" style={{ background: SURVEY.sheet }} dir="rtl">
+      <div className="max-w-md mx-auto flex flex-col min-h-screen">
+        <div className="bg-white px-5 pt-8 pb-4" style={{ borderBottom: `1px solid ${SURVEY.border}` }}>
+          <div className="flex justify-center mb-3"><MimoLogo size={56} /></div>
+          <h1 className="font-bold leading-snug text-center" style={{ fontSize: 20, color: SURVEY.ink }}>{form.title}</h1>
           {form.description && (
-            <p className="text-sand-600 text-sm leading-relaxed whitespace-pre-line text-right">
-              {form.description}
-            </p>
+            <p className="mt-1 leading-relaxed whitespace-pre-line text-center" style={{ fontSize: 13.5, color: SURVEY.muted }}>{form.description}</p>
           )}
+          <SurveyProgress answered={answeredRequired} total={requiredTotal} done={missing.length === 0} />
         </div>
 
-        {/* Form */}
-        <div className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm space-y-5">
-          {form.fields_json.map(field => {
-            if (!isFieldVisible(field, answers)) return null
-            /* ── Info block (display-only text) ── */
-            if (field.type === 'info') {
-              return (
-                <div key={field.id} className="bg-sand-50 rounded-2xl p-4">
-                  <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-line">{field.label}</p>
-                </div>
-              )
-            }
-
-            /* ── Link field: hidden from form, opens after submit ── */
-            if (field.type === 'link') return null
-
-            /* ── Regular input fields ── */
-            return (
-              <div key={field.id}>
-                <label className="block text-sm font-semibold text-sand-700 mb-2 whitespace-pre-line leading-relaxed">
-                  {field.label}
-                  {field.required && <span className="text-red-500 mr-1">*</span>}
-                </label>
-
-                {field.type === 'text' && (
-                  <input
-                    value={answers[field.label] ?? ''}
-                    onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                    className={`w-full px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none transition-colors ${errors[field.label] ? 'border-red-300 bg-red-50' : 'border-sand-200 focus:border-mustard-400'}`}
-                  />
-                )}
-
-                {field.type === 'textarea' && (
-                  <textarea
-                    rows={3}
-                    value={answers[field.label] ?? ''}
-                    onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                    className={`w-full px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none resize-none transition-colors ${errors[field.label] ? 'border-red-300 bg-red-50' : 'border-sand-200 focus:border-mustard-400'}`}
-                  />
-                )}
-
-                {field.type === 'rating' && (
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map(n => (
-                      <button
-                        key={n}
-                        onClick={() => setAnswers(a => ({ ...a, [field.label]: String(n) }))}
-                        className="w-11 h-11 rounded-xl text-sm font-bold transition-all"
-                        style={answers[field.label] === String(n)
-                          ? { background: '#E7C78A', color: 'white' }
-                          : { background: '#F5F0E8', color: '#818267' }}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {field.type === 'date' && (
-                  <div dir="ltr" className="overflow-hidden">
-                    <input
-                      type="date"
-                      value={answers[field.label] ?? ''}
-                      onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                      className={`w-full max-w-full box-border px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none transition-colors ${errors[field.label] ? 'border-red-300 bg-red-50' : 'border-sand-200 focus:border-mustard-400'}`}
-                    />
-                  </div>
-                )}
-
-                {field.type === 'multiselect' && (
-                  <div className="border border-sand-200 rounded-2xl overflow-hidden">
-                    {(field.options ?? []).map((opt, i) => {
-                      const selected = multiSelected(answers[field.label]).includes(opt)
-                      return (
-                        <button
-                          key={opt}
-                          onClick={() => setAnswers(a => ({ ...a, [field.label]: toggleMulti(a[field.label], opt, field.maxSelect) }))}
-                          className={`w-full flex items-start gap-3 px-4 py-4 text-right transition-colors ${i > 0 ? 'border-t border-sand-100' : ''} ${selected ? 'bg-mustard-50' : 'hover:bg-sand-50'}`}
-                        >
-                          <div className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
-                            {selected && <span className="text-white text-xs font-bold">✓</span>}
-                          </div>
-                          <span className={`text-sm flex-1 text-right leading-relaxed whitespace-pre-line ${selected ? 'font-semibold text-sand-800' : 'text-sand-600'}`}>{opt}</span>
-                        </button>
-                      )
-                    })}
-                    {field.maxSelect ? <p className="text-xs text-sand-400 px-4 py-2 border-t border-sand-100">אפשר לבחור עד {field.maxSelect}</p> : null}
-                  </div>
-                )}
-
-                {field.type === 'select' && (
-                  <div className="border border-sand-200 rounded-2xl overflow-hidden">
-                    {(field.options ?? []).map((opt, i) => {
-                      const selected = answers[field.label] === opt
-                      return (
-                        <button
-                          key={opt}
-                          onClick={() => setAnswers(a => ({ ...a, [field.label]: opt }))}
-                          className={`w-full flex items-start gap-3 px-4 py-4 text-right transition-colors ${i > 0 ? 'border-t border-sand-100' : ''} ${selected ? 'bg-mustard-50' : 'hover:bg-sand-50'}`}
-                        >
-                          <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected ? 'border-mustard-500' : 'border-sand-300'}`}>
-                            {selected && <div className="w-2.5 h-2.5 rounded-full bg-mustard-500" />}
-                          </div>
-                          <span className={`text-sm flex-1 text-right leading-relaxed whitespace-pre-line ${selected ? 'font-semibold text-sand-800' : 'text-sand-600'}`}>{opt}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {errors[field.label] && (
-                  <p className="text-xs text-red-500 mt-1">שדה זה חובה</p>
-                )}
-              </div>
-            )
-          })}
-
-          <button
-            onClick={submit}
-            disabled={submitting}
-            className="w-full py-4 rounded-2xl text-white font-bold text-sm disabled:opacity-50 mt-2"
-            style={{ background: '#E7C78A' }}
-          >
-            {submitting ? 'שולח...' : 'שלח טופס ✓'}
-          </button>
+        <div className="flex-1 px-4 py-4 space-y-3">
+          <SurveyFields fields={form.fields_json} answers={answers} setAnswers={setAnswers} showMissing={showMissing} />
         </div>
 
-        <p className="text-center text-xs text-sand-300 pb-6">מופעל על ידי Mimo 🐣</p>
+        <div className="sticky bottom-0 px-4 pt-3 bg-white" style={{ paddingBottom: 'calc(14px + env(safe-area-inset-bottom))', borderTop: `1px solid ${SURVEY.border}` }}>
+          <SurveySubmit onSubmit={submit} submitting={submitting} missingCount={missing.length} showMissing={showMissing} label="שליחת הטופס ✓" />
+          <p className="text-center mt-2" style={{ fontSize: 11, color: SURVEY.muted }}>מופעל על ידי Mimo 🐣</p>
+        </div>
       </div>
     </div>
   )

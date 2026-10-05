@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
-import { X, ClipboardList } from 'lucide-react'
-import { isFieldVisible, toggleMulti, multiSelected, visibleAnswers, type FormShowIf } from '../lib/formFields'
+import { X, ClipboardList, ChevronLeft } from 'lucide-react'
+import { visibleAnswers } from '../lib/formFields'
+import { SurveyFields, SurveyProgress, SurveySubmit, useSurveyProgress, scrollToField, SURVEY, type SurveyField } from './forms/SurveyFields'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
-type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'multiselect' | 'rating' | 'date' | 'info' | 'link'; label: string; options?: string[]; required?: boolean; showIf?: FormShowIf | null; maxSelect?: number }
-type FormRecord = { id: string; title: string; description: string | null; fields_json: FormField[] }
+type FormRecord = { id: string; title: string; description: string | null; fields_json: SurveyField[] }
 type AssignedTask = {
   id: string
   form_id: string
@@ -23,6 +23,7 @@ export default function MyTasksPanel() {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [showMissing, setShowMissing] = useState(false)
 
   const load = useCallback(async () => {
     if (!user) return
@@ -38,13 +39,16 @@ export default function MyTasksPanel() {
     const { data: forms } = await supabase.from('forms').select('*').in('id', formIds)
     const formsMap = Object.fromEntries((forms ?? []).map(f => [f.id, f]))
 
-    setTasks(assignments.map(a => ({ ...a, forms: formsMap[a.form_id] })) as AssignedTask[])
+    setTasks(assignments.map(a => ({ ...a, forms: formsMap[a.form_id] })).filter(t => t.forms) as AssignedTask[])
   }, [user])
 
   useEffect(() => { load() }, [load])
 
+  const { missing, requiredTotal, answeredRequired } = useSurveyProgress(activeTask?.forms.fields_json, answers)
+
   async function submit() {
     if (!user || !activeTask) return
+    if (missing.length > 0) { setShowMissing(true); scrollToField(missing[0].id); return }
     setSubmitting(true)
     await supabase.from('form_submissions').insert({
       form_id: activeTask.form_id,
@@ -60,168 +64,96 @@ export default function MyTasksPanel() {
       setSubmitted(false)
       setActiveTask(null)
       setAnswers({})
+      setShowMissing(false)
       load()
-    }, 1800)
+    }, 2200)
+  }
+
+  function openTask(task: AssignedTask) {
+    setActiveTask(task)
+    setAnswers({})
+    setShowMissing(false)
   }
 
   if (tasks.length === 0) return null
 
   return (
     <>
-      {/* Summary card */}
-      <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-4 border-r-4 border-mustard-400" dir="rtl">
+      {/* Summary card: top of the feed, mustard, one clear action per task */}
+      <div
+        className="rounded-3xl shadow-sm"
+        dir="rtl"
+        style={{ background: 'linear-gradient(135deg, #FBF1DC 0%, #F6E6C4 100%)', border: `1.5px solid ${SURVEY.mustard}`, padding: '16px 16px 14px' }}
+      >
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-2xl bg-mustard-100 flex items-center justify-center">
-            <ClipboardList className="w-5 h-5 text-mustard-600" />
+          <div className="rounded-2xl flex items-center justify-center flex-shrink-0" style={{ width: 40, height: 40, background: SURVEY.mustard }}>
+            <ClipboardList style={{ width: 22, height: 22, color: SURVEY.ink }} />
           </div>
-          <div>
-            <p className="font-bold text-sand-800 text-sm">משימות שהוקצו לך</p>
-            <p className="text-xs text-sand-400">{tasks.length} טפסים ממתינים</p>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold" style={{ fontSize: 16, color: SURVEY.ink }}>{tasks.length === 1 ? 'מחכה לך משהו קטן' : `${tasks.length} דברים קטנים מחכים לך`}</p>
+            <p style={{ fontSize: 13, color: SURVEY.muted }}>{tasks.length === 1 ? 'טופס אחד למילוי' : `${tasks.length} טפסים למילוי`}</p>
           </div>
         </div>
         <div className="space-y-2">
           {tasks.map(task => (
             <button
               key={task.id}
-              onClick={() => { setActiveTask(task); setAnswers({}) }}
-              className="w-full flex items-start justify-between px-4 py-3 bg-mustard-50 rounded-2xl text-right hover:bg-mustard-100 transition-colors gap-2"
+              onClick={() => openTask(task)}
+              className="w-full flex items-center gap-3 bg-white rounded-2xl text-right transition-transform active:scale-[0.99]"
+              style={{ padding: '14px 16px', border: `1.5px solid ${SURVEY.border}` }}
             >
-              <div className="text-right">
-                <p className="text-sm font-semibold text-sand-800">{task.title || task.forms.title}</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold leading-snug" style={{ fontSize: 15, color: SURVEY.ink }}>{task.title || task.forms.title}</p>
+                {(task.description || task.forms.description) && (
+                  <p className="mt-0.5 leading-snug" style={{ fontSize: 13, color: SURVEY.muted }}>{task.description || task.forms.description}</p>
+                )}
                 {task.due_date && (
-                  <p className="text-xs text-sand-400 mt-0.5">
-                    יעד: {new Date(task.due_date + 'T12:00:00').toLocaleDateString('he-IL')}
+                  <p className="mt-1" style={{ fontSize: 12, color: SURVEY.mustardDeep, fontWeight: 600 }}>
+                    עד {new Date(task.due_date + 'T12:00:00').toLocaleDateString('he-IL')}
                   </p>
                 )}
               </div>
-              <span className="text-xs bg-mustard-400 text-white px-2 py-0.5 rounded-lg flex-shrink-0 mt-0.5">מלאי</span>
+              <span className="flex items-center gap-1 flex-shrink-0 rounded-xl font-bold" style={{ background: SURVEY.mustard, color: SURVEY.ink, fontSize: 14, padding: '10px 14px' }}>
+                למילוי
+                <ChevronLeft style={{ width: 16, height: 16 }} strokeWidth={2.5} />
+              </span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Form modal */}
+      {/* Form sheet */}
       {activeTask && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-6" dir="rtl">
-          <div className="bg-[#F5F1EB] rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100">
-              <div>
-                <h3 className="font-bold text-sand-800">{activeTask.title || activeTask.forms.title}</h3>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45" dir="rtl">
+          <div className="w-full max-w-md flex flex-col rounded-t-[28px] shadow-2xl overflow-hidden" style={{ background: SURVEY.sheet, maxHeight: '94vh' }}>
+            <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3 bg-white" style={{ borderBottom: `1px solid ${SURVEY.border}` }}>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold leading-snug" style={{ fontSize: 18, color: SURVEY.ink }}>{activeTask.title || activeTask.forms.title}</h3>
                 {(activeTask.description || activeTask.forms.description) && (
-                  <p className="text-xs text-sand-400 mt-0.5">{activeTask.description || activeTask.forms.description}</p>
+                  <p className="mt-0.5 leading-snug" style={{ fontSize: 13, color: SURVEY.muted }}>{activeTask.description || activeTask.forms.description}</p>
                 )}
-                {activeTask.due_date && (
-                  <p className="text-xs text-mustard-600 font-medium mt-0.5">
-                    יעד: {new Date(activeTask.due_date + 'T12:00:00').toLocaleDateString('he-IL')}
-                  </p>
-                )}
+                {!submitted && <SurveyProgress answered={answeredRequired} total={requiredTotal} done={missing.length === 0} />}
               </div>
-              <button onClick={() => setActiveTask(null)} className="p-1.5 text-sand-300 hover:text-sand-600">
+              <button onClick={() => setActiveTask(null)} className="p-2 rounded-full flex-shrink-0" style={{ background: SURVEY.chip, color: SURVEY.muted }} aria-label="סגירה">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {submitted ? (
-              <div className="p-8 text-center space-y-2">
-                <div className="text-5xl">🎉</div>
-                <p className="font-bold text-sand-800">כל הכבוד! המשימה הושלמה.</p>
+              <div className="p-10 text-center space-y-3">
+                <div className="text-6xl">🎉</div>
+                <p className="font-bold" style={{ fontSize: 18, color: SURVEY.ink }}>תודה! התשובות נשלחו</p>
+                <p style={{ fontSize: 14, color: SURVEY.muted }}>ברנדה קוראת כל תשובה</p>
               </div>
             ) : (
-              <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
-                {activeTask.forms.fields_json.map(field => {
-                  if (field.type === 'link') return null
-                  if (!isFieldVisible(field, answers)) return null
-                  if (field.type === 'info') return (
-                    <div key={field.id} className="bg-sand-50 rounded-2xl p-4">
-                      <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-line">{field.label}</p>
-                    </div>
-                  )
-                  return (
-                    <div key={field.id}>
-                      <label className="block text-sm font-semibold text-sand-700 mb-1.5">{field.label}</label>
-                      {field.type === 'text' && (
-                        <input
-                          value={answers[field.label] ?? ''}
-                          onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                          className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
-                        />
-                      )}
-                      {field.type === 'textarea' && (
-                        <textarea
-                          rows={3}
-                          value={answers[field.label] ?? ''}
-                          onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                          className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none"
-                        />
-                      )}
-                      {field.type === 'date' && (
-                        <div dir="ltr" className="overflow-hidden">
-                          <input
-                            type="date"
-                            value={answers[field.label] ?? ''}
-                            onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                            className="w-full max-w-full box-border px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
-                          />
-                        </div>
-                      )}
-                      {field.type === 'rating' && (
-                        <div className="flex gap-2">
-                          {[1, 2, 3, 4, 5].map(n => (
-                            <button
-                              key={n}
-                              onClick={() => setAnswers(a => ({ ...a, [field.label]: String(n) }))}
-                              className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${answers[field.label] === String(n) ? 'text-white shadow-md' : 'bg-sand-100 text-sand-600 hover:bg-mustard-100 hover:text-mustard-700'}`}
-                              style={answers[field.label] === String(n) ? { background: '#E7C78A' } : {}}
-                            >
-                              {n}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {field.type === 'multiselect' && (
-                        <div className="flex flex-wrap gap-2">
-                          {(field.options ?? []).map(opt => {
-                            const on = multiSelected(answers[field.label]).includes(opt)
-                            return (
-                              <button
-                                key={opt}
-                                onClick={() => setAnswers(a => ({ ...a, [field.label]: toggleMulti(a[field.label], opt, field.maxSelect) }))}
-                                className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${on ? 'text-white shadow-sm' : 'bg-sand-100 text-sand-600 hover:bg-mustard-50 hover:text-mustard-700'}`}
-                                style={on ? { background: '#E7C78A' } : {}}
-                              >
-                                {on ? '✓ ' : ''}{opt}
-                              </button>
-                            )
-                          })}
-                          {field.maxSelect ? <p className="w-full text-xs text-sand-400">אפשר לבחור עד {field.maxSelect}</p> : null}
-                        </div>
-                      )}
-                      {field.type === 'select' && (
-                        <div className="flex flex-wrap gap-2">
-                          {(field.options ?? []).map(opt => (
-                            <button
-                              key={opt}
-                              onClick={() => setAnswers(a => ({ ...a, [field.label]: opt }))}
-                              className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${answers[field.label] === opt ? 'text-white shadow-sm' : 'bg-sand-100 text-sand-600 hover:bg-mustard-50 hover:text-mustard-700'}`}
-                              style={answers[field.label] === opt ? { background: '#E7C78A' } : {}}
-                            >
-                              {opt}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-                <button
-                  onClick={submit}
-                  disabled={submitting}
-                  className="w-full py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50 mt-2"
-                  style={{ background: '#E7C78A' }}
-                >
-                  {submitting ? 'שולח...' : 'סיום משימה ✓'}
-                </button>
-              </div>
+              <>
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                  <SurveyFields fields={activeTask.forms.fields_json} answers={answers} setAnswers={setAnswers} showMissing={showMissing} />
+                </div>
+                <div className="px-4 pt-3 bg-white" style={{ paddingBottom: 'calc(14px + env(safe-area-inset-bottom))', borderTop: `1px solid ${SURVEY.border}` }}>
+                  <SurveySubmit onSubmit={submit} submitting={submitting} missingCount={missing.length} showMissing={showMissing} />
+                </div>
+              </>
             )}
           </div>
         </div>

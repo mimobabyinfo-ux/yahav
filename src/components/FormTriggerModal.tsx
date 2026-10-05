@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import { X } from 'lucide-react'
-import { isFieldVisible, toggleMulti, multiSelected, visibleAnswers, type FormShowIf } from '../lib/formFields'
+import { visibleAnswers, type FormShowIf } from '../lib/formFields'
+import { SurveyFields, SurveyProgress, SurveySubmit, useSurveyProgress, scrollToField, SURVEY } from './forms/SurveyFields'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { cachedQuery } from '../lib/queryCache'
 
-type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'multiselect' | 'rating'; label: string; options?: string[]; required?: boolean; showIf?: FormShowIf | null; maxSelect?: number }
+import type { SurveyField as FormField } from './forms/SurveyFields'
 type FormRecord = {
   id: string
   title: string
@@ -30,6 +31,7 @@ export default function FormTriggerModal() {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [showMissing, setShowMissing] = useState(false)
 
   const checkTriggers = useCallback(async () => {
     if (!user || !profile || profile.is_admin) return
@@ -90,10 +92,11 @@ export default function FormTriggerModal() {
     checkTriggers()
   }, [checkTriggers])
 
+  const { missing, requiredTotal, answeredRequired } = useSurveyProgress(pendingForm?.fields_json, answers)
+
   async function submit() {
     if (!user || !pendingForm) return
-    const missing = pendingForm.fields_json.filter(f => f.required && isFieldVisible(f, answers) && !answers[f.label]?.trim())
-    if (missing.length > 0) { alert(`שדות חובה: ${missing.map(f => f.label).join(', ')}`) ; return }
+    if (missing.length > 0) { setShowMissing(true); scrollToField(missing[0].id); return }
     setSubmitting(true)
     await supabase.from('form_submissions').insert({
       form_id: pendingForm.id,
@@ -106,121 +109,43 @@ export default function FormTriggerModal() {
       setPendingForm(null)
       setSubmitted(false)
       setAnswers({})
-    }, 1800)
+      setShowMissing(false)
+    }, 2200)
   }
 
   if (!pendingForm) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-6" dir="rtl">
-      <div className="bg-[#F5F1EB] rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100">
-          <div>
-            <h3 className="font-bold text-sand-800">{pendingForm.title}</h3>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45" dir="rtl">
+      <div className="w-full max-w-md flex flex-col rounded-t-[28px] shadow-2xl overflow-hidden" style={{ background: SURVEY.sheet, maxHeight: '94vh' }}>
+        <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3 bg-white" style={{ borderBottom: `1px solid ${SURVEY.border}` }}>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold leading-snug" style={{ fontSize: 18, color: SURVEY.ink }}>{pendingForm.title}</h3>
             {pendingForm.description && (
-              <p className="text-xs text-sand-400 mt-0.5">{pendingForm.description}</p>
+              <p className="mt-0.5 leading-snug" style={{ fontSize: 13, color: SURVEY.muted }}>{pendingForm.description}</p>
             )}
+            {!submitted && <SurveyProgress answered={answeredRequired} total={requiredTotal} done={missing.length === 0} />}
           </div>
-          <button onClick={() => setPendingForm(null)} className="p-1.5 text-sand-300 hover:text-sand-600">
+          <button onClick={() => setPendingForm(null)} className="p-2 rounded-full flex-shrink-0" style={{ background: SURVEY.chip, color: SURVEY.muted }} aria-label="סגירה">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {submitted ? (
-          <div className="p-8 text-center space-y-2">
-            <div className="text-5xl">🙏🏼</div>
-            <p className="font-bold text-sand-800">תודה על המשוב!</p>
+          <div className="p-10 text-center space-y-3">
+            <div className="text-6xl">🙏🏼</div>
+            <p className="font-bold" style={{ fontSize: 18, color: SURVEY.ink }}>תודה על המשוב!</p>
+            <p style={{ fontSize: 14, color: SURVEY.muted }}>ברנדה קוראת כל תשובה</p>
           </div>
         ) : (
-          <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-            {pendingForm.fields_json.filter(field => isFieldVisible(field, answers)).map(field => (
-              <div key={field.id}>
-                <label className="block text-sm font-semibold text-sand-700 mb-1.5">{field.label}{field.required && <span className="text-red-400 mr-1">*</span>}</label>
-                {field.type === 'text' && (
-                  <input
-                    value={answers[field.label] ?? ''}
-                    onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
-                  />
-                )}
-                {field.type === 'textarea' && (
-                  <textarea
-                    rows={3}
-                    value={answers[field.label] ?? ''}
-                    onChange={e => setAnswers(a => ({ ...a, [field.label]: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none"
-                  />
-                )}
-                {field.type === 'rating' && (
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map(n => (
-                      <button
-                        key={n}
-                        onClick={() => setAnswers(a => ({ ...a, [field.label]: String(n) }))}
-                        className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${
-                          answers[field.label] === String(n)
-                            ? 'text-white shadow-md'
-                            : 'bg-sand-100 text-sand-600 hover:bg-mustard-100 hover:text-mustard-700'
-                        }`}
-                        style={answers[field.label] === String(n) ? { background: '#E7C78A' } : {}}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {field.type === 'multiselect' && (
-                  <div className="border border-sand-200 rounded-2xl overflow-hidden">
-                    {(field.options ?? []).map((opt, i) => {
-                      const selected = multiSelected(answers[field.label]).includes(opt)
-                      return (
-                        <button
-                          key={opt}
-                          onClick={() => setAnswers(a => ({ ...a, [field.label]: toggleMulti(a[field.label], opt, field.maxSelect) }))}
-                          className={`w-full flex items-center gap-3 px-4 py-3.5 text-right transition-colors ${i > 0 ? 'border-t border-sand-100' : ''} ${selected ? 'bg-mustard-50' : 'hover:bg-sand-50'}`}
-                        >
-                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected ? 'border-mustard-500 bg-mustard-500' : 'border-sand-300'}`}>
-                            {selected && <span className="text-white text-xs font-bold">✓</span>}
-                          </div>
-                          <span className={`text-sm flex-1 text-right ${selected ? 'font-semibold text-sand-800' : 'text-sand-600'}`}>{opt}</span>
-                        </button>
-                      )
-                    })}
-                    {field.maxSelect ? <p className="text-xs text-sand-400 px-4 py-2 border-t border-sand-100">אפשר לבחור עד {field.maxSelect}</p> : null}
-                  </div>
-                )}
-                {field.type === 'select' && (
-                  <div className="border border-sand-200 rounded-2xl overflow-hidden">
-                    {(field.options ?? []).map((opt, i) => {
-                      const selected = answers[field.label] === opt
-                      return (
-                        <button
-                          key={opt}
-                          onClick={() => setAnswers(a => ({ ...a, [field.label]: opt }))}
-                          className={`w-full flex items-center gap-3 px-4 py-3.5 text-right transition-colors ${i > 0 ? 'border-t border-sand-100' : ''} ${selected ? 'bg-mustard-50' : 'hover:bg-sand-50'}`}
-                        >
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected ? 'border-mustard-500' : 'border-sand-300'}`}>
-                            {selected && <div className="w-2.5 h-2.5 rounded-full bg-mustard-500" />}
-                          </div>
-                          <span className={`text-sm flex-1 text-right ${selected ? 'font-semibold text-sand-800' : 'text-sand-600'}`}>{opt}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            <button
-              onClick={submit}
-              disabled={submitting}
-              className="w-full py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50 mt-2"
-              style={{ background: '#E7C78A' }}
-            >
-              {submitting ? 'שולח...' : 'שלח'}
-            </button>
-          </div>
+          <>
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+              <SurveyFields fields={pendingForm.fields_json} answers={answers} setAnswers={setAnswers} showMissing={showMissing} />
+            </div>
+            <div className="px-4 pt-3 bg-white" style={{ paddingBottom: 'calc(14px + env(safe-area-inset-bottom))', borderTop: `1px solid ${SURVEY.border}` }}>
+              <SurveySubmit onSubmit={submit} submitting={submitting} missingCount={missing.length} showMissing={showMissing} />
+            </div>
+          </>
         )}
       </div>
     </div>

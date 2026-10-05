@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { ChevronLeft, Settings as SettingsIcon, MessageCircle, Gift, Moon, Sun, Baby, Plus, HelpCircle, GraduationCap } from 'lucide-react'
 import { openInstallGuide } from '../components/InstallGuide'
 import { isStandalone } from '../utils/webPush'
@@ -334,6 +334,11 @@ export default function DashboardPage({ onNavigate }: Props) {
             on every visit until it expires or is used. */}
         <GraduateOfferStrip onNavigate={onNavigate} />
 
+        {/* Brenda 6.10.26: assigned forms go to the top of the feed, above
+            the quick-log, so a survey (and its credit) is the first thing
+            she sees. Renders nothing when there is nothing to fill. */}
+        <MyTasksPanel />
+
         {/* 2 · Quick-log — Tier 1, always visible */}
         {selectedChild && (
           <div className="flex flex-col" style={{ background: '#F6ECD8', borderRadius: 26, padding: '18px 16px 14px', gap: 14 }}>
@@ -376,8 +381,6 @@ export default function DashboardPage({ onNavigate }: Props) {
             tester tapped. Its date now sits inside MyCoursesCard above,
             which does navigate to the content. */}
 
-        {/* Assigned tasks — Tier 2 */}
-        <MyTasksPanel />
 
         {/* 4 · Daily tip — Tier 2 */}
         {/* Brenda 18.8.26: "take out the tip of the day." The card
