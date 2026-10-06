@@ -2,6 +2,7 @@
 import { Eye, EyeOff, Mail } from 'lucide-react'
 import { LEGAL_LAST_UPDATED, MARKETING_CONSENT_LABEL, SIGNUP_CONSENT_SUMMARY } from '../constants/legal'
 import { supabase } from '../lib/supabase'
+import { pixelTrack } from '../utils/metaPixel'
 import MimoLogo from '../components/MimoLogo'
 
 const REMEMBERED_EMAIL_KEY = 'mimo_remembered_email'
@@ -92,11 +93,19 @@ export default function LoginPage() {
           setLoading(false)
           return
         }
+        // ?src= of the campaign link (App.tsx keeps it in localStorage
+        // until the profile exists). Read here, before confirmation, because
+        // the confirmation email may open in another browser and lose it.
+        let campaignSrc: string | null = null
+        try { campaignSrc = localStorage.getItem('mimo_src') } catch { /* private mode */ }
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
+              // Kept on the auth user as evidence of where she came from,
+              // in case the profile stamp (App.tsx) never runs.
+              ...(campaignSrc ? { signup_src: campaignSrc } : {}),
               // Stamped on the auth user so the consent is evidenced at
               // the moment it was given, not inferred later.
               terms_accepted_at: new Date().toISOString(),
@@ -106,6 +115,10 @@ export default function LoginPage() {
           },
         })
         if (error) throw error
+        // Meta learns who signed up (6.10.26, app campaign). Only for a
+        // mother who arrived through a campaign link: organic sign-ups
+        // never load the pixel, same rule as metaPixel.ts.
+        if (campaignSrc) void pixelTrack('CompleteRegistration', { content_name: 'app_signup', source: campaignSrc })
         // If email confirmation is required, data.session will be null
         if (!data.session) {
           setSignupSent(true)
