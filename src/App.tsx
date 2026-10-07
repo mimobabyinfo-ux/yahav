@@ -29,6 +29,7 @@ import ActiveTimerBanner from './components/ActiveTimerBanner'
 import InstallGuide from './components/InstallGuide'
 import CreditWonModal, { creditWonSeen, markCreditWonSeen } from './components/dashboard/CreditWonModal'
 import type { MyCredit } from './lib/supabase'
+import { captureCampaignSrc, getCampaignSrc, clearCampaignSrc } from './utils/campaignSrc'
 
 // Lazy: AdminPage is ~8,000 lines and pulls all of components/admin and
 // @dnd-kit with it. renderPage already gates it at RUNTIME; importing it
@@ -76,15 +77,15 @@ const REF_LS_KEY = 'mimo_ref_code'
 // ?src=<channel> (e.g. the Instagram post's link, 22.9.26): remembered the
 // same way and stamped on her profile as acquisition_source once, so we
 // can count how many mothers a post actually brought.
-const SRC_LS_KEY = 'mimo_src'
 {
   const params = new URLSearchParams(window.location.search)
   const ref = params.get('ref')
-  const src = params.get('src')
   if (ref) { try { localStorage.setItem(REF_LS_KEY, ref.trim().toUpperCase()) } catch { /* private mode */ } }
-  if (src) { try { localStorage.setItem(SRC_LS_KEY, src.trim().toLowerCase().slice(0, 32)) } catch { /* private mode */ } }
-  if (ref || src) {
-    const u = new URL(window.location.href); u.searchParams.delete('ref'); u.searchParams.delete('src')
+  // 7.10.26: src is kept in three stores AND left in the address bar, so
+  // "open in browser" from Instagram still carries it (utils/campaignSrc).
+  captureCampaignSrc(params)
+  if (ref) {
+    const u = new URL(window.location.href); u.searchParams.delete('ref')
     window.history.replaceState({}, '', u.pathname + (u.search || '') + u.hash)
   }
 }
@@ -227,10 +228,12 @@ function AppInner() {
   // (a mother who has been here for months did not "come from" the post).
   useEffect(() => {
     if (!user || !profile || isGuest) return
-    let src: string | null = null
-    try { src = localStorage.getItem(SRC_LS_KEY) } catch { return }
+    // Storage first; the auth user's signup_src (LoginPage) as a fallback
+    // for a mother who confirmed or signed in from another browser.
+    const metaSrc = typeof user.user_metadata?.signup_src === 'string' ? user.user_metadata.signup_src : null
+    const src = getCampaignSrc() || metaSrc
     if (!src) return
-    try { localStorage.removeItem(SRC_LS_KEY) } catch { /* */ }
+    clearCampaignSrc()
     if (profile.acquisition_source && profile.acquisition_source !== 'app') return
     const ageMs = Date.now() - new Date(profile.created_at).getTime()
     if (ageMs > 24 * 3600_000) return

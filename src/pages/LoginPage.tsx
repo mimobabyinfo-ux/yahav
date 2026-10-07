@@ -3,6 +3,7 @@ import { Eye, EyeOff, Mail } from 'lucide-react'
 import { LEGAL_LAST_UPDATED, MARKETING_CONSENT_LABEL, SIGNUP_CONSENT_SUMMARY } from '../constants/legal'
 import { supabase } from '../lib/supabase'
 import { pixelTrack } from '../utils/metaPixel'
+import { getCampaignSrc, oauthRedirectTo } from '../utils/campaignSrc'
 import MimoLogo from '../components/MimoLogo'
 
 const REMEMBERED_EMAIL_KEY = 'mimo_remembered_email'
@@ -77,7 +78,7 @@ export default function LoginPage() {
     setError('')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: oauthRedirectTo() },
     })
     if (error) setError(error.message)
   }
@@ -97,7 +98,7 @@ export default function LoginPage() {
         // until the profile exists). Read here, before confirmation, because
         // the confirmation email may open in another browser and lose it.
         let campaignSrc: string | null = null
-        try { campaignSrc = localStorage.getItem('mimo_src') } catch { /* private mode */ }
+        campaignSrc = getCampaignSrc()
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
