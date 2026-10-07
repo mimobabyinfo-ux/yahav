@@ -3,7 +3,7 @@ import { Plus, Trash2, Check, ArrowRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLogo from '../components/MimoLogo'
-import { rankCities, findExactCity } from '../utils/citySearch'
+import { rankCities, findExactCity, freeTextCity, cityToSave } from '../utils/citySearch'
 import NeighborhoodPicker from '../components/community/NeighborhoodPicker'
 import TagSelector from '../components/community/TagSelector'
 
@@ -100,7 +100,10 @@ export default function OnboardingPage() {
 
     if (!firstName.trim()) { setError('אנא הכניסי שם פרטי'); return }
     if (!lastName.trim()) { setError('אנא הכניסי שם משפחה'); return }
-    if (!area) { setError('אנא בחרי עיר מגורים'); return }
+    // Typed but never tapped a row: keep what she wrote (resolved to the
+    // official name when we know it) rather than blocking the signup.
+    const areaToSave = cityToSave(area, citySearch)
+    if (!areaToSave) { setError('אנא כתבי עיר או יישוב מגורים'); return }
     if (!phone.trim()) { setError('אנא הכניסי מספר טלפון'); return }
 
     if (mode === 'pregnant') {
@@ -125,7 +128,7 @@ export default function OnboardingPage() {
         baby_dob: mode === 'mom' ? babies[0].dob || null : null,
         baby_gender: mode === 'mom' ? babies[0].gender : null,
         display_name: motherName,
-        area: area || null,
+        area: areaToSave,
         neighborhood: neighborhood.trim() || null,
         community_tags: communityTags,
         phone_number: phone.trim() || null,
@@ -255,7 +258,7 @@ export default function OnboardingPage() {
                 onChange={e => onCityInput(e.target.value)}
                 onFocus={() => setShowCities(true)}
                 onBlur={() => setTimeout(() => setShowCities(false), 150)}
-                placeholder="חיפוש עיר..."
+                placeholder="עיר, מושב או קיבוץ..."
                 autoComplete="off"
                 className={`w-full px-4 py-3.5 border-2 rounded-2xl focus:outline-none bg-white text-sand-800 ${area ? 'border-mustard-400' : 'border-sand-200 focus:border-mustard-400'}`}
               />
@@ -268,8 +271,14 @@ export default function OnboardingPage() {
                       {c}
                     </button>
                   ))}
-                  {cityMatches.length === 0 && (
-                    <p className="text-center text-sand-400 text-sm py-3">לא נמצאו תוצאות</p>
+                  {/* Not in the list (a new moshav, a spelling we don't know):
+                      keep her own words instead of a dead end. Brenda 7.10.26. */}
+                  {!findExactCity(citySearch) && freeTextCity(citySearch) && (
+                    <button type="button"
+                      onMouseDown={() => { const t = freeTextCity(citySearch)!; setArea(t); setCitySearch(t); setNeighborhood(''); setShowCities(false) }}
+                      className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-600 transition-colors">
+                      לא ברשימה? להשתמש ב״{freeTextCity(citySearch)}״
+                    </button>
                   )}
                 </div>
               )}

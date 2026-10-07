@@ -5,7 +5,7 @@ import { cachedQuery, invalidateQuery } from '../lib/queryCache'
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
 import { getBabyAge } from '../utils/dateUtils'
-import { rankCities } from '../utils/citySearch'
+import { rankCities, findExactCity, freeTextCity, cityToSave } from '../utils/citySearch'
 import { waLink } from '../utils/phone'
 import { COMMUNITY_TAGS, tagDef, type CommunityTagId } from '../constants/communityTags'
 import TagSelector from '../components/community/TagSelector'
@@ -179,7 +179,8 @@ export default function CommunityPage() {
     const { error } = await supabase
       .from('user_profiles')
       .update({
-        area: areaInput.trim() || null,
+        // Typed without tapping a row used to save NULL and wipe her city.
+        area: cityToSave(areaInput, citySearch),
         neighborhood: neighborhoodInput.trim() || null,
         phone_number: phoneInput.trim() || null,
         community_bio: bioInput.trim() || null,
@@ -359,10 +360,10 @@ export default function CommunityPage() {
               </label>
               <input
                 value={citySearch}
-                onChange={e => { setCitySearch(e.target.value); setAreaInput(''); setShowCities(true) }}
+                onChange={e => { setCitySearch(e.target.value); setAreaInput(findExactCity(e.target.value) ?? ''); setShowCities(true) }}
                 onFocus={() => setShowCities(true)}
                 onBlur={() => setTimeout(() => setShowCities(false), 150)}
-                placeholder="חיפוש עיר..."
+                placeholder="עיר, מושב או קיבוץ..."
                 autoComplete="off"
                 className={`w-full px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none bg-white ${areaInput ? 'border-mustard-400' : 'border-sand-200 focus:border-mustard-400'}`}
               />
@@ -375,8 +376,14 @@ export default function CommunityPage() {
                       {c}
                     </button>
                   ))}
-                  {cityMatches.length === 0 && (
-                    <p className="text-center text-sand-600 text-sm py-3">לא נמצאו תוצאות</p>
+                  {/* Not in the list (a new moshav, a spelling we don't know):
+                      keep her own words instead of a dead end. Brenda 7.10.26. */}
+                  {!findExactCity(citySearch) && freeTextCity(citySearch) && (
+                    <button type="button"
+                      onMouseDown={() => { const t = freeTextCity(citySearch)!; setAreaInput(t); setCitySearch(t); setShowCities(false) }}
+                      className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-600 transition-colors">
+                      לא ברשימה? להשתמש ב״{freeTextCity(citySearch)}״
+                    </button>
                   )}
                 </div>
               )}
