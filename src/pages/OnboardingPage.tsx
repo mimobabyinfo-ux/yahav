@@ -262,6 +262,14 @@ export default function OnboardingPage() {
                 autoComplete="off"
                 className={`w-full px-4 py-3.5 border-2 rounded-2xl focus:outline-none bg-white text-sand-800 ${area ? 'border-mustard-400' : 'border-sand-200 focus:border-mustard-400'}`}
               />
+              {/* Brenda/Yahav 7.10.26: typing the full name selects it silently and the
+                  list closes, which read as "it won't let me pick". The check
+                  says it was picked. */}
+              {area && (
+                <span className="pointer-events-none absolute left-3 bottom-0 h-[54px] flex items-center gap-1 text-xs font-semibold text-mustard-600">
+                  <Check className="w-4 h-4" /> נבחר
+                </span>
+              )}
               {showCities && !(area && cityMatches.length === 1) && (
                 <div className="absolute top-full right-0 left-0 z-50 bg-white border-2 border-mustard-200 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto">
                   {cityMatches.map(c => (
