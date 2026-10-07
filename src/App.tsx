@@ -89,6 +89,19 @@ const REF_LS_KEY = 'mimo_ref_code'
     window.history.replaceState({}, '', u.pathname + (u.search || '') + u.hash)
   }
 }
+// ?task=<form id> (7.10.26): the link in the end-of-workshop email. Opens
+// that questionnaire inside the app (signed in, so it counts as answered and
+// closes her task), instead of the anonymous public ?form= page. Kept in
+// localStorage so it survives the login screen; MyTasksPanel picks it up.
+{
+  const u = new URL(window.location.href)
+  const task = u.searchParams.get('task')
+  if (task) {
+    try { localStorage.setItem('mimo_open_task', JSON.stringify({ formId: task, at: Date.now() })) } catch { /* private mode */ }
+    u.searchParams.delete('task')
+    window.history.replaceState({}, '', u.pathname + (u.search || '') + u.hash)
+  }
+}
 const isRegisterPage = new URLSearchParams(window.location.search).has('register')
 // Task B: ?offer=<token> routes to PublicRegisterPage in offer mode.
 // Needs its own early-return gate at the same level as ?register so

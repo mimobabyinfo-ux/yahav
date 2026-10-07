@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
 
-type FormRecord = { id: string; title: string; description: string | null; fields_json: SurveyField[] }
+type FormRecord = { id: string; title: string; description: string | null; fields_json: SurveyField[]; allow_anonymous?: boolean }
 type AssignedTask = {
   id: string
   form_id: string
@@ -26,6 +26,8 @@ export default function MyTasksPanel() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [showMissing, setShowMissing] = useState(false)
+  const [anonymous, setAnonymous] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!user) return
@@ -44,6 +46,40 @@ export default function MyTasksPanel() {
     setTasks(assignments.map(a => ({ ...a, forms: formsMap[a.form_id] })).filter(t => t.forms) as AssignedTask[])
   }, [user])
 
+  // ?task=<form id> from the end-of-workshop email (App.tsx stores it).
+  // Open her assignment for that form; if she has none, open the form
+  // anyway (submit_form_response records it as answered); if she already
+  // answered, say so instead of asking twice.
+  const openPendingTask = useCallback(async () => {
+    if (!user) return
+    let formId: string | null = null
+    try {
+      const raw = localStorage.getItem('mimo_open_task')
+      if (raw) {
+        const p = JSON.parse(raw) as { formId?: string; at?: number }
+        if (p.formId && (!p.at || Date.now() - p.at < 7 * 24 * 3600 * 1000)) formId = p.formId
+        localStorage.removeItem('mimo_open_task')
+      }
+    } catch { /* ignore */ }
+    if (!formId) return
+    const { data: rows } = await supabase
+      .from('form_assignments')
+      .select('id, form_id, title, description, due_date, assigned_at, completed_at')
+      .eq('user_id', user.id).eq('form_id', formId)
+      .order('assigned_at', { ascending: false })
+    const open = (rows ?? []).find(r => !r.completed_at)
+    if (!open && (rows ?? []).length > 0) { setNotice('כבר מילאת את השאלון הזה, תודה 🤍'); return }
+    const { data: form } = await supabase.from('forms').select('*').eq('id', formId).maybeSingle()
+    if (!form) return
+    const task = open
+      ? { ...open, forms: form } as AssignedTask
+      : { id: '', form_id: formId, title: null, description: null, due_date: null, completed_at: null, forms: form } as AssignedTask
+    openTask(task)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  useEffect(() => { openPendingTask() }, [openPendingTask])
+
   useEffect(() => { load() }, [load])
 
   const { missing, requiredTotal, answeredRequired } = useSurveyProgress(activeTask?.forms.fields_json, answers)
@@ -52,12 +88,14 @@ export default function MyTasksPanel() {
     if (!user || !activeTask) return
     if (missing.length > 0) { setShowMissing(true); scrollToField(missing[0].id); return }
     setSubmitting(true)
-    await supabase.from('form_submissions').insert({
-      form_id: activeTask.form_id,
-      user_id: user.id,
-      responses_json: visibleAnswers(activeTask.forms.fields_json, answers),
+    // One RPC (7.10.26): saves the answer (without her id when she chose
+    // anonymous and the form allows it) and closes or records her task.
+    const { error } = await supabase.rpc('submit_form_response', {
+      p_form_id: activeTask.form_id,
+      p_responses: visibleAnswers(activeTask.forms.fields_json, answers),
+      p_anonymous: anonymous && !!activeTask.forms.allow_anonymous,
     })
-    await supabase.from('form_assignments').update({ completed_at: new Date().toISOString() }).eq('id', activeTask.id)
+    if (error) { setSubmitting(false); alert('משהו השתבש בשליחה, נסי שוב'); return }
     track('form_submit', { form_id: activeTask.form_id })
     setSubmitting(false)
     setSubmitted(true)
@@ -77,13 +115,25 @@ export default function MyTasksPanel() {
     setActiveTask(task)
     setAnswers({})
     setShowMissing(false)
+    setAnonymous(false)
   }
 
-  if (tasks.length === 0) return null
+  if (tasks.length === 0 && !activeTask && !notice) return null
 
   return (
     <>
+      {notice && (
+        <div className="rounded-3xl flex items-center justify-between gap-3" dir="rtl"
+          style={{ background: '#FBF1DC', border: `1.5px solid ${SURVEY.mustard}`, padding: '14px 16px' }}>
+          <p className="font-bold" style={{ fontSize: 15, color: SURVEY.ink }}>{notice}</p>
+          <button onClick={() => setNotice(null)} className="p-1.5 rounded-full flex-shrink-0" style={{ background: SURVEY.chip, color: SURVEY.muted }} aria-label="סגירה">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Summary card: top of the feed, mustard, one clear action per task */}
+      {tasks.length > 0 && (
       <div
         className="rounded-3xl shadow-sm"
         dir="rtl"
@@ -125,6 +175,7 @@ export default function MyTasksPanel() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Form sheet */}
       {activeTask && (
@@ -155,6 +206,16 @@ export default function MyTasksPanel() {
                   <SurveyFields fields={activeTask.forms.fields_json} answers={answers} setAnswers={setAnswers} showMissing={showMissing} />
                 </div>
                 <div className="px-4 pt-3 bg-white" style={{ paddingBottom: 'calc(14px + env(safe-area-inset-bottom))', borderTop: `1px solid ${SURVEY.border}` }}>
+                  {activeTask.forms.allow_anonymous && (
+                    <label className="flex items-start gap-2.5 mb-3 cursor-pointer select-none">
+                      <input type="checkbox" checked={anonymous} onChange={e => setAnonymous(e.target.checked)}
+                        className="mt-0.5 flex-shrink-0" style={{ width: 18, height: 18, accentColor: SURVEY.mustardDeep }} />
+                      <span style={{ fontSize: 13.5, color: SURVEY.ink, lineHeight: 1.45 }}>
+                        <b>לשלוח בלי השם שלי</b>
+                        <span style={{ display: 'block', color: SURVEY.muted, fontSize: 12.5 }}>התשובות יישמרו בלי קישור אלייך</span>
+                      </span>
+                    </label>
+                  )}
                   <SurveySubmit onSubmit={submit} submitting={submitting} missingCount={missing.length} showMissing={showMissing} />
                 </div>
               </>
