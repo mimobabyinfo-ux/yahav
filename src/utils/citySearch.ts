@@ -78,10 +78,18 @@ const ALIAS_BY_KEY = new Map(
   Object.entries(CITY_ALIASES).map(([k, v]) => [squash(k), v] as const),
 )
 
+/** "מושב גאליה", "קיבוץ נען": the type word is not part of the official
+ *  name, and with it nothing matched, so the typo-proof free-text path
+ *  would have kicked in for a place that is in the list. Query side only. */
+function stripTypeWord(query: string): string {
+  const rest = query.replace(/^\s*(מושב|קיבוץ|יישוב|ישוב|היישוב|הישוב|העיר)\s+/, '')
+  return rest.trim() ? rest : query
+}
+
 /** The city whose name is exactly what she typed, or null. Aliases are
  *  deliberately NOT exact: "מודיעין" must still let her see מודיעין עילית. */
 export function findExactCity(query: string): string | null {
-  const q = foldHebrew(query)
+  const q = foldHebrew(stripTypeWord(query))
   if (!q) return null
   const sq = q.replace(/\s/g, '')
   return (
@@ -94,7 +102,7 @@ export function findExactCity(query: string): string | null {
 
 /** Best official name for what she typed: exact, else a known alias. */
 export function resolveCity(query: string): string | null {
-  return findExactCity(query) ?? ALIAS_BY_KEY.get(squash(query)) ?? null
+  return findExactCity(query) ?? ALIAS_BY_KEY.get(squash(stripTypeWord(query))) ?? null
 }
 
 /** What gets saved when the place is not in the list: her own words,
@@ -104,11 +112,19 @@ export function freeTextCity(query: string): string | null {
   return t.length >= 2 ? t : null
 }
 
-/** The value to save for a city field: the picked city if there is one,
- *  otherwise whatever she typed, resolved if possible. Used on submit so
- *  that typing without tapping a row never loses the answer. */
+/** Her own words may be kept only when nothing in the list resembles
+ *  them. Yahav 7.10.26: offering "keep what you typed" next to a real
+ *  match (פתח תקוו next to פתח תקווה) would fill the data with typos and
+ *  odd spellings. So a near miss must be picked from the list. */
+export function canUseFreeText(typed: string): boolean {
+  return !!freeTextCity(typed) && !resolveCity(typed) && rankCities(typed).length === 0
+}
+
+/** The value to save for a city field: the picked city, else what she
+ *  typed if it resolves to an official name, else her own words only when
+ *  nothing in the list resembles them. Null means "ask her to pick". */
 export function cityToSave(picked: string, typed: string): string | null {
-  return picked.trim() || resolveCity(typed) || freeTextCity(typed)
+  return picked.trim() || resolveCity(typed) || (canUseFreeText(typed) ? freeTextCity(typed) : null)
 }
 
 const he = (a: string, b: string) => {
@@ -122,6 +138,7 @@ const he = (a: string, b: string) => {
 const POPULAR_SORTED = ALL.filter(c => POPULAR_CITIES.has(c)).sort((a, b) => a.localeCompare(b, 'he'))
 
 export function rankCities(query: string, limit = MAX_RESULTS): string[] {
+  query = stripTypeWord(query)
   const q = foldHebrew(query)
   if (!q) return POPULAR_SORTED
 

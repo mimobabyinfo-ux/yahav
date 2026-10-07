@@ -3,7 +3,7 @@ import { Plus, Trash2, Check, ArrowRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLogo from '../components/MimoLogo'
-import { rankCities, findExactCity, freeTextCity, cityToSave } from '../utils/citySearch'
+import { rankCities, findExactCity, freeTextCity, cityToSave, canUseFreeText } from '../utils/citySearch'
 import NeighborhoodPicker from '../components/community/NeighborhoodPicker'
 import TagSelector from '../components/community/TagSelector'
 
@@ -103,7 +103,7 @@ export default function OnboardingPage() {
     // Typed but never tapped a row: keep what she wrote (resolved to the
     // official name when we know it) rather than blocking the signup.
     const areaToSave = cityToSave(area, citySearch)
-    if (!areaToSave) { setError('אנא כתבי עיר או יישוב מגורים'); return }
+    if (!areaToSave) { setError(citySearch.trim() ? 'אנא בחרי את היישוב מהרשימה' : 'אנא כתבי עיר או יישוב מגורים'); return }
     if (!phone.trim()) { setError('אנא הכניסי מספר טלפון'); return }
 
     if (mode === 'pregnant') {
@@ -281,7 +281,7 @@ export default function OnboardingPage() {
                   ))}
                   {/* Not in the list (a new moshav, a spelling we don't know):
                       keep her own words instead of a dead end. Brenda 7.10.26. */}
-                  {!findExactCity(citySearch) && freeTextCity(citySearch) && (
+                  {canUseFreeText(citySearch) && (
                     <button type="button"
                       onMouseDown={() => { const t = freeTextCity(citySearch)!; setArea(t); setCitySearch(t); setNeighborhood(''); setShowCities(false) }}
                       className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-600 transition-colors">

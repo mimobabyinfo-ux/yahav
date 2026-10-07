@@ -5,7 +5,7 @@ import { cachedQuery, invalidateQuery } from '../lib/queryCache'
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
 import { getBabyAge } from '../utils/dateUtils'
-import { rankCities, findExactCity, freeTextCity, cityToSave } from '../utils/citySearch'
+import { rankCities, findExactCity, freeTextCity, cityToSave, canUseFreeText } from '../utils/citySearch'
 import { waLink } from '../utils/phone'
 import { COMMUNITY_TAGS, tagDef, type CommunityTagId } from '../constants/communityTags'
 import TagSelector from '../components/community/TagSelector'
@@ -174,13 +174,16 @@ export default function CommunityPage() {
 
   async function saveMyProfile() {
     if (!user) return
+    // A near miss (פתח תקוו) is not saved as typed: she picks from the list.
+    const areaToSave = cityToSave(areaInput, citySearch)
+    if (!areaToSave && citySearch.trim()) { setSaveError('אנא בחרי את היישוב מהרשימה'); return }
     setSavingProfile(true)
     setSaveError('')
     const { error } = await supabase
       .from('user_profiles')
       .update({
         // Typed without tapping a row used to save NULL and wipe her city.
-        area: cityToSave(areaInput, citySearch),
+        area: areaToSave,
         neighborhood: neighborhoodInput.trim() || null,
         phone_number: phoneInput.trim() || null,
         community_bio: bioInput.trim() || null,
@@ -386,7 +389,7 @@ export default function CommunityPage() {
                   ))}
                   {/* Not in the list (a new moshav, a spelling we don't know):
                       keep her own words instead of a dead end. Brenda 7.10.26. */}
-                  {!findExactCity(citySearch) && freeTextCity(citySearch) && (
+                  {canUseFreeText(citySearch) && (
                     <button type="button"
                       onMouseDown={() => { const t = freeTextCity(citySearch)!; setAreaInput(t); setCitySearch(t); setShowCities(false) }}
                       className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-600 transition-colors">
