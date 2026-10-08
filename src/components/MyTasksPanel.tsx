@@ -5,6 +5,7 @@ import { SurveyFields, SurveyProgress, SurveySubmit, useSurveyProgress, scrollTo
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
+import { useOwnerSettings } from '../hooks/useOwnerSettings'
 
 type FormRecord = { id: string; title: string; description: string | null; fields_json: SurveyField[]; allow_anonymous?: boolean }
 type AssignedTask = {
@@ -20,6 +21,7 @@ type AssignedTask = {
 export default function MyTasksPanel() {
   const { user } = useAuth()
   const { track } = useTracker()
+  const { ownerName } = useOwnerSettings()
   const [tasks, setTasks] = useState<AssignedTask[]>([])
   const [activeTask, setActiveTask] = useState<AssignedTask | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
@@ -198,7 +200,7 @@ export default function MyTasksPanel() {
               <div className="p-10 text-center space-y-3">
                 <div className="text-6xl">🎉</div>
                 <p className="font-bold" style={{ fontSize: 18, color: SURVEY.ink }}>תודה! התשובות נשלחו</p>
-                <p style={{ fontSize: 14, color: SURVEY.muted }}>ברנדה קוראת כל תשובה</p>
+                <p style={{ fontSize: 14, color: SURVEY.muted }}>{ownerName} קוראת כל תשובה</p>
               </div>
             ) : (
               <>
