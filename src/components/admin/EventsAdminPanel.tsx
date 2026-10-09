@@ -1,5 +1,5 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react'
-import { Plus, Pencil, Trash2, X, XCircle, UserPlus, MessageCircle, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown, Link2, Copy, RefreshCw, ExternalLink, Check } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Plus, Pencil, Trash2, X, XCircle, UserPlus, MessageCircle, CalendarDays, List, ChevronRight, ChevronLeft, ChevronDown, Link2, Copy, RefreshCw, ExternalLink, Check, MoreHorizontal, AlertTriangle, Users } from 'lucide-react'
 import { supabase, type CommunityEvent, type ServicePartner } from '../../lib/supabase'
 import ConfirmDialog from './ConfirmDialog'
 import { useOpenCustomer } from './CustomerCardContext'
@@ -157,6 +157,55 @@ function weekdayHe(dateStr: string): string {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'long' })
 }
 
+const EV_CSS = `
+.ev-header{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.ev-header h1{font-size:26px;font-weight:700;color:#443327;line-height:1.2;margin-inline-end:auto}
+.ev-hactions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ev-seg{display:inline-flex;background:#F1EBE1;border-radius:11px;padding:3px}
+.ev-seg button{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:#8A7A63;padding:6px 12px;border-radius:8px}
+.ev-seg button[aria-selected="true"]{background:#fff;color:#443327;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.ev-btn{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;border-radius:10px;padding:7px 12px;white-space:nowrap}
+.ev-btn.primary{background:#C8A460;color:#33281B}
+.ev-btn.big{padding:9px 16px;font-size:14px}
+.ev-btn.soft{background:#F6ECD8;color:#6E5836}
+.ev-attn{background:#FBF3EF;border:1px solid #EFD3C6;border-radius:16px;padding:10px 12px}
+.ev-attn h2{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800;color:#8B4A30;margin:0 4px 6px}
+.ev-attn button{display:flex;align-items:center;gap:8px;width:100%;text-align:right;font-size:13.5px;font-weight:600;color:#713924;padding:7px 6px;border-radius:8px}
+.ev-attn button span{flex:1}
+.ev-attn button:hover{background:#F5E2D8}
+.ev-month{font-size:15px;font-weight:700;color:#443327;margin:10px 2px 8px}
+.ev-month span{font-size:12.5px;font-weight:600;color:#A2937D;margin-inline-start:6px}
+.ev-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));align-items:start}
+.ev-card{display:flex;flex-direction:column;gap:10px;background:#fff;border:1px solid #E9E2D6;border-radius:18px;padding:14px 16px}
+.ev-card.draft{background:#FBF9F5;border-style:dashed;border-color:#D8CCB6}
+.ev-card.past{background:#FBF9F5}
+.ev-top{display:flex;gap:12px;align-items:flex-start}
+.ev-date{display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;width:54px;background:#F6ECD8;border-radius:12px;padding:7px 0}
+.ev-date b{font-size:22px;line-height:1;color:#4A3A28}
+.ev-date span{font-size:11px;font-weight:700;color:#6E5836;margin-top:2px;white-space:nowrap}
+.ev-card.past .ev-date{background:#F1EBE1}
+.ev-top h3{font-size:16px;font-weight:700;color:#443327;line-height:1.3}
+.ev-sub{font-size:12.5px;font-weight:600;color:#8A7A63;margin-top:2px}
+.ev-chips{display:flex;flex-wrap:wrap;gap:4px}
+.ev-chip{display:inline-flex;align-items:center;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 9px;background:#F6F3ED;color:#6E5836;white-space:nowrap}
+.ev-chip.paid{background:#F3E5E7;color:#7E4E57}
+.ev-chip.rust{background:#F5E2D8;color:#8B4A30}
+.ev-chip.blue{background:#E4EBEF;color:#35505C}
+.ev-chip.ok{background:#E7F0E4;color:#3F5B39}
+.ev-chip.solid{background:#8B4A30;color:#fff}
+.ev-actions{display:flex;align-items:center;gap:4px;border-top:1px solid #F1EBE1;padding-top:10px;margin-top:auto}
+.ev-icon{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;color:#8A7A63}
+.ev-icon:hover{background:#F6F3ED;color:#443327}
+.ev-menu{position:absolute;bottom:38px;left:0;z-index:40;display:flex;flex-direction:column;min-width:200px;background:#fff;border:1px solid #E9E2D6;border-radius:12px;box-shadow:0 8px 24px rgba(68,51,39,.12);padding:4px}
+.ev-menu button{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:#443327;padding:8px 10px;border-radius:8px;text-align:right}
+.ev-menu button:hover{background:#F6F3ED}
+.ev-menu button.danger{color:#8B4A30}
+.ev-fold{background:#fff;border:1px solid #E9E2D6;border-radius:14px;overflow:hidden}
+.ev-fold>button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:11px 16px;font-size:13.5px;font-weight:700;color:#6E5836;text-align:right}
+.ev-fold-body{padding:10px;background:#FBF9F5;border-top:1px solid #F1EBE1}
+@media (max-width:640px){.ev-grid{grid-template-columns:1fr}.ev-header h1{font-size:22px}}
+`
+
 export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditId?: string; openRegsId?: string } = {}) {
   const openCustomer = useOpenCustomer()
   const [events, setEvents] = useState<CommunityEvent[]>([])
@@ -216,6 +265,8 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
   const [expandedRegId, setExpandedRegId] = useState<string | null>(null)
   // List vs month-calendar view + which month the calendar shows
   const [view, setView] = useState<'list' | 'calendar'>('list')
+  // 9.10.26: the ⋯ menu on an event card (Lovable mockup).
+  const [menuFor, setMenuFor] = useState<string | null>(null)
   const [calYm, setCalYm] = useState<{ y: number; m: number }>(() => {
     const t = new Date()
     return { y: t.getFullYear(), m: t.getMonth() + 1 }
@@ -666,9 +717,12 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
     )
   }
 
+  // 9.10.26 (Lovable mockup): an event is a card in a grid. The facts that
+  // need action are chips on the card AND lines in the "כדאי לבדוק" strip;
+  // one primary action (פרסום for a draft, נרשמות otherwise), copy-link as
+  // an icon, the rest (צ'ק-אין, עריכה, מחיקה) in a ⋯ menu.
   function eventRow(ev: CommunityEvent, faded: boolean) {
     const count = counts[ev.id] ?? 0
-    const d = new Date(ev.event_date + 'T12:00:00')
     const isDraft = !ev.is_active
     const missingLink = ev.is_active && ev.price > 0 && !ev.payment_link
     // Phase 6: check-in state, derived from event_checkin_tokens +
@@ -678,145 +732,133 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
     const attended = attendedCounts[ev.id] ?? 0
     const checkinPill = isPast
       ? (attended > 0
-          ? { text: `צ'ק-אין הושלם · ${attended}/${count}`, color: '#4F5040', bg: '#EDEDE6' }
+          ? { text: `נוכחות ${attended}/${count}`, tone: 'ok' }
           : count > 0
-            ? { text: 'לא סומנה נוכחות', color: '#8B4A30', bg: '#F7EBE4' }
+            ? { text: 'לא סומנה נוכחות', tone: 'rust' }
             : null)
       : (checkinIds.has(ev.id)
-          ? { text: 'קישור צ\'ק-אין נוצר', color: '#4F5040', bg: '#EDEDE6' }
-          // 6.10.26: the link is made the day before; nag only inside 2 days
-          // (same rule as the home task), not for every event in the month.
+          ? { text: 'קישור צ\'ק-אין נוצר', tone: 'ok' }
+          // 6.10.26: the link is made the day before; nag only inside 2 days.
           : ev.is_active && daysUntil(ev.event_date) <= 2
-            ? { text: 'אין קישור צ\'ק-אין', color: '#8B4A30', bg: '#F7EBE4' }
+            ? { text: 'אין קישור צ\'ק-אין', tone: 'rust' }
             : null)
+    const dd = Number(ev.event_date.split('-')[2])
+    const freed = (waitCounts[ev.id] ?? 0) > 0 && ev.capacity != null && count < ev.capacity && !isPast
     return (
-      <div
-        key={ev.id}
-        className={faded ? 'opacity-60' : ''}
-        style={isDraft
-          ? { background: '#F8F4EC', border: '1px dashed #C6BDA0', borderRadius: 20, padding: '16px 18px', opacity: 0.82 }
-          : { background: '#fff', border: '1px solid #E4DAD0', borderRadius: 20, padding: '16px 18px' }}
-      >
-        <div className="flex items-center gap-4 flex-wrap">
-          {/* Date block */}
-          <div className="flex flex-col items-center justify-center flex-shrink-0" style={{ width: 62, background: '#F6ECD8', borderRadius: 14, padding: '9px 0' }}>
-            <span className="font-bold" style={{ fontSize: 24, lineHeight: 1, color: '#4A3A28' }}>{d.getDate()}</span>
-            <span className="font-semibold mt-0.5" style={{ fontSize: 13, color: '#6E5836' }}>{weekdayHe(ev.event_date)}</span>
+      <article key={ev.id} className={`ev-card${isDraft ? ' draft' : ''}${faded ? ' past' : ''}`} aria-label={ev.title}>
+        <div className="ev-top">
+          <div className="ev-date" aria-hidden="true">
+            <b>{dd}</b>
+            <span>{weekdayHe(ev.event_date).replace('יום ', '')}</span>
           </div>
-
-          {/* Title + meta */}
-          <div className="flex-1 min-w-[160px]">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-bold" style={{ fontSize: 17, color: '#443327' }}>{ev.emoji ? `${ev.emoji} ` : ''}{ev.title}</p>
-              <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', ...(ev.price > 0 ? { background: '#F3E5E7', color: '#7E4E57' } : { background: '#F0EBE3', color: '#6E5836' }) }}>
-                {ev.price > 0 ? `₪${ev.price}` : 'חינם'}
-              </span>
-              {missingLink && (
-                <span className="font-semibold whitespace-nowrap" style={{ fontSize: 13, color: '#8B4A30' }}>חסר לינק תשלום</span>
-              )}
-              {checkinPill && (
-                <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: checkinPill.bg, color: checkinPill.color }}>
-                  {checkinPill.text}
-                </span>
-              )}
-              {isPast && (
-                <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: '#F1EBE1', color: '#A2937D' }}>
-                  הסתיים
-                </span>
-              )}
-              {(claimCounts[ev.id] ?? 0) > 0 && (
-                <button type="button" onClick={e => { e.stopPropagation(); openRegs(ev) }}
-                  className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: '#8B4A30', color: '#fff' }}>
-                  💳 {claimCounts[ev.id] === 1 ? 'תשלום אחד' : `${claimCounts[ev.id]} תשלומים`} לאישור
-                </button>
-              )}
-              {(waitCounts[ev.id] ?? 0) > 0 && (
-                ev.capacity != null && count < ev.capacity && ev.event_date >= todayLocalIso() ? (
-                  /* A spot freed while moms are waiting — reach out to the
-                     first in line (list inside נרשמות) */
-                  <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: '#A35C3D', color: '#fff' }}>
-                    🔔 התפנה מקום · {waitCounts[ev.id]} ממתינות
-                  </span>
-                ) : (
-                  <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: '#E4EBEF', color: '#3E5966' }}>
-                    ⏳ המתנה: {waitCounts[ev.id]}
-                  </span>
-                )
-              )}
-              {(interestCounts[ev.id] ?? 0) > 0 && (
-                <span className="font-bold rounded-full whitespace-nowrap" style={{ fontSize: 12, padding: '3px 10px', background: '#EADBDD', color: '#5E4938' }}
-                  title="אמרו שישמחו בפעם הבאה">
-                  💭 פעם הבאה: {interestCounts[ev.id]}
-                </span>
-              )}
-            </div>
-            <p className="font-semibold mt-0.5" style={{ fontSize: 14, color: '#7B604C' }}>
-              {ev.start_time && `${ev.start_time.slice(0, 5)}${ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}`}
+          <div className="min-w-0 flex-1">
+            <h3>{ev.emoji ? `${ev.emoji} ` : ''}{ev.title}</h3>
+            <p className="ev-sub">
+              {ev.start_time && `${ev.start_time.slice(0, 5)}${ev.end_time ? `-${ev.end_time.slice(0, 5)}` : ''}`}
               {ev.location && ` · ${ev.location}`}
               {ev.vendor_name && ` · ${ev.vendor_name}`}
             </p>
           </div>
-
-          {/* Capacity */}
-          <div className="flex-shrink-0" style={{ width: 168 }}>
-            {capacityBlock(ev, count)}
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {isDraft ? (
-              <button onClick={() => publish(ev)} className="font-bold rounded-xl transition-all hover:brightness-95" style={{ background: '#C8A460', color: '#33281B', padding: '9px 14px', fontSize: 14 }}>
-                פרסום
-              </button>
-            ) : (
-              <button onClick={() => openRegs(ev)} className="font-bold rounded-xl transition-all hover:bg-sand-50" style={{ border: '1.5px solid #DCD4C8', color: '#7B604C', padding: '9px 14px', fontSize: 14 }}>
-                נרשמות
-              </button>
-            )}
-            {!isDraft && !isPast && (
-              <button onClick={() => copyEventLink(ev)} className="flex items-center justify-center rounded-xl transition-colors hover:brightness-95" style={{ width: 38, height: 38, background: copiedEventLink === ev.id ? '#EEF3E8' : '#F8F4EC' }} title="העתק קישור הרשמה (למי שאין לה אפליקציה)">
-                {copiedEventLink === ev.id
-                  ? <Check className="w-[17px] h-[17px]" style={{ color: '#5C7A4A' }} />
-                  : <Copy className="w-[17px] h-[17px]" style={{ color: '#7B604C' }} />}
-              </button>
-            )}
-            {!isDraft && (
-              <button onClick={() => setCheckinEvent(ev)} className="flex items-center justify-center rounded-xl transition-colors hover:brightness-95" style={{ width: 38, height: 38, background: '#F8F4EC' }} title="קישור צ'ק-אין לספק">
-                <Link2 className="w-[17px] h-[17px]" style={{ color: '#7B604C' }} />
-              </button>
-            )}
-            <button onClick={() => openEdit(ev)} className="flex items-center justify-center rounded-xl transition-colors hover:brightness-95" style={{ width: 38, height: 38, background: '#F8F4EC' }} title="עריכה">
-              <Pencil className="w-[17px] h-[17px]" style={{ color: '#7B604C' }} />
-            </button>
-            <button onClick={() => requestDelete(ev)} className="flex items-center justify-center rounded-xl text-sand-500 hover:text-red-500 hover:bg-red-50 transition-colors" style={{ width: 38, height: 38 }} title="מחיקה">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
         </div>
-      </div>
+        <div className="ev-chips">
+          <span className={`ev-chip ${ev.price > 0 ? 'paid' : ''}`}>{ev.price > 0 ? `₪${ev.price}` : 'חינם'}</span>
+          {isDraft && <span className="ev-chip">לא פורסם</span>}
+          {isPast && <span className="ev-chip">הסתיים</span>}
+          {missingLink && <span className="ev-chip rust">חסר לינק תשלום</span>}
+          {checkinPill && <span className={`ev-chip ${checkinPill.tone}`}>{checkinPill.text}</span>}
+          {(claimCounts[ev.id] ?? 0) > 0 && (
+            <button type="button" onClick={() => openRegs(ev)} className="ev-chip solid">
+              {claimCounts[ev.id] === 1 ? 'תשלום אחד' : `${claimCounts[ev.id]} תשלומים`} לאישור
+            </button>
+          )}
+          {(waitCounts[ev.id] ?? 0) > 0 && (
+            freed
+              ? <span className="ev-chip solid">התפנה מקום · {waitCounts[ev.id]} ממתינות</span>
+              : <span className="ev-chip blue">{waitCounts[ev.id]} ברשימת המתנה</span>
+          )}
+          {(interestCounts[ev.id] ?? 0) > 0 && (
+            <span className="ev-chip" title="אמרו שישמחו בפעם הבאה">{interestCounts[ev.id]} אמרו פעם הבאה</span>
+          )}
+        </div>
+        <div className="ev-cap">{capacityBlock(ev, count)}</div>
+        <div className="ev-actions">
+          {isDraft ? (
+            <button type="button" onClick={() => publish(ev)} className="ev-btn primary">פרסום</button>
+          ) : (
+            <button type="button" onClick={() => openRegs(ev)} className="ev-btn soft"><Users className="w-3.5 h-3.5" /> נרשמות · {count}</button>
+          )}
+          <span className="flex-1" />
+          {!isDraft && !isPast && (
+            <button type="button" onClick={() => copyEventLink(ev)} className="ev-icon" title="העתקת קישור הרשמה (למי שאין לה אפליקציה)" aria-label={`העתקת קישור הרשמה ל${ev.title}`}>
+              {copiedEventLink === ev.id ? <Check className="w-4 h-4" style={{ color: '#3F5B39' }} /> : <Copy className="w-4 h-4" />}
+            </button>
+          )}
+          <button type="button" onClick={() => openEdit(ev)} className="ev-icon" title="עריכה" aria-label={`עריכת ${ev.title}`}><Pencil className="w-4 h-4" /></button>
+          <span className="relative">
+            <button type="button" onClick={() => setMenuFor(menuFor === ev.id ? null : ev.id)} className="ev-icon" title="עוד" aria-label={`עוד פעולות ל${ev.title}`} aria-expanded={menuFor === ev.id}>
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+            {menuFor === ev.id && (
+              <>
+                <span className="fixed inset-0 z-30" onClick={() => setMenuFor(null)} />
+                <span className="ev-menu" role="menu">
+                  {!isDraft && (
+                    <button type="button" role="menuitem" onClick={() => { setMenuFor(null); setCheckinEvent(ev) }}><Link2 className="w-4 h-4" /> קישור צ'ק-אין לספק</button>
+                  )}
+                  {!isDraft && !isPast && (
+                    <button type="button" role="menuitem" onClick={() => { setMenuFor(null); copyEventLink(ev) }}><Copy className="w-4 h-4" /> קישור הרשמה חיצוני</button>
+                  )}
+                  <button type="button" role="menuitem" onClick={() => { setMenuFor(null); openEdit(ev) }}><Pencil className="w-4 h-4" /> עריכה</button>
+                  <button type="button" role="menuitem" className="danger" onClick={() => { setMenuFor(null); requestDelete(ev) }}><Trash2 className="w-4 h-4" /> מחיקה</button>
+                </span>
+              </>
+            )}
+          </span>
+        </div>
+      </article>
     )
+  }
+
+  // "כדאי לבדוק": only what needs a hand now. Vendors live in VendorsStrip
+  // above this panel, so they are not repeated here.
+  const attention: { key: string; text: string; run: () => void }[] = []
+  for (const ev of upcoming) {
+    const count = counts[ev.id] ?? 0
+    if (ev.is_active && ev.price > 0 && !ev.payment_link) attention.push({ key: `pay:${ev.id}`, text: `"${ev.title}" בתשלום בלי לינק תשלום`, run: () => openEdit(ev) })
+    if (!ev.is_active && daysUntil(ev.event_date) <= 14) attention.push({ key: `draft:${ev.id}`, text: `"${ev.title}" (${ddmm(ev.event_date)}) עוד לא פורסם`, run: () => openEdit(ev) })
+    if ((claimCounts[ev.id] ?? 0) > 0) attention.push({ key: `claim:${ev.id}`, text: `"${ev.title}": ${claimCounts[ev.id] === 1 ? 'תשלום אחד מחכה' : `${claimCounts[ev.id]} תשלומים מחכים`} לאישור`, run: () => openRegs(ev) })
+    if ((waitCounts[ev.id] ?? 0) > 0 && ev.capacity != null && count < ev.capacity) attention.push({ key: `freed:${ev.id}`, text: `התפנה מקום ב"${ev.title}" ו-${waitCounts[ev.id]} ממתינות`, run: () => openRegs(ev) })
+  }
+  for (const ev of past.slice(0, 6)) {
+    if (-daysUntil(ev.event_date) > 14) continue
+    if ((counts[ev.id] ?? 0) > 0 && (attendedCounts[ev.id] ?? 0) === 0) attention.push({ key: `att:${ev.id}`, text: `לא סומנה נוכחות ב"${ev.title}" (${ddmm(ev.event_date)})`, run: () => openRegs(ev) })
   }
 
   return (
     <div className="space-y-4" dir="rtl">
-      <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="font-bold text-sand-800" style={{ fontSize: 17 }}>אירועי קהילה</h2>
-        <div className="flex items-center gap-2">
-          <button onClick={openCreate} className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-bold shadow-sm" style={{ background: '#C8A460', color: '#33281B' }}>
-            <Plus className="w-4 h-4" /> אירוע חדש
-          </button>
-          {/* רשימה / יומן toggle */}
-          <div className="flex bg-white border border-sand-200 rounded-2xl p-1 gap-1">
+      <style>{EV_CSS}</style>
+      <header className="ev-header">
+        <h1>אירועי קהילה</h1>
+        <div className="ev-hactions">
+          <div className="ev-seg" role="tablist" aria-label="תצוגה">
             {([['list', 'רשימה', List], ['calendar', 'יומן', CalendarDays]] as const).map(([v, label, Icon]) => (
-              <button key={v} onClick={() => setView(v)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${view === v ? 'shadow-sm' : 'text-sand-500'}`}
-                style={view === v ? { background: '#E7C78A', color: '#4A3A28' } : {}}>
+              <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)}>
                 <Icon className="w-3.5 h-3.5" /> {label}
               </button>
             ))}
           </div>
+          <button type="button" onClick={openCreate} className="ev-btn primary big"><Plus className="w-4 h-4" /> אירוע חדש</button>
         </div>
-      </div>
+      </header>
+
+      {attention.length > 0 && (
+        <section className="ev-attn" aria-label="כדאי לבדוק">
+          <h2><AlertTriangle className="w-4 h-4" /> כדאי לבדוק</h2>
+          {attention.map(a => (
+            <button key={a.key} type="button" onClick={a.run}><span>{a.text}</span><ChevronLeft className="w-4 h-4 flex-shrink-0" /></button>
+          ))}
+        </section>
+      )}
 
       {credits.length > 0 && (
         <div className="bg-white rounded-3xl p-4 shadow-sm space-y-2">
@@ -870,18 +912,19 @@ export default function EventsAdminPanel({ openEditId, openRegsId }: { openEditI
           )}
 
           {groups.map(g => (
-            <div key={g.key} className="space-y-2">
-              <p className="text-xs font-bold text-sand-400">{g.key} · {g.items.length} אירועים</p>
-              {g.items.map(ev => eventRow(ev, false))}
-            </div>
+            <section key={g.key} aria-label={g.key}>
+              <p className="ev-month">{g.key} <span>{g.items.length === 1 ? 'אירוע אחד' : `${g.items.length} אירועים`}</span></p>
+              <div className="ev-grid">{g.items.map(ev => eventRow(ev, false))}</div>
+            </section>
           ))}
 
           {past.length > 0 && (
-            <div className="pt-2">
-              <button onClick={() => setShowPast(v => !v)} className="text-xs font-semibold text-sand-400 underline">
-                {showPast ? 'הסתרת אירועים שהסתיימו' : `הצגת אירועים שהסתיימו (${past.length})`}
+            <div className="ev-fold">
+              <button type="button" onClick={() => setShowPast(v => !v)} aria-expanded={showPast}>
+                <span>אירועים שעברו ({past.length})</span>
+                <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#A2937D', transform: showPast ? 'rotate(180deg)' : 'none' }} />
               </button>
-              {showPast && <div className="space-y-2 mt-2">{past.map(ev => eventRow(ev, true))}</div>}
+              {showPast && <div className="ev-grid ev-fold-body">{past.map(ev => eventRow(ev, true))}</div>}
             </div>
           )}
         </>
