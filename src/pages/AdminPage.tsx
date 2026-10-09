@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo, createContext, useContext } from 'react'
 import { Home as HomeIcon, BookOpen, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Baby, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
+import FormsListView from '../components/admin/forms/FormsListView'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -2172,14 +2173,6 @@ function FormsTabDesktop() {
   const [subsTab, setSubsTab] = useState<'list' | 'aggregate'>('list')
   // 23.9.26: answers split by cohort, the next group first (useCohortSplit).
   const split = useCohortSplit(selected, submissions)
-  const [closedFolders, setClosedFolders] = useState<Set<string>>(new Set())
-  function toggleFolder(f: string) {
-    setClosedFolders(prev => {
-      const next = new Set(prev)
-      next.has(f) ? next.delete(f) : next.add(f)
-      return next
-    })
-  }
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [folder, setFolder] = useState('')
@@ -2494,13 +2487,6 @@ function FormsTabDesktop() {
   // ── The list — folders › rows, the count as the main element ──
   return (
     <div className="space-y-4" dir="rtl">
-      <button
-        onClick={() => { setShowCreate(!showCreate); setEditingForm(null) }}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all hover:shadow-sm"
-        style={{ background: '#C8A460', color: '#33281B', fontSize: 14 }}
-      >
-        <Plus className="w-4 h-4" /> טופס חדש
-      </button>
 
       {/* Create / Edit form panel (the builder — logic untouched) */}
       {(showCreate || editingForm) && (
@@ -2609,112 +2595,22 @@ function FormsTabDesktop() {
         </div>
       )}
 
-      {/* The folder-grouped list. Row (§3):
-          [title + linkage, flex] [count button] [last, 96px] [state, 52px] [actions] */}
-      <div className="bg-white overflow-hidden" style={{ border: '1px solid #E9E2D6', borderRadius: 18 }}>
-        {(() => {
-          const folderMap = new Map<string, FormRecord[]>()
-          forms.forEach(f => {
-            const key = f.folder ?? ''
-            if (!folderMap.has(key)) folderMap.set(key, [])
-            folderMap.get(key)!.push(f)
-          })
-          const folders = Array.from(folderMap.entries())
-            .filter(([, ff]) => ff.length > 0)
-            .sort(([a], [b]) => {
-              if (a === '') return 1
-              if (b === '') return -1
-              return a.localeCompare(b, 'he')
-            })
-          return folders.map(([folderName, folderForms]) => {
-            const isOpen = !closedFolders.has(folderName)
-            return (
-              <div key={folderName || '__none__'}>
-                <button
-                  onClick={() => toggleFolder(folderName)}
-                  className="w-full flex items-baseline gap-2 text-right"
-                  style={{ background: '#FBF9F5', borderBottom: '1px solid #F1EBE1', padding: '9px 18px' }}
-                >
-                  <span style={{ fontWeight: 700, fontSize: 13, color: '#5E4938' }}>{folderName || 'ללא תיקייה'}</span>
-                  <span style={{ fontWeight: 600, fontSize: 12.5, color: '#A2937D' }}>
-                    {folderForms.length === 1 ? 'טופס אחד' : `${folderForms.length} טפסים`}
-                  </span>
-                </button>
-                {isOpen && folderForms.map(f => {
-                  const stat = submissionStats.get(f.id)
-                  const count = stat?.count ?? 0
-                  const newCount = newCountByFormId.get(f.id) ?? 0
-                  return (
-                    <div key={f.id} className="flex items-center" style={{ padding: '13px 18px', gap: 18, borderBottom: '1px solid #F4EEE4' }}>
-                      {/* Title + linkage */}
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate" style={{ fontWeight: 700, fontSize: 14.5, color: f.is_active ? '#3D2E20' : '#8A7A63' }}>{f.title}</p>
-                        <LinkageLine form={f} />
-                      </div>
-                      {/* §2: the count is the point — largest element, the click target */}
-                      <button
-                        onClick={() => count > 0 && loadSubmissions(f)}
-                        disabled={count === 0}
-                        className={`flex items-center gap-1.5 flex-shrink-0 ${count > 0 ? 'hover:underline cursor-pointer' : 'cursor-default'}`}
-                        title={count > 0 ? 'פתיחת התשובות' : undefined}
-                      >
-                        <span className="font-display" style={{ fontSize: 21, color: count > 0 ? '#443327' : '#B6A891', lineHeight: 1 }}>{count}</span>
-                        <span style={{ fontWeight: 600, fontSize: 12.5, color: '#8A7A63' }}>{count === 1 ? 'תשובה' : 'תשובות'}</span>
-                        {newCount > 0 && (
-                          <span className="whitespace-nowrap" style={{ fontWeight: 700, fontSize: 12, color: '#8B4A30', background: '#F7EBE4', padding: '3px 9px', borderRadius: 9999 }}>
-                            {newCount === 1 ? 'אחת חדשה' : `${newCount} חדשות`}
-                          </span>
-                        )}
-                      </button>
-                      {/* Last response */}
-                      <span className="flex-shrink-0 whitespace-nowrap hidden sm:block" style={{ width: 96, fontWeight: 600, fontSize: 12.5, color: '#A2937D' }}>
-                        {stat && stat.count > 0
-                          ? `אחרונה ${new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}`
-                          : 'אין תשובות'}
-                      </span>
-                      {/* State — text, not a pill */}
-                      <button
-                        onClick={() => toggleForm(f)}
-                        className="flex-shrink-0 hover:underline"
-                        style={{ width: 52, fontWeight: 700, fontSize: 12.5, color: f.is_active ? '#4F5040' : '#A2937D', textAlign: 'right' }}
-                        title={f.is_active ? 'לחיצה מכבה את הטופס' : 'לחיצה מפעילה את הטופס'}
-                      >
-                        {f.is_active ? 'פעיל' : 'כבוי'}
-                      </button>
-                      {/* Actions — always visible, never hover-gated */}
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <button
-                          onClick={() => startEdit(f)}
-                          className="rounded-lg whitespace-nowrap transition-colors hover:bg-[#EDE6DA]"
-                          style={{ background: '#F5F2EA', color: '#5E4938', fontWeight: 700, fontSize: 12.5, padding: '6px 12px' }}
-                        >
-                          עריכה
-                        </button>
-                        <button
-                          onClick={() => copyFormLink(f.id)}
-                          className="rounded-lg whitespace-nowrap transition-colors hover:bg-[#E2E9EC]"
-                          style={{ background: '#EEF2F4', color: '#35505C', fontWeight: 700, fontSize: 12.5, padding: '6px 12px' }}
-                          title="העתקת הקישור הציבורי"
-                        >
-                          {copiedId === f.id ? '✓ הועתק' : 'קישור'}
-                        </button>
-                        <button
-                          onClick={() => setAssignForm(f)}
-                          className="rounded-lg whitespace-nowrap transition-colors hover:bg-[#EDE6DA]"
-                          style={{ background: '#F5F2EA', color: '#5E4938', fontWeight: 700, fontSize: 12.5, padding: '6px 12px' }}
-                        >
-                          שיוך
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          })
-        })()}
-        {forms.length === 0 && <p className="text-center py-12" style={{ fontWeight: 600, fontSize: 14, color: '#A2937D' }}>אין טפסים</p>}
-      </div>
+      {/* 9.10.26: the list from the approved Lovable mockup (FormsListView). */}
+      {!(showCreate || editingForm) && (
+        <FormsListView
+          forms={forms}
+          stats={submissionStats}
+          newCountByFormId={newCountByFormId}
+          copiedId={copiedId}
+          onOpen={f => loadSubmissions(f as FormRecord)}
+          onEdit={f => startEdit(f as FormRecord)}
+          onCopyLink={copyFormLink}
+          onAssign={f => setAssignForm(f as FormRecord)}
+          onToggle={f => toggleForm(f as FormRecord)}
+          onDelete={f => requestDeleteForm(f as FormRecord)}
+          onCreate={() => { setShowCreate(true); setEditingForm(null) }}
+        />
+      )}
 
       {assignForm && <AssignFormModal form={assignForm} onClose={() => setAssignForm(null)} />}
       <ConfirmDialog
@@ -5103,7 +4999,6 @@ function FormsTab() {
   const [triggerType, setTriggerType] = useState('after_video_views')
   const [triggerCount, setTriggerCount] = useState('3')
   const [saving, setSaving] = useState(false)
-  const [closedFolders, setClosedFolders] = useState<Set<string>>(new Set())
 
   function startEdit(form: FormRecord) {
     setEditingForm(form)
@@ -5119,13 +5014,6 @@ function FormsTab() {
     setTitle(''); setDescription(''); setFolder(''); setFields([])
   }
 
-  function toggleFolder(f: string) {
-    setClosedFolders(prev => {
-      const next = new Set(prev)
-      next.has(f) ? next.delete(f) : next.add(f)
-      return next
-    })
-  }
 
   const load = useCallback(async () => {
     const [{ data: formsData }, { data: subsData }] = await Promise.all([
@@ -5344,14 +5232,6 @@ function FormsTab() {
   // modal on top of the list (same shell as CustomerCardModal).
   return (
     <div className="space-y-3">
-      <button
-        onClick={() => setShowCreate(!showCreate)}
-        className="w-full flex items-center justify-center gap-2 text-white font-semibold py-3 rounded-2xl transition-colors"
-        style={{ background: '#E7C78A' }}
-      >
-        <Plus className="w-4 h-4" />
-        טופס חדש
-      </button>
 
       {(showCreate || editingForm) && (
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -5459,82 +5339,29 @@ function FormsTab() {
       )}
 
       {/* Polish #9: "מה חדש" strip — see desktop tab for the rationale. */}
-      <FormsWhatsNewStrip
+      {!(showCreate || editingForm) && <FormsWhatsNewStrip
         recentNew={recentNew}
         onOpenForm={loadSubmissions}
         onMarkAllSeen={() => { bumpAllFormsSeen(forms.map(f => f.id)); setSeenBumpTick(t => t + 1) }}
-      />
+      />}
 
-      {/* Group forms by folder */}
-      {(() => {
-        const folderMap = new Map<string, FormRecord[]>()
-        forms.forEach(f => {
-          const key = f.folder ?? ''
-          if (!folderMap.has(key)) folderMap.set(key, [])
-          folderMap.get(key)!.push(f)
-        })
-        const folders = Array.from(folderMap.entries()).sort(([a], [b]) => {
-          if (a === '') return 1
-          if (b === '') return -1
-          return a.localeCompare(b, 'he')
-        })
-        return folders.map(([folderName, folderForms]) => (
-          <div key={folderName || '__none__'} className="space-y-2">
-            {/* Folder header */}
-            <button
-              onClick={() => toggleFolder(folderName)}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-sand-100 hover:bg-sand-200 transition-colors"
-            >
-              <span className="text-xs font-bold text-sand-600">
-                {folderName ? `📁 ${folderName}` : '📋 ללא תיקייה'}
-                <span className="mr-2 text-sand-400 font-normal">({folderForms.length})</span>
-              </span>
-              <span className="text-sand-400 text-xs">{!closedFolders.has(folderName) ? '▲' : '▼'}</span>
-            </button>
-
-            {!closedFolders.has(folderName) && folderForms.map(form => {
-              const stat = submissionStats.get(form.id)
-              return (
-              <div key={form.id} className={`bg-white rounded-2xl p-4 shadow-sm mr-2 ${!form.is_active ? 'opacity-50' : ''}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-bold text-sand-800 text-sm">{form.title}</p>
-                      {/* Polish #9: per-form unread chip. */}
-                      {(newCountByFormId.get(form.id) ?? 0) > 0 && (
-                        <span className="text-[13px] px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 font-bold">
-                          {newCountByFormId.get(form.id)} חדשים
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-sand-400 mt-0.5">{form.fields_json.length} שדות</p>
-                    {stat && stat.count > 0 && (
-                      <p className="text-xs text-[#3E5966] font-semibold mt-1">
-                        {stat.count} תשובות
-                        <span className="text-[#7B604C] font-normal"> · אחרון {new Date(stat.lastAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 flex-wrap justify-end">
-                    <button onClick={() => startEdit(form)} className="text-[13px] px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100 inline-flex items-center gap-1"><Pencil className="w-4 h-4" /> ערכי</button>
-                    <button onClick={() => loadSubmissions(form)} className="text-xs px-2 py-1 bg-sand-50 text-sand-600 rounded-lg hover:bg-sand-100">תשובות</button>
-                    <button onClick={() => setAssignForm(form)} className="text-xs px-2 py-1 bg-[#F6ECD8] text-[#6E5836] rounded-lg hover:bg-[#EFDFC2]">👥 שייך</button>
-                    <button onClick={() => copyFormLink(form.id)} className="text-xs px-2 py-1 bg-mustard-50 text-mustard-700 rounded-lg hover:bg-mustard-100">
-                      {copiedId === form.id ? '✓ הועתק' : '🔗 לינק'}
-                    </button>
-                    <button onClick={() => toggleForm(form)} className="text-sand-400 hover:text-mustard-500">
-                      {form.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
-                    </button>
-                    <button onClick={() => requestDeleteForm(form)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                </div>
-              </div>
-              )
-            })}
-          </div>
-        ))
-      })()}
-      {forms.length === 0 && <p className="text-center text-sand-400 text-sm py-8">אין טפסים עדיין</p>}
+      {/* 9.10.26: the list from the approved Lovable mockup (shared with desktop). */}
+      {!(showCreate || editingForm) && (
+        <FormsListView
+          forms={forms}
+          stats={submissionStats}
+          newCountByFormId={newCountByFormId}
+          copiedId={copiedId}
+          showNewStrip={false}
+          onOpen={f => loadSubmissions(f as FormRecord)}
+          onEdit={f => startEdit(f as FormRecord)}
+          onCopyLink={copyFormLink}
+          onAssign={f => setAssignForm(f as FormRecord)}
+          onToggle={f => toggleForm(f as FormRecord)}
+          onDelete={f => requestDeleteForm(f as FormRecord)}
+          onCreate={() => setShowCreate(true)}
+        />
+      )}
 
       {assignForm && <AssignFormModal form={assignForm} onClose={() => setAssignForm(null)} />}
 
