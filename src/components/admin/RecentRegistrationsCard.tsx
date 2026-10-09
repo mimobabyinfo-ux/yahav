@@ -64,41 +64,12 @@ function Chip({ label, tone }: { label: string; tone: 'ok' | 'warn' | 'bad' | 'm
   return <span className="whitespace-nowrap font-bold rounded-full" style={{ fontSize: 11.5, padding: '3px 9px', ...s }}>{label}</span>
 }
 
-export default function RecentRegistrationsCard({ rows }: { rows: RecentRegistration[] }) {
+/** One registration line: product, cohort, payment, questionnaire. Exported
+ *  9.10.26 so "מה חדש" on the home shows a workshop registration the same way. */
+export function RegistrationRow({ r, isNew = false }: { r: RecentRegistration; isNew?: boolean }) {
   const openCustomer = useOpenCustomer()
-  const [showAll, setShowAll] = useState(false)
-  const [open, setOpen] = useState<boolean>(() => { try { return localStorage.getItem('admin_recent_regs_open') !== '0' } catch { return true } })
-  // Rows newer than the previous visit get a dot.
-  const [seenAt] = useState<number>(() => previousVisit())
-  const isNewRow = (r: RecentRegistration) => seenAt > 0 && Date.parse(r.created_at) > seenAt
-
-  if (rows.length === 0) return null
-  const week = rows.filter(r => Date.now() - new Date(r.created_at).getTime() < 7 * 86400000).length
-  const fresh = rows.filter(isNewRow).length
-  const shown = showAll ? rows : rows.slice(0, 5)
-
-  function toggle() {
-    setOpen(v => { const n = !v; try { localStorage.setItem('admin_recent_regs_open', n ? '1' : '0') } catch { /* */ } return n })
-  }
-
   return (
-    <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-      <button onClick={toggle} className="w-full flex items-center justify-between gap-2" aria-expanded={open}>
-        <span className="font-bold flex items-center gap-2 flex-wrap text-right" style={{ fontSize: 16, color: '#443327' }}>
-          נרשמו לאחרונה
-          <span className="font-display" style={{ color: '#8A6A2F' }}>· {week} השבוע</span>
-          {fresh > 0 && <span className="font-bold rounded-full" style={{ fontSize: 11.5, padding: '2px 8px', background: '#C8A460', color: '#33281B' }}>{fresh} חדשות</span>}
-        </span>
-        <ChevronDown className="w-4 h-4 transition-transform flex-shrink-0" style={{ color: '#BCAE99', transform: open ? 'rotate(180deg)' : 'none' }} />
-      </button>
-
-      {open && (
-        <div className="mt-3 space-y-1">
-          {shown.map(r => {
-            const isNew = isNewRow(r)
-            return (
               <button
-                key={r.id}
                 onClick={() => openCustomer({ phone: r.phone, email: r.email, leadId: r.id })}
                 className="w-full text-right flex items-start gap-3 rounded-2xl px-3.5 py-2.5 transition-colors hover:bg-[#FAF7F1]"
               >
@@ -131,8 +102,39 @@ export default function RecentRegistrationsCard({ rows }: { rows: RecentRegistra
                   </span>
                 </span>
               </button>
-            )
-          })}
+  )
+}
+
+export default function RecentRegistrationsCard({ rows }: { rows: RecentRegistration[] }) {
+  const [showAll, setShowAll] = useState(false)
+  const [open, setOpen] = useState<boolean>(() => { try { return localStorage.getItem('admin_recent_regs_open') !== '0' } catch { return true } })
+  // Rows newer than the previous visit get a dot.
+  const [seenAt] = useState<number>(() => previousVisit())
+  const isNewRow = (r: RecentRegistration) => seenAt > 0 && Date.parse(r.created_at) > seenAt
+
+  if (rows.length === 0) return null
+  const week = rows.filter(r => Date.now() - new Date(r.created_at).getTime() < 7 * 86400000).length
+  const fresh = rows.filter(isNewRow).length
+  const shown = showAll ? rows : rows.slice(0, 5)
+
+  function toggle() {
+    setOpen(v => { const n = !v; try { localStorage.setItem('admin_recent_regs_open', n ? '1' : '0') } catch { /* */ } return n })
+  }
+
+  return (
+    <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
+      <button onClick={toggle} className="w-full flex items-center justify-between gap-2" aria-expanded={open}>
+        <span className="font-bold flex items-center gap-2 flex-wrap text-right" style={{ fontSize: 16, color: '#443327' }}>
+          נרשמו לאחרונה
+          <span className="font-display" style={{ color: '#8A6A2F' }}>· {week} השבוע</span>
+          {fresh > 0 && <span className="font-bold rounded-full" style={{ fontSize: 11.5, padding: '2px 8px', background: '#C8A460', color: '#33281B' }}>{fresh} חדשות</span>}
+        </span>
+        <ChevronDown className="w-4 h-4 transition-transform flex-shrink-0" style={{ color: '#BCAE99', transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-1">
+          {shown.map(r => <RegistrationRow key={r.id} r={r} isNew={isNewRow(r)} />)}
           {rows.length > 5 && (
             <button onClick={() => setShowAll(v => !v)} className="w-full text-right font-bold px-3.5 pt-1" style={{ fontSize: 12.5, color: '#8A6A2F' }}>
               {showAll ? 'הצגה מקוצרת' : `עוד ${rows.length - 5} מהשבועיים האחרונים ←`}

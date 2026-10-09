@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronDown, Megaphone, Sparkles, Store, AlertTriangle, CheckCircle2, Users, Check, RotateCcw, MessageCircle, Baby, X } from 'lucide-react'
+import { ChevronLeft, ChevronDown, Megaphone, Sparkles, Store, CheckCircle2, Check, RotateCcw, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { AdminOverview, MorningPayment } from './useAdminOverview'
@@ -8,7 +8,7 @@ import MimoLeaf from '../MimoLeaf'
 import UnclaimedPurchasesCard from './UnclaimedPurchasesCard'
 import WaitlistHomeCard from './WaitlistHomeCard'
 import MyTasksCard from './MyTasksCard'
-import RecentRegistrationsCard from './RecentRegistrationsCard'
+import WhatsNewCard from './WhatsNewCard'
 import AssignPaymentModal from './AssignPaymentModal'
 import type { UnmatchedPayment } from './adminTasks'
 
@@ -35,31 +35,12 @@ function weekdayHe(iso: string): string {
   return new Date(iso + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'long' })
 }
 
-// "3.5" → "3 וחצי", "4.0" → "4" — reads like a mother talks about her
-// baby's age, not like a number in a table.
-function ageHe(months: number): string {
-  const whole = Math.floor(months)
-  const half = months - whole >= 0.5
-  const num = half ? `${whole} וחצי` : String(whole)
-  return whole === 1 && !half ? 'חודש' : `${num} חודשים`
-}
 
-function agoHe(days: number): string {
-  if (days <= 0) return 'היום'
-  if (days === 1) return 'אתמול'
-  if (days < 14) return `לפני ${days} ימים`
-  if (days < 60) return `לפני ${Math.round(days / 7)} שבועות`
-  return `לפני ${Math.round(days / 30.44)} חודשים`
-}
 
-function waHref(phone: string, text: string): string {
-  const intl = phone.replace(/\D/g, '').replace(/^0/, '972')
-  return `https://wa.me/${intl}?text=${encodeURIComponent(text)}`
-}
 
 type Props = {
   overview: AdminOverview
-  onSection: (section: AdminTaskSection | 'perks') => void
+  onSection: (section: AdminTaskSection | 'perks' | 'leads' | 'users' | 'makeups') => void
   /** Phase 3 (handoff §4): open a task's destination WITH its context —
    *  filter pre-applied, object pre-opened, context bar shown. */
   onOpenTask?: (task: AdminTask) => void
@@ -69,7 +50,7 @@ type Props = {
 
 export default function AdminHome({ overview, onSection, onOpenTask, onOpenProduct }: Props) {
   const { profile } = useAuth()
-  const { loading, tasks, manualTasks, counters, monthPayments, capacity, recentRegistrations, megalim, announcements, storeProducts, upcomingEvents, eventsMissingVendor, recentPartnerLeads, reload } = overview
+  const { loading, tasks, manualTasks, counters, monthPayments, capacity, recentRegistrations, announcements, storeProducts, upcomingEvents, reload } = overview
   // The הכנסות number opens into the payments behind it.
   const [showPayments, setShowPayments] = useState(false)
   // 6.10.26: "למי שייך התשלום?" for an unmatched Morning payment.
@@ -79,16 +60,13 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
   // home has grown into a column of tall lists and he does not need all of
   // them at once; the ones he has dealt with should get out of the way.
   // Brenda 14.9.26: "שיהיה בדיפולט סגור ואם אני רוצה אני אפתח".
-  const [openMegalim, setOpenMegalim] = useState(false)
   const [openCapacity, setOpenCapacity] = useState(true)
   // Yahav 2.10.26: the right column is reference, not action. Folded by
   // default, remembered per browser.
   const [openUserView, setOpenUserView] = useState<boolean>(() => { try { return localStorage.getItem('admin_home_user_view_open') === '1' } catch { return false } })
-  const [openPartners, setOpenPartners] = useState<boolean>(() => { try { return localStorage.getItem('admin_home_partners_open') === '1' } catch { return false } })
   function toggleRemembered(key: string, set: (f: (v: boolean) => boolean) => void) {
     set(v => { const n = !v; try { localStorage.setItem(key, n ? '1' : '0') } catch { /* private mode */ } return n })
   }
-  const [showAllMegalim, setShowAllMegalim] = useState(false)
   const [busyToggle, setBusyToggle] = useState<string | null>(null)
 
   // ── טופל + undo (phase 2). One undo slot, visible ~10 seconds. ──
@@ -191,46 +169,6 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                 </h1>
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-              {([
-                // 2.10.26: "ממתינות לתשלום" moved to the לידים screen and
-                // "נרשמות פעילות" said nothing to act on; both replaced.
-                {
-                  label: 'מקומות פנויים עד סוף השנה',
-                  value: String(openSeats),
-                  sub: `${cohortsToYearEnd.length} מחזורים`,
-                  onClick: () => setOpenCapacity(true),
-                },
-                {
-                  label: 'נרשמו השבוע',
-                  value: String(recentRegistrations.filter(r => Date.now() - new Date(r.created_at).getTime() < 7 * 86400000).length),
-                  sub: `${recentRegistrations.filter(r => r.status === 'pending' && Date.now() - new Date(r.created_at).getTime() < 7 * 86400000).length} ממתינות לתשלום`,
-                },
-                {
-                  label: 'נכנס החודש',
-                  value: `₪${counters.monthRevenue.toLocaleString()}`,
-                  // Brenda 1.9.26: "ההכנסות גם לא מדוייקות... רשום 1600"
-                  // when two mothers paid 720 each. It was adding up list
-                  // prices. Now it is what Morning charged, and the number
-                  // opens so she never has to take it on faith again.
-                  sub: `${monthPayments.length} תשלומים`,
-                  onClick: () => setShowPayments(true),
-                },
-              ] as { label: string; value: string; sub: string | null; onClick?: () => void }[]).map(c => (
-                <div
-                  key={c.label}
-                  onClick={c.onClick}
-                  role={c.onClick ? 'button' : undefined}
-                  className={`rounded-2xl px-4 py-3 ${c.onClick ? 'cursor-pointer transition-colors hover:brightness-95' : ''}`}
-                  style={{ background: '#F6F3ED' }}
-                >
-                  <p className="font-display" style={{ fontSize: 24, lineHeight: 1.1, color: '#443327' }}>{c.value}</p>
-                  <p className="font-semibold mt-0.5" style={{ fontSize: 13, color: '#8A7A63' }}>
-                    {c.label}{c.sub && <span style={{ color: '#A2937D' }}> · {c.sub}</span>}
-                  </p>
-                </div>
-              ))}
-            </div>
             {assigning && (
               <AssignPaymentModal payment={assigning} onClose={() => setAssigning(null)} onDone={reload} />
             )}
@@ -238,6 +176,18 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               <MonthPaymentsModal payments={monthPayments} total={counters.monthRevenue} onClose={() => setShowPayments(false)} onAssign={p => { setShowPayments(false); setAssigning({ id: p.id, received_at: p.received_at, total: p.total, payer_name: p.payer_name, payer_email: p.payer_email, description: p.description, detail: p.detail, outcome: p.outcome }) }} />
             )}
           </div>
+
+          {/* 9.10.26: "מה חדש" replaced the three tiles in the greeting and
+              the "נרשמו לאחרונה" card. What happened today (or yesterday,
+              7 days, since the last visit), every number opens the names. */}
+          <WhatsNewCard
+            recentRegistrations={recentRegistrations}
+            monthRevenue={counters.monthRevenue}
+            onSection={onSection}
+            onOpenTask={onOpenTask}
+            onOpenMonthPayments={() => setShowPayments(true)}
+            onAssignPayment={p => setAssigning(p)}
+          />
 
           {/* Paid but never got in. Renders nothing when the list is empty,
               which is the normal state — it only appears when a mother is
@@ -345,9 +295,6 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
             )}
           </div>
 
-          {/* 6.10.26: who registered, for WHICH cohort, paid, questionnaire.
-              Right under "דורש תשומת לב": the second thing Yahav looks for. */}
-          <RecentRegistrationsCard rows={recentRegistrations} />
 
           <MyTasksCard tasks={myTasks} reload={reload} />
 
@@ -363,7 +310,11 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               className="w-full flex items-center justify-between mb-3"
               aria-expanded={openCapacity}
             >
-              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>כמה נרשמו</h2>
+              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>
+                כמה נרשמו
+                {/* Yahav 2.10.26: the October goal, moved here from the greeting tiles 9.10.26. */}
+                {cohortsToYearEnd.length > 0 && <span className="font-semibold" style={{ fontSize: 13, color: '#8A6A2F' }}> · {openSeats} מקומות פנויים עד סוף השנה</span>}
+              </h2>
               <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: openCapacity ? 'rotate(180deg)' : 'none' }} />
             </button>
             {!openCapacity ? null : capacity.length === 0 ? (
@@ -442,94 +393,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               shows when someone on it needs an action. */}
           <WaitlistHomeCard onOpenProduct={onOpenProduct} />
 
-          {/* מועמדות למגלים — graduates whose baby reached the right age.
-              The CRM's follow-up is calendar-based (+14 days after
-              עטופים); this list is AGE-based, so it catches the mothers
-              that message reached too early. */}
-          <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-            <div className="flex items-baseline justify-between gap-2 mb-1">
-              <button
-                onClick={() => setOpenMegalim(v => !v)}
-                className="font-bold flex items-center gap-1.5 text-right"
-                style={{ fontSize: 16, color: '#443327' }}
-                aria-expanded={openMegalim}
-              >
-                מועמדות ל{megalim.targetTitle?.includes('מגלים') ? 'מגלים' : (megalim.targetTitle ?? 'סדנת ההמשך')}
-                {megalim.candidates.length > 0 && (
-                  <span className="font-display" style={{ color: '#8A6A2F' }}>· {megalim.candidates.length}</span>
-                )}
-                <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: openMegalim ? 'rotate(180deg)' : 'none' }} />
-              </button>
-              {openMegalim && megalim.candidates.length > 3 && (
-                <button onClick={() => setShowAllMegalim(s => !s)} className="flex-shrink-0 font-bold" style={{ fontSize: 12, color: '#8A6A2F' }}>
-                  {showAllMegalim ? 'הצגה מקוצרת' : `הצגת כולן (${megalim.candidates.length})`}
-                </button>
-              )}
-            </div>
-            {openMegalim && (
-            <>
-            <p className="mb-3" style={{ fontSize: 12, color: '#A2937D' }}>
-              סיימו עטופים, עוד לא נרשמו למגלים, והתינוק/ת הגיע/ה לגיל {ageHe(megalim.fromMonths)} ומעלה
-            </p>
-
-            {megalim.candidates.length === 0 ? (
-              <div className="flex items-center gap-3 rounded-2xl px-4 py-4" style={{ background: '#F6F3ED' }}>
-                <Baby className="w-5 h-5 flex-shrink-0" style={{ color: '#8A7A63' }} />
-                <p className="font-semibold" style={{ fontSize: 14, color: '#8A7A63' }}>
-                  אין כרגע בוגרות עטופים בטווח הגיל של מגלים
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {(showAllMegalim ? megalim.candidates : megalim.candidates.slice(0, 3)).map(c => (
-                  <div key={c.leadId} className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5 transition-colors hover:bg-[#FAF7F1]">
-                    <span className="flex flex-col items-center justify-center flex-shrink-0 rounded-xl" style={{ width: 52, padding: '5px 0', background: '#F6ECD8' }}>
-                      <span className="font-display" style={{ fontSize: 16, lineHeight: 1, color: '#6E5836' }}>{c.ageMonths}</span>
-                      <span className="font-semibold" style={{ fontSize: 11, color: '#8A7A63' }}>חודשים</span>
-                    </span>
-                    <p className="flex-1 min-w-0 truncate" style={{ fontSize: 14 }}>
-                      <span className="font-bold" style={{ color: '#443327' }}>{c.name}</span>
-                      {c.babyName && <span style={{ color: '#A2937D' }}> · {c.babyName}</span>}
-                      <span style={{ color: '#A2937D' }}> · סיימה עטופים {agoHe(c.daysSinceFinish)}</span>
-                    </p>
-                    <a
-                      href={waHref(c.phone, `היי ${c.name.split(' ')[0]}! 🐣`)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95"
-                      style={{ fontSize: 13, padding: '6px 12px', background: '#E7F0E4', color: '#3F5B39' }}
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" /> וואטסאפ
-                    </a>
-                    {/* Brenda 14.9.26: not every graduate is a candidate.
-                        Persisted, with the same 10-second undo as טופל. */}
-                    <button
-                      onClick={() => dismissDerived(`megalim:${c.leadId}`, `${c.name} לא רלוונטית למגלים`)}
-                      disabled={busyToggle === `megalim:${c.leadId}`}
-                      className="flex-shrink-0 font-bold rounded-xl transition-all hover:brightness-95 disabled:opacity-40"
-                      style={{ fontSize: 13, padding: '6px 12px', background: '#EDEDE6', color: '#4F5040' }}
-                      title="מסתיר אותה מהרשימה הזו לתמיד"
-                    >
-                      לא רלוונטי
-                    </button>
-                  </div>
-                ))}
-                {!showAllMegalim && megalim.candidates.length > 3 && (
-                  <button onClick={() => setShowAllMegalim(true)} className="w-full text-right font-bold px-3.5 pt-1" style={{ fontSize: 12, color: '#8A6A2F' }}>
-                    ועוד {megalim.candidates.length - 3} ←
-                  </button>
-                )}
-              </div>
-            )}
-
-            {megalim.unknownDobCount > 0 && (
-              <p className="mt-2.5 px-1" style={{ fontSize: 12, color: '#A2937D' }}>
-                ל-{megalim.unknownDobCount} בוגרות נוספות אין תאריך לידה של התינוק/ת בשאלון, והן לא נספרות כאן
-              </p>
-            )}
-            </>
-            )}
-          </div>
+          {/* מועמדות למגלים moved 9.10.26 to the לידים page, tab "בוגרות עטופים". */}
 
         </div>
 
@@ -620,37 +484,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
             </>)}
           </div>
 
-          {/* ספקים ואירועים */}
-          <div className="bg-white rounded-3xl p-5 space-y-3" style={{ border: '1px solid #E9E2D6' }}>
-            <button onClick={() => toggleRemembered('admin_home_partners_open', setOpenPartners)} className="w-full flex items-center justify-between" aria-expanded={openPartners}>
-              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>ספקים ואירועים</h2>
-              <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: openPartners ? 'rotate(180deg)' : 'none' }} />
-            </button>
-            {openPartners && (<>
-            {eventsMissingVendor.length > 0 && (
-              <div className="rounded-2xl px-3.5 py-3" style={{ background: '#F7EBE4' }}>
-                <p className="flex items-center gap-1.5 font-bold" style={{ fontSize: 13, color: '#8B4A30' }}>
-                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                  {eventsMissingVendor.length === 1 ? 'אירוע קרוב בלי ספק' : `${eventsMissingVendor.length} אירועים קרובים בלי ספק`}
-                </p>
-                <div className="mt-1 space-y-0.5">
-                  {eventsMissingVendor.slice(0, 3).map(ev => (
-                    <button key={ev.id} onClick={() => onSection('events')} className="block font-semibold text-right" style={{ fontSize: 13, color: '#6B5842' }}>
-                      {ev.title} · {ddmm(ev.event_date)} ←
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <button onClick={() => onSection('partners')} className="w-full flex items-center gap-2 rounded-2xl px-3.5 py-3 text-right transition-colors hover:brightness-95" style={{ background: '#EEF2F4' }}>
-              <Users className="w-4 h-4 flex-shrink-0" style={{ color: '#35505C' }} />
-              <span className="flex-1 font-semibold" style={{ fontSize: 13, color: '#35505C' }}>
-                {recentPartnerLeads === 0 ? 'אין לידים חדשים לספקים השבוע' : `${recentPartnerLeads} לידים לספקים בשבוע האחרון`}
-              </span>
-              <ChevronLeft className="w-4 h-4 flex-shrink-0" style={{ color: '#35505C' }} />
-            </button>
-            </>)}
-          </div>
+          {/* ספקים ואירועים moved 9.10.26 to the top of the אירועי קהילה page. */}
         </div>
       </div>
     </div>

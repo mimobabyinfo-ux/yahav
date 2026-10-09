@@ -25,7 +25,7 @@ function israelDay(ts: string): string {
  *  thing within a few minutes — a mother genuinely buying the same product
  *  twice in that window does not happen, and if it ever did, one seat is
  *  the safer error than two payments that never existed. */
-function dedupePayments(rows: MorningPayment[]): MorningPayment[] {
+export function dedupePayments(rows: MorningPayment[]): MorningPayment[] {
   const WINDOW_MS = 15 * 60 * 1000
   const kept: MorningPayment[] = []
   const seen = new Map<string, number>()   // key → last kept timestamp

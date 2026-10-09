@@ -309,7 +309,10 @@ export function deriveAdminTasks(input: AdminTaskInput): AdminTask[] {
   // cohort starts within a week (6.10.26: was 3 days, which left the home
   // silent while 7 of 8 in a cohort 8 days out had not answered).
   // Before that the registrations page still shows who has not filled it.
-  const formWindowEnd = addDays(today, 7)
+  // 9.10.26 (Yahav): one day, not seven. The WhatsApp group opens two days
+  // before the first meeting and the mothers get a reminder there, so the
+  // admin only needs to hear about it the day before.
+  const formWindowEnd = addDays(today, 1)
   for (const lead of leads) {
     if (effectiveLeadStatus(lead, cohortDates, today, nowMs) !== 'paid') continue
     const leadCohort = lead.cohort_id ? cohortDates.get(lead.cohort_id) : null

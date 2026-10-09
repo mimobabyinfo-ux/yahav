@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Phone, MessageCircle, RefreshCw, Check, X, CalendarDays, StickyNote, UserPlus, ChevronDown, EyeOff, PhoneOff, Search, Sparkles, Flame, Clock, Coffee, ScrollText, ArrowLeftRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import CallScript, { CallInsights } from './CallScript'
+import MegalimCandidatesList from './MegalimCandidatesList'
+import type { MegalimCandidatesResult } from './megalimCandidates'
 
 /**
  * Admin "לידים" screen: the workshop leads from the CRM (MoreThan / GHL),
@@ -304,8 +306,22 @@ function rulesFor(l: Lead): Rule | null {
   return null
 }
 
+/** Same person across the CRM and the app: digits only, 972 -> 0. */
+function phoneKey(p: string | null | undefined): string {
+  const d = (p ?? '').replace(/\D/g, '')
+  return d.startsWith('972') ? '0' + d.slice(3) : d
+}
+
 // ── component ──────────────────────────────────────────────────────────
-export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.ReactNode }) {
+export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged }: {
+  partnerLeads?: React.ReactNode
+  /** 9.10.26: the age-based מועמדות למגלים list, moved here from the home. */
+  megalim?: MegalimCandidatesResult
+  onMegalimChanged?: () => Promise<void> | void
+}) {
+  // 9.10.26 (Yahav): the cohort chips cluttered the header. One chip per
+  // product; a tap shows that product's cohorts.
+  const [openProduct, setOpenProduct] = useState<string | null>(null)
   const [leads, setLeads] = useState<Lead[]>([])
   const [inbound, setInbound] = useState<Inbound[]>([])
   const [cohorts, setCohorts] = useState<Cohort[]>([])
@@ -458,6 +474,11 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
       .sort((a, b) => String(d(a)).localeCompare(String(d(b))))
   }, [leads, mine])
   const graduates = useMemo(() => leads.filter(l => l.pipeline === 'followup' && l.stage_id === STAGE_ATUFIM_DONE && !l.app_paid_future && mine(l)), [leads, mine])
+  // 9.10.26: "בוגרות עטופים" and "מועמדות למגלים" are one list now. The
+  // age-based candidates come first; CRM graduates who are not among them
+  // (no baby birth date, or not old enough yet) follow.
+  const candidatePhones = useMemo(() => new Set((megalim?.candidates ?? []).map(c => phoneKey(c.phone)).filter(Boolean)), [megalim])
+  const graduatesRest = useMemo(() => graduates.filter(l => { const k = phoneKey(l.phone_local); return !k || !candidatePhones.has(k) }), [graduates, candidatePhones])
   const othersCount = useMemo(() => leads.filter(l => !mine(l)).length, [leads, mine])
   // People who wrote with no lead yet are Yahav's until someone opens a lead.
   const visibleInbound = useMemo(() => actor !== 'יהב' ? [] : inbound.filter(i => !i.dismissed_at || i.last_message_at > i.dismissed_at), [inbound, actor])
@@ -521,7 +542,7 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
   const tabs: Array<{ id: typeof view; label: string; n: number }> = [
     { id: 'queue', label: 'לטפל עכשיו', n: queueCount + visibleInbound.length },
     { id: 'upcoming', label: 'בשבוע הקרוב', n: upcoming.length },
-    { id: 'graduates', label: 'בוגרות עטופים', n: graduates.length },
+    { id: 'graduates', label: 'בוגרות עטופים', n: (megalim?.candidates.length ?? 0) + graduatesRest.length },
     { id: 'all', label: 'כל הלידים', n: leads.length },
     { id: 'calls', label: 'למידה', n: -1 },
   ]
@@ -552,21 +573,47 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
             </button>
           </div>
         </div>
-        {cohorts.length > 0 && (
-          <div className="flex gap-1.5 flex-wrap">
-            {cohorts.slice(0, 8).map(c => {
-              const left = c.capacity != null ? c.capacity - Number(c.paid) : null
-              const name = c.workshop.replace('ליווי התפתחותי - ', '').replace('סדנת ', '')
-              return (
-                <span key={c.workshop + c.start_date + c.start_time}
-                  className={`text-[11px] font-bold px-2 py-1 rounded-full ${left != null && left <= 0 ? 'bg-sand-100 text-sand-400' : 'bg-mustard-50 text-sand-700'}`}>
-                  {name} {ddmm(c.start_date)} · {c.paid}{c.capacity != null ? `/${c.capacity}` : ''}
-                  {left != null && left > 0 ? ` (נשארו ${left})` : left != null ? ' (מלא)' : ''}
-                </span>
-              )
-            })}
-          </div>
-        )}
+        {cohorts.length > 0 && (() => {
+          const nameOf = (c: Cohort) => c.workshop.replace('ליווי התפתחותי - ', '').replace('סדנת ', '')
+          const byProduct = new Map<string, Cohort[]>()
+          cohorts.forEach(c => { const n = nameOf(c); byProduct.set(n, [...(byProduct.get(n) ?? []), c]) })
+          const shown = openProduct ? byProduct.get(openProduct) ?? [] : []
+          return (
+            <div className="space-y-2">
+              <div className="flex gap-1.5 flex-wrap">
+                {[...byProduct.entries()].map(([name, list]) => {
+                  const withCap = list.filter(c => c.capacity != null)
+                  const left = withCap.reduce((sum, c) => sum + Math.max(0, (c.capacity ?? 0) - Number(c.paid)), 0)
+                  const active = openProduct === name
+                  return (
+                    <button key={name} onClick={() => setOpenProduct(active ? null : name)} aria-expanded={active}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 ${active ? 'bg-sand-800 text-white' : 'bg-mustard-50 text-sand-700'}`}>
+                      {name}
+                      <span className={active ? 'text-white/70' : 'text-sand-500'}>
+                        · {list.length === 1 ? 'מחזור 1' : `${list.length} מחזורים`}{withCap.length ? (left > 0 ? ` · נשארו ${left}` : ' · מלא') : ''}
+                      </span>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${active ? 'rotate-180' : ''}`} />
+                    </button>
+                  )
+                })}
+              </div>
+              {shown.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap rounded-2xl bg-beige-50 p-2">
+                  {shown.map(c => {
+                    const left = c.capacity != null ? c.capacity - Number(c.paid) : null
+                    return (
+                      <span key={c.workshop + c.start_date + c.start_time}
+                        className={`text-[11px] font-bold px-2 py-1 rounded-full ${left != null && left <= 0 ? 'bg-sand-100 text-sand-400' : 'bg-white text-sand-700'}`}>
+                        {ddmm(c.start_date)}{c.start_time ? ` ${c.start_time.slice(0, 5)}` : ''} · {c.paid}{c.capacity != null ? `/${c.capacity}` : ''}
+                        {left != null && left > 0 ? ` (נשארו ${left})` : left != null ? ' (מלא)' : ''}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })()}
         <div className="flex gap-1 overflow-x-auto -mx-1 px-1">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setView(t.id)}
@@ -748,13 +795,17 @@ export default function CrmLeadsPanel({ partnerLeads }: { partnerLeads?: React.R
         </Section>
       )}
 
-      {!searching && view === 'graduates' && (
-        <Section title="סיימו עטופים ולא רשומות לאף מגלים עתידי" hint="הזדמנות להמשך. ההרשמות נבדקות מול האפליקציה.">
+      {!searching && view === 'graduates' && (<>
+        {megalim && <MegalimCandidatesList megalim={megalim} onChanged={() => onMegalimChanged?.()} />}
+        <Section
+          title={megalim ? `עוד בוגרות עטופים ב-CRM · ${graduatesRest.length}` : 'סיימו עטופים ולא רשומות לאף מגלים עתידי'}
+          hint={megalim ? 'בשלב "סיימה עטופים" ב-CRM, לא רשומות למגלים עתידי, ולא ברשימה למעלה (אין תאריך לידה של התינוק/ת או שעוד מוקדם).' : 'הזדמנות להמשך. ההרשמות נבדקות מול האפליקציה.'}
+        >
           <div className="grid gap-3 lg:grid-cols-2">
-            {graduates.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
+            {(megalim ? graduatesRest : graduates).map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
           </div>
         </Section>
-      )}
+      </>)}
 
       {!searching && view === 'all' && (
         <Section title="כל הלידים הפתוחים">

@@ -39,6 +39,7 @@ import AppUsagePanel from '../components/admin/AppUsagePanel'
 import MakeupsPanel from '../components/admin/MakeupsPanel'
 import ProgramPanel from '../components/admin/ProgramPanel'
 import CrmLeadsPanel from '../components/admin/CrmLeadsPanel'
+import VendorsStrip from '../components/admin/VendorsStrip'
 import { homeBadgeCount, type AdminOverview } from '../components/admin/useAdminOverview'
 import { isFormFilled, type AdminTask } from '../components/admin/adminTasks'
 import { ChevronRight as CtxBack } from 'lucide-react'
@@ -256,6 +257,9 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'tips'       && <AgeStagesTab />}
         {tab === 'videos'     && <VideosTab />}
         {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <><GiftCardsPanel /><WorkshopsTab onOpenProduct={openProductPage} /></>)}
+        {tab === 'events'     && overview && (
+          <VendorsStrip eventsMissingVendor={overview.eventsMissingVendor} recentPartnerLeads={overview.recentPartnerLeads} onOpenPartners={() => setTab('partners')} />
+        )}
         {tab === 'events'     && (
           <EventsAdminPanel
             openEditId={taskContext?.section === 'events' && taskContext.view !== 'registrants' ? taskContext.targetId : undefined}
@@ -265,7 +269,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
         {tab === 'perks'      && <PerksTab />}
         {tab === 'pregnancy'  && <PregnancyAdminTab />}
         {tab === 'partners'   && <PartnersTab />}
-        {tab === 'leads'      && <CrmLeadsPanel partnerLeads={<LeadsTab />} />}
+        {tab === 'leads'      && <CrmLeadsPanel partnerLeads={<LeadsTab />} megalim={overview?.megalim} onMegalimChanged={overview?.reload} />}
         {tab === 'forms'      && <FormsTab />}
         {tab === 'registrations' && <RegistrationsTab focusLeadIds={taskContext?.section === 'registrations' ? taskContext.leadIds : undefined} onClearFocus={() => setTaskContext(null)} />}
         {tab === 'makeups'    && <MakeupsPanel />}
@@ -277,8 +281,11 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
       <div className="hidden lg:block px-8 py-6">
         {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} onOpenProduct={id => { setTab('workshops'); openProductPage(id) }} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTabDesktop />}
-        {tab === 'leads'      && <CrmLeadsPanel partnerLeads={<LeadsTabDesktop />} />}
+        {tab === 'leads'      && <CrmLeadsPanel partnerLeads={<LeadsTabDesktop />} megalim={overview?.megalim} onMegalimChanged={overview?.reload} />}
         {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <><GiftCardsPanel /><WorkshopsTabDesktop onOpenProduct={openProductPage} /></>)}
+        {tab === 'events'     && overview && (
+          <VendorsStrip eventsMissingVendor={overview.eventsMissingVendor} recentPartnerLeads={overview.recentPartnerLeads} onOpenPartners={() => setTab('partners')} />
+        )}
         {tab === 'events'     && (
           <EventsAdminPanel
             openEditId={taskContext?.section === 'events' && taskContext.view !== 'registrants' ? taskContext.targetId : undefined}
@@ -5007,16 +5014,32 @@ function OptionsTagInput({ options, onChange }: { options: string[]; onChange: (
     onChange(options.filter((_, j) => j !== i))
   }
 
+  function rename(i: number, val: string) {
+    onChange(options.map((o, j) => (j === i ? val : o)))
+  }
+
   return (
     <div className="space-y-1.5">
       <div className="flex flex-col gap-1.5">
+        {/* 9.10.26 (Yahav): an option could only be deleted, not fixed.
+            Each option is now editable in place. Answers already given keep
+            the wording they were given in, so after a rewording the old
+            answers count under the old text in the results. */}
         {options.map((opt, i) => (
-          <span key={i} className="flex items-start gap-1 bg-mustard-50 text-mustard-700 text-xs font-medium px-2.5 py-1.5 rounded-xl">
-            <span className="flex-1 whitespace-pre-line leading-relaxed">{opt}</span>
-            <button type="button" onClick={() => remove(i)} className="text-mustard-400 hover:text-red-400 leading-none flex-shrink-0 mt-0.5">×</button>
+          <span key={i} className="flex items-start gap-1 bg-mustard-50 text-mustard-700 text-xs font-medium px-2 py-1 rounded-xl focus-within:ring-1 focus-within:ring-mustard-300">
+            <textarea
+              value={opt}
+              onChange={e => rename(i, e.target.value)}
+              onBlur={() => { if (!opt.trim()) remove(i) }}
+              rows={Math.max(1, opt.split('\n').length)}
+              aria-label={`אפשרות ${i + 1}`}
+              className="flex-1 bg-transparent resize-none leading-relaxed px-0.5 py-0.5 focus:outline-none"
+            />
+            <button type="button" onClick={() => remove(i)} title="מחיקת האפשרות" className="text-mustard-400 hover:text-red-400 leading-none flex-shrink-0 mt-1">×</button>
           </span>
         ))}
       </div>
+      {options.length > 0 && <p className="text-[11px] text-sand-400 px-1">לחיצה על אפשרות פותחת אותה לעריכה</p>}
       <div className="flex gap-1.5 items-start">
         <textarea
           value={input}
@@ -7422,7 +7445,8 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
     // while 22 questionnaires were missing for cohorts starting in 8 days.
     const soonLimit = (() => {
       const d = new Date()
-      d.setDate(d.getDate() + 7)
+      // 9.10.26: one day (the WhatsApp group reminds them two days before).
+      d.setDate(d.getDate() + 1)
       const y = d.getFullYear()
       const m = String(d.getMonth() + 1).padStart(2, '0')
       const dd = String(d.getDate()).padStart(2, '0')

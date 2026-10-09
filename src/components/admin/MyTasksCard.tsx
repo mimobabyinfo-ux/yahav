@@ -161,6 +161,8 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
   // ── quick add ──
   const [adding, setAdding] = useState(false)
   const [newTitle, setNewTitle] = useState('')
+  // 9.10.26 (Yahav): a detail could only be added afterwards, in edit.
+  const [newDetail, setNewDetail] = useState('')
   const [newSeverity, setNewSeverity] = useState<Severity>('mid')
   const [newDue, setNewDue] = useState('')
   const [newWho, setNewWho] = useState<TaskAssignee | ''>('')
@@ -174,11 +176,11 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
     if (!newTitle.trim()) return
     setSaving(true)
     await supabase.from('admin_tasks').insert({
-      title: newTitle.trim(), severity: newSeverity, due_date: newDue || null, assignee: newWho || null,
+      title: newTitle.trim(), detail: newDetail.trim() || null, severity: newSeverity, due_date: newDue || null, assignee: newWho || null,
       created_by: profile?.id ?? null, ...customerCols(newCustomer),
     })
     setSaving(false)
-    setNewTitle(''); setNewSeverity('mid'); setNewDue(''); setNewCustomer(null); setAdding(false)
+    setNewTitle(''); setNewDetail(''); setNewSeverity('mid'); setNewDue(''); setNewCustomer(null); setAdding(false)
     if (!open) toggle()
     reload()
   }
@@ -331,6 +333,9 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
           <WhoSelect value={newWho} onChange={setNewWho} style={inputStyle} />
           <input type="date" value={newDue} onChange={e => setNewDue(e.target.value)} title="לאיזה תאריך? (לא חובה)" aria-label="תאריך למשימה"
             className="flex-shrink-0 rounded-xl px-2 py-2 text-sm bg-white focus:outline-none" style={{ ...inputStyle, color: newDue ? '#443327' : '#A2937D', width: 132 }} />
+          <textarea value={newDetail} onChange={e => setNewDetail(e.target.value)} rows={2}
+            placeholder="פירוט (לא חובה): מה בדיוק, נוסח הודעה, טלפון..."
+            className="w-full rounded-xl px-3 py-2 text-sm bg-white focus:outline-none resize-y" style={inputStyle} />
           <CustomerPicker value={newCustomer} onChange={setNewCustomer} />
           <button onClick={add} disabled={saving || !newTitle.trim()} className="flex-shrink-0 font-bold rounded-xl disabled:opacity-40"
             style={{ fontSize: 13, padding: '8px 14px', background: '#C8A460', color: '#33281B' }}>
