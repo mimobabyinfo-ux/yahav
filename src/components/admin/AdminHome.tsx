@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronDown, Megaphone, Sparkles, Store, CheckCircle2, Check, RotateCcw, X } from 'lucide-react'
+import { ChevronLeft, ChevronDown, Megaphone, Sparkles, Store, CheckCircle2, Check, RotateCcw, X, AlertTriangle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { AdminOverview, MorningPayment } from './useAdminOverview'
@@ -150,18 +150,18 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
 
   return (
     <div dir="rtl">
-      <style>{`@media (min-width: 1200px) { .admin-home-grid { grid-template-columns: minmax(0, 1fr) 340px !important; } }`}</style>
       <div className="admin-home-grid grid gap-5 items-start" style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>
 
         {/* ── Main column ── */}
         <div className="space-y-5 min-w-0">
 
           {/* Greeting strip */}
-          <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-            <div className="flex items-center gap-3">
-              <MimoLeaf variant="sand-1" size={40} rotate={-12} className="flex-shrink-0" />
+          {/* 9.10.26 (Lovable mockup, approved by Yahav): one quiet line, not a card. */}
+          <div className="px-1">
+            <div className="flex items-center gap-2.5">
+              <MimoLeaf variant="sand-1" size={30} rotate={-12} className="flex-shrink-0" />
               <div className="min-w-0">
-                <h1 className="font-display" style={{ fontSize: 22, color: '#443327' }}>
+                <h1 className="font-display" style={{ fontSize: 20, color: '#443327' }}>
                   {greetingByHour()} {firstName}
                   {totalOpen > 0
                     ? `, ${totalOpen === 1 ? 'דבר אחד מחכה' : `${totalOpen} דברים מחכים`} לך`
@@ -199,22 +199,25 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
               "אני רוצה שזה יהיה רק באירועי קהילה." It lives in
               EventsAdminPanel only, next to the events it is about. */}
 
-          {/* Yahav 2.10.26: "דורש תשומת לב" sits ABOVE the tasks. It is where
-              the money is (a payment nobody matched, a mother who says she
-              paid), so it comes first. */}
-          {/* דורש תשומת לב — one line per task, טופל persists (phase 2) */}
-          <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-            <div className="flex items-center justify-between mb-3">
+          {/* 9.10.26 (Lovable mockup, approved by Yahav): המשימות שלי on the
+              right, דורש תשומת לב on the left as cards (icon, title, one muted
+              line, action + טופל underneath). On a phone attention comes first:
+              it is where the money is. */}
+          <div className="grid gap-5 items-start lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+          <div className="min-w-0">
+            <MyTasksCard tasks={myTasks} reload={reload} />
+          </div>
+          <div className="min-w-0 order-first lg:order-none">
+            <div className="flex items-center gap-2 mb-3 px-1">
+              <AlertTriangle className="w-4 h-4" style={{ color: '#8A7A63' }} />
               <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>דורש תשומת לב</h2>
+              {attentionCount > 0 && <span className="font-bold rounded-full" style={{ fontSize: 11.5, padding: '1px 8px', background: '#F5E2D8', color: '#8B4A30' }}>{attentionCount}</span>}
             </div>
 
-            {/* Undo row — visible ~10s after טופל */}
             {undo && (
               <div className="flex items-center gap-2 rounded-2xl px-3.5 py-2.5 mb-2" style={{ background: '#EDEDE6' }}>
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: '#4F5040' }} />
-                <p className="flex-1 min-w-0 truncate font-semibold" style={{ fontSize: 13, color: '#4F5040' }}>
-                  טופל: {undo.label}
-                </p>
+                <p className="flex-1 min-w-0 truncate font-semibold" style={{ fontSize: 13, color: '#4F5040' }}>טופל: {undo.label}</p>
                 <button
                   onClick={async () => { const u = undo; setUndo(null); if (undoTimer.current) clearTimeout(undoTimer.current); await u.run() }}
                   className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl"
@@ -226,78 +229,58 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
             )}
 
             {attentionCount === 0 ? (
-              <div className="flex items-center gap-3 rounded-2xl px-4 py-4" style={{ background: '#EDEDE6' }}>
-                <CheckCircle2 className="w-5 h-5 flex-shrink-0" style={{ color: '#4F5040' }} />
-                <p className="font-semibold" style={{ fontSize: 14, color: '#4F5040' }}>אין משימות פתוחות. הכול מטופל</p>
+              <div className="flex items-center gap-3 rounded-3xl px-4 py-4 bg-white" style={{ border: '1px solid #E9E2D6' }}>
+                <CheckCircle2 className="w-5 h-5 flex-shrink-0" style={{ color: '#3F5B39' }} />
+                <p className="font-semibold" style={{ fontSize: 14, color: '#4F5040' }}>הכול מטופל, אפשר לנשום</p>
               </div>
             ) : (
-              <div className="space-y-1.5">
-                {/* System-written tasks (refund owed etc.) */}
-                {systemTasks.map(t => (
-                  <div key={t.id} className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5 transition-colors hover:bg-[#FAF7F1]">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.severity === 'high' ? '#8B4A30' : '#C8A460' }} />
-                    <p className="flex-1 min-w-0 truncate" style={{ fontSize: 14 }}>
-                      <span className="font-bold" style={{ color: '#443327' }}>{t.title}</span>
-                      {t.detail && <span style={{ color: '#A2937D' }}> · {t.detail}</span>}
-                    </p>
-                    {t.link_section && (
-                      <button onClick={() => onSection(t.link_section as AdminTaskSection)}
-                        className="flex-shrink-0 flex items-center gap-0.5 font-bold rounded-xl transition-all hover:brightness-95"
-                        style={{ fontSize: 13, padding: '6px 12px', background: '#F6ECD8', color: '#6E5836' }}>
-                        מעבר <ChevronLeft className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => completeManual(t.id, t.title)}
-                      disabled={busyToggle === t.id}
-                      className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95 disabled:opacity-40"
-                      style={{ fontSize: 13, padding: '6px 12px', background: '#EDEDE6', color: '#4F5040' }}
-                      title="סימון כטופל"
-                    >
-                      <Check className="w-3.5 h-3.5" /> טופל
-                    </button>
-                  </div>
-                ))}
-
-                {/* Derived tasks — טופל hides until the source changes */}
-                {tasks.map(t => (
-                  <div key={t.key} className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5 transition-colors hover:bg-[#FAF7F1]">
-                    <span
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ background: t.severity === 'high' ? '#8B4A30' : '#C8A460' }}
-                      title={t.severity === 'high' ? 'דחוף' : 'בינוני'}
-                    />
-                    <p className="flex-1 min-w-0 truncate" style={{ fontSize: 14 }}>
-                      <span className="font-bold" style={{ color: '#443327' }}>{t.title}</span>
-                      {t.facts.filter(Boolean).length > 0 && (
-                        <span style={{ color: '#A2937D' }}> · {t.facts.filter(Boolean).join(' · ')}</span>
+              <div className="space-y-3">
+                {[
+                  ...systemTasks.map(t => ({
+                    key: t.id, high: t.severity === 'high', title: t.title, sub: t.detail ?? '',
+                    actionLabel: t.link_section ? 'מעבר' : null,
+                    onAction: () => onSection(t.link_section as AdminTaskSection),
+                    onDone: () => completeManual(t.id, t.title), busy: busyToggle === t.id,
+                    doneTitle: 'סימון כטופל',
+                  })),
+                  ...tasks.map(t => ({
+                    key: t.key, high: t.severity === 'high', title: t.title, sub: t.facts.filter(Boolean).join(' · '),
+                    actionLabel: t.actionLabel,
+                    onAction: () => (t.payment ? setAssigning(t.payment) : onOpenTask ? onOpenTask(t) : onSection(t.section)),
+                    onDone: () => dismissDerived(t.key, t.title), busy: busyToggle === t.key,
+                    doneTitle: 'טופל. יחזור אם משהו ישתנה במקור',
+                  })),
+                ].map(item => (
+                  <div key={item.key} className="bg-white rounded-3xl p-4" style={{ border: '1px solid #E9E2D6' }}>
+                    <div className="flex items-start gap-3">
+                      <span className="flex-shrink-0 rounded-xl flex items-center justify-center" style={{ width: 32, height: 32, background: item.high ? '#F5E2D8' : '#F6ECD8' }}>
+                        <AlertTriangle className="w-4 h-4" style={{ color: item.high ? '#8B4A30' : '#8A6A2F' }} />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold leading-snug" style={{ fontSize: 14.5, color: '#443327', overflowWrap: 'anywhere' }}>{item.title}</p>
+                        {item.sub && <p className="mt-0.5" style={{ fontSize: 12.5, color: '#A2937D', overflowWrap: 'anywhere' }}>{item.sub}</p>}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 mt-3" style={{ paddingRight: 44 }}>
+                      {item.actionLabel && (
+                        <button onClick={item.onAction}
+                          className="flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95"
+                          style={{ fontSize: 13, padding: '6px 12px', background: item.high ? '#F5E2D8' : '#F6ECD8', color: item.high ? '#8B4A30' : '#6E5836' }}>
+                          {item.actionLabel} <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
                       )}
-                    </p>
-                    <button
-                      onClick={() => (t.payment ? setAssigning(t.payment) : onOpenTask ? onOpenTask(t) : onSection(t.section))}
-                      className="flex-shrink-0 flex items-center gap-0.5 font-bold rounded-xl transition-all hover:brightness-95"
-                      style={{ fontSize: 13, padding: '6px 12px', background: '#F6ECD8', color: '#6E5836' }}
-                    >
-                      {t.actionLabel}
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => dismissDerived(t.key, t.title)}
-                      disabled={busyToggle === t.key}
-                      className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95 disabled:opacity-40"
-                      style={{ fontSize: 13, padding: '6px 12px', background: '#EDEDE6', color: '#4F5040' }}
-                      title="טופל. יחזור אם משהו ישתנה במקור"
-                    >
-                      <Check className="w-3.5 h-3.5" /> טופל
-                    </button>
+                      <button onClick={item.onDone} disabled={item.busy} title={item.doneTitle}
+                        className="flex items-center gap-1 font-bold rounded-xl transition-all hover:bg-[#F6F3ED] disabled:opacity-40"
+                        style={{ fontSize: 13, padding: '6px 10px', color: '#8A7A63' }}>
+                        <Check className="w-3.5 h-3.5" /> טופל
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-
-
-          <MyTasksCard tasks={myTasks} reload={reload} />
+          </div>
 
           {/* כמה נרשמו — split by kind.
               Yahav 26.8.26: "בכמה נרשמו שזה יתחלק לי לאירועי קהילה
@@ -400,12 +383,19 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
 
         {/* ── Right column — מה המשתמשת רואה עכשיו ── */}
         <div className="space-y-5 min-w-0">
-          <div className="bg-white rounded-3xl p-5 space-y-4" style={{ border: '1px solid #E9E2D6' }}>
-            <button onClick={() => toggleRemembered('admin_home_user_view_open', setOpenUserView)} className="w-full flex items-center justify-between" aria-expanded={openUserView}>
-              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>מה המשתמשת רואה עכשיו</h2>
+          {/* 9.10.26: moved from a right-hand column to the bottom of the home,
+              folded, with a one-line summary (Lovable mockup). */}
+          <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
+            <button onClick={() => toggleRemembered('admin_home_user_view_open', setOpenUserView)} className="w-full flex items-center justify-between text-right" aria-expanded={openUserView}>
+              <span>
+                <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>מה המשתמשת רואה עכשיו</h2>
+                <span className="block mt-0.5" style={{ fontSize: 12.5, color: '#A2937D' }}>
+                  {announcements.filter(a => a.is_active).length} הודעות פעילות · {upcomingEvents.filter(e => e.is_active).length} אירועים מוצגים
+                </span>
+              </span>
               <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: openUserView ? 'rotate(180deg)' : 'none' }} />
             </button>
-            {openUserView && (<>
+            {openUserView && (<div className="grid gap-5 mt-4 md:grid-cols-3">
 
             {/* Home announcements — compact toggles */}
             <div>
@@ -482,7 +472,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                 </div>
               )}
             </div>
-            </>)}
+            </div>)}
           </div>
 
           {/* ספקים ואירועים moved 9.10.26 to the top of the אירועי קהילה page. */}

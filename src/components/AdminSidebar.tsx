@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { BarChart2, Users, LogOut, Eye, Video, Baby, Gift, Settings, ClipboardList, FileText, Sparkles, Link2, GraduationCap, Phone, MapPin, Home, ChevronDown, CalendarDays, BookOpen } from 'lucide-react'
+import { BarChart2, Users, LogOut, Eye, Video, Baby, Gift, Settings, ClipboardList, FileText, Sparkles, Link2, GraduationCap, Phone, MapPin, Home, CalendarDays, BookOpen } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLeaf from './MimoLeaf'
 import type { AdminSection } from '../App'
@@ -28,33 +27,34 @@ type Props = {
 // deleted: every section stays routable. Mimo dark chrome (#2E2C24).
 type NavItem = { id: AdminSection; label: string; icon: React.ReactNode }
 
-const PRIMARY: NavItem[] = [
-  { id: 'home',          label: 'בית',              icon: <Home className="w-[18px] h-[18px]" /> },
-  { id: 'leads',         label: 'לידים',            icon: <Phone className="w-[18px] h-[18px]" /> },
-  { id: 'registrations', label: 'הרשמות',           icon: <ClipboardList className="w-[18px] h-[18px]" /> },
-  { id: 'forms',         label: 'שאלונים וטפסים',    icon: <FileText className="w-[18px] h-[18px]" /> },
-  { id: 'workshops',     label: 'מוצרים ותשלומים',   icon: <GraduationCap className="w-[18px] h-[18px]" /> },
-  { id: 'events',        label: 'אירועי קהילה',      icon: <Sparkles className="w-[18px] h-[18px]" /> },
-  { id: 'partners',      label: 'ספקים',             icon: <Link2 className="w-[18px] h-[18px]" /> },
-]
-
-const MORE: NavItem[] = [
-  { id: 'makeups',   label: 'השלמות',         icon: <CalendarDays className="w-[18px] h-[18px]" /> },
-  { id: 'program',   label: 'תוכנית הסדנאות', icon: <BookOpen className="w-[18px] h-[18px]" /> },
-  { id: 'users',     label: 'משתמשות',       icon: <Users className="w-[18px] h-[18px]" /> },
-  { id: 'insights',  label: 'תובנות',         icon: <BarChart2 className="w-[18px] h-[18px]" /> },
-  { id: 'videos',    label: 'סרטונים',        icon: <Video className="w-[18px] h-[18px]" /> },
-  { id: 'tips',      label: 'מדריך גיל',       icon: <Baby className="w-[18px] h-[18px]" /> },
-  { id: 'perks',     label: 'הטבות',          icon: <Gift className="w-[18px] h-[18px]" /> },
-  { id: 'pregnancy', label: 'מדריכי הריון',   icon: <MapPin className="w-[18px] h-[18px]" /> },
+// 9.10.26 (Lovable mockup, approved by Yahav): three labeled groups, all
+// visible, instead of six items + a folded "עוד" that hid half the admin.
+const GROUPS: { title: string; items: NavItem[] }[] = [
+  { title: 'היום-יום', items: [
+    { id: 'home',          label: 'בית',              icon: <Home className="w-[18px] h-[18px]" /> },
+    { id: 'leads',         label: 'לידים',            icon: <Phone className="w-[18px] h-[18px]" /> },
+    { id: 'registrations', label: 'הרשמות',           icon: <ClipboardList className="w-[18px] h-[18px]" /> },
+    { id: 'forms',         label: 'שאלונים וטפסים',    icon: <FileText className="w-[18px] h-[18px]" /> },
+    { id: 'workshops',     label: 'מוצרים ותשלומים',   icon: <GraduationCap className="w-[18px] h-[18px]" /> },
+  ] },
+  { title: 'הקהילה והלקוחות', items: [
+    { id: 'events',    label: 'אירועי קהילה',  icon: <Sparkles className="w-[18px] h-[18px]" /> },
+    { id: 'makeups',   label: 'השלמות',        icon: <CalendarDays className="w-[18px] h-[18px]" /> },
+    { id: 'users',     label: 'משתמשות',      icon: <Users className="w-[18px] h-[18px]" /> },
+    { id: 'insights',  label: 'תובנות',        icon: <BarChart2 className="w-[18px] h-[18px]" /> },
+    { id: 'partners',  label: 'ספקים',         icon: <Link2 className="w-[18px] h-[18px]" /> },
+  ] },
+  { title: 'התוכן של מימו', items: [
+    { id: 'program',   label: 'תוכנית הסדנאות', icon: <BookOpen className="w-[18px] h-[18px]" /> },
+    { id: 'videos',    label: 'סרטונים',        icon: <Video className="w-[18px] h-[18px]" /> },
+    { id: 'tips',      label: 'מדריך גיל',       icon: <Baby className="w-[18px] h-[18px]" /> },
+    { id: 'perks',     label: 'הטבות',          icon: <Gift className="w-[18px] h-[18px]" /> },
+    { id: 'pregnancy', label: 'מדריכי הריון',   icon: <MapPin className="w-[18px] h-[18px]" /> },
+  ] },
 ]
 
 export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView, unreadForms = 0, unreadRegistrations = 0, taskCount = 0, workshopIssues = 0, partnersWaiting = 0, paymentClaims = 0 }: Props) {
   const { signOut, profile } = useAuth()
-  // Screen A / A1-5: "עוד" ships COLLAPSED — the overflow group exists
-  // to reduce the visible nav, so it must not start expanded. The
-  // active-section highlight still works when the admin opens it.
-  const [moreOpen, setMoreOpen] = useState(false)
 
   function badgeFor(id: AdminSection): number {
     if (id === 'home') return taskCount
@@ -121,25 +121,14 @@ export default function AdminSidebar({ section, onSection, viewAsUser, onToggleU
         )}
       </div>
 
-      {/* Nav — six primary + collapsible עוד */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto">
-        <div className="space-y-0.5">
-          {PRIMARY.map(navButton)}
-        </div>
-
-        <button
-          onClick={() => setMoreOpen(o => !o)}
-          className="w-full flex items-center gap-2 text-right transition-all mt-3"
-          style={{ padding: '7px 12px', borderRadius: 12, fontSize: 12, fontWeight: 700, color: '#A8A088', letterSpacing: '0.08em' }}
-        >
-          עוד
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
-        </button>
-        {moreOpen && (
-          <div className="space-y-0.5">
-            {MORE.map(navButton)}
+      {/* Nav: three groups */}
+      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
+        {GROUPS.map(g => (
+          <div key={g.title}>
+            <p className="px-3 mb-1 font-bold" style={{ fontSize: 11.5, color: '#8C8572', letterSpacing: '0.04em' }}>{g.title}</p>
+            <div className="space-y-0.5">{g.items.map(navButton)}</div>
           </div>
-        )}
+        ))}
       </nav>
 
       {/* Footer */}

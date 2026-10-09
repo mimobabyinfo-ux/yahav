@@ -168,6 +168,7 @@ export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSect
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [open, setOpen] = useState<TileKey | null>(null)
+  const [otherKind, setOtherKind] = useState<OtherKind | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -234,7 +235,8 @@ export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSect
   // 9.10.26 (Yahav): a new gift card must jump out, not hide in a list.
   // Morning logs its payment as "unmatched", so this is where it reads as a gift.
   const gifts = f?.gifts ?? []
-  if (gifts.length > 0) tiles.unshift({ key: 'gifts', label: 'גיפט קארד 🎁', count: gifts.length, value: String(gifts.length), sub: breakdown(gifts, g => g.product ? shortProductName(g.product) : 'גיפט', 1) })
+  // 9.10.26 (Yahav): gift cards are rare, so they sit in the small row below,
+  // first and highlighted, not in the main tiles.
   if (f && f.inbound.length > 0) tiles.push({ key: 'inbound', label: 'כתבו לך', count: f.inbound.length, value: String(f.inbound.length), sub: 'הודעות נכנסות ב-CRM' })
 
   const otherCounts = useMemo(() => {
@@ -462,8 +464,14 @@ export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSect
         ))}
         <Footer label="לגיפט קארדים (מוצרים ותשלומים)" onClick={() => onSection('workshops')} />
       </>)
-      case 'other': return (<>
-        {f.other.map((o, i) => (
+      case 'other': {
+        const rows = otherKind ? f.other.filter(o => o.kind === otherKind) : f.other
+        const OTHER_PAGE: Record<OtherKind, ['makeups' | 'events' | 'workshops' | 'users', string]> = {
+          makeup: ['makeups', 'לעמוד ההשלמות'], event_cancel: ['events', 'לעמוד אירועי הקהילה'], event_waitlist: ['events', 'לעמוד אירועי הקהילה'],
+          credit_used: ['events', 'לעמוד אירועי הקהילה'], waitlist: ['workshops', 'לעמוד המוצרים'], install: ['users', 'לעמוד המשתמשות'],
+        }
+        return (<>
+        {rows.map((o, i) => (
           <Row key={`${o.kind}:${i}`} at={o.at}>
             {personBtn(o.name, o.phone, o.email)}
             <span className="flex flex-wrap gap-1.5 mt-1">
@@ -472,24 +480,20 @@ export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSect
             </span>
           </Row>
         ))}
-        {f.other.some(o => o.kind === 'makeup') && <Footer label="לעמוד ההשלמות" onClick={() => onSection('makeups')} />}
+        {otherKind && <Footer label={OTHER_PAGE[otherKind][1]} onClick={() => onSection(OTHER_PAGE[otherKind][0])} />}
       </>)
+      }
     }
   }
 
   return (
     <div className="bg-white rounded-3xl p-5" style={{ border: '1px solid #E9E2D6' }}>
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">
         <h2 className="font-bold flex items-center gap-2" style={{ fontSize: 16, color: '#443327' }}>
           מה חדש
           {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" style={{ color: '#BCAE99' }} />}
         </h2>
-        <button onClick={load} className="p-1 rounded-lg" aria-label="רענון" title="רענון">
-          <RefreshCw className="w-4 h-4" style={{ color: '#BCAE99' }} />
-        </button>
-      </div>
-
-      <div className="flex flex-wrap gap-1.5 mb-4">
+      <div className="flex flex-wrap gap-1.5">
         {PERIODS.map(p => (
           <button
             key={p.key}
@@ -501,6 +505,10 @@ export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSect
             {p.key === 'since' && sinceLabel && <span style={{ opacity: 0.7 }}> ({sinceLabel})</span>}
           </button>
         ))}
+      </div>
+        <button onClick={load} className="p-1 rounded-lg mr-auto" aria-label="רענון" title="רענון">
+          <RefreshCw className="w-4 h-4" style={{ color: '#BCAE99' }} />
+        </button>
       </div>
 
       {error && !feed ? (
@@ -526,29 +534,44 @@ export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSect
                 onClick={() => can && setOpen(active ? null : t.key)}
                 disabled={!can}
                 aria-expanded={active}
-                className={`rounded-2xl px-4 py-3 text-right transition-all ${can ? 'hover:brightness-95' : 'cursor-default'}`}
-                style={{ background: active ? '#F6ECD8' : t.key === 'gifts' ? '#FBF1DC' : '#F6F3ED', outline: active || t.key === 'gifts' ? '2px solid #C8A460' : 'none', opacity: can ? 1 : 0.55 }}
+                className={`rounded-2xl px-4 py-3 text-right transition-all min-w-0 ${can ? 'hover:brightness-95' : 'cursor-default'}`}
+                style={{ background: active ? '#F6ECD8' : '#F6F3ED', outline: active ? '2px solid #C8A460' : 'none', opacity: can ? 1 : 0.55, minHeight: 96 }}
               >
                 <p className="font-display" style={{ fontSize: 24, lineHeight: 1.1, color: '#443327' }}>{t.value}</p>
-                <p className="font-semibold mt-0.5" style={{ fontSize: 13, color: '#8A7A63' }}>{t.label}</p>
-                {t.sub && <p className="mt-0.5 truncate" style={{ fontSize: 12, color: '#A2937D' }}>{t.sub}</p>}
+                <p className="font-semibold mt-0.5 leading-snug" style={{ fontSize: 13, color: '#8A7A63' }}>{t.label}</p>
+                {t.sub && <p className="mt-0.5 line-clamp-2 leading-snug" style={{ fontSize: 12, color: '#A2937D', overflowWrap: 'anywhere' }}>{t.sub}</p>}
               </button>
             )
           })}
         </div>
 
-        {otherCounts.length > 0 && (
-          <button
-            onClick={() => setOpen(open === 'other' ? null : 'other')}
-            className="w-full flex flex-wrap items-center gap-1.5 mt-3 rounded-2xl px-3.5 py-2.5 text-right transition-colors hover:bg-[#FAF7F1]"
-            style={{ background: open === 'other' ? '#F6ECD8' : 'transparent' }}
-            aria-expanded={open === 'other'}
-          >
-            <span className="font-bold" style={{ fontSize: 12.5, color: '#6E5836' }}>ועוד:</span>
-            {otherCounts.map(([k, n]) => (
-              <Chip key={k} label={`${n} ${n === 1 ? OTHER_LABEL[k][0] : OTHER_LABEL[k][1]}`} tone={k === 'event_cancel' ? 'bad' : 'muted'} />
-            ))}
-          </button>
+        {/* 9.10.26: the rare things as small tiles (Lovable mockup). Each opens
+            its own list in the same place as the big tiles. Gift cards first,
+            highlighted, only when there is one. */}
+        {(gifts.length > 0 || otherCounts.length > 0) && (
+          <div className="flex gap-2 mt-3 overflow-x-auto pb-1 -mx-1 px-1">
+            {gifts.length > 0 && (
+              <button onClick={() => { setOtherKind(null); setOpen(open === 'gifts' ? null : 'gifts') }} aria-expanded={open === 'gifts'}
+                className="flex-shrink-0 flex items-center gap-2 rounded-2xl px-3.5 py-2.5 transition-all hover:brightness-95"
+                style={{ background: '#FBF1DC', border: '2px solid #C8A460' }}>
+                <span style={{ fontSize: 15 }}>🎁</span>
+                <span className="font-bold" style={{ fontSize: 13, color: '#6E5836' }}>גיפט קארד</span>
+                <span className="font-display" style={{ fontSize: 18, color: '#443327' }}>{gifts.length}</span>
+              </button>
+            )}
+            {otherCounts.map(([k, n]) => {
+              const active = open === 'other' && otherKind === k
+              const bad = k === 'event_cancel'
+              return (
+                <button key={k} onClick={() => { if (active) { setOpen(null); setOtherKind(null) } else { setOtherKind(k); setOpen('other') } }} aria-expanded={active}
+                  className="flex-shrink-0 flex items-center gap-2 rounded-2xl px-3.5 py-2.5 transition-all hover:brightness-95"
+                  style={{ background: bad ? '#F5E2D8' : '#F6F3ED', border: `${active ? 2 : 1}px solid ${active ? '#C8A460' : bad ? '#E8C3B2' : '#E9E2D6'}` }}>
+                  <span className="font-bold" style={{ fontSize: 13, color: bad ? '#8B4A30' : '#6E5836' }}>{OTHER_LABEL[k][1]}</span>
+                  <span className="font-display" style={{ fontSize: 18, color: bad ? '#8B4A30' : '#443327' }}>{n}</span>
+                </button>
+              )
+            })}
+          </div>
         )}
 
         {tDone && (
