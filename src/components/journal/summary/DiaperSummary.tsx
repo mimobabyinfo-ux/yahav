@@ -4,6 +4,7 @@ import type { DailyLogEntryWithDetails, DiaperDetail } from '../../../lib/supaba
 import type { Bucket, Granularity } from '../../../hooks/useSummaryData'
 import { bucketKeyFor } from '../../../hooks/useSummaryData'
 
+import { tx } from '../../../i18n'
 // Diaper tab: daily-average + per-type sub-stats + stacked bar chart
 // with 4 segments (wet / dirty / both / dry).
 
@@ -69,8 +70,8 @@ export default function DiaperSummary({ entries, buckets, granularity, dayCount,
     return (
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-8 text-center space-y-2">
         <div className="text-4xl">💩</div>
-        <p className="text-sm font-semibold text-sand-700">אין רישומי חיתולים ב{rangeLabel}</p>
-        <p className="text-xs text-sand-400">החיתוך משתנה מיד אחרי שמירת חיתול</p>
+        <p className="text-sm font-semibold text-sand-700">{tx('אין רישומי חיתולים ב')}{rangeLabel}</p>
+        <p className="text-xs text-sand-400">{tx('החיתוך משתנה מיד אחרי שמירת חיתול')}</p>
       </div>
     )
   }
@@ -83,10 +84,10 @@ export default function DiaperSummary({ entries, buckets, granularity, dayCount,
 
   // Sub-stat line — show only types with data.
   const subStats: string[] = []
-  if (totals.wet   > 0) subStats.push(`פיפי: ${totals.wet}`)
-  if (totals.dirty > 0) subStats.push(`קקי: ${totals.dirty}`)
-  if (totals.both  > 0) subStats.push(`שניהם: ${totals.both}`)
-  if (totals.dry   > 0) subStats.push(`יבש: ${totals.dry}`)
+  if (totals.wet   > 0) subStats.push(tx('פיפי: {wet}', { wet: totals.wet }))
+  if (totals.dirty > 0) subStats.push(tx('קקי: {dirty}', { dirty: totals.dirty }))
+  if (totals.both  > 0) subStats.push(tx('שניהם: {both}', { both: totals.both }))
+  if (totals.dry   > 0) subStats.push(tx('יבש: {dry}', { dry: totals.dry }))
 
   // suppress unused lint on DIAPER_BASE — kept for symmetry with other tabs'
   // base color constants and may be used by C7 polish.
@@ -95,9 +96,9 @@ export default function DiaperSummary({ entries, buckets, granularity, dayCount,
   return (
     <div className="space-y-4">
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5">
-        <p className="text-xs font-semibold text-sand-500 mb-1">ממוצע יומי</p>
+        <p className="text-xs font-semibold text-sand-500 mb-1">{tx('ממוצע יומי')}</p>
         <p className="text-2xl font-bold text-sand-800 leading-none">
-          {avgPerDay.toFixed(1)} <span className="text-sm font-semibold text-sand-500">חיתולים</span>
+          {avgPerDay.toFixed(1)} <span className="text-sm font-semibold text-sand-500">{tx('חיתולים')}</span>
         </p>
         {subStats.length > 0 && (
           <p className="text-xs text-sand-600 mt-3">{subStats.join(' · ')}</p>
@@ -131,7 +132,7 @@ export default function DiaperSummary({ entries, buckets, granularity, dayCount,
                 cursor={{ fill: 'rgba(0,0,0,0.04)' }}
                 contentStyle={{ fontSize: 11, border: '1px solid #E5E0D2', borderRadius: 8, direction: 'rtl' }}
                 formatter={(value, name) => {
-                  const label = name === 'wet' ? 'פיפי' : name === 'dirty' ? 'קקי' : name === 'both' ? 'שניהם' : 'יבש'
+                  const label = name === 'wet' ? tx('פיפי') : name === 'dirty' ? tx('קקי') : name === 'both' ? tx('שניהם') : tx('יבש')
                   return [`${value ?? 0}`, label]
                 }}
                 labelFormatter={(_, payload) => {
@@ -147,10 +148,10 @@ export default function DiaperSummary({ entries, buckets, granularity, dayCount,
           </ResponsiveContainer>
         </div>
         <div className="flex flex-wrap justify-center gap-3 mt-2 text-[10px] text-sand-500">
-          {totals.wet   > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_WET   }} />פיפי</span>}
-          {totals.dirty > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_DIRTY }} />קקי</span>}
-          {totals.both  > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_BOTH  }} />שניהם</span>}
-          {totals.dry   > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_DRY   }} />יבש</span>}
+          {totals.wet   > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_WET   }} />{tx('פיפי')}</span>}
+          {totals.dirty > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_DIRTY }} />{tx('קקי')}</span>}
+          {totals.both  > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_BOTH  }} />{tx('שניהם')}</span>}
+          {totals.dry   > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_DRY   }} />{tx('יבש')}</span>}
         </div>
       </div>
     </div>

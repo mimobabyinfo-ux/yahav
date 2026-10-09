@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase'
 
+import { tx } from '../../i18n'
 // ── גיפט קארד ────────────────────────────────────────────────────────────────
 // A gift bought for someone else. Deliberately NOT a registration: no seat
 // is held and no cohort is filled, because the friend has not agreed to
@@ -89,16 +90,16 @@ export async function sendGiftCard(opts: {
     p_recipient_email: opts.recipientEmail,
     p_message: opts.message,
   })
-  if (saveErr) return { ok: false, error: 'שגיאה בשמירת הפרטים. נסי שוב' }
-  if (saved === 'bad_email') return { ok: false, error: 'כתובת המייל לא נראית תקינה' }
-  if (saved === 'not_paid') return { ok: false, error: 'התשלום עדיין לא אושר. נשלח ברגע שיאושר' }
-  if (saved !== 'ok') return { ok: false, error: 'לא הצלחנו לשמור את הפרטים' }
+  if (saveErr) return { ok: false, error: tx('שגיאה בשמירת הפרטים. נסי שוב') }
+  if (saved === 'bad_email') return { ok: false, error: tx('כתובת המייל לא נראית תקינה') }
+  if (saved === 'not_paid') return { ok: false, error: tx('התשלום עדיין לא אושר. נשלח ברגע שיאושר') }
+  if (saved !== 'ok') return { ok: false, error: tx('לא הצלחנו לשמור את הפרטים') }
 
   const { data, error } = await supabase.functions.invoke('send-gift-card', {
     body: { gift_card_id: opts.giftCardId },
   })
   if (error || !(data as { ok?: boolean } | null)?.ok) {
-    return { ok: false, error: 'הפרטים נשמרו אבל המייל לא יצא. נסי שוב בעוד רגע' }
+    return { ok: false, error: tx('הפרטים נשמרו אבל המייל לא יצא. נסי שוב בעוד רגע') }
   }
   return { ok: true }
 }
@@ -148,7 +149,7 @@ export async function sendPublicGiftCard(claimToken: string): Promise<{ ok: true
     body: { claim_token: claimToken },
   })
   if (error || !(data as { ok?: boolean } | null)?.ok) {
-    return { ok: false, error: 'המייל לא יצא. אפשר לנסות שוב בעוד רגע' }
+    return { ok: false, error: tx('המייל לא יצא. אפשר לנסות שוב בעוד רגע') }
   }
   return { ok: true }
 }
@@ -165,9 +166,9 @@ export async function setAndSendPublicGiftCard(opts: {
     p_recipient_email: opts.recipientEmail,
     p_message: opts.message,
   })
-  if (saveErr) return { ok: false, error: 'שגיאה בשמירת הפרטים. נסי שוב' }
-  if (saved === 'bad_email') return { ok: false, error: 'כתובת המייל לא נראית תקינה' }
-  if (saved === 'not_paid') return { ok: false, error: 'התשלום עדיין לא אושר. נשלח ברגע שיאושר' }
-  if (saved !== 'ok') return { ok: false, error: 'לא הצלחנו לשמור את הפרטים' }
+  if (saveErr) return { ok: false, error: tx('שגיאה בשמירת הפרטים. נסי שוב') }
+  if (saved === 'bad_email') return { ok: false, error: tx('כתובת המייל לא נראית תקינה') }
+  if (saved === 'not_paid') return { ok: false, error: tx('התשלום עדיין לא אושר. נשלח ברגע שיאושר') }
+  if (saved !== 'ok') return { ok: false, error: tx('לא הצלחנו לשמור את הפרטים') }
   return sendPublicGiftCard(opts.claimToken)
 }

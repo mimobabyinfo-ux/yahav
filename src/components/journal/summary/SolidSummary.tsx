@@ -4,6 +4,7 @@ import type { DailyLogEntryWithDetails, FeedingDetail } from '../../../lib/supab
 import type { Bucket, Granularity } from '../../../hooks/useSummaryData'
 import { bucketKeyFor } from '../../../hooks/useSummaryData'
 
+import { tx } from '../../../i18n'
 // Solids tab: per-day solid feeding count + simple single-color bar
 // chart. No "most-eaten items" parsing in v1 (deferred to C7 — too
 // fragile to parse free-text reliably).
@@ -46,8 +47,8 @@ export default function SolidSummary({ entries, buckets, granularity, dayCount, 
     return (
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-8 text-center space-y-2">
         <div className="text-4xl">🥄</div>
-        <p className="text-sm font-semibold text-sand-700">אין רישומי מוצקים ב{rangeLabel}</p>
-        <p className="text-xs text-sand-400">החיתוך משתנה מיד אחרי שמירת מוצק</p>
+        <p className="text-sm font-semibold text-sand-700">{tx('אין רישומי מוצקים ב')}{rangeLabel}</p>
+        <p className="text-xs text-sand-400">{tx('החיתוך משתנה מיד אחרי שמירת מוצק')}</p>
       </div>
     )
   }
@@ -61,11 +62,11 @@ export default function SolidSummary({ entries, buckets, granularity, dayCount, 
   return (
     <div className="space-y-4">
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5">
-        <p className="text-xs font-semibold text-sand-500 mb-1">ממוצע יומי</p>
+        <p className="text-xs font-semibold text-sand-500 mb-1">{tx('ממוצע יומי')}</p>
         <p className="text-2xl font-bold text-sand-800 leading-none">
-          {avgPerDay.toFixed(1)} <span className="text-sm font-semibold text-sand-500">מנות</span>
+          {avgPerDay.toFixed(1)} <span className="text-sm font-semibold text-sand-500">{tx('מנות')}</span>
         </p>
-        <p className="text-xs text-sand-600 mt-3">סה"כ {total} מנות מוצק ב-{dayCount} ימים</p>
+        <p className="text-xs text-sand-600 mt-3">{tx('סה"כ')}{' '}{total} {' '}{tx('מנות מוצק ב-')}{dayCount} {' '}{tx('ימים')}</p>
       </div>
 
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-3 pt-4">
@@ -94,7 +95,7 @@ export default function SolidSummary({ entries, buckets, granularity, dayCount, 
               <Tooltip
                 cursor={{ fill: 'rgba(0,0,0,0.04)' }}
                 contentStyle={{ fontSize: 11, border: '1px solid #E5E0D2', borderRadius: 8, direction: 'rtl' }}
-                formatter={(value) => [`${value ?? 0}`, 'מנות']}
+                formatter={(value) => [`${value ?? 0}`, tx('מנות')]}
                 labelFormatter={(_, payload) => {
                   const p = payload?.[0]?.payload as { date?: string } | undefined
                   return p?.date ?? ''

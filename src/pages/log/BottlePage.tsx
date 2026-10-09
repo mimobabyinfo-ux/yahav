@@ -6,6 +6,7 @@ import { useLastEntry } from '../../hooks/useLastEntry'
 import { formatTimeSince } from '../../utils/timeSince'
 import ActionPageLayout from './ActionPageLayout'
 
+import { tx } from '../../i18n'
 type Props = {
   onBack: () => void
   onSaved?: () => void
@@ -35,7 +36,7 @@ export default function BottlePage({ onBack, onSaved }: Props) {
     if (!user || saving) return
     const ml = parseInt(amount, 10)
     if (!Number.isFinite(ml) || ml <= 0) {
-      setSaveError('יש להזין כמות בקבוק (במ"ל)')
+      setSaveError(tx('יש להזין כמות בקבוק (במ"ל)'))
       return
     }
     setSaving(true)
@@ -50,7 +51,7 @@ export default function BottlePage({ onBack, onSaved }: Props) {
       const chosen = { date: date || formatDate(now), time: time || formatTime(now) }
       const saved = clampDateTimeToNow(chosen.date, chosen.time)
       if (saved.date !== chosen.date || saved.time !== chosen.time) {
-        setSaveError('אי אפשר לרשום ביומן תאריך או שעה שעוד לא הגיעו')
+        setSaveError(tx('אי אפשר לרשום ביומן תאריך או שעה שעוד לא הגיעו'))
         setSaving(false)
         return
       }
@@ -66,7 +67,7 @@ export default function BottlePage({ onBack, onSaved }: Props) {
         })
         .select()
         .single()
-      if (error || !entry) throw error ?? new Error('שגיאה בשמירה')
+      if (error || !entry) throw error ?? new Error(tx('שגיאה בשמירה'))
 
       const { error: detErr } = await supabase.from('feeding_details').insert({
         log_entry_id: entry.id,
@@ -80,18 +81,18 @@ export default function BottlePage({ onBack, onSaved }: Props) {
       onSaved?.()
       onBack()
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'שגיאה בשמירה')
+      setSaveError(err instanceof Error ? err.message : tx('שגיאה בשמירה'))
       setSaving(false)
     }
   }
 
   return (
     <ActionPageLayout
-      title="בקבוק"
+      title={tx('בקבוק')}
       emoji="🍼"
       accent={ACCENT}
       onBack={onBack}
-      status={<span>{formatTimeSince(lastFeeding, 'טרם נרשמה האכלה')}</span>}
+      status={<span>{formatTimeSince(lastFeeding, tx('טרם נרשמה האכלה'))}</span>}
       bottom={
         <>
           {saveError && <p className="text-xs text-red-500 text-center">{saveError}</p>}
@@ -101,14 +102,14 @@ export default function BottlePage({ onBack, onSaved }: Props) {
             className="w-full font-semibold py-4 rounded-2xl text-white shadow-md transition-all disabled:opacity-50"
             style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}dd)` }}
           >
-            {saving ? 'שומרת…' : 'שמירה ✓'}
+            {saving ? tx('שומרת…') : tx('שמירה ✓')}
           </button>
         </>
       }
     >
       <div className="max-w-xs mx-auto space-y-5">
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">כמות (מ"ל)</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('כמות (מ"ל)')}</label>
           <input
             type="number"
             inputMode="numeric"
@@ -121,7 +122,7 @@ export default function BottlePage({ onBack, onSaved }: Props) {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-2 text-right">סוג</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-2 text-start">{tx('סוג')}</label>
           <div className="flex gap-2">
             {(['pumped', 'formula'] as const).map(t => (
               <button
@@ -134,7 +135,7 @@ export default function BottlePage({ onBack, onSaved }: Props) {
                     : 'border-sand-200 text-sand-600'
                 }`}
               >
-                {t === 'pumped' ? 'חלב אם שאוב' : 'תמ"ל'}
+                {t === 'pumped' ? tx('חלב אם שאוב') : tx('תמ"ל')}
               </button>
             ))}
           </div>
@@ -142,7 +143,7 @@ export default function BottlePage({ onBack, onSaved }: Props) {
 
         <div className="flex gap-2">
           <div className="flex-1 min-w-0">
-            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">תאריך</label>
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('תאריך')}</label>
             <input
               type="date"
               value={date}
@@ -153,7 +154,7 @@ export default function BottlePage({ onBack, onSaved }: Props) {
             />
           </div>
           <div className="flex-1 min-w-0">
-            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">שעה</label>
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('שעה')}</label>
             <input
               type="time"
               value={time}
@@ -166,13 +167,13 @@ export default function BottlePage({ onBack, onSaved }: Props) {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">הערות</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('הערות')}</label>
           <textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            placeholder="הערות (אופציונלי)"
+            placeholder={tx('הערות (אופציונלי)')}
             rows={3}
-            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-right"
+            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-start"
           />
         </div>
       </div>

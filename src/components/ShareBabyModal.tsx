@@ -3,6 +3,7 @@ import { X, Copy, Check, MessageCircle, Users } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { SHARE_ROLES, type ShareRole, roleDef } from '../constants/shareRoles'
 
+import { tx, DIR } from '../i18n'
 // Sharing the journal with family.
 //
 // Brenda 17.8.26, first: "drop 'pick a role' and 'create a link', leave
@@ -49,7 +50,7 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
       // after the await still sees the stale closure.
       let familyId = profile?.family_id ?? null
       if (!familyId) {
-        const familyName = profile?.mother_name ? `המשפחה של ${profile.mother_name}` : 'המשפחה שלי'
+        const familyName = profile?.mother_name ? tx('המשפחה של {mother_name}', { mother_name: profile.mother_name }) : tx('המשפחה שלי')
         familyId = await createFamily(familyName)
         await refreshProfile()
       }
@@ -61,23 +62,23 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
       if (!token) throw new Error('no token')
       setStage({ kind: 'ready', token, role, recipientName: name })
     } catch {
-      setError('לא הצלחנו ליצור את הלינק. נסי שוב')
+      setError(tx('לא הצלחנו ליצור את הלינק. נסי שוב'))
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose} dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose} dir={DIR}>
       <div
         className="bg-[#F5F1EB] rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100 flex-shrink-0">
           <h3 className="font-bold text-sand-800">
-            {stage.kind === 'ready' ? 'הלינק מוכן' : 'שיתוף עם בני משפחה'}
+            {stage.kind === 'ready' ? tx('הלינק מוכן') : tx('שיתוף עם בני משפחה')}
           </h3>
-          <button onClick={onClose} className="p-1.5 text-sand-300 hover:text-sand-600" aria-label="סגירה">
+          <button onClick={onClose} className="p-1.5 text-sand-300 hover:text-sand-600" aria-label={tx('סגירה')}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -100,12 +101,13 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
             />
           ) : !baby?.id ? (
             <div className="p-5 text-center text-sm text-sand-500">
-              בחרי תינוק כדי לשתף את היומן שלו.
+              
+              {tx('בחרי תינוק כדי לשתף את היומן שלו.')}
             </div>
           ) : (
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-2">מי מקבל גישה?</label>
+                <label className="block text-xs font-semibold text-sand-600 mb-2">{tx('מי מקבל גישה?')}</label>
                 <div className="flex flex-wrap gap-2">
                   {SHARE_ROLES.map(r => (
                     <button
@@ -117,7 +119,7 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
                           : 'border-sand-200 text-sand-600 hover:border-sand-300'
                       }`}
                     >
-                      <span className="ml-1">{r.emoji}</span>{r.label}
+                      <span className="me-1">{r.emoji}</span>{r.label}
                     </button>
                   ))}
                 </div>
@@ -125,18 +127,20 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
 
               <div>
                 <label className="block text-xs font-semibold text-sand-600 mb-1">
-                  השם של מי שמקבל (אופציונלי)
+                  
+                  {tx('השם של מי שמקבל (אופציונלי)')}
                 </label>
                 <input
                   type="text"
                   value={recipientName}
                   onChange={e => setRecipientName(e.target.value)}
-                  placeholder="למשל: דני"
+                  placeholder={tx('למשל: דני')}
                   maxLength={40}
                   className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-sand-800"
                 />
                 <p className="text-[11px] text-sand-400 mt-1">
-                  ההודעה תפתח ב"היי {recipientName.trim() || roleDef(role)?.label || '…'}!"
+                  
+                  {tx('ההודעה תפתח ב"היי')}{' '}{recipientName.trim() || roleDef(role)?.label || '…'}!"
                 </p>
               </div>
 
@@ -149,11 +153,12 @@ export default function ShareBabyModal({ onClose }: { onClose: () => void }) {
                 style={{ background: '#818267' }}
               >
                 <Users className="w-5 h-5" />
-                {submitting ? 'יוצרת לינק…' : 'שתפי עם בני משפחה'}
+                {submitting ? tx('יוצרת לינק…') : tx('שתפי עם בני משפחה')}
               </button>
 
               <p className="text-[11px] text-sand-400 text-center leading-relaxed">
-                מי שיקבל את הלינק יראה את היומן של {baby.name} בדיוק כמו שאת רואה אותו.
+                
+                {tx('מי שיקבל את הלינק יראה את היומן של')}{' '}{baby.name} {' '}{tx('בדיוק כמו שאת רואה אותו.')}
               </p>
             </div>
           )}
@@ -175,19 +180,19 @@ type ShareLinkProps = {
 
 function ShareLink({ babyName, motherName, token, role, recipientName, copied, onCopy }: ShareLinkProps) {
   const joinLink = `${window.location.origin}?join=${token}`
-  const greeting = recipientName.trim() || roleDef(role)?.label || 'שלום'
+  const greeting = recipientName.trim() || roleDef(role)?.label || tx('שלום')
   const message = [
-    `היי ${greeting}!`,
-    `${motherName ?? 'אמא'} משתפת איתך את היומן של ${babyName ?? 'התינוק'} ב-Mimo.`,
+    tx('היי {greeting}!', { greeting }),
+    tx('{v0} משתפת איתך את היומן של {v1} ב-Mimo.', { v0: motherName ?? tx('אמא'), v1: babyName ?? tx('התינוק') }),
     '',
-    'לחצו על הלינק כדי להיכנס:',
+    tx('לחצו על הלינק כדי להיכנס:'),
     joinLink,
   ].join('\n')
 
   return (
     <div className="p-5 space-y-4">
       <div className="bg-white rounded-2xl p-4 border border-sand-200">
-        <p className="text-[11px] font-semibold text-sand-500 mb-1">תצוגה מקדימה של ההודעה</p>
+        <p className="text-[11px] font-semibold text-sand-500 mb-1">{tx('תצוגה מקדימה של ההודעה')}</p>
         <p className="text-xs text-sand-700 whitespace-pre-line leading-relaxed">{message}</p>
       </div>
 
@@ -196,7 +201,8 @@ function ShareLink({ babyName, motherName, token, role, recipientName, copied, o
         className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-2xl text-sm transition-all"
       >
         <MessageCircle className="w-5 h-5" />
-        שלחי ב-WhatsApp
+        
+        {tx('שלחי ב-WhatsApp')}
       </button>
 
       <button
@@ -204,11 +210,12 @@ function ShareLink({ babyName, motherName, token, role, recipientName, copied, o
         className="w-full flex items-center justify-center gap-2 border-2 border-sand-200 text-sand-700 font-semibold py-3 rounded-2xl text-sm transition-all hover:bg-sand-50"
       >
         {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-        {copied ? 'הלינק הועתק' : 'העתק לינק'}
+        {copied ? tx('הלינק הועתק') : tx('העתק לינק')}
       </button>
 
       <p className="text-[11px] text-sand-400 text-center leading-relaxed">
-        הלינק תקף 30 ימים. ניתן לבטל גישה בכל רגע מהגדרות ← ניהול שיתופים.
+        
+        {tx('הלינק תקף 30 ימים. ניתן לבטל גישה בכל רגע מהגדרות ← ניהול שיתופים.')}
       </p>
     </div>
   )

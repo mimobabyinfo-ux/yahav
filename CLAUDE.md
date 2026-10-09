@@ -496,3 +496,34 @@ Retirement waits for the event date to pass. An earlier draft cancelled
 four days after the reminder, which would have killed five live leads
 whose events ran weeks out and freed nothing: a pending row stops
 counting against capacity the moment its hold expires.
+
+## Interface language: Hebrew / Spanish (10.10.26)
+
+Brenda decided: every screen a mother uses works in Spanish too (round 1:
+home, tracker, settings, onboarding; round 2 the same night: community,
+products, my workshops, gift card, perks). Still Hebrew on purpose: text
+that comes from the DB (tips, guides, event/product/workshop content),
+WhatsApp/mails/push, the legal documents, public no-login pages, and the
+admin panel.
+
+- `src/i18n/index.ts`: `tx('עברית')` returns the Hebrew, or `es['עברית']`
+  in Spanish. The Hebrew text IS the key, so changing a Hebrew string
+  drops its Spanish until `src/i18n/es.ts` is updated too. Missing keys
+  fall back to Hebrew. Placeholders: `tx('שלום {name}', { name })`.
+- Language is read once at load (`LANG`, `DIR`, `IS_RTL`, `LOCALE`);
+  switching reloads. Stored in localStorage `mimo_lang` and
+  `user_profiles.language` (he/es, synced in App.tsx). First visit: Spanish
+  only if the phone is set to Spanish. Pickers: login screen corner and
+  Settings.
+- Direction: `<html dir>` is set in main.tsx; translated screens use
+  `dir={DIR}` and logical Tailwind classes (`ms-/me-/ps-/pe-/start-/end-/
+  text-start`). Arrow icons carry `flip-dir`. Hebrew-only screens keep
+  `dir="rtl"`. In LTR, p/h/li/label use `unicode-bidi: plaintext` so
+  Hebrew content from the DB still reads right-to-left.
+- Never wrap a string in `tx()` if it is DATA: anything written to the DB
+  or compared against DB values. Example: tummy-time notes are stored as
+  "משך: N דקות" and parsed by regex, so they are written in Hebrew always
+  and only translated for display (`localizeStoredNotes`). Same for
+  `grant_note` comparisons.
+- Breastfeeding: the right-breast card/button stays on the physical right
+  in both languages (order flips with `IS_RTL`).

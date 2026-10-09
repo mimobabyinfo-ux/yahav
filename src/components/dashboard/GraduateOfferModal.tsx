@@ -19,16 +19,17 @@ import {
 } from '../../hooks/useGraduateOffers'
 import type { Page } from '../../App'
 
+import { tx, DIR } from '../../i18n'
 function discountLabel(o: GraduateOffer): string {
   return o.discount_type === 'percent'
-    ? `${Number(o.discount_value)}% הנחה`
-    : `מחיר מיוחד ₪${Number(o.discount_value)}`
+    ? tx('{v0}% הנחה', { v0: Number(o.discount_value) })
+    : tx('מחיר מיוחד ₪{v0}', { v0: Number(o.discount_value) })
 }
 
 function windowLabel(o: GraduateOffer): string {
   const days = graduateOfferDaysLeft(o)
-  if (days <= 1) return 'היום זה היום האחרון'
-  return `בתוקף עוד ${days} ימים, עד ${graduateOfferDeadline(o)}`
+  if (days <= 1) return tx('היום זה היום האחרון')
+  return tx('בתוקף עוד {days} ימים, עד {v1}', { days, v1: graduateOfferDeadline(o) })
 }
 
 export default function GraduateOfferModal({ onNavigate }: { onNavigate: (page: Page) => void }) {
@@ -61,31 +62,32 @@ export default function GraduateOfferModal({ onNavigate }: { onNavigate: (page: 
       <div
         className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
-        dir="rtl"
+        dir={DIR}
       >
         <div className="relative px-6 pt-7 pb-5 text-center" style={{ background: '#F6ECD8' }}>
           <button
             onClick={close}
-            className="absolute top-4 left-4 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center"
-            aria-label="סגירה"
+            className="absolute top-4 end-4 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center"
+            aria-label={tx('סגירה')}
           >
             <X className="w-4 h-4 text-sand-700" />
           </button>
           <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center" style={{ background: '#E7C78A' }}>
             <Gift className="w-7 h-7" style={{ color: '#4A3A28' }} />
           </div>
-          <h2 className="mt-3 font-bold text-lg" style={{ color: '#3D2E20' }}>מתנה קטנה לסיום 🤎</h2>
+          <h2 className="mt-3 font-bold text-lg" style={{ color: '#3D2E20' }}>{tx('מתנה קטנה לסיום 🤎')}</h2>
           {unseen.source_workshop_title && (
             <p className="mt-1 text-sm" style={{ color: '#7B604C' }}>
-              סיימת את {unseen.source_workshop_title}
+              
+              {tx('סיימת את')}{' '}{unseen.source_workshop_title}
             </p>
           )}
         </div>
 
         <div className="p-6 space-y-4">
           <p className="text-sm leading-relaxed" style={{ color: '#5C4A38' }}>
-            כי את כבר חלק ממשפחת מימו, מחכה לך {discountLabel(unseen)} על {unseen.workshop_title}.
-            הקישור אישי שלך ותקף לשבוע אחד בלבד.
+            
+            {tx('כי את כבר חלק ממשפחת מימו, מחכה לך')}{' '}{discountLabel(unseen)} {' '}{tx('על')}{' '}{unseen.workshop_title}{tx('. הקישור אישי שלך ותקף לשבוע אחד בלבד.')}
           </p>
 
           {price != null && (
@@ -107,14 +109,16 @@ export default function GraduateOfferModal({ onNavigate }: { onNavigate: (page: 
               className="px-4 py-3 rounded-2xl text-sm font-bold"
               style={{ background: '#F0EAE0', color: '#7B604C' }}
             >
-              אחר כך
+              
+              {tx('אחר כך')}
             </button>
             <button
               onClick={go}
               className="flex-1 py-3 rounded-2xl text-sm font-bold"
               style={{ background: '#E7C78A', color: '#4A3A28' }}
             >
-              לצפייה בהצעה
+              
+              {tx('לצפייה בהצעה')}
             </button>
           </div>
         </div>

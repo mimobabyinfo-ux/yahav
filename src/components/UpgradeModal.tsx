@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 ﻿type Props = {
   featureName: string
   onClose: () => void
@@ -21,19 +22,19 @@ export default function UpgradeModal({ featureName, onClose }: Props) {
           >
             <span className="text-4xl">⭐</span>
           </div>
-          <h2 className="text-xl font-black text-sand-800">שדרגי ל-Pro</h2>
+          <h2 className="text-xl font-black text-sand-800">{tx('שדרגי ל-Pro')}</h2>
           <p className="text-sm text-sand-500 mt-1">
-            <strong>{featureName}</strong> זמינה רק למנויות Pro
+            <strong>{featureName}</strong> {' '}{tx('זמינה רק למנויות Pro')}
           </p>
         </div>
 
         {/* Features list */}
         <div className="space-y-2.5 bg-mustard-50 rounded-2xl p-4">
           {[
-            'גישה לכל הסרטונים המקצועיים',
-            'תובנות יומיות מתקדמות',
-            'צ\'אט עם מומחות',
-            'סטטיסטיקות מפורטות',
+            tx('גישה לכל הסרטונים המקצועיים'),
+            tx('תובנות יומיות מתקדמות'),
+            tx('צ\'אט עם מומחות'),
+            tx('סטטיסטיקות מפורטות'),
           ].map(f => (
             <div key={f} className="flex items-center gap-2 text-sm text-sand-700">
               <span className="text-mustard-500 font-bold">✓</span>
@@ -45,19 +46,21 @@ export default function UpgradeModal({ featureName, onClose }: Props) {
         {/* CTA */}
         <div className="space-y-2">
           <a
-            href="https://wa.me/972500000000?text=אני רוצה לשדרג ל-Pro"
+            href={'https://wa.me/972500000000?text=אני רוצה לשדרג ל-Pro'}
             target="_blank"
             rel="noopener noreferrer"
             className="block w-full text-center text-white font-bold py-4 rounded-2xl transition-all shadow-lg"
             style={{ background: '#E7C78A' }}
           >
-            שדרגי עכשיו 🚀
+            
+            {tx('שדרגי עכשיו 🚀')}
           </a>
           <button
             onClick={onClose}
             className="w-full py-3 rounded-2xl text-sand-500 font-medium text-sm bg-sand-50"
           >
-            אולי מאוחר יותר
+            
+            {tx('אולי מאוחר יותר')}
           </button>
         </div>
       </div>

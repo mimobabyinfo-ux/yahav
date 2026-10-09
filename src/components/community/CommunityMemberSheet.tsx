@@ -3,6 +3,7 @@ import { useOwnerSettings } from '../../hooks/useOwnerSettings'
 import { COMMUNITY_TAGS } from '../../constants/communityTags'
 import { waLink } from '../../utils/phone'
 
+import { tx, DIR } from '../../i18n'
 // Phase 4 / C2: bottom-sheet profile view for a community member. Opens
 // when mom taps a card. Matches the LogEntryModal aesthetic — handle
 // bar, tap-backdrop-to-close, X button. The same component handles
@@ -40,7 +41,7 @@ function pickTags(ids: string[] | null) {
 
 export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoji, whatsappGreeting, fallbackGreeting, onClose }: Props) {
   const { ownerWhatsapp } = useOwnerSettings()
-  const firstName = member.mother_name?.split(' ')[0] ?? 'אמא'
+  const firstName = member.mother_name?.split(' ')[0] ?? tx('אמא')
   const tags = pickTags(member.community_tags ?? null)
   // 0545243363 is not a number wa.me can resolve — see utils/phone.
   const directWaHref = member.community_consent
@@ -49,7 +50,7 @@ export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoj
   const fallbackHref = waLink(ownerWhatsapp, fallbackGreeting) ?? '#'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center pb-[72px]" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center pb-[72px]" dir={DIR}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl flex flex-col max-h-[75vh]">
         {/* Drag-handle visual cue — matches LogEntryModal aesthetic. */}
@@ -59,8 +60,8 @@ export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoj
 
         {/* Header */}
         <div className="px-5 pb-3 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-lg font-bold text-sand-800">פרופיל</h2>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-sand-100 text-sand-600" aria-label="סגירה">
+          <h2 className="text-lg font-bold text-sand-800">{tx('פרופיל')}</h2>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-sand-100 text-sand-600" aria-label={tx('סגירה')}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -82,14 +83,14 @@ export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoj
           {/* Tags — only render the block when she has at least one */}
           {tags.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-sand-600 px-1">מה {firstName} מחפשת</p>
+              <p className="text-xs font-semibold text-sand-600 px-1">{tx('מה')}{' '}{firstName} {' '}{tx('מחפשת')}</p>
               <div className="flex flex-wrap gap-2">
                 {tags.map(tag => (
                   <span
                     key={tag.id}
                     className="px-3 py-1.5 rounded-full text-xs font-medium border-2 border-mustard-200 bg-mustard-50 text-mustard-700"
                   >
-                    <span className="ml-1">{tag.emoji}</span>{tag.label}
+                    <span className="me-1">{tag.emoji}</span>{tag.label}
                   </span>
                 ))}
               </div>
@@ -99,7 +100,7 @@ export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoj
           {/* Bio — full text, not clamped */}
           {member.community_bio && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-sand-600 px-1">קצת עליי</p>
+              <p className="text-xs font-semibold text-sand-600 px-1">{tx('קצת עליי')}</p>
               <div className="bg-white rounded-2xl p-4">
                 <p className="text-sm text-sand-700 whitespace-pre-line leading-relaxed">{member.community_bio}</p>
               </div>
@@ -116,7 +117,8 @@ export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoj
                 className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-2xl text-sm transition-all"
               >
                 <MessageCircle className="w-5 h-5" />
-                שלחי הודעה ל-{firstName} ב-WhatsApp
+                
+                {tx('שלחי הודעה ל-')}{firstName} {' '}{tx('ב-WhatsApp')}
               </a>
             ) : (
               <a
@@ -126,7 +128,8 @@ export default function CommunityMemberSheet({ member, secondaryLine, avatarEmoj
                 className="w-full flex items-center justify-center gap-2 bg-sand-100 hover:bg-sand-200 text-sand-700 font-bold py-3.5 rounded-2xl text-sm transition-all"
               >
                 <MessageCircle className="w-5 h-5" />
-                חיברי אותי דרך מימו
+                
+                {tx('חיברי אותי דרך מימו')}
               </a>
             )}
           </div>

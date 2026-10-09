@@ -8,6 +8,7 @@ import { formatTimeSince } from '../../utils/timeSince'
 import { compressImage } from '../../utils/imageCompress'
 import ActionPageLayout from './ActionPageLayout'
 
+import { tx } from '../../i18n'
 type Props = {
   onBack: () => void
   onSaved?: () => void
@@ -57,7 +58,7 @@ export default function SolidPage({ onBack, onSaved }: Props) {
   async function handleSave() {
     if (!user || saving) return
     if (!content.trim()) {
-      setSaveError('יש לתאר מה התינוק אכל')
+      setSaveError(tx('יש לתאר מה התינוק אכל'))
       return
     }
     setSaving(true)
@@ -72,7 +73,7 @@ export default function SolidPage({ onBack, onSaved }: Props) {
       const chosen = { date: date || formatDate(now), time: time || formatTime(now) }
       const saved = clampDateTimeToNow(chosen.date, chosen.time)
       if (saved.date !== chosen.date || saved.time !== chosen.time) {
-        setSaveError('אי אפשר לרשום ביומן תאריך או שעה שעוד לא הגיעו')
+        setSaveError(tx('אי אפשר לרשום ביומן תאריך או שעה שעוד לא הגיעו'))
         setSaving(false)
         return
       }
@@ -88,7 +89,7 @@ export default function SolidPage({ onBack, onSaved }: Props) {
         })
         .select()
         .single()
-      if (error || !entry) throw error ?? new Error('שגיאה בשמירה')
+      if (error || !entry) throw error ?? new Error(tx('שגיאה בשמירה'))
 
       const { error: detErr } = await supabase.from('feeding_details').insert({
         log_entry_id: entry.id,
@@ -111,18 +112,18 @@ export default function SolidPage({ onBack, onSaved }: Props) {
       onSaved?.()
       onBack()
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'שגיאה בשמירה')
+      setSaveError(err instanceof Error ? err.message : tx('שגיאה בשמירה'))
       setSaving(false)
     }
   }
 
   return (
     <ActionPageLayout
-      title="אוכל"
+      title={tx('אוכל')}
       emoji="🥄"
       accent={ACCENT}
       onBack={onBack}
-      status={<span>{formatTimeSince(lastFeeding, 'טרם נרשמה האכלה')}</span>}
+      status={<span>{formatTimeSince(lastFeeding, tx('טרם נרשמה האכלה'))}</span>}
       bottom={
         <>
           {saveError && <p className="text-xs text-red-500 text-center">{saveError}</p>}
@@ -132,21 +133,21 @@ export default function SolidPage({ onBack, onSaved }: Props) {
             className="w-full font-semibold py-4 rounded-2xl text-white shadow-md transition-all disabled:opacity-50"
             style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}dd)` }}
           >
-            {saving ? 'שומרת…' : 'שמירה ✓'}
+            {saving ? tx('שומרת…') : tx('שמירה ✓')}
           </button>
         </>
       }
     >
       <div className="max-w-xs mx-auto space-y-5">
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">מה התינוק אכל?</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('מה התינוק אכל?')}</label>
           <textarea
             value={content}
             onChange={e => setContent(e.target.value)}
-            placeholder="למשל: אבוקדו, בננה, פירה תפוח־עץ"
+            placeholder={tx('למשל: אבוקדו, בננה, פירה תפוח־עץ')}
             rows={4}
             autoFocus
-            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-right"
+            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-start"
           />
         </div>
 
@@ -155,7 +156,7 @@ export default function SolidPage({ onBack, onSaved }: Props) {
             00:10 was filed on the wrong day, at the wrong end of it. */}
         <div className="flex gap-2">
           <div className="flex-1 min-w-0">
-            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">תאריך</label>
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('תאריך')}</label>
             <input
               type="date"
               value={date}
@@ -166,7 +167,7 @@ export default function SolidPage({ onBack, onSaved }: Props) {
             />
           </div>
           <div className="flex-1 min-w-0">
-            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">שעה</label>
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('שעה')}</label>
             <input
               type="time"
               value={time}
@@ -187,15 +188,15 @@ export default function SolidPage({ onBack, onSaved }: Props) {
           />
           {photoPreview ? (
             <div className="flex items-center gap-3">
-              <img src={photoPreview} alt="תצוגה מקדימה" className="w-14 h-14 rounded-xl object-cover border border-sand-200" />
-              <div className="flex-1 text-right">
-                <p className="text-xs text-sand-600 font-medium">תמונה נבחרה</p>
-                <p className="text-[10px] text-sand-400">תישמר עם הרשומה</p>
+              <img src={photoPreview} alt={tx('תצוגה מקדימה')} className="w-14 h-14 rounded-xl object-cover border border-sand-200" />
+              <div className="flex-1 text-start">
+                <p className="text-xs text-sand-600 font-medium">{tx('תמונה נבחרה')}</p>
+                <p className="text-[10px] text-sand-400">{tx('תישמר עם הרשומה')}</p>
               </div>
               <button
                 onClick={removePhoto}
                 className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                aria-label="הסרת תמונה"
+                aria-label={tx('הסרת תמונה')}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -206,7 +207,8 @@ export default function SolidPage({ onBack, onSaved }: Props) {
               className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-sand-200 rounded-2xl text-sand-500 hover:border-mustard-300 hover:text-mustard-600 transition-colors text-sm"
             >
               <Camera className="w-4 h-4" />
-              הוסיפי תמונה (אופציונלי)
+              
+              {tx('הוסיפי תמונה (אופציונלי)')}
             </button>
           )}
         </div>

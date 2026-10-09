@@ -9,6 +9,7 @@ import MembershipCard from './MembershipCard'
 import EventRemindersCard from './EventRemindersCard'
 import EventDescription from './EventDescription'
 
+import { tx, LANG, LOCALE } from '../../i18n'
 // "הקהילה של מימו" — user-facing community events. Two views:
 // רשימה (monthly-grouped cards + month chips) and יומן (month calendar
 // grid with prev/next navigation). One-tap register/cancel through
@@ -20,7 +21,11 @@ import EventDescription from './EventDescription'
 // up, and on a full one it counted the room. Registrants are now an
 // admin-only view (EventsAdminPanel + the vendor check-in page).
 
-const MONTHS_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
+// Spanish interface: the locale's own month names (the short Hebrew keys
+// מרץ/מאי/יוני/יולי are taken by the home card's abbreviations).
+const MONTHS_HE = LANG === 'he'
+  ? ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
+  : Array.from({ length: 12 }, (_, i) => new Date(2026, i, 15).toLocaleDateString(LOCALE, { month: 'long' }))
 
 function monthKey(dateStr: string): string {
   const [y, m] = dateStr.split('-').map(Number)
@@ -29,7 +34,7 @@ function monthKey(dateStr: string): string {
 
 function dayLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00')
-  const weekday = d.toLocaleDateString('he-IL', { weekday: 'long' })
+  const weekday = d.toLocaleDateString(LOCALE, { weekday: 'long' })
   const [, m, dd] = dateStr.split('-')
   return `${weekday} · ${dd}/${m}`
 }
@@ -66,10 +71,10 @@ function rememberPaymentIntent(eventId: string) {
 
 type InterestReason = 'day' | 'time' | 'full' | 'other'
 const INTEREST_LABELS: Record<InterestReason, string> = {
-  day: 'היום לא מתאים',
-  time: 'השעה לא מתאימה',
-  full: 'אין מקום',
-  other: 'אחר',
+  day: tx('היום לא מתאים'),
+  time: tx('השעה לא מתאימה'),
+  full: tx('אין מקום'),
+  other: tx('אחר'),
 }
 
 export default function EventsTab() {
@@ -144,18 +149,18 @@ export default function EventsTab() {
     const { error } = await supabase.from('event_interest')
       .upsert({ event_id: ev.id, user_id: user.id, reason }, { onConflict: 'event_id,user_id' })
     setBusyId(null)
-    if (error) { showToast('שגיאה. נסי שוב'); return }
+    if (error) { showToast(tx('שגיאה. נסי שוב')); return }
     track('event_interest', { event_id: ev.id, title: ev.title, reason })
     setInterest(prev => ({ ...prev, [ev.id]: reason }))
     setInterestOpen(prev => ({ ...prev, [ev.id]: false }))
-    showToast('רשמנו. נעדכן אותך בפעם הבאה 🤍')
+    showToast(tx('רשמנו. נעדכן אותך בפעם הבאה 🤍'))
   }
 
   async function clearInterest(ev: CommunityEventRow) {
     setBusyId(ev.id)
     const { error } = await supabase.from('event_interest').delete().eq('event_id', ev.id)
     setBusyId(null)
-    if (error) { showToast('שגיאה. נסי שוב'); return }
+    if (error) { showToast(tx('שגיאה. נסי שוב')); return }
     setInterest(prev => { const n = { ...prev }; delete n[ev.id]; return n })
   }
 
@@ -167,11 +172,13 @@ export default function EventsTab() {
       return (
         <div className="mt-2 flex items-center justify-between gap-2 rounded-2xl px-3 py-2" style={{ background: '#FAF7F1' }}>
           <p className="text-[12px] font-semibold" style={{ color: '#6E5836' }}>
-            רשמנו שתשמחי בפעם הבאה ({INTEREST_LABELS[mine]}) 🤍
+            
+            {tx('רשמנו שתשמחי בפעם הבאה (')}{INTEREST_LABELS[mine]}) 🤍
           </p>
           <button onClick={() => clearInterest(ev)} disabled={busyId === ev.id}
             className="text-[12px] font-bold text-sand-400 whitespace-nowrap disabled:opacity-40">
-            ביטול
+            
+            {tx('ביטול')}
           </button>
         </div>
       )
@@ -183,13 +190,14 @@ export default function EventsTab() {
           className="mt-2 w-full text-center text-[12px] font-semibold underline decoration-dotted underline-offset-4"
           style={{ color: '#8C7D6B' }}
         >
-          לא מסתדר לי הפעם, אבל אשמח בפעם הבאה
+          
+          {tx('לא מסתדר לי הפעם, אבל אשמח בפעם הבאה')}
         </button>
       )
     }
     return (
       <div className="mt-2 rounded-2xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
-        <p className="text-[13px] font-bold" style={{ color: '#5E4938' }}>מה לא מסתדר הפעם?</p>
+        <p className="text-[13px] font-bold" style={{ color: '#5E4938' }}>{tx('מה לא מסתדר הפעם?')}</p>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(INTEREST_LABELS) as InterestReason[]).map(r => (
             <button key={r} onClick={() => saveInterest(ev, r)} disabled={busyId === ev.id}
@@ -201,7 +209,8 @@ export default function EventsTab() {
         </div>
         <button onClick={() => setInterestOpen(prev => ({ ...prev, [ev.id]: false }))}
           className="text-[12px] font-semibold text-sand-400">
-          בעצם לא
+          
+          {tx('בעצם לא')}
         </button>
       </div>
     )
@@ -355,12 +364,12 @@ export default function EventsTab() {
       p_guest_names: guests,
     })
     setBusyId(null)
-    if (error) { payTab?.close(); showToast('שגיאה. נסי שוב'); return }
+    if (error) { payTab?.close(); showToast(tx('שגיאה. נסי שוב')); return }
     if (data === 'full') {
       // With guests this is usually "not enough room for all of you"
       // rather than "the event filled up", so say which one it is.
       payTab?.close()
-      showToast(guests.length > 0 ? 'אין מספיק מקומות לכולכן 😢' : 'האירוע התמלא בדיוק עכשיו 😢')
+      showToast(guests.length > 0 ? tx('אין מספיק מקומות לכולכן 😢') : tx('האירוע התמלא בדיוק עכשיו 😢'))
       load()
       return
     }
@@ -377,10 +386,10 @@ export default function EventsTab() {
       else if (link) window.open(link, '_blank', 'noopener')
       else payTab?.close()
       showToast(link
-        ? 'המקום שמור לך ל-10 דקות. משלימות תשלום ואת בפנים 🤎'
+        ? tx('המקום שמור לך ל-10 דקות. משלימות תשלום ואת בפנים 🤎')
         // No Morning link on the event. Silently holding a seat she cannot
         // pay for reads as a broken app; say so and point at WhatsApp.
-        : 'המקום שמור לך. אין כאן קישור תשלום, כתבי לנו ונסדר את זה 🤎')
+        : tx('המקום שמור לך. אין כאן קישור תשלום, כתבי לנו ונסדר את זה 🤎'))
       setGuestDrafts(prev => { const n = { ...prev }; delete n[ev.id]; return n })
       setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
       load()
@@ -391,7 +400,7 @@ export default function EventsTab() {
       // it. Both used to fall off the end of this function: no toast, no
       // reload, and an about:blank tab left open.
       payTab?.close()
-      showToast(data === 'unauthorized' ? 'צריך להתחבר מחדש' : 'האירוע כבר לא זמין')
+      showToast(data === 'unauthorized' ? tx('צריך להתחבר מחדש') : tx('האירוע כבר לא זמין'))
       load()
       return
     }
@@ -407,9 +416,9 @@ export default function EventsTab() {
       // checkout a second time.
       const seats = guests.length + 1
       showToast(
-        data === 'already' ? 'את כבר רשומה לאירוע 🤎'
-        : seats > 1 ? 'נתראה שם, שתיכן! 🤎'
-        : 'נתראה שם! 🤎',
+        data === 'already' ? tx('את כבר רשומה לאירוע 🤎')
+        : seats > 1 ? tx('נתראה שם, שתיכן! 🤎')
+        : tx('נתראה שם! 🤎'),
       )
       setGuestDrafts(prev => { const n = { ...prev }; delete n[ev.id]; return n })
       setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
@@ -447,14 +456,14 @@ export default function EventsTab() {
       p_guest_names: names,
     })
     setBusyId(null)
-    if (error) { payTab?.close(); showToast('שגיאה. נסי שוב'); return }
+    if (error) { payTab?.close(); showToast(tx('שגיאה. נסי שוב')); return }
     if (data !== 'pending') {
       payTab?.close()
       showToast(
-        data === 'full' ? 'אין מספיק מקומות פנויים 😢'
-        : data === 'too_many' ? 'אפשר עד 3 מקומות נוספים'
-        : data === 'not_registered' ? 'קודם משלימות את התשלום על ההרשמה שלך'
-        : 'שגיאה. נסי שוב',
+        data === 'full' ? tx('אין מספיק מקומות פנויים 😢')
+        : data === 'too_many' ? tx('אפשר עד 3 מקומות נוספים')
+        : data === 'not_registered' ? tx('קודם משלימות את התשלום על ההרשמה שלך')
+        : tx('שגיאה. נסי שוב'),
       )
       load()
       return
@@ -467,8 +476,8 @@ export default function EventsTab() {
     else if (link) window.open(link, '_blank', 'noopener')
     else payTab?.close()
     showToast(link
-      ? 'המקום הנוסף שמור ל-10 דקות. משלימות תשלום וזהו 🤎'
-      : 'המקום הנוסף שמור. אין כאן קישור תשלום, כתבי לנו ונסדר את זה 🤎')
+      ? tx('המקום הנוסף שמור ל-10 דקות. משלימות תשלום וזהו 🤎')
+      : tx('המקום הנוסף שמור. אין כאן קישור תשלום, כתבי לנו ונסדר את זה 🤎'))
     clearExtra(ev.id)
     load()
   }
@@ -477,8 +486,8 @@ export default function EventsTab() {
     setBusyId(ev.id)
     const { error } = await supabase.rpc('cancel_extra_event_seat', { p_event_id: ev.id })
     setBusyId(null)
-    if (error) { showToast('שגיאה. נסי שוב'); return }
-    showToast('הכרטיס הנוסף בוטל. ההרשמה שלך לא נגעה')
+    if (error) { showToast(tx('שגיאה. נסי שוב')); return }
+    showToast(tx('הכרטיס הנוסף בוטל. ההרשמה שלך לא נגעה'))
     load()
   }
 
@@ -493,11 +502,11 @@ export default function EventsTab() {
       p_guest_names: names,
     })
     setBusyId(null)
-    if (error) { showToast('שגיאה. נסי שוב'); return }
-    if (data === 'insufficient') { showToast('אין לך זיכוי שמכסה את הכרטיס הנוסף'); loadCredit(); return }
-    if (data === 'full') { showToast('אין מספיק מקומות פנויים 😢'); load(); return }
-    if (data !== 'redeemed') { showToast('שגיאה. נסי שוב'); return }
-    showToast('שילמנו עם הזיכוי שלך. נתראה שם, שתיכן! 🤎')
+    if (error) { showToast(tx('שגיאה. נסי שוב')); return }
+    if (data === 'insufficient') { showToast(tx('אין לך זיכוי שמכסה את הכרטיס הנוסף')); loadCredit(); return }
+    if (data === 'full') { showToast(tx('אין מספיק מקומות פנויים 😢')); load(); return }
+    if (data !== 'redeemed') { showToast(tx('שגיאה. נסי שוב')); return }
+    showToast(tx('שילמנו עם הזיכוי שלך. נתראה שם, שתיכן! 🤎'))
     clearExtra(ev.id)
     loadCredit()
     load()
@@ -515,12 +524,12 @@ export default function EventsTab() {
       p_guest_names: cleanGuests(ev),
     })
     setBusyId(null)
-    if (error) { showToast('שגיאה. נסי שוב'); return }
-    if (data === 'insufficient') { showToast('אין לך זיכוי שמכסה את האירוע הזה'); loadCredit(); return }
-    if (data === 'full') { showToast('האירוע התמלא בדיוק עכשיו 😢'); load(); return }
-    if (data === 'already') { showToast('את כבר רשומה לאירוע 🤎'); load(); return }
-    if (data !== 'redeemed') { showToast('שגיאה. נסי שוב'); return }
-    showToast('שילמנו עם הזיכוי שלך. נתראה שם! 🤎')
+    if (error) { showToast(tx('שגיאה. נסי שוב')); return }
+    if (data === 'insufficient') { showToast(tx('אין לך זיכוי שמכסה את האירוע הזה')); loadCredit(); return }
+    if (data === 'full') { showToast(tx('האירוע התמלא בדיוק עכשיו 😢')); load(); return }
+    if (data === 'already') { showToast(tx('את כבר רשומה לאירוע 🤎')); load(); return }
+    if (data !== 'redeemed') { showToast(tx('שגיאה. נסי שוב')); return }
+    showToast(tx('שילמנו עם הזיכוי שלך. נתראה שם! 🤎'))
     setGuestDrafts(prev => { const n = { ...prev }; delete n[ev.id]; return n })
     setGuestOpen(prev => ({ ...prev, [ev.id]: false }))
     loadCredit()
@@ -532,13 +541,13 @@ export default function EventsTab() {
     const { data, error } = await supabase.rpc('cancel_event_registration', { p_event_id: ev.id })
     setBusyId(null)
     setCancelling(null)
-    if (error) { showToast('שגיאה. נסי שוב'); return }
+    if (error) { showToast(tx('שגיאה. נסי שוב')); return }
     showToast(
       data === 'cancelled_with_credit'
-        ? 'ההרשמה בוטלה. הכסף שמור לך כזיכוי באפליקציה לחודש הקרוב 🤎'
+        ? tx('ההרשמה בוטלה. הכסף שמור לך כזיכוי באפליקציה לחודש הקרוב 🤎')
         : data === 'cancelled_too_late'
-          ? 'ההרשמה בוטלה. הביטול מאוחר מדי לזיכוי'
-          : 'ההרשמה בוטלה. המקום התפנה למישהי אחרת',
+          ? tx('ההרשמה בוטלה. הביטול מאוחר מדי לזיכוי')
+          : tx('ההרשמה בוטלה. המקום התפנה למישהי אחרת'),
     )
     loadCredit()
     load()
@@ -548,11 +557,11 @@ export default function EventsTab() {
     setBusyId(ev.id)
     const { data, error } = await supabase.rpc('join_event_waitlist', { p_event_id: ev.id })
     setBusyId(null)
-    if (error) { showToast('שגיאה. נסי שוב'); return }
-    if (data === 'not_full') { showToast('התפנה מקום! אפשר להירשם 🤎'); load(); return }
-    if (data === 'already_registered') { showToast('את כבר רשומה לאירוע 🤎'); load(); return }
+    if (error) { showToast(tx('שגיאה. נסי שוב')); return }
+    if (data === 'not_full') { showToast(tx('התפנה מקום! אפשר להירשם 🤎')); load(); return }
+    if (data === 'already_registered') { showToast(tx('את כבר רשומה לאירוע 🤎')); load(); return }
     if (data === 'ok') {
-      showToast('נכנסת לרשימת ההמתנה. נעדכן אותך אם יתפנה מקום 🤍')
+      showToast(tx('נכנסת לרשימת ההמתנה. נעדכן אותך אם יתפנה מקום 🤍'))
       load()
     }
   }
@@ -561,7 +570,7 @@ export default function EventsTab() {
     setBusyId(ev.id)
     await supabase.rpc('leave_event_waitlist', { p_event_id: ev.id })
     setBusyId(null)
-    showToast('ירדת מרשימת ההמתנה')
+    showToast(tx('ירדת מרשימת ההמתנה'))
     load()
   }
 
@@ -595,17 +604,19 @@ export default function EventsTab() {
             className="mb-2 text-[12px] font-semibold px-1 transition-colors hover:brightness-95"
             style={{ color: '#9C8A74' }}
           >
-            + מגיעה עם עוד מישהו/י
+            
+            {tx('+ מגיעה עם עוד מישהו/י')}
           </button>
         )
       }
       return (
         <button
           onClick={() => setGuestOpen(prev => ({ ...prev, [ev.id]: true }))}
-          className="mb-2 text-[12px] font-semibold px-1 text-right transition-colors hover:brightness-95"
+          className="mb-2 text-[12px] font-semibold px-1 text-start transition-colors hover:brightness-95"
           style={{ color: '#9C8A74' }}
         >
-          מגיעה עם {list.join(', ')} · לשינוי
+          
+          {tx('מגיעה עם')}{' '}{list.join(', ')} {' '}{tx('· לשינוי')}
         </button>
       )
     }
@@ -617,7 +628,7 @@ export default function EventsTab() {
             <input
               value={g}
               onChange={e => setGuests(ev.id, list.map((v, j) => (j === i ? e.target.value : v)))}
-              placeholder="השם של מי שמגיע/ה איתך"
+              placeholder={tx('השם של מי שמגיע/ה איתך')}
               maxLength={40}
               className="flex-1 px-3 py-2 rounded-2xl text-[13px] font-semibold outline-none"
               style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#4A3A28' }}
@@ -630,7 +641,7 @@ export default function EventsTab() {
               }}
               className="p-2 rounded-2xl"
               style={{ background: '#F4EDE1', color: '#8A7A63' }}
-              title="הסרה"
+              title={tx('הסרה')}
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -643,13 +654,15 @@ export default function EventsTab() {
               className="text-[12px] font-semibold"
               style={{ color: '#9C8A74' }}
             >
-              + עוד אחד/ת
+              
+              {tx('+ עוד אחד/ת')}
             </button>
           ) : <span />}
         </div>
         {ev.price > 0 && seats > 1 && !paymentIsExact(ev, seats) && (
           <p className="text-[13px] font-semibold leading-snug" style={{ color: '#8C6E63' }}>
-            קישור התשלום הוא לאחת, אז צריך לעבור בו {seats} פעמים, סה״כ ₪{ev.price * seats}.
+            
+            {tx('קישור התשלום הוא לאחת, אז צריך לעבור בו')}{' '}{seats} {' '}{tx('פעמים, סה״כ ₪')}{ev.price * seats}.
           </p>
         )}
         {saveLabel && (
@@ -659,7 +672,7 @@ export default function EventsTab() {
             className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
             style={{ background: '#818267', color: '#FFFFFF' }}
           >
-            {busyId === ev.id ? 'רגע...' : hasBlankGuest(ev) ? 'צריך למלא את השם' : saveLabel}
+            {busyId === ev.id ? tx('רגע...') : hasBlankGuest(ev) ? tx('צריך למלא את השם') : saveLabel}
           </button>
         )}
       </div>
@@ -687,7 +700,8 @@ export default function EventsTab() {
       return (
         <div className="mt-2 rounded-2xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
           <p className="text-[13px] font-bold" style={{ color: '#A35C3D' }}>
-            הכרטיס הנוסף ל{pending.join(', ')} מחכה לתשלום
+            
+            {tx('הכרטיס הנוסף ל')}{pending.join(', ')} {' '}{tx('מחכה לתשלום')}
           </p>
           <div className="flex gap-2">
             {link && (
@@ -699,7 +713,7 @@ export default function EventsTab() {
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] transition-all hover:brightness-95"
                 style={{ background: '#E7C78A' }}
               >
-                <ExternalLink className="w-4 h-4" /> להשלמת התשלום · ₪{total}
+                <ExternalLink className="w-4 h-4" /> {' '}{tx('להשלמת התשלום · ₪')}{total}
               </a>
             )}
             <button
@@ -707,7 +721,8 @@ export default function EventsTab() {
               disabled={busyId === ev.id}
               className={`px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-bold disabled:opacity-40 whitespace-nowrap ${link ? '' : 'flex-1'}`}
             >
-              ביטול הכרטיס הנוסף
+              
+              {tx('ביטול הכרטיס הנוסף')}
             </button>
           </div>
           {credit && (
@@ -717,10 +732,12 @@ export default function EventsTab() {
               className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
               style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
             >
-              או לשלם עם הזיכוי שלי (₪{Number(credit.amount)})
+              
+              {tx('או לשלם עם הזיכוי שלי (₪')}{Number(credit.amount)})
               {creditChange(credit, total) > 0 && (
                 <span className="block text-[12px] font-semibold opacity-80">
-                  יישאר לך ₪{creditChange(credit, total)} לפעם הבאה
+                  
+                  {tx('יישאר לך ₪')}{creditChange(credit, total)} {' '}{tx('לפעם הבאה')}
                 </span>
               )}
             </button>
@@ -742,7 +759,8 @@ export default function EventsTab() {
           className="mt-2 text-[12px] font-semibold px-1 transition-colors hover:brightness-95"
           style={{ color: '#9C8A74' }}
         >
-          + רכישת כרטיס נוסף (₪{ev.price})
+          
+          {tx('+ רכישת כרטיס נוסף (₪')}{ev.price})
         </button>
       )
     }
@@ -755,14 +773,15 @@ export default function EventsTab() {
     return (
       <div className="mt-2 rounded-2xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
         <p className="text-[12px] font-semibold" style={{ color: '#8C6E63' }}>
-          מי עוד מגיע/ה איתך?
+          
+          {tx('מי עוד מגיע/ה איתך?')}
         </p>
         {list.map((g, i) => (
           <div key={i} className="flex items-center gap-1.5">
             <input
               value={g}
               onChange={e => setExtra(ev.id, list.map((v, j) => (j === i ? e.target.value : v)))}
-              placeholder="השם של מי שמגיע/ה איתך"
+              placeholder={tx('השם של מי שמגיע/ה איתך')}
               maxLength={40}
               className="flex-1 px-3 py-2 rounded-2xl text-[13px] font-semibold outline-none"
               style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#4A3A28' }}
@@ -775,7 +794,7 @@ export default function EventsTab() {
               }}
               className="p-2 rounded-2xl"
               style={{ background: '#F4EDE1', color: '#8A7A63' }}
-              title="הסרה"
+              title={tx('הסרה')}
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -787,7 +806,8 @@ export default function EventsTab() {
             className="text-[12px] font-semibold"
             style={{ color: '#9C8A74' }}
           >
-            + עוד אחד/ת
+            
+            {tx('+ עוד אחד/ת')}
           </button>
         )}
         {/* Morning links carry a fixed amount, so more than one extra
@@ -795,7 +815,8 @@ export default function EventsTab() {
             before she pays, not after. */}
         {clean.length > 1 && !paymentIsExact(ev, clean.length) && (
           <p className="text-[13px] font-semibold leading-snug" style={{ color: '#8C6E63' }}>
-            קישור התשלום הוא לכרטיס אחד, אז צריך לעבור בו {clean.length} פעמים, סה״כ ₪{total}.
+            
+            {tx('קישור התשלום הוא לכרטיס אחד, אז צריך לעבור בו')}{' '}{clean.length} {' '}{tx('פעמים, סה״כ ₪')}{total}.
           </p>
         )}
         <button
@@ -804,7 +825,7 @@ export default function EventsTab() {
           className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
           style={{ background: '#818267', color: '#FFFFFF' }}
         >
-          {busyId === ev.id ? 'רגע...' : blank ? 'צריך למלא את השם' : `לרכישת כרטיס נוסף · ₪${total}`}
+          {busyId === ev.id ? tx('רגע...') : blank ? tx('צריך למלא את השם') : tx('לרכישת כרטיס נוסף · ₪{total}', { total })}
         </button>
         {credit && (
           <button
@@ -813,10 +834,12 @@ export default function EventsTab() {
             className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
             style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
           >
-            או לשלם עם הזיכוי שלי (₪{Number(credit.amount)})
+            
+            {tx('או לשלם עם הזיכוי שלי (₪')}{Number(credit.amount)})
             {creditChange(credit, total) > 0 && (
               <span className="block text-[12px] font-semibold opacity-80">
-                יישאר לך ₪{creditChange(credit, total)} לפעם הבאה
+                
+                {tx('יישאר לך ₪')}{creditChange(credit, total)} {' '}{tx('לפעם הבאה')}
               </span>
             )}
           </button>
@@ -826,7 +849,8 @@ export default function EventsTab() {
           className="w-full text-[12px] font-semibold"
           style={{ color: '#9C8A74' }}
         >
-          לא עכשיו
+          
+          {tx('לא עכשיו')}
         </button>
       </div>
     )
@@ -868,7 +892,7 @@ export default function EventsTab() {
     // room, so without this the card would tell her the event is full.
     const myOffer = onWaitlist?.offer_expires_at ?? null
     const offerUntil = myOffer
-      ? new Date(myOffer).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+      ? new Date(myOffer).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' })
       : null
     const expanded = expandedId === ev.id
 
@@ -891,7 +915,7 @@ export default function EventsTab() {
                   style={ev.price > 0
                     ? { background: '#FBEBE7', color: '#C1392C' }
                     : { background: '#F4EDE1', color: '#818267' }}>
-                  {ev.price > 0 ? `₪${ev.price}` : 'חינם'}
+                  {ev.price > 0 ? `₪${ev.price}` : tx('חינם')}
                 </span>
               </div>
               <p className="text-xs text-sand-500 mt-1 flex items-center gap-1 flex-wrap">
@@ -910,7 +934,7 @@ export default function EventsTab() {
                 </p>
               )}
               {ev.vendor_name && (
-                <p className="text-xs text-sand-600 mt-0.5">בהנחיית {ev.vendor_name}</p>
+                <p className="text-xs text-sand-600 mt-0.5">{tx('בהנחיית')}{' '}{ev.vendor_name}</p>
               )}
 
               {/* Scarcity only. Brenda 17.8.26: drop the head count and the
@@ -920,11 +944,11 @@ export default function EventsTab() {
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 {spotsLeft != null && !isFull && spotsLeft <= 3 && (
                   <span className="text-[13px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: '#A35C3D' }}>
-                    {spotsLeft === 1 ? 'מקום אחרון!' : `נותרו ${spotsLeft} מקומות`}
+                    {spotsLeft === 1 ? tx('מקום אחרון!') : tx('נותרו {spotsLeft} מקומות', { spotsLeft })}
                   </span>
                 )}
                 {isFull && !isMine && (
-                  <span className="text-[13px] font-bold text-sand-500 px-2 py-0.5 rounded-full bg-[#F4EDE1]">האירוע מלא</span>
+                  <span className="text-[13px] font-bold text-sand-500 px-2 py-0.5 rounded-full bg-[#F4EDE1]">{tx('האירוע מלא')}</span>
                 )}
               </div>
             </div>
@@ -943,14 +967,14 @@ export default function EventsTab() {
                   <a href={ev.location_link} target="_blank" rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-600">
-                    <ExternalLink className="w-3 h-3" /> ניווט למיקום
+                    <ExternalLink className="w-3 h-3" /> {' '}{tx('ניווט למיקום')}
                   </a>
                 )}
                 {ev.vendor_instagram && (
                   <a href={ev.vendor_instagram} target="_blank" rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-600">
-                    <Instagram className="w-3 h-3" /> {ev.vendor_name ? `${ev.vendor_name} באינסטגרם` : 'לאינסטגרם של המנחה'}
+                    <Instagram className="w-3 h-3" /> {ev.vendor_name ? tx('{vendor_name} באינסטגרם', { vendor_name: ev.vendor_name }) : tx('לאינסטגרם של המנחה')}
                   </a>
                 )}
               </div>
@@ -964,8 +988,8 @@ export default function EventsTab() {
             <div className="space-y-2">
               <p className="text-center text-[13px] font-bold" style={{ color: '#A35C3D' }}>
                 {ev.my_payment_claimed_at
-                  ? 'קיבלנו! מאשרות את התשלום ושומרות לך את המקום 🤎'
-                  : 'להשלמת ההרשמה אנא השלימי את התשלום.'}
+                  ? tx('קיבלנו! מאשרות את התשלום ושומרות לך את המקום 🤎')
+                  : tx('להשלמת ההרשמה אנא השלימי את התשלום.')}
               </p>
               <div className="flex gap-2">
                 {!ev.my_payment_claimed_at && (
@@ -977,7 +1001,7 @@ export default function EventsTab() {
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] transition-all hover:brightness-95"
                     style={{ background: '#E7C78A' }}
                   >
-                    <ExternalLink className="w-4 h-4" /> להשלמת התשלום
+                    <ExternalLink className="w-4 h-4" /> {' '}{tx('להשלמת התשלום')}
                   </a>
                 )}
                 <button
@@ -985,7 +1009,8 @@ export default function EventsTab() {
                   disabled={busyId === ev.id}
                   className={`px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-bold disabled:opacity-40 whitespace-nowrap ${ev.my_payment_claimed_at ? 'flex-1' : ''}`}
                 >
-                  לביטול הרשמה
+                  
+                  {tx('לביטול הרשמה')}
                 </button>
               </div>
               {/* BUG 3: a mother mid-payment could not switch to a credit —
@@ -1001,10 +1026,12 @@ export default function EventsTab() {
                     className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
                     style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
                   >
-                    או לשלם עם הזיכוי שלי (₪{Number(credit.amount)})
+                    
+                    {tx('או לשלם עם הזיכוי שלי (₪')}{Number(credit.amount)})
                     {creditChange(credit, ev.price * ((ev.my_guests?.length ?? 0) + 1)) > 0 && (
                       <span className="block text-[12px] font-semibold opacity-80">
-                        יישאר לך ₪{creditChange(credit, ev.price * ((ev.my_guests?.length ?? 0) + 1))} לפעם הבאה
+                        
+                        {tx('יישאר לך ₪')}{creditChange(credit, ev.price * ((ev.my_guests?.length ?? 0) + 1))} {' '}{tx('לפעם הבאה')}
                       </span>
                     )}
                   </button>
@@ -1027,16 +1054,17 @@ export default function EventsTab() {
                 onClick={() => setTicketEvent(ev)}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white transition-all hover:brightness-95"
                 style={{ background: '#818267' }}
-                title="הצגת כרטיס הכניסה"
+                title={tx('הצגת כרטיס הכניסה')}
               >
-                <Check className="w-4 h-4" /> רשומה · הכרטיס שלי
+                <Check className="w-4 h-4" /> {' '}{tx('רשומה · הכרטיס שלי')}
               </button>
               <button
                 onClick={() => setCancelling(cur => cur === ev.id ? null : ev.id)}
                 disabled={busyId === ev.id}
                 className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-bold disabled:opacity-40 whitespace-nowrap"
               >
-                לביטול הרשמה
+                
+                {tx('לביטול הרשמה')}
               </button>
               </div>
               {/* Brenda 17.8.26: no "send someone in my place" — cancelling
@@ -1044,18 +1072,19 @@ export default function EventsTab() {
               {cancelling === ev.id && (
                 <div className="mt-2 rounded-2xl p-3 space-y-2" style={{ background: '#FAF7F1' }}>
                   <p className="text-[13px] font-bold" style={{ color: '#5E4938' }}>
-                    לא מסתדר לך להגיע?
+                    
+                    {tx('לא מסתדר לך להגיע?')}
                   </p>
                   {ev.price > 0 && ev.my_paid && (
                     creditStillDue(ev) ? (
                       <p className="text-[12px] leading-relaxed" style={{ color: '#8C6E63' }}>
-                        הסכום ששילמת יישמר לך כזיכוי <b>באפליקציה</b> לחודש הקרוב, לשימוש באירוע קהילה
-                        אחר באותו מחיר או פחות.
+                        
+                        {tx('הסכום ששילמת יישמר לך כזיכוי')}{' '}<b>{tx('באפליקציה')}</b> {' '}{tx('לחודש הקרוב, לשימוש באירוע קהילה אחר באותו מחיר או פחות.')}
                       </p>
                     ) : (
                       <p className="text-[12px] leading-relaxed font-semibold" style={{ color: '#A35C3D' }}>
-                        הזיכוי ניתן עד {creditHours} שעות לפני האירוע, והמועד עבר. אפשר לבטל,
-                        אבל הפעם בלי זיכוי.
+                        
+                        {tx('הזיכוי ניתן עד')}{' '}{creditHours} {' '}{tx('שעות לפני האירוע, והמועד עבר. אפשר לבטל, אבל הפעם בלי זיכוי.')}
                       </p>
                     )
                   )}
@@ -1065,7 +1094,7 @@ export default function EventsTab() {
                     className="w-full py-2 rounded-2xl text-[13px] font-bold disabled:opacity-40"
                     style={{ background: '#FFFFFF', border: '1.5px solid #E4DACB', color: '#8C6E63' }}
                   >
-                    {ev.price > 0 && ev.my_paid && creditStillDue(ev) ? 'ביטול וקבלת זיכוי' : 'ביטול ההרשמה'}
+                    {ev.price > 0 && ev.my_paid && creditStillDue(ev) ? tx('ביטול וקבלת זיכוי') : tx('ביטול ההרשמה')}
                   </button>
                 </div>
               )}
@@ -1085,13 +1114,14 @@ export default function EventsTab() {
               <>
               <div className="flex gap-2">
                 <div className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold" style={{ background: '#F4EDE1', color: '#6E5836' }}>
-                  ⏳ ברשימת ההמתנה (מקום {onWaitlist.my_position})
+                  
+                  {tx('⏳ ברשימת ההמתנה (מקום')}{' '}{onWaitlist.my_position})
                 </div>
                 <button
                   onClick={() => leaveWaitlist(ev)}
                   disabled={busyId === ev.id}
                   className="px-3 py-2.5 rounded-2xl bg-[#F4EDE1] text-sand-600 text-xs font-semibold disabled:opacity-40"
-                  title="ירידה מרשימת ההמתנה"
+                  title={tx('ירידה מרשימת ההמתנה')}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1106,7 +1136,7 @@ export default function EventsTab() {
                 className="w-full py-2.5 rounded-2xl text-sm font-bold disabled:opacity-40 transition-all"
                 style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
               >
-                {busyId === ev.id ? 'רגע...' : 'האירוע מלא. שמרי לי מקום בהמתנה 🤍'}
+                {busyId === ev.id ? tx('רגע...') : tx('האירוע מלא. שמרי לי מקום בהמתנה 🤍')}
               </button>
               {interestBlock(ev)}
               </>
@@ -1117,8 +1147,8 @@ export default function EventsTab() {
               {onWaitlist && (
                 <p className="text-center text-[13px] font-bold mb-2" style={{ color: '#A35C3D' }}>
                   {offerUntil
-                    ? `🎉 התפנה מקום והוא שמור לך עד ${offerUntil}`
-                    : '🎉 התפנה מקום! מהרי להירשם'}
+                    ? tx('🎉 התפנה מקום והוא שמור לך עד {offerUntil}', { offerUntil })
+                    : tx('🎉 התפנה מקום! מהרי להירשם')}
                 </p>
               )}
               {guestEditor(ev, null)}
@@ -1128,8 +1158,8 @@ export default function EventsTab() {
                 className="w-full py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-40 transition-all"
                 style={{ background: '#E7C78A' }}
               >
-                {busyId === ev.id ? 'רגע...' : hasBlankGuest(ev) ? 'צריך למלא את השם'
-                  : cleanGuests(ev).length + 1 > 1 ? 'אנחנו מגיעות!' : 'אני מגיעה!'}
+                {busyId === ev.id ? tx('רגע...') : hasBlankGuest(ev) ? tx('צריך למלא את השם')
+                  : cleanGuests(ev).length + 1 > 1 ? tx('אנחנו מגיעות!') : tx('אני מגיעה!')}
               </button>
               {(() => {
                 // One credit covers one event, same price or less. If none
@@ -1148,10 +1178,12 @@ export default function EventsTab() {
                     className="mt-2 w-full py-2.5 rounded-2xl text-sm font-bold disabled:opacity-40 transition-all"
                     style={{ background: '#FFFFFF', border: '2px solid #E7C78A', color: '#8A6A2F' }}
                   >
-                    לשימוש בזיכוי שלי (₪{Number(credit.amount)})
+                    
+                    {tx('לשימוש בזיכוי שלי (₪')}{Number(credit.amount)})
                     {change > 0 && (
                       <span className="block text-[12px] font-semibold opacity-80">
-                        יישאר לך ₪{change} לפעם הבאה
+                        
+                        {tx('יישאר לך ₪')}{change} {' '}{tx('לפעם הבאה')}
                       </span>
                     )}
                   </button>
@@ -1167,7 +1199,7 @@ export default function EventsTab() {
           {isMine && ev.price > 0 && !ev.my_paid && paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1) && (
             <a href={paymentLinkFor(ev, (ev.my_guests?.length ?? 0) + 1)!} target="_blank" rel="noopener noreferrer"
               className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-2xl text-xs font-bold text-mustard-700 bg-[#F4EDE1]">
-              <ExternalLink className="w-3.5 h-3.5" /> להשלמת התשלום
+              <ExternalLink className="w-3.5 h-3.5" /> {' '}{tx('להשלמת התשלום')}
             </a>
           )}
         </div>
@@ -1191,8 +1223,8 @@ export default function EventsTab() {
     return (
       <div className="bg-white rounded-3xl p-8 text-center shadow-sm space-y-3 animate-rise">
         <div className="flex justify-center"><MimoLeafPair size={72} /></div>
-        <p className="font-semibold text-sand-700 text-sm">אירועי הקהילה הבאים בדרך 🎉</p>
-        <p className="text-xs text-sand-600">ברגע שנפרסם את לוח האירועים החודשי, הוא יופיע כאן</p>
+        <p className="font-semibold text-sand-700 text-sm">{tx('אירועי הקהילה הבאים בדרך 🎉')}</p>
+        <p className="text-xs text-sand-600">{tx('ברגע שנפרסם את לוח האירועים החודשי, הוא יופיע כאן')}</p>
       </div>
     )
   }
@@ -1223,12 +1255,12 @@ export default function EventsTab() {
           all when push is unsupported or already on. */}
       {justRegistered && (
         <div className="rounded-3xl p-4 space-y-2.5 animate-rise" style={{ background: '#FFFFFF', border: '1px solid #E7C78A' }}>
-          <p className="font-bold text-sm" style={{ color: '#6E5836' }}>נרשמת, מחכות לך 🤎</p>
+          <p className="font-bold text-sm" style={{ color: '#6E5836' }}>{tx('נרשמת, מחכות לך 🤎')}</p>
           <EventRemindersCard />
         </div>
       )}
       {toast && (
-        <div className="fixed top-5 right-1/2 translate-x-1/2 z-50 bg-sand-800 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-xl">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-sand-800 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-xl">
           {toast}
         </div>
       )}
@@ -1242,7 +1274,7 @@ export default function EventsTab() {
             const now = new Date()
             const mk = `${MONTHS_HE[now.getMonth()]} ${now.getFullYear()}`
             const n = events.filter(ev => monthKey(ev.event_date) === mk).length
-            return n > 0 ? 'האירועים הקרובים' : 'האירועים הקרובים'
+            return n > 0 ? tx('האירועים הקרובים') : tx('האירועים הקרובים')
           })()}
         </p>
         <div className="flex flex-none" style={{ background: '#F0EBE3', borderRadius: 12, padding: 3 }}>
@@ -1250,7 +1282,7 @@ export default function EventsTab() {
             <button
               key={v}
               onClick={() => setView(v)}
-              aria-label={v === 'list' ? 'רשימה' : 'יומן'}
+              aria-label={v === 'list' ? tx('רשימה') : tx('יומן')}
               style={view === v
                 ? { background: '#FFF', color: '#4A3A28', borderRadius: 9, padding: '7px 10px', boxShadow: '0 1px 2px rgba(0,0,0,.06)' }
                 : { color: '#7B604C', padding: '7px 10px' }}
@@ -1273,7 +1305,7 @@ export default function EventsTab() {
                   className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all ${monthFilter === k ? 'text-[#4A3A28] shadow-sm' : 'bg-[#F4EDE1] text-sand-500'}`}
                   style={monthFilter === k ? { background: '#E7C78A' } : {}}
                 >
-                  {k ?? 'הכל'}
+                  {k ?? tx('הכל')}
                 </button>
               ))}
             </div>
@@ -1281,15 +1313,16 @@ export default function EventsTab() {
 
           {upcoming.length === 0 && (
             <div className="bg-white rounded-3xl p-6 text-center shadow-sm space-y-2">
-              <p className="font-semibold text-sand-700 text-sm">אירועי הקהילה הבאים בדרך 🎉</p>
-              <p className="text-xs text-sand-600">ברגע שנפרסם את לוח האירועים החודשי, הוא יופיע כאן</p>
+              <p className="font-semibold text-sand-700 text-sm">{tx('אירועי הקהילה הבאים בדרך 🎉')}</p>
+              <p className="text-xs text-sand-600">{tx('ברגע שנפרסם את לוח האירועים החודשי, הוא יופיע כאן')}</p>
             </div>
           )}
           {visibleGroups.map(group => (
             <div key={group.key} className="space-y-3">
               <h2 className="text-sm font-bold text-sand-500 flex items-center gap-1.5">
                 <CalendarHeart className="w-4 h-4 text-mustard-500" />
-                אירועי {group.key}
+                
+                {tx('אירועי')}{' '}{group.key}
               </h2>
               {group.items.map(ev => eventCard(ev))}
             </div>
@@ -1303,7 +1336,7 @@ export default function EventsTab() {
                 className="w-full flex items-center gap-1.5 text-sm font-bold text-sand-500 bg-white/70 rounded-2xl px-3 py-2.5"
               >
                 <CalendarHeart className="w-4 h-4 text-sand-400" />
-                <span className="flex-1 text-right">מה כבר היה ({past.length})</span>
+                <span className="flex-1 text-start">{tx('מה כבר היה (')}{past.length})</span>
                 <ChevronDown className={`w-4 h-4 text-sand-400 transition-transform ${pastOpen ? 'rotate-180' : ''}`} />
               </button>
               {pastOpen && (pastAll ? past : past.slice(0, 6)).map(ev => pastCard(ev))}
@@ -1313,7 +1346,8 @@ export default function EventsTab() {
                   onClick={() => setPastAll(true)}
                   className="w-full text-center text-xs font-bold text-sand-500 py-1"
                 >
-                  ועוד {past.length - 6}
+                  
+                  {tx('ועוד')}{' '}{past.length - 6}
                 </button>
               )}
             </div>
@@ -1323,18 +1357,18 @@ export default function EventsTab() {
         /* ── יומן — month calendar grid ── */
         <div className="space-y-3">
           <div className="flex items-center justify-between bg-white rounded-2xl px-3 py-2 shadow-sm">
-            <button onClick={() => calMove(-1)} className="p-1.5 rounded-xl text-sand-600 hover:bg-[#EFE6D6] transition-colors" title="חודש קודם">
-              <ChevronRight className="w-4 h-4" />
+            <button onClick={() => calMove(-1)} className="p-1.5 rounded-xl text-sand-600 hover:bg-[#EFE6D6] transition-colors" title={tx('חודש קודם')}>
+              <ChevronRight className="flip-dir w-4 h-4" />
             </button>
             <p className="text-sm font-bold text-sand-800">{MONTHS_HE[calYm.m - 1]} {calYm.y}</p>
-            <button onClick={() => calMove(1)} className="p-1.5 rounded-xl text-sand-600 hover:bg-[#EFE6D6] transition-colors" title="חודש הבא">
-              <ChevronLeft className="w-4 h-4" />
+            <button onClick={() => calMove(1)} className="p-1.5 rounded-xl text-sand-600 hover:bg-[#EFE6D6] transition-colors" title={tx('חודש הבא')}>
+              <ChevronLeft className="flip-dir w-4 h-4" />
             </button>
           </div>
 
           <div className="bg-white rounded-3xl p-3 shadow-sm">
             <div className="grid grid-cols-7 gap-1 mb-1">
-              {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(d => (
+              {[tx('א'), tx('ב'), tx('ג'), tx('ד'), tx('ה'), tx('ו'), tx('ש')].map(d => (
                 <div key={d} className="text-center text-[13px] font-bold text-sand-600 py-1">{d}</div>
               ))}
             </div>
@@ -1379,7 +1413,7 @@ export default function EventsTab() {
 
           {calSelected
             ? (calSelected.event_date < todayIso ? pastCard(calSelected) : eventCard(calSelected))
-            : <p className="text-center text-xs text-sand-600">לחצי על אירוע ביומן כדי לראות פרטים ולהירשם 👆</p>}
+            : <p className="text-center text-xs text-sand-600">{tx('לחצי על אירוע ביומן כדי לראות פרטים ולהירשם 👆')}</p>}
         </div>
       )}
 

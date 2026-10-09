@@ -8,6 +8,7 @@ import {
   SIGNUP_CONSENT_SUMMARY,
 } from '../constants/legal'
 
+import { tx, DIR } from '../i18n'
 // The consent, enforced where it cannot be walked around.
 //
 // Brenda 18.8.26: "if I sign up with Google it doesn't ask me to tick 'I
@@ -76,7 +77,7 @@ export default function ConsentGate() {
       }
       setDone(true)
     } catch {
-      setError('לא הצלחנו לשמור. נסי שוב')
+      setError(tx('לא הצלחנו לשמור. נסי שוב'))
       setSaving(false)
     }
   }
@@ -105,7 +106,7 @@ export default function ConsentGate() {
     <div
       className="min-h-screen flex flex-col items-center justify-center p-6"
       style={{ background: '#F8F4EC' }}
-      dir="rtl"
+      dir={DIR}
     >
       <div className="w-full max-w-sm space-y-5">
         <div className="text-center">
@@ -113,7 +114,8 @@ export default function ConsentGate() {
             <MimoLogo size={120} />
           </div>
           <h1 className="font-brand" style={{ fontSize: 30, lineHeight: 1.15, fontWeight: 400, color: '#A35C3D' }}>
-            עוד רגע ואנחנו בפנים
+            
+            {tx('עוד רגע ואנחנו בפנים')}
           </h1>
         </div>
 
@@ -130,10 +132,11 @@ export default function ConsentGate() {
               className="w-4 h-4 mt-0.5 rounded accent-mustard-500 flex-shrink-0"
             />
             <span className="text-sm leading-snug" style={{ color: '#5A4B3C' }}>
-              קראתי ואני מאשרת את{' '}
-              <a href="/?legal=terms" target="_blank" rel="noopener noreferrer" className="font-bold underline" style={{ color: '#A35C3D' }}>תנאי השימוש</a>
-              {' '}ואת{' '}
-              <a href="/?legal=privacy" target="_blank" rel="noopener noreferrer" className="font-bold underline" style={{ color: '#A35C3D' }}>מדיניות הפרטיות</a>
+              
+              {tx('קראתי ואני מאשרת את')}{' '}
+              <a href="/?legal=terms" target="_blank" rel="noopener noreferrer" className="font-bold underline" style={{ color: '#A35C3D' }}>{tx('תנאי השימוש')}</a>
+              {' '}{tx('ואת')}{' '}
+              <a href="/?legal=privacy" target="_blank" rel="noopener noreferrer" className="font-bold underline" style={{ color: '#A35C3D' }}>{tx('מדיניות הפרטיות')}</a>
             </span>
           </label>
 
@@ -157,13 +160,14 @@ export default function ConsentGate() {
             className="w-full font-bold py-4 rounded-2xl transition-all disabled:opacity-40"
             style={{ background: '#E7C78A', color: '#4A3A28' }}
           >
-            {saving ? '...' : 'ממשיכות'}
+            {saving ? '...' : tx('ממשיכות')}
           </button>
         </div>
 
         <p className="text-center text-xs" style={{ color: '#9C8A74' }}>
-          לא מסכימה?{' '}
-          <button onClick={signOut} className="underline font-semibold">יציאה</button>
+          
+          {tx('לא מסכימה?')}{' '}
+          <button onClick={signOut} className="underline font-semibold">{tx('יציאה')}</button>
         </p>
       </div>
     </div>

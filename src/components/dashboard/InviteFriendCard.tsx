@@ -13,6 +13,7 @@ import { getSettings } from '../../lib/settings'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTracker } from '../../hooks/useTracker'
 
+import { tx, DIR } from '../../i18n'
 export default function InviteFriendCard() {
   const { profile } = useAuth()
   const { track } = useTracker()
@@ -32,8 +33,8 @@ export default function InviteFriendCard() {
   if (!enabled || !code) return null
 
   const link = `${window.location.origin}/?ref=${code}`
-  const text = `היי! אני משתמשת במימו, אפליקציה לאמהות עם יומן לתינוק, סדנאות וקהילה ברמת גן 🤍\n` +
-    `הרשמי דרך הלינק שלי ושימי אותה במסך הבית, ושתינו נקבל ₪${amount} לאירועי הקהילה:\n${link}`
+  const text = tx('היי! אני משתמשת במימו, אפליקציה לאמהות עם יומן לתינוק, סדנאות וקהילה ברמת גן 🤍\n') +
+    tx('הרשמי דרך הלינק שלי ושימי אותה במסך הבית, ושתינו נקבל ₪{amount} לאירועי הקהילה:\n{link}', { amount, link })
 
   async function share() {
     track('referral_share', { via: 'button' })
@@ -51,11 +52,12 @@ export default function InviteFriendCard() {
   }
 
   return (
-    <div className="rounded-3xl p-4 space-y-3" style={{ background: '#EADBDD' }} dir="rtl">
+    <div className="rounded-3xl p-4 space-y-3" style={{ background: '#EADBDD' }} dir={DIR}>
       <div>
-        <p className="font-bold" style={{ fontSize: 15, color: '#5E4938' }}>חברה מביאה חברה 🤍</p>
+        <p className="font-bold" style={{ fontSize: 15, color: '#5E4938' }}>{tx('חברה מביאה חברה 🤍')}</p>
         <p className="font-semibold mt-0.5" style={{ fontSize: 13, color: '#8C6E63', lineHeight: 1.5 }}>
-          שלחי לחברה את הלינק שלך. כשהיא נרשמת ושמה את מימו במסך הבית, שתיכן מקבלות ₪{amount} לאירועי הקהילה.
+          
+          {tx('שלחי לחברה את הלינק שלך. כשהיא נרשמת ושמה את מימו במסך הבית, שתיכן מקבלות ₪')}{amount} {' '}{tx('לאירועי הקהילה.')}
         </p>
       </div>
       {/* Brenda 12.9.26: the raw URL is not shown, a copy button instead. No em-dashes in her copy either. */}
@@ -65,7 +67,8 @@ export default function InviteFriendCard() {
         style={{ background: '#E7C78A' }}
       >
         <Share2 className="w-4 h-4" />
-        לשלוח לחברה
+        
+        {tx('לשלוח לחברה')}
       </button>
       <button
         onClick={copy}
@@ -73,7 +76,7 @@ export default function InviteFriendCard() {
         style={{ background: 'rgba(255,255,255,.6)', color: '#5E4938' }}
       >
         {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-        {copied ? 'הקישור הועתק' : 'להעתקת הקישור'}
+        {copied ? tx('הקישור הועתק') : tx('להעתקת הקישור')}
       </button>
     </div>
   )

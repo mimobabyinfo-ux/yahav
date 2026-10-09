@@ -10,6 +10,7 @@ import { Gift, X } from 'lucide-react'
 import type { MyCredit } from '../../lib/supabase'
 import type { Page } from '../../App'
 
+import { tx, LOCALE, DIR } from '../../i18n'
 const SEEN_KEY = 'mimo_credit_won_seen'
 
 export function creditWonSeen(): Set<string> {
@@ -26,10 +27,10 @@ function windowLabel(c: MyCredit): string {
   if (c.valid_event_from && c.valid_event_to) {
     const f = new Date(c.valid_event_from + 'T12:00:00')
     const t = new Date(c.valid_event_to + 'T12:00:00')
-    const m = (d: Date) => d.toLocaleDateString('he-IL', { month: 'long' })
-    return `לאירועי הקהילה של ${m(f)}${m(f) === m(t) ? '' : ' ו' + m(t)}`
+    const m = (d: Date) => d.toLocaleDateString(LOCALE, { month: 'long' })
+    return tx('לאירועי הקהילה של {v0}{v1}', { v0: m(f), v1: m(f) === m(t) ? '' : tx(' ו{month}', { month: m(t) }) })
   }
-  return `בתוקף עד ${new Date(c.expires_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`
+  return tx('בתוקף עד {v0}', { v0: new Date(c.expires_at).toLocaleDateString(LOCALE, { day: 'numeric', month: 'numeric' }) })
 }
 
 export default function CreditWonModal({ credit, onClose, onNavigate }: {
@@ -45,13 +46,13 @@ export default function CreditWonModal({ credit, onClose, onNavigate }: {
       <div
         className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
-        dir="rtl"
+        dir={DIR}
       >
         <div className="relative px-6 pt-7 pb-5 text-center" style={{ background: '#F6ECD8' }}>
           <button
             onClick={onClose}
-            className="absolute top-4 left-4 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center"
-            aria-label="סגירה"
+            className="absolute top-4 end-4 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center"
+            aria-label={tx('סגירה')}
           >
             <X className="w-4 h-4 text-sand-700" />
           </button>
@@ -59,34 +60,38 @@ export default function CreditWonModal({ credit, onClose, onNavigate }: {
             <Gift className="w-7 h-7" style={{ color: '#4A3A28' }} />
           </div>
           <h2 className="mt-3 font-bold text-lg" style={{ color: '#3D2E20' }}>
-            קיבלת ₪{Number(credit.amount)} 🤍
+            
+            {tx('קיבלת ₪')}{Number(credit.amount)} 🤍
           </h2>
           <p className="mt-1 text-sm" style={{ color: '#7B604C' }}>
             {invited
-              ? 'חברה שהזמנת שמה את מימו במסך הבית'
+              ? tx('חברה שהזמנת שמה את מימו במסך הבית')
               : referral
-                ? 'הגעת דרך חברה ושמת את מימו במסך הבית'
-                : 'מימו במסך הבית שלך, ואירוע קהילה ראשון עלינו'}
+                ? tx('הגעת דרך חברה ושמת את מימו במסך הבית')
+                : tx('מימו במסך הבית שלך, ואירוע קהילה ראשון עלינו')}
           </p>
         </div>
 
         <div className="p-6 space-y-4">
           <p className="text-sm leading-relaxed" style={{ color: '#5C4A38' }}>
-            הזיכוי כבר מחכה לך במסך הקהילה, {windowLabel(credit)}. בוחרות אירוע ולוחצות "לשימוש בזיכוי שלי".
+            
+            {tx('הזיכוי כבר מחכה לך במסך הקהילה,')}{' '}{windowLabel(credit)}{tx('. בוחרות אירוע ולוחצות "לשימוש בזיכוי שלי".')}
           </p>
           <button
             onClick={() => { onClose(); onNavigate('community') }}
             className="w-full py-3 rounded-2xl font-bold text-sm text-[#4A3A28] transition-all hover:brightness-95"
             style={{ background: '#E7C78A' }}
           >
-            לאירועי הקהילה
+            
+            {tx('לאירועי הקהילה')}
           </button>
           <button
             onClick={onClose}
             className="w-full py-2.5 rounded-2xl text-sm font-semibold"
             style={{ background: '#EFE9DF', color: '#8A7A63' }}
           >
-            אחר כך
+            
+            {tx('אחר כך')}
           </button>
         </div>
       </div>

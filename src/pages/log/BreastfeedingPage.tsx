@@ -9,6 +9,7 @@ import { formatTimeSince } from '../../utils/timeSince'
 import ActionPageLayout from './ActionPageLayout'
 import ManualEntrySheet from './ManualEntrySheet'
 
+import { tx, IS_RTL } from '../../i18n'
 function defaultManualStart(): string {
   // Breast default: 30 minutes ago per spec.
   return toLocalDatetimeInput(new Date(Date.now() - 30 * 60 * 1000))
@@ -37,7 +38,7 @@ type FeedingState = {
 }
 
 const ACCENT = '#A35C3D' // brand brown — feeding theme
-const DELETE_CONFIRM = 'לבטל את הסשן? לא תישמר רשומה.'
+const DELETE_CONFIRM = tx('לבטל את הסשן? לא תישמר רשומה.')
 
 // ── Pure helpers ────────────────────────────────────────────────────────────
 
@@ -258,7 +259,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
         })
         .select()
         .single()
-      if (error || !entry) throw error ?? new Error('שגיאה בשמירה')
+      if (error || !entry) throw error ?? new Error(tx('שגיאה בשמירה'))
 
       const { error: detErr } = await supabase.from('feeding_details').insert({
         log_entry_id: entry.id,
@@ -277,7 +278,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
       onSaved?.()
       onBack()
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'שגיאה בשמירה')
+      setSaveError(err instanceof Error ? err.message : tx('שגיאה בשמירה'))
       setSaving(false)
     }
   }
@@ -315,7 +316,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
     if (!user || mSaving) return
     const dur = manualDurations()
     if (!dur) {
-      setMError('יש להזין משך תקין (בדקות, גדול מ-0)')
+      setMError(tx('יש להזין משך תקין (בדקות, גדול מ-0)'))
       return
     }
     setMSaving(true)
@@ -324,7 +325,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
       // Never store a future entry — `max` on the input is a hint the
       // browser is free to let a keyboard walk past.
       const startDate = new Date(clampDatetimeLocalToNow(mStart))
-      if (Number.isNaN(startDate.getTime())) throw new Error('שעת התחלה לא תקינה')
+      if (Number.isNaN(startDate.getTime())) throw new Error(tx('שעת התחלה לא תקינה'))
       const totalSecs = dur.left + dur.right
       const durationMins = totalSecs >= 1 ? parseFloat((totalSecs / 60).toFixed(2)) : null
       const breastSide: 'left' | 'right' | 'both' | null =
@@ -344,7 +345,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
         })
         .select()
         .single()
-      if (error || !entry) throw error ?? new Error('שגיאה בשמירה')
+      if (error || !entry) throw error ?? new Error(tx('שגיאה בשמירה'))
 
       const { error: detErr } = await supabase.from('feeding_details').insert({
         log_entry_id: entry.id,
@@ -366,7 +367,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
       setRefetchTick(t => t + 1)
       onSaved?.()
     } catch (err) {
-      setMError(err instanceof Error ? err.message : 'שגיאה בשמירה')
+      setMError(err instanceof Error ? err.message : tx('שגיאה בשמירה'))
     } finally {
       setMSaving(false)
     }
@@ -377,8 +378,8 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
     <button
       onClick={() => setManualOpen(true)}
       className="p-2 rounded-xl hover:bg-sand-100 text-sand-600 transition-colors"
-      aria-label="הוספת רשומה ידנית"
-      title="הוספת רשומה ידנית"
+      aria-label={tx('הוספת רשומה ידנית')}
+      title={tx('הוספת רשומה ידנית')}
     >
       <Plus className="w-5 h-5" />
     </button>
@@ -386,8 +387,8 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
 
   if (loading) {
     return (
-      <ActionPageLayout title="הנקה" emoji="🤱🏼" accent={ACCENT} onBack={onBack} headerAction={headerAction}>
-        <div className="text-center text-sand-400 text-sm py-8">טוענת…</div>
+      <ActionPageLayout title={tx('הנקה')} emoji="🤱🏼" accent={ACCENT} onBack={onBack} headerAction={headerAction}>
+        <div className="text-center text-sand-400 text-sm py-8">{tx('טוענת…')}</div>
       </ActionPageLayout>
     )
   }
@@ -399,21 +400,21 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
 
   // Status label below the title
   const statusLine = (() => {
-    if (!state) return formatTimeSince(lastFeeding, 'טרם נרשמה האכלה')
-    if (state.active_side === 'left') return 'שמאל פעיל'
-    if (state.active_side === 'right') return 'ימין פעיל'
-    return hasAccumulated ? 'בהפסקה' : 'מוכן להתחלה'
+    if (!state) return formatTimeSince(lastFeeding, tx('טרם נרשמה האכלה'))
+    if (state.active_side === 'left') return tx('שמאל פעיל')
+    if (state.active_side === 'right') return tx('ימין פעיל')
+    return hasAccumulated ? tx('בהפסקה') : tx('מוכן להתחלה')
   })()
 
   const notesField = (
     <div className="mt-6 max-w-xs mx-auto">
-      <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">הערות</label>
+      <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('הערות')}</label>
       <textarea
         value={notes}
         onChange={e => setNotes(e.target.value)}
-        placeholder="כל מה שתרצי לזכור על ההאכלה הזו…"
+        placeholder={tx('כל מה שתרצי לזכור על ההאכלה הזו…')}
         rows={2}
-        className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-right"
+        className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-start"
       />
     </div>
   )
@@ -421,7 +422,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
   return (
     <>
     <ActionPageLayout
-      title="הנקה"
+      title={tx('הנקה')}
       emoji="🤱🏼"
       accent={ACCENT}
       onBack={onBack}
@@ -432,7 +433,8 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
           {state && (
             <>
               {' · '}
-              סה"כ {formatSeconds(totals.combined)}
+              
+              {tx('סה"כ')}{' '}{formatSeconds(totals.combined)}
             </>
           )}
         </span>
@@ -443,24 +445,20 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
         ) : null
       }
     >
-      {/* Per-side cards */}
+      {/* Per-side cards. The right breast's card stays on the physical
+          right in both languages (Spanish is LTR, so the DOM order flips). */}
       <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
-        <SideCard
-          side="right"
-          state={state}
-          totalSeconds={totals.right}
-          onActivate={() => setActive('right')}
-          onPause={() => setActive(null)}
-          accent={ACCENT}
-        />
-        <SideCard
-          side="left"
-          state={state}
-          totalSeconds={totals.left}
-          onActivate={() => setActive('left')}
-          onPause={() => setActive(null)}
-          accent={ACCENT}
-        />
+        {(IS_RTL ? (['right', 'left'] as const) : (['left', 'right'] as const)).map(side => (
+          <SideCard
+            key={side}
+            side={side}
+            state={state}
+            totalSeconds={totals[side]}
+            onActivate={() => setActive(side)}
+            onPause={() => setActive(null)}
+            accent={ACCENT}
+          />
+        ))}
       </div>
 
       {/* Bottom controls — show only when a session exists */}
@@ -473,13 +471,14 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
             style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}dd)` }}
           >
             <Square className="w-5 h-5 fill-current" />
-            {saving ? 'שומרת…' : 'סיים ושמור'}
+            {saving ? tx('שומרת…') : tx('סיים ושמור')}
           </button>
           <button
             onClick={handleDelete}
             className="text-xs text-sand-400 hover:text-red-500 underline underline-offset-2 transition-colors"
           >
-            ביטול וסשן
+            
+            {tx('ביטול וסשן')}
           </button>
         </div>
       )}
@@ -487,8 +486,8 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
       {/* Empty-state hint when no session yet */}
       {!isActiveSession && (
         <p className="text-center text-xs text-sand-400 mt-6 max-w-xs mx-auto">
-          לחצי על הצד שמתחילה ממנו. ניתן לעבור בין הצדדים בכל רגע. המעבר מפסיק
-          את הצד הפעיל ומפעיל את השני.
+          
+          {tx('לחצי על הצד שמתחילה ממנו. ניתן לעבור בין הצדדים בכל רגע. המעבר מפסיק את הצד הפעיל ומפעיל את השני.')}
         </p>
       )}
 
@@ -499,7 +498,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
     {/* Manual entry sheet */}
     <ManualEntrySheet
       open={manualOpen}
-      title="הוספת הנקה ידנית"
+      title={tx('הוספת הנקה ידנית')}
       onClose={() => setManualOpen(false)}
       bottom={
         <>
@@ -510,15 +509,15 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
             className="w-full font-semibold py-4 rounded-2xl text-white shadow-md transition-all disabled:opacity-50"
             style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}dd)` }}
           >
-            {mSaving ? 'שומרת…' : 'שמירה ✓'}
+            {mSaving ? tx('שומרת…') : tx('שמירה ✓')}
           </button>
         </>
       }
     >
       <div>
-        <label className="block text-xs font-semibold text-sand-600 mb-2">צד</label>
+        <label className="block text-xs font-semibold text-sand-600 mb-2">{tx('צד')}</label>
         <div className="flex gap-2">
-          {(['right', 'left', 'both'] as const).map(s => (
+          {(IS_RTL ? (['right', 'left', 'both'] as const) : (['both', 'left', 'right'] as const)).map(s => (
             <button
               key={s}
               type="button"
@@ -529,7 +528,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
                   : 'border-sand-200 text-sand-600'
               }`}
             >
-              {s === 'left' ? 'שמאל' : s === 'right' ? 'ימין' : 'שניהם'}
+              {s === 'left' ? tx('שמאל') : s === 'right' ? tx('ימין') : tx('שניהם')}
             </button>
           ))}
         </div>
@@ -537,7 +536,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
 
       {mSide !== 'both' ? (
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5">משך (דקות)</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('משך (דקות)')}</label>
           <input
             type="number"
             min="0"
@@ -551,7 +550,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
       ) : (
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="block text-xs font-semibold text-sand-600 mb-1.5">שמאל (דקות)</label>
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('שמאל (דקות)')}</label>
             <input
               type="number"
               min="0"
@@ -563,7 +562,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
             />
           </div>
           <div className="flex-1">
-            <label className="block text-xs font-semibold text-sand-600 mb-1.5">ימין (דקות)</label>
+            <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('ימין (דקות)')}</label>
             <input
               type="number"
               min="0"
@@ -578,7 +577,7 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
       )}
 
       <div>
-        <label className="block text-xs font-semibold text-sand-600 mb-1.5">התחלה</label>
+        <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('התחלה')}</label>
         <input
           type="datetime-local"
           value={mStart}
@@ -589,11 +588,11 @@ export default function BreastfeedingPage({ onBack, onSaved }: Props) {
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-sand-600 mb-1.5">הערות</label>
+        <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('הערות')}</label>
         <textarea
           value={mNotes}
           onChange={e => setMNotes(e.target.value)}
-          placeholder="הערות (אופציונלי)"
+          placeholder={tx('הערות (אופציונלי)')}
           rows={3}
           className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none"
         />
@@ -622,25 +621,25 @@ function SideCard({
 }) {
   const isActive = state?.active_side === side
   const hasTime = totalSeconds > 0
-  const label = side === 'left' ? 'שמאל' : 'ימין'
+  const label = side === 'left' ? tx('שמאל') : tx('ימין')
 
   // Button label depends on side state
   let buttonLabel: string
   let ButtonIcon: typeof Play | typeof Pause = Play
   let onClick = onActivate
   if (isActive) {
-    buttonLabel = 'הפסקה'
+    buttonLabel = tx('הפסקה')
     ButtonIcon = Pause
     onClick = onPause
   } else if (state && state.active_side && state.active_side !== side) {
     // Other side is running — this is a "switch" button
-    buttonLabel = 'עברי לכאן'
+    buttonLabel = tx('עברי לכאן')
     ButtonIcon = Play
   } else if (hasTime) {
-    buttonLabel = 'המשיכי'
+    buttonLabel = tx('המשיכי')
     ButtonIcon = Play
   } else {
-    buttonLabel = 'התחילי'
+    buttonLabel = tx('התחילי')
     ButtonIcon = Play
   }
 

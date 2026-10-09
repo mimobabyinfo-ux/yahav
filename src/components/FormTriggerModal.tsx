@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { cachedQuery } from '../lib/queryCache'
 
 import type { SurveyField as FormField } from './forms/SurveyFields'
+import { tx } from '../i18n'
 type FormRecord = {
   id: string
   title: string
@@ -126,7 +127,7 @@ export default function FormTriggerModal() {
             )}
             {!submitted && <SurveyProgress answered={answeredRequired} total={requiredTotal} done={missing.length === 0} />}
           </div>
-          <button onClick={() => setPendingForm(null)} className="p-2 rounded-full flex-shrink-0" style={{ background: SURVEY.chip, color: SURVEY.muted }} aria-label="סגירה">
+          <button onClick={() => setPendingForm(null)} className="p-2 rounded-full flex-shrink-0" style={{ background: SURVEY.chip, color: SURVEY.muted }} aria-label={tx('סגירה')}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -134,8 +135,8 @@ export default function FormTriggerModal() {
         {submitted ? (
           <div className="p-10 text-center space-y-3">
             <div className="text-6xl">🙏🏼</div>
-            <p className="font-bold" style={{ fontSize: 18, color: SURVEY.ink }}>תודה על המשוב!</p>
-            <p style={{ fontSize: 14, color: SURVEY.muted }}>ברנדה קוראת כל תשובה</p>
+            <p className="font-bold" style={{ fontSize: 18, color: SURVEY.ink }}>{tx('תודה על המשוב!')}</p>
+            <p style={{ fontSize: 14, color: SURVEY.muted }}>{tx('ברנדה קוראת כל תשובה')}</p>
           </div>
         ) : (
           <>

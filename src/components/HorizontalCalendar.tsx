@@ -1,12 +1,13 @@
 import { ChevronRight, ChevronLeft } from 'lucide-react'
 import { formatDate, getWeekDates } from '../utils/dateUtils'
 
+import { tx } from '../i18n'
 type Props = {
   selectedDate: string
   onSelect: (date: string) => void
 }
 
-const DAYS_HE = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']
+const DAYS_HE = [tx('א'), tx('ב'), tx('ג'), tx('ד'), tx('ה'), tx('ו'), tx('ש')]
 
 export default function HorizontalCalendar({ selectedDate, onSelect }: Props) {
   const center = new Date(selectedDate + 'T00:00:00')
@@ -25,7 +26,7 @@ export default function HorizontalCalendar({ selectedDate, onSelect }: Props) {
         onClick={() => shift(-7)}
         className="p-1.5 rounded-xl hover:bg-sand-100 text-sand-600 hover:text-sand-700 transition-colors"
       >
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight className="flip-dir w-4 h-4" />
       </button>
 
       <div className="flex gap-1 flex-1 justify-between">
@@ -63,7 +64,7 @@ export default function HorizontalCalendar({ selectedDate, onSelect }: Props) {
         onClick={() => shift(7)}
         className="p-1.5 rounded-xl hover:bg-sand-100 text-sand-600 hover:text-sand-700 transition-colors"
       >
-        <ChevronLeft className="w-4 h-4" />
+        <ChevronLeft className="flip-dir w-4 h-4" />
       </button>
     </div>
   )

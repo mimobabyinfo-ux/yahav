@@ -6,6 +6,7 @@ import SolidSummary from './summary/SolidSummary'
 import DiaperSummary from './summary/DiaperSummary'
 import JournalHeader from './JournalHeader'
 
+import { tx } from '../../i18n'
 // Phase 3 / C6: סיכום tab. Two-level navigation — category sub-nav
 // (sleep / feeding / solids / diapers) + time-range strip (7 / 14 / 30
 // days / 90 days / year). One primary chart + sub-stats per category;
@@ -15,18 +16,18 @@ import JournalHeader from './JournalHeader'
 type SubTab = 'sleep' | 'feeding' | 'solid' | 'diaper'
 
 const SUB_TABS: { id: SubTab; label: string }[] = [
-  { id: 'sleep',   label: 'שינה' },
-  { id: 'feeding', label: 'האכלה' },
-  { id: 'solid',   label: 'מוצקים' },
-  { id: 'diaper',  label: 'חיתולים' },
+  { id: 'sleep',   label: tx('שינה') },
+  { id: 'feeding', label: tx('האכלה') },
+  { id: 'solid',   label: tx('מוצקים') },
+  { id: 'diaper',  label: tx('חיתולים') },
 ]
 
 const RANGES: { id: SummaryRange; label: string }[] = [
-  { id: '7d',  label: '7 ימים' },
-  { id: '14d', label: '14 ימים' },
-  { id: '30d', label: '30 ימים' },
-  { id: '90d', label: '90 ימים' },
-  { id: '1y',  label: 'שנה' },
+  { id: '7d',  label: tx('7 ימים') },
+  { id: '14d', label: tx('14 ימים') },
+  { id: '30d', label: tx('30 ימים') },
+  { id: '90d', label: tx('90 ימים') },
+  { id: '1y',  label: tx('שנה') },
 ]
 
 type Props = {
@@ -46,18 +47,18 @@ export default function SummaryView({ refetchKey, onNavigateToDay, onOpenViews }
   // Used by per-tab empty states so the message references the
   // selected range explicitly.
   const rangeLabel =
-    range === '7d'  ? '7 הימים האחרונים'  :
-    range === '14d' ? '14 הימים האחרונים' :
-    range === '30d' ? '30 הימים האחרונים' :
-    range === '90d' ? '90 הימים האחרונים' :
-    'שנה האחרונה'
+    range === '7d'  ? tx('7 הימים האחרונים')  :
+    range === '14d' ? tx('14 הימים האחרונים') :
+    range === '30d' ? tx('30 הימים האחרונים') :
+    range === '90d' ? tx('90 הימים האחרונים') :
+    tx('שנה האחרונה')
 
   return (
     <div className="space-y-3">
       {/* Same header as every other view. Nothing to step through here,
           so it is the label alone — but it is still the way back. */}
       <JournalHeader onOpenViews={onOpenViews}>
-        <span className="font-semibold" style={{ fontSize: 17, color: '#443327' }}>סיכום</span>
+        <span className="font-semibold" style={{ fontSize: 17, color: '#443327' }}>{tx('סיכום')}</span>
       </JournalHeader>
 
       {/* Sub-nav — mustard pill on active. */}

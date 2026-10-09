@@ -2,6 +2,7 @@ import type { DailyLogEntryWithDetails, FeedingDetail, SleepDetail } from '../..
 import { formatDate } from '../../utils/dateUtils'
 import { ENTRY_COLORS } from '../DailyTimeline'
 
+import { tx, IS_RTL } from '../../i18n'
 // 7-day Gantt-style chart: one column per day, time-of-day on the Y axis
 // (00:00 top → 24:00 bottom). Duration events render as solid blocks
 // positioned + sized by entry_time + duration_minutes. Instant events
@@ -25,7 +26,7 @@ const MINS_PER_DAY = 1440
 const GRID_HOURS = [6, 12, 18]
 
 // Hebrew weekday letters, Sunday-start (matches Q9).
-const DAY_LABELS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']
+const DAY_LABELS = [tx('א'), tx('ב'), tx('ג'), tx('ד'), tx('ה'), tx('ו'), tx('ש')]
 
 type Props = {
   /** All entries whose entry_date is in [weekStart-1, weekStart+6]. The
@@ -202,7 +203,8 @@ export default function WeekTimelineChart({ entries, weekStart, onDayClick }: Pr
   // time flows right-to-left through the week). Reverse a render-only copy
   // so segment building (which keyed off the chronological order) stays
   // unaffected.
-  const daysRtl = [...days].reverse()
+  // Spanish (LTR): Sunday on the left, the way the week reads there.
+  const daysRtl = IS_RTL ? [...days].reverse() : days
 
   return (
     <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] overflow-hidden">

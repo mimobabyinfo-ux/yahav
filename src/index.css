@@ -9,6 +9,10 @@
 html {
   direction: rtl;
 }
+/* Spanish interface (9.10.26): main.tsx sets <html dir="ltr">. */
+html[dir="ltr"] {
+  direction: ltr;
+}
 
 body {
   margin: 0;
@@ -257,3 +261,15 @@ select.mimo-select {
   animation: shimmer 1.4s ease-in-out infinite;
   border-radius: 1rem;
 }
+
+/* Direction-aware arrows (9.10.26). The app was drawn right-to-left, so
+   a "forward" chevron points left. In the Spanish (LTR) interface those
+   icons are mirrored instead of swapped one by one. */
+html[dir="ltr"] .flip-dir { transform: scaleX(-1); }
+
+/* Spanish (LTR) interface showing Hebrew content (9.10.26). Tips, age
+   guide, workshop and event titles come from the database in Hebrew.
+   `plaintext` lets each paragraph take its direction from its own first
+   letter, so a Hebrew paragraph reads and aligns right-to-left inside an
+   LTR screen, and Spanish text is unaffected. Hebrew interface: no-op. */
+html[dir="ltr"] :is(p, h1, h2, h3, h4, li, label, textarea) { unicode-bidi: plaintext; }

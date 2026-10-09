@@ -8,6 +8,7 @@ import { MILESTONE_CHIPS } from '../constants/milestones'
 import { sleepTypeFromStartTime } from '../utils/sleepTypeFromTime'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
 
+import { tx, DIR } from '../i18n'
 // PostgREST returns 1:1 detail joins as arrays at runtime. Match the
 // firstOf pattern used by DashboardPanel + DailyTimeline.
 function firstOf<T>(v: T[] | T | null | undefined): T | null {
@@ -66,13 +67,13 @@ type Props = {
 }
 
 const TYPE_LABELS: Record<EntryType, string> = {
-  feeding: 'האכלה',
-  sleep: 'שינה',
-  diaper: 'חיתול',
-  tummy_time: 'זמן בטן',
-  milestone: 'אבן דרך',
-  doctor_visit: 'ביקור רופא',
-  note: 'הערה',
+  feeding: tx('האכלה'),
+  sleep: tx('שינה'),
+  diaper: tx('חיתול'),
+  tummy_time: tx('זמן בטן'),
+  milestone: tx('אבן דרך'),
+  doctor_visit: tx('ביקור רופא'),
+  note: tx('הערה'),
 }
 
 export default function LogEntryModal({ entryType, date, onClose, onSaved, presetFeedingType, entry }: Props) {
@@ -268,12 +269,12 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
     if (!file) return
     const isVideo = file.type.startsWith('video/')
     if (isVideo) {
-      if (file.size > 50 * 1024 * 1024) { setSaveError('הסרטון גדול מדי. מקסימום 50MB'); return }
+      if (file.size > 50 * 1024 * 1024) { setSaveError(tx('הסרטון גדול מדי. מקסימום 50MB')); return }
       setMilestoneMedia(file)
       setMilestoneMediaPreview(URL.createObjectURL(file))
       setMilestoneIsVideo(true)
     } else {
-      if (file.size > 5 * 1024 * 1024) { setSaveError('התמונה גדולה מדי. מקסימום 5MB'); return }
+      if (file.size > 5 * 1024 * 1024) { setSaveError(tx('התמונה גדולה מדי. מקסימום 5MB')); return }
       const compressed = await compressImage(file)
       setMilestoneMedia(compressed)
       setMilestoneMediaPreview(URL.createObjectURL(compressed))
@@ -292,7 +293,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
   // pattern as the dedicated action pages.
   async function handleDelete() {
     if (!entry || savingRef.current) return
-    if (!window.confirm('למחוק את הרשומה? לא ניתן לשחזר.')) return
+    if (!window.confirm(tx('למחוק את הרשומה? לא ניתן לשחזר.'))) return
     savingRef.current = true
     if (saveButtonRef.current) saveButtonRef.current.disabled = true
     setSaving(true)
@@ -306,7 +307,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
       setSaving(false)
       savingRef.current = false
       if (saveButtonRef.current) saveButtonRef.current.disabled = false
-      setSaveError(err instanceof Error ? err.message : 'שגיאה במחיקה')
+      setSaveError(err instanceof Error ? err.message : tx('שגיאה במחיקה'))
     }
   }
 
@@ -342,7 +343,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
       const chosen = { date: effectiveDate, time: time || formatTime(now) }
       const clamped = isEdit ? chosen : clampDateTimeToNow(chosen.date, chosen.time)
       if (!isEdit && (clamped.date !== chosen.date || clamped.time !== chosen.time)) {
-        setSaveError('אי אפשר לרשום ביומן תאריך או שעה שעוד לא הגיעו')
+        setSaveError(tx('אי אפשר לרשום ביומן תאריך או שעה שעוד לא הגיעו'))
         setSaving(false)
         if (saveButtonRef.current) saveButtonRef.current.disabled = false
         savingRef.current = false
@@ -454,7 +455,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
         .select()
         .single()
 
-      if (error || !created) throw error ?? new Error('שגיאה בשמירה')
+      if (error || !created) throw error ?? new Error(tx('שגיאה בשמירה'))
 
       if (effectiveEntryType === 'feeding') {
         await supabase.from('feeding_details').insert({
@@ -513,13 +514,13 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
       setSaving(false)
       savingRef.current = false
       if (saveButtonRef.current) saveButtonRef.current.disabled = false
-      const msg = err instanceof Error ? err.message : 'שגיאה בשמירה. נסי שנית'
+      const msg = err instanceof Error ? err.message : tx('שגיאה בשמירה. נסי שנית')
       setSaveError(msg)
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center pb-[72px]" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center pb-[72px]" dir={DIR}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl flex flex-col max-h-[75vh]">
         {/* Handle */}
@@ -529,7 +530,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
 
         {/* Header */}
         <div className="px-5 pb-3 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-lg font-bold text-sand-800">{isEdit ? 'עריכת' : 'הוספת'} {TYPE_LABELS[effectiveEntryType]}</h2>
+          <h2 className="text-lg font-bold text-sand-800">{isEdit ? tx('עריכת') : tx('הוספת')} {TYPE_LABELS[effectiveEntryType]}</h2>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-sand-100 text-sand-400">
             <X className="w-5 h-5" />
           </button>
@@ -542,7 +543,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
               the generic single-time input there to avoid duplication. */}
           {entryType !== 'sleep' && (
             <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1">שעה</label>
+              <label className="block text-xs font-semibold text-sand-600 mb-1">{tx('שעה')}</label>
               <input
                 type="time"
                 value={time}
@@ -560,7 +561,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                   was made via FeedingTypePicker before the modal opened. */}
               {!presetFeedingType && (
                 <div>
-                  <label className="block text-xs font-semibold text-sand-600 mb-2">סוג האכלה</label>
+                  <label className="block text-xs font-semibold text-sand-600 mb-2">{tx('סוג האכלה')}</label>
                   <div className="flex gap-2">
                     {(['breast', 'bottle', 'solid'] as const).map(t => (
                       <button
@@ -572,7 +573,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                             : 'border-sand-200 text-sand-600 hover:border-sand-300'
                         }`}
                       >
-                        {t === 'breast' ? 'הנקה' : t === 'bottle' ? 'בקבוק' : 'מוצק'}
+                        {t === 'breast' ? tx('הנקה') : t === 'bottle' ? tx('בקבוק') : tx('מוצק')}
                       </button>
                     ))}
                   </div>
@@ -580,7 +581,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
               )}
               {feedingType === 'breast' && (
                 <div>
-                  <label className="block text-xs font-semibold text-sand-600 mb-2">צד</label>
+                  <label className="block text-xs font-semibold text-sand-600 mb-2">{tx('צד')}</label>
                   <BreastfeedingQuickSwitch side={breastSide} onChange={setBreastSide} />
                 </div>
               )}
@@ -591,7 +592,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
               {feedingType === 'breast' && usesBreastPerSide && (
                 <div className="flex gap-3">
                   <div className="flex-1">
-                    <label className="block text-xs font-semibold text-sand-600 mb-1">שמאל (דקות)</label>
+                    <label className="block text-xs font-semibold text-sand-600 mb-1">{tx('שמאל (דקות)')}</label>
                     <input
                       type="number"
                       min="0"
@@ -603,7 +604,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-xs font-semibold text-sand-600 mb-1">ימין (דקות)</label>
+                    <label className="block text-xs font-semibold text-sand-600 mb-1">{tx('ימין (דקות)')}</label>
                     <input
                       type="number"
                       min="0"
@@ -618,7 +619,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
               )}
               {feedingType === 'breast' && !usesBreastPerSide && (
                 <div>
-                  <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות)</label>
+                  <label className="block text-xs font-semibold text-sand-600 mb-1">{tx('משך (דקות)')}</label>
                   <input
                     type="number"
                     min="0"
@@ -633,7 +634,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                 <>
                   <div className="flex gap-3">
                     <div className="flex-1">
-                      <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות)</label>
+                      <label className="block text-xs font-semibold text-sand-600 mb-1">{tx('משך (דקות)')}</label>
                       <input
                         type="number"
                         min="0"
@@ -644,7 +645,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="block text-xs font-semibold text-sand-600 mb-1">כמות (מ"ל)</label>
+                      <label className="block text-xs font-semibold text-sand-600 mb-1">{tx('כמות (מ"ל)')}</label>
                       <input
                         type="number"
                         min="0"
@@ -656,9 +657,9 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-sand-600 mb-2">סוג חלב</label>
+                    <label className="block text-xs font-semibold text-sand-600 mb-2">{tx('סוג חלב')}</label>
                     <div className="flex gap-2">
-                      {([['pumped', 'חלב אם שאוב'], ['formula', 'תמ"ל']] as const).map(([k, label]) => (
+                      {([['pumped', tx('חלב אם שאוב')], ['formula', tx('תמ"ל')]] as const).map(([k, label]) => (
                         <button
                           key={k}
                           type="button"
@@ -678,11 +679,11 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
               )}
               {feedingType === 'solid' && (
                 <div>
-                  <label className="block text-xs font-semibold text-sand-600 mb-1">מה התינוק אכל?</label>
+                  <label className="block text-xs font-semibold text-sand-600 mb-1">{tx('מה התינוק אכל?')}</label>
                   <textarea
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
-                    placeholder="מה התינוק אכל? למשל: אבוקדו וקרוטוס"
+                    placeholder={tx('מה התינוק אכל? למשל: אבוקדו וקרוטוס')}
                     rows={3}
                     className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none"
                   />
@@ -698,7 +699,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                   retroactively. Wraps past midnight automatically on save. */}
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs font-semibold text-sand-600 mb-1">התחלה</label>
+                  <label className="block text-xs font-semibold text-sand-600 mb-1">{tx('התחלה')}</label>
                   <input
                     type="time"
                     value={time}
@@ -708,7 +709,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-semibold text-sand-600 mb-1">סיום</label>
+                  <label className="block text-xs font-semibold text-sand-600 mb-1">{tx('סיום')}</label>
                   <input
                     type="time"
                     value={sleepEndTime}
@@ -722,24 +723,25 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                 if (mins === null) return null
                 return (
                   <p className="text-xs text-sand-500 -mt-2">
-                    משך: {mins < 60
-                      ? `${mins} דק'`
-                      : `${Math.floor(mins / 60)}ש${mins % 60 ? ` ${mins % 60}דק'` : ''}`}
+                    
+                    {tx('משך:')}{' '}{mins < 60
+                      ? tx('{mins} דק\'', { mins })
+                      : tx('{v0}ש{v1}', { v0: Math.floor(mins / 60), v1: mins % 60 ? ' ' + tx('{m}דק\'', { m: mins % 60 }) : '' })}
                   </p>
                 )
               })()}
               {/* Sleep type (nap / night) is auto-derived from the start
                   time at save — silent rule, no UI toggle. */}
               <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-1">איכות</label>
+                <label className="block text-xs font-semibold text-sand-600 mb-1">{tx('איכות')}</label>
                 <select
                   value={sleepQuality}
                   onChange={e => setSleepQuality(e.target.value as typeof sleepQuality)}
                   className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 bg-white"
                 >
-                  <option value="good">טובה</option>
-                  <option value="fair">בינונית</option>
-                  <option value="poor">גרועה</option>
+                  <option value="good">{tx('טובה')}</option>
+                  <option value="fair">{tx('בינונית')}</option>
+                  <option value="poor">{tx('גרועה')}</option>
                 </select>
               </div>
             </>
@@ -749,7 +751,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           {effectiveEntryType === 'diaper' && (
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-2">סוג חיתול</label>
+                <label className="block text-xs font-semibold text-sand-600 mb-2">{tx('סוג חיתול')}</label>
                 {/* 2x2 grid — DiaperPage uses the same layout for its 4
                     types so the 480px width stays readable. */}
                 <div className="grid grid-cols-2 gap-2">
@@ -763,7 +765,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                           : 'border-sand-200 text-sand-600'
                       }`}
                     >
-                      {t === 'wet' ? 'פיפי' : t === 'dirty' ? 'קקי' : t === 'both' ? 'שניהם' : 'יבש'}
+                      {t === 'wet' ? tx('פיפי') : t === 'dirty' ? tx('קקי') : t === 'both' ? tx('שניהם') : tx('יבש')}
                     </button>
                   ))}
                 </div>
@@ -780,10 +782,10 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                 />
                 {diaperPhotoPreview ? (
                   <div className="flex items-center gap-3">
-                    <img src={diaperPhotoPreview} alt="תצוגה מקדימה" className="w-14 h-14 rounded-xl object-cover border border-sand-200" />
+                    <img src={diaperPhotoPreview} alt={tx('תצוגה מקדימה')} className="w-14 h-14 rounded-xl object-cover border border-sand-200" />
                     <div className="flex-1">
-                      <p className="text-xs text-sand-600 font-medium">תמונה נבחרה</p>
-                      <p className="text-[10px] text-sand-400">תישמר עם הרשומה</p>
+                      <p className="text-xs text-sand-600 font-medium">{tx('תמונה נבחרה')}</p>
+                      <p className="text-[10px] text-sand-400">{tx('תישמר עם הרשומה')}</p>
                     </div>
                     <button
                       onClick={removePhoto}
@@ -798,7 +800,8 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                     className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-sand-200 rounded-2xl text-sand-500 hover:border-mustard-300 hover:text-mustard-600 transition-colors text-sm"
                   >
                     <Camera className="w-4 h-4" />
-                    הוסף תמונה (אופציונלי)
+                    
+                    {tx('הוסף תמונה (אופציונלי)')}
                   </button>
                 )}
               </div>
@@ -808,7 +811,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
           {/* Tummy time fields */}
           {effectiveEntryType === 'tummy_time' && (
             <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1">משך (דקות), אופציונלי</label>
+              <label className="block text-xs font-semibold text-sand-600 mb-1">{tx('משך (דקות), אופציונלי')}</label>
               <input
                 type="number"
                 min="0"
@@ -826,7 +829,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
             <div className="space-y-3">
               {/* Suggested milestone chips */}
               <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-2">בחרי אבן דרך</label>
+                <label className="block text-xs font-semibold text-sand-600 mb-2">{tx('בחרי אבן דרך')}</label>
                 <div className="flex flex-wrap gap-2">
                   {MILESTONE_CHIPS.map(chip => (
                     <button
@@ -859,11 +862,11 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                     {milestoneIsVideo ? (
                       <video src={milestoneMediaPreview} className="w-14 h-14 rounded-xl object-cover border border-sand-200" muted playsInline />
                     ) : (
-                      <img src={milestoneMediaPreview} alt="תצוגה מקדימה" className="w-14 h-14 rounded-xl object-cover border border-sand-200" />
+                      <img src={milestoneMediaPreview} alt={tx('תצוגה מקדימה')} className="w-14 h-14 rounded-xl object-cover border border-sand-200" />
                     )}
                     <div className="flex-1">
-                      <p className="text-xs text-sand-600 font-medium">{milestoneIsVideo ? 'סרטון נבחר' : 'תמונה נבחרה'}</p>
-                      <p className="text-[10px] text-sand-400">תישמר עם הרשומה</p>
+                      <p className="text-xs text-sand-600 font-medium">{milestoneIsVideo ? tx('סרטון נבחר') : tx('תמונה נבחרה')}</p>
+                      <p className="text-[10px] text-sand-400">{tx('תישמר עם הרשומה')}</p>
                     </div>
                     <button onClick={removeMilestoneMedia} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 className="w-4 h-4" />
@@ -876,7 +879,8 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
                     className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-sand-200 rounded-2xl text-sand-500 hover:border-mustard-300 hover:text-mustard-600 transition-colors text-sm"
                   >
                     <Camera className="w-4 h-4" />
-                    הוסיפי תמונה או סרטון (אופציונלי)
+                    
+                    {tx('הוסיפי תמונה או סרטון (אופציונלי)')}
                   </button>
                 )}
               </div>
@@ -889,15 +893,15 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
             (effectiveEntryType === 'feeding' && feedingType === 'bottle')) && (
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1">
-                {effectiveEntryType === 'note' ? 'הערה' :
-                 effectiveEntryType === 'milestone' ? 'אם בא לך לכתוב משהו' :
-                 effectiveEntryType === 'feeding' ? 'הערות (אופציונלי)' :
-                 'הערות'}
+                {effectiveEntryType === 'note' ? tx('הערה') :
+                 effectiveEntryType === 'milestone' ? tx('אם בא לך לכתוב משהו') :
+                 effectiveEntryType === 'feeding' ? tx('הערות (אופציונלי)') :
+                 tx('הערות')}
               </label>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="כתבי כאן..."
+                placeholder={tx('כתבי כאן...')}
                 rows={3}
                 className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none"
               />
@@ -917,7 +921,7 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
             disabled={saving}
             className="w-full bg-gradient-to-r from-mustard-500 to-mustard-600 hover:from-mustard-600 hover:to-mustard-700 text-white font-semibold py-4 rounded-2xl transition-all shadow-lg disabled:opacity-50"
           >
-            {saving ? 'שומרת...' : isEdit ? 'עדכון ✓' : 'שמירה ✓'}
+            {saving ? tx('שומרת...') : isEdit ? tx('עדכון ✓') : tx('שמירה ✓')}
           </button>
           {isEdit && (
             <button
@@ -925,7 +929,8 @@ export default function LogEntryModal({ entryType, date, onClose, onSaved, prese
               onClick={handleDelete}
               className="block mx-auto text-xs text-sand-400 hover:text-red-500 underline underline-offset-2 transition-colors pt-1"
             >
-              מחיקת רשומה
+              
+              {tx('מחיקת רשומה')}
             </button>
           )}
         </div>

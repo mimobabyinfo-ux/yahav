@@ -7,6 +7,7 @@ import { perkValidity, perkValidityLabel } from '../../utils/perkValidity'
 import { perkBranches, branchMapUrl, type PerkBranch } from '../../utils/perkBranches'
 import MimoLeaf from '../MimoLeaf'
 
+import { tx, DIR , LOCALE } from '../../i18n'
 // Digital membership card — shown by a mom at partner businesses to
 // claim community perks, and as an entry ticket at limited-capacity
 // community events. Verification without QR infrastructure: the card
@@ -33,7 +34,7 @@ function useLiveClock(): string {
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
-  return now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return now.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 export default function MembershipCard({ onClose, event }: Props) {
@@ -77,13 +78,13 @@ export default function MembershipCard({ onClose, event }: Props) {
     })
   }
 
-  const name = profile?.mother_name ?? 'חברת קהילה'
+  const name = profile?.mother_name ?? tx('חברת קהילה')
   const memberSince = profile?.created_at
-    ? new Date(profile.created_at).toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })
+    ? new Date(profile.created_at).toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' })
     : null
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-5" onClick={onClose} dir="rtl">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-5" onClick={onClose} dir={DIR}>
       <div className="w-full max-w-sm" onClick={e => e.stopPropagation()}>
         {/* The card itself */}
         <div
@@ -94,13 +95,13 @@ export default function MembershipCard({ onClose, event }: Props) {
             <div className="flex items-start justify-between">
               <div>
                 <p className="font-semibold" style={{ fontSize: 13, color: '#8A6A2F' }}>
-                  {event ? 'כרטיס כניסה · אירוע קהילה' : 'קהילת מימו'}
+                  {event ? tx('כרטיס כניסה · אירוע קהילה') : tx('קהילת מימו')}
                 </p>
                 <h2 className="font-display mt-1" style={{ fontSize: 26, lineHeight: 1.1, fontWeight: 400, color: '#4A3A28' }}>
                   {name}
                 </h2>
                 {!event && memberSince && (
-                  <p className="font-semibold mt-1" style={{ fontSize: 13, color: '#8A6A2F' }}>חברה מאז {memberSince}</p>
+                  <p className="font-semibold mt-1" style={{ fontSize: 13, color: '#8A6A2F' }}>{tx('חברה מאז')}{' '}{memberSince}</p>
                 )}
               </div>
               <MimoLeaf variant="sand-1" size={56} rotate={-12} className="flex-shrink-0" />
@@ -119,12 +120,13 @@ export default function MembershipCard({ onClose, event }: Props) {
                   <p className="font-semibold mt-0.5" style={{ fontSize: 14, color: '#6E5836' }}>{event.location}</p>
                 )}
                 <span className="inline-flex items-center gap-1.5 mt-3 rounded-full bg-musgo-500 text-white font-bold" style={{ fontSize: 13, padding: '5px 12px' }}>
-                  <Ticket className="w-3.5 h-3.5" /> רשומה
+                  <Ticket className="w-3.5 h-3.5" /> {' '}{tx('רשומה')}
                 </span>
               </div>
             ) : (
               <p className="mt-4 font-semibold" style={{ fontSize: 14, color: '#6E5836', lineHeight: 1.5 }}>
-                הכרטיס מקנה את הטבות הקהילה אצל בתי העסק השותפים. פשוט מראים אותו בקופה
+                
+                {tx('הכרטיס מקנה את הטבות הקהילה אצל בתי העסק השותפים. פשוט מראים אותו בקופה')}
               </p>
             )}
           </div>
@@ -132,7 +134,8 @@ export default function MembershipCard({ onClose, event }: Props) {
           {/* Live verification strip */}
           <div className="flex items-center justify-between px-6 py-3" style={{ background: 'rgba(74,58,40,0.10)' }}>
             <span className="font-semibold" style={{ fontSize: 12, color: '#6E5836' }}>
-              כרטיס חי · {new Date().toLocaleDateString('he-IL')}
+              
+              {tx('כרטיס חי ·')}{' '}{new Date().toLocaleDateString(LOCALE)}
             </span>
             <span className="font-bold tabular-nums" style={{ fontSize: 16, color: '#4A3A28', fontVariantNumeric: 'tabular-nums' }} dir="ltr">
               {clock}
@@ -144,7 +147,7 @@ export default function MembershipCard({ onClose, event }: Props) {
         {!event && livePerks.length > 0 && (
           <div className="mt-3 bg-white rounded-3xl p-4 shadow-xl max-h-[32vh] overflow-y-auto">
             <p className="font-bold mb-2 flex items-center gap-1.5" style={{ fontSize: 14, color: '#443327' }}>
-              <Gift className="w-4 h-4" style={{ color: '#A35C3D' }} /> הטבות בהצגת הכרטיס
+              <Gift className="w-4 h-4" style={{ color: '#A35C3D' }} /> {' '}{tx('הטבות בהצגת הכרטיס')}
             </p>
             <div className="space-y-2">
               {livePerks.map(({ perk: p, validity }) => {
@@ -198,7 +201,7 @@ export default function MembershipCard({ onClose, event }: Props) {
           onClick={onClose}
           className="mt-3 mx-auto flex items-center justify-center rounded-full bg-white shadow-xl"
           style={{ width: 44, height: 44 }}
-          aria-label="סגירה"
+          aria-label={tx('סגירה')}
         >
           <X className="w-5 h-5" style={{ color: '#7B604C' }} />
         </button>

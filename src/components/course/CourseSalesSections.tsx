@@ -4,6 +4,7 @@ import { supabase, Workshop } from '../../lib/supabase'
 import MimoDuck from '../MimoDuck'
 import MimoLeaf from '../MimoLeaf'
 
+import { tx } from '../../i18n'
 /**
  * The sales page for a digital course — rendered ABOVE the registration
  * form on ?register=<course id>, so the ad lands on one page that sells
@@ -114,7 +115,7 @@ export default function CourseSalesSections({ workshop, onCta }: Props) {
   const videoCount = modules.reduce((n, m) => n + m.videos, 0)
   const testimonials = lines(s.course_lp_testimonials)
   const ageLine = workshop.age_range_start_months != null && workshop.age_range_end_months != null
-    ? `מגיל לידה ועד ${workshop.age_range_end_months} חודשים`
+    ? tx('מגיל לידה ועד {age_range_end_months} חודשים', { age_range_end_months: workshop.age_range_end_months })
     : null
 
   const Cta = ({ label }: { label: string }) => (
@@ -169,13 +170,13 @@ export default function CourseSalesSections({ workshop, onCta }: Props) {
             {workshop.title}
           </p>
 
-          <Cta label={`לרכישה · ${workshop.price != null ? `${workshop.price} ₪` : 'להרשמה'} ←`} />
+          <Cta label={tx('לרכישה · {v0} ←', { v0: workshop.price != null ? `${workshop.price} ₪` : tx('להרשמה') })} />
 
           <div className="flex items-center justify-center gap-4 pt-1 flex-wrap">
             {[
-              { icon: <Sparkles className="w-3.5 h-3.5" />, t: 'גישה מיידית' },
-              { icon: <Smartphone className="w-3.5 h-3.5" />, t: 'מהטלפון' },
-              { icon: <InfinityIcon className="w-3.5 h-3.5" />, t: 'שלך לתמיד' },
+              { icon: <Sparkles className="w-3.5 h-3.5" />, t: tx('גישה מיידית') },
+              { icon: <Smartphone className="w-3.5 h-3.5" />, t: tx('מהטלפון') },
+              { icon: <InfinityIcon className="w-3.5 h-3.5" />, t: tx('שלך לתמיד') },
             ].map(x => (
               <span key={x.t} className="flex items-center gap-1 text-[11px] font-bold" style={{ color: C.moss }}>
                 {x.icon}{x.t}
@@ -202,9 +203,9 @@ export default function CourseSalesSections({ workshop, onCta }: Props) {
       {modules.length > 0 && (
         <Card>
           <div className="flex items-baseline justify-between mb-3">
-            <Title>מה יש בפנים</Title>
+            <Title>{tx('מה יש בפנים')}</Title>
             <span className="text-[11px] font-bold" style={{ color: C.clay }}>
-              {lessonCount} שיעורים · {videoCount} סרטונים
+              {lessonCount} {' '}{tx('שיעורים ·')}{' '}{videoCount} {' '}{tx('סרטונים')}
             </span>
           </div>
           <div className="space-y-1.5">
@@ -219,7 +220,7 @@ export default function CourseSalesSections({ workshop, onCta }: Props) {
                 </span>
                 <span className="text-sm font-semibold flex-1" style={{ color: '#4A3A28' }}>{m.name}</span>
                 <span className="text-[11px] flex-shrink-0" style={{ color: '#A2937D' }}>
-                  {m.videos > 0 ? `${m.videos} סרטון` : 'לקריאה'}
+                  {m.videos > 0 ? tx('{videos} סרטון', { videos: m.videos }) : tx('לקריאה')}
                 </span>
               </div>
             ))}
@@ -230,7 +231,7 @@ export default function CourseSalesSections({ workshop, onCta }: Props) {
       {/* ── Testimonials ─────────────────────────────────────────────────── */}
       {testimonials.length > 0 && (
         <Card>
-          <Title>מה אמהות מספרות</Title>
+          <Title>{tx('מה אמהות מספרות')}</Title>
           <div className="grid grid-cols-2 gap-2">
             {testimonials.slice(0, 4).map(src => (
               <img key={src} src={src} alt="" loading="lazy"
@@ -245,7 +246,7 @@ export default function CourseSalesSections({ workshop, onCta }: Props) {
         <Card className="space-y-4">
           {s.course_lp_for_you && (
             <div>
-              <h4 className="font-bold text-sm mb-2" style={{ color: C.moss }}>זה בשבילך אם</h4>
+              <h4 className="font-bold text-sm mb-2" style={{ color: C.moss }}>{tx('זה בשבילך אם')}</h4>
               <ul className="space-y-2">
                 {lines(s.course_lp_for_you).map(l => (
                   <li key={l} className="flex items-start gap-2.5 text-sm" style={{ color: '#4A3A28' }}>
@@ -261,7 +262,7 @@ export default function CourseSalesSections({ workshop, onCta }: Props) {
           )}
           {s.course_lp_not_for_you && (
             <div className="pt-1" style={{ borderTop: `1px solid ${C.beige}` }}>
-              <h4 className="font-bold text-sm mb-2 mt-3" style={{ color: '#9A6A5A' }}>זה לא בשבילך אם</h4>
+              <h4 className="font-bold text-sm mb-2 mt-3" style={{ color: '#9A6A5A' }}>{tx('זה לא בשבילך אם')}</h4>
               <ul className="space-y-2">
                 {lines(s.course_lp_not_for_you).map(l => (
                   <li key={l} className="flex items-start gap-2.5 text-sm" style={{ color: C.inkSoft }}>
@@ -285,7 +286,7 @@ export default function CourseSalesSections({ workshop, onCta }: Props) {
           <MimoDuck size={64} variant="mama"
             style={{ position: 'absolute', bottom: 8, left: 10, opacity: 0.35, pointerEvents: 'none' }} />
           <div className="relative">
-            <Title>מי מלמדת</Title>
+            <Title>{tx('מי מלמדת')}</Title>
             <p className="text-[15px] leading-loose whitespace-pre-line" style={{ color: '#4A3A28' }}>
               {s.course_lp_about}
             </p>
@@ -310,12 +311,13 @@ export default function CourseSalesSections({ workshop, onCta }: Props) {
           style={{ position: 'absolute', top: -16, right: -18, opacity: 0.4, pointerEvents: 'none' }} />
         <div className="relative space-y-3">
           <p className="font-display font-bold" style={{ fontSize: 22, color: C.ink }}>
-            {workshop.price != null ? `${workshop.price} ₪. פעם אחת. שלך לתמיד.` : 'להרשמה'}
+            {workshop.price != null ? tx('{price} ₪. פעם אחת. שלך לתמיד.', { price: workshop.price }) : tx('להרשמה')}
           </p>
           <p className="text-[13px] leading-relaxed" style={{ color: C.inkSoft }}>
-            בלי מנוי ובלי תאריך תפוגה. משאירה פרטים, משלמת, ונכנסת לקורס 🤍
+            
+            {tx('בלי מנוי ובלי תאריך תפוגה. משאירה פרטים, משלמת, ונכנסת לקורס 🤍')}
           </p>
-          <Cta label="אני רוצה את הקורס ←" />
+          <Cta label={tx('אני רוצה את הקורס ←')} />
         </div>
       </div>
     </div>

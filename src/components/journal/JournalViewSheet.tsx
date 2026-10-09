@@ -1,6 +1,7 @@
 import { CalendarDays, BarChart3, CalendarRange, Check } from 'lucide-react'
 import type { JournalTab } from './JournalTabs'
 
+import { tx, DIR } from '../../i18n'
 // The sheet behind the date. Brenda 17.8.26: "I tap the day and then I get
 // the option to see all the other views, so that screen isn't full of text
 // and clutter."
@@ -16,9 +17,9 @@ import type { JournalTab } from './JournalTabs'
 // is the only view that answers a different question.
 
 const VIEWS: { id: JournalTab; label: string; hint: string; icon: typeof CalendarDays }[] = [
-  { id: 'day',     label: 'יום',   hint: 'ציר הזמן, הפירוט והסיכום של יום אחד', icon: CalendarDays },
-  { id: 'week',    label: 'שבוע',  hint: 'ציר הזמן, הפירוט והסיכום של השבוע',   icon: CalendarRange },
-  { id: 'summary', label: 'סיכום', hint: 'ממוצעים ומגמות לאורך זמן',            icon: BarChart3 },
+  { id: 'day',     label: tx('יום'),   hint: tx('ציר הזמן, הפירוט והסיכום של יום אחד'), icon: CalendarDays },
+  { id: 'week',    label: tx('שבוע'),  hint: tx('ציר הזמן, הפירוט והסיכום של השבוע'),   icon: CalendarRange },
+  { id: 'summary', label: tx('סיכום'), hint: tx('ממוצעים ומגמות לאורך זמן'),            icon: BarChart3 },
 ]
 
 type Props = {
@@ -42,7 +43,7 @@ export default function JournalViewSheet({
       className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(94, 73, 56, 0.22)', backdropFilter: 'blur(2px)' }}
       onClick={onClose}
-      dir="rtl"
+      dir={DIR}
     >
       {/* Brenda 17.8.26, on the screenshot: "and the missing, cut-off part
           at the bottom." The sheet ended flush with the viewport and the
@@ -63,7 +64,7 @@ export default function JournalViewSheet({
               <button
                 key={v.id}
                 onClick={() => onTabChange(v.id)}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl text-right transition-colors"
+                className="w-full flex items-center gap-3 p-3 rounded-2xl text-start transition-colors"
                 style={active ? { background: '#F6ECD8' } : {}}
               >
                 <v.icon className="w-5 h-5 flex-shrink-0" style={{ color: active ? '#8A6A2F' : '#A2937D' }} />
@@ -79,7 +80,7 @@ export default function JournalViewSheet({
 
         <div className="pt-3 border-t border-[#F0EAE0]">
           <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-            {jumpsToDay ? 'מעבר ליום מסוים' : 'מעבר לתאריך'}
+            {jumpsToDay ? tx('מעבר ליום מסוים') : tx('מעבר לתאריך')}
           </label>
           <input
             type="date"

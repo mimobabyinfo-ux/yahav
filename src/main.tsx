@@ -3,6 +3,11 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './program.css'
 import App from './App.tsx'
+import { applyDocumentLang } from './i18n'
+
+// Hebrew or Spanish, decided once per load (see src/i18n). Sets <html
+// lang dir> before the first paint so nothing renders the wrong way round.
+applyDocumentLang()
 
 // ── Serving the build that was actually deployed ──────────────────────
 //

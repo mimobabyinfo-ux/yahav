@@ -4,6 +4,7 @@ import { supabase, type FamilyInviteToken, type Child } from '../../lib/supabase
 import { useAuth } from '../../contexts/AuthContext'
 import { roleDef } from '../../constants/shareRoles'
 
+import { tx } from '../../i18n'
 // Phase 4 / C1: lists every active family invite the current user
 // created, lets her revoke any of them, and surfaces the WhatsApp / copy
 // actions per row so she doesn't have to re-create an invite to resend.
@@ -12,18 +13,18 @@ import { roleDef } from '../../constants/shareRoles'
 type Row = FamilyInviteToken & { child?: Child | null }
 
 function timeAgoHe(iso: string | null): string {
-  if (!iso) return 'טרם נכנס/ה'
+  if (!iso) return tx('טרם נכנס/ה')
   const diff = Date.now() - new Date(iso).getTime()
   const min = Math.floor(diff / 60000)
-  if (min < 1) return 'הרגע'
-  if (min < 60) return `לפני ${min} דק'`
+  if (min < 1) return tx('הרגע')
+  if (min < 60) return tx('לפני {min} דק\'', { min })
   const hours = Math.floor(min / 60)
-  if (hours < 24) return `לפני ${hours} שעות`
+  if (hours < 24) return tx('לפני {hours} שעות', { hours })
   const days = Math.floor(hours / 24)
-  if (days === 1) return 'אתמול'
-  if (days < 30) return `לפני ${days} ימים`
+  if (days === 1) return tx('אתמול')
+  if (days < 30) return tx('לפני {days} ימים', { days })
   const months = Math.floor(days / 30)
-  return `לפני ${months} חודשים`
+  return tx('לפני {months} חודשים', { months })
 }
 
 export default function SharingManagementPanel() {
@@ -55,7 +56,7 @@ export default function SharingManagementPanel() {
   useEffect(() => { load() }, [load])
 
   async function revoke(id: string) {
-    if (!window.confirm('לבטל את הגישה? המקבל לא יוכל להיכנס יותר.')) return
+    if (!window.confirm(tx('לבטל את הגישה? המקבל לא יוכל להיכנס יותר.'))) return
     setRevokingId(id)
     const { error } = await supabase
       .from('family_invite_tokens')
@@ -63,7 +64,7 @@ export default function SharingManagementPanel() {
       .eq('id', id)
     setRevokingId(null)
     if (error) {
-      alert('שגיאה בביטול הגישה. נסי שנית')
+      alert(tx('שגיאה בביטול הגישה. נסי שנית'))
       return
     }
     setRows(prev => prev.filter(r => r.id !== id))
@@ -75,14 +76,14 @@ export default function SharingManagementPanel() {
 
   function resendWhatsApp(row: Row) {
     const def = roleDef(row.role)
-    const greeting = row.recipient_name?.trim() || def?.label || 'שלום'
-    const babyName = row.child?.name ?? 'התינוק'
-    const motherName = profile?.mother_name ?? 'אמא'
+    const greeting = row.recipient_name?.trim() || def?.label || tx('שלום')
+    const babyName = row.child?.name ?? tx('התינוק')
+    const motherName = profile?.mother_name ?? tx('אמא')
     const msg = [
-      `היי ${greeting}!`,
-      `${motherName} משתפת איתך את היומן של ${babyName} ב-Mimo.`,
+      tx('היי {greeting}!', { greeting }),
+      tx('{motherName} משתפת איתך את היומן של {babyName} ב-Mimo.', { motherName, babyName }),
       '',
-      'לחצי על הלינק כדי להיכנס:',
+      tx('לחצי על הלינק כדי להיכנס:'),
       joinLink(row.token),
     ].join('\n')
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
@@ -106,9 +107,11 @@ export default function SharingManagementPanel() {
   if (rows.length === 0) {
     return (
       <p className="text-xs text-sand-500 text-center py-4 leading-relaxed">
-        עדיין לא שיתפת את היומן עם בני משפחה.
+        
+        {tx('עדיין לא שיתפת את היומן עם בני משפחה.')}
         <br />
-        ניתן לשתף מהאייקון שבעמוד היומן.
+        
+        {tx('ניתן לשתף מהאייקון שבעמוד היומן.')}
       </p>
     )
   }
@@ -117,20 +120,20 @@ export default function SharingManagementPanel() {
     <ul className="space-y-2.5">
       {rows.map(row => {
         const def = roleDef(row.role)
-        const displayName = row.recipient_name?.trim() || def?.label || 'אורח'
+        const displayName = row.recipient_name?.trim() || def?.label || tx('אורח')
         return (
           <li key={row.id} className="rounded-2xl bg-white border border-sand-200 p-3 space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-sand-800 truncate">
-                  <span className="ml-1">{def?.emoji ?? '👤'}</span>
+                  <span className="me-1">{def?.emoji ?? '👤'}</span>
                   {displayName}
                   {def && row.recipient_name?.trim() && (
-                    <span className="text-xs font-normal text-sand-400 mr-1">({def.label})</span>
+                    <span className="text-xs font-normal text-sand-400 ms-1">({def.label})</span>
                   )}
                 </p>
                 <p className="text-[11px] text-sand-500 mt-0.5">
-                  {row.child?.name ? `יומן: ${row.child.name} · ` : ''}
+                  {row.child?.name ? tx('יומן: {name} · ', { name: row.child.name }) : ''}
                   {timeAgoHe(row.last_accessed_at)}
                 </p>
               </div>
@@ -138,8 +141,8 @@ export default function SharingManagementPanel() {
                 onClick={() => revoke(row.id)}
                 disabled={revokingId === row.id}
                 className="p-2 rounded-xl text-sand-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
-                aria-label="בטלי גישה"
-                title="בטלי גישה"
+                aria-label={tx('בטלי גישה')}
+                title={tx('בטלי גישה')}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -150,14 +153,15 @@ export default function SharingManagementPanel() {
                 className="flex-1 flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-[11px] font-semibold py-1.5 rounded-lg transition-all"
               >
                 <MessageCircle className="w-3 h-3" />
-                שלחי שוב
+                
+                {tx('שלחי שוב')}
               </button>
               <button
                 onClick={() => copyJoinLink(row)}
                 className="flex-1 flex items-center justify-center gap-1.5 border border-sand-200 text-sand-700 text-[11px] font-semibold py-1.5 rounded-lg transition-all hover:bg-sand-50"
               >
                 {copiedId === row.id ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                {copiedId === row.id ? 'הועתק' : 'העתק לינק'}
+                {copiedId === row.id ? tx('הועתק') : tx('העתק לינק')}
               </button>
             </div>
           </li>

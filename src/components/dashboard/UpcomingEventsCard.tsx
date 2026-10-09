@@ -5,11 +5,12 @@ import MimoLeaf from '../MimoLeaf'
 import { cachedQuery } from '../../lib/queryCache'
 import { useAuth } from '../../contexts/AuthContext'
 
+import { tx } from '../../i18n'
 // Community card for the home dashboard. Tier-2 content card: white
 // surface, soft single-elevation shadow, date blocks instead of emoji
 // squares, and two explicit footer CTAs (events / members).
 
-const MONTHS_HE = ['ינו׳', 'פבר׳', 'מרץ', 'אפר׳', 'מאי', 'יוני', 'יולי', 'אוג׳', 'ספט׳', 'אוק׳', 'נוב׳', 'דצמ׳']
+const MONTHS_HE = [tx('ינו׳'), tx('פבר׳'), tx('מרץ'), tx('אפר׳'), tx('מאי'), tx('יוני'), tx('יולי'), tx('אוג׳'), tx('ספט׳'), tx('אוק׳'), tx('נוב׳'), tx('דצמ׳')]
 
 export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const { user } = useAuth()
@@ -47,8 +48,8 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
   // "only two" on a quiet month — the invitation should not shrink with
   // the calendar.
   const subtitle = events.length > 0
-    ? 'מפגשים קרובים'
-    : 'מפגשים, הרצאות ואימונים, ביחד'
+    ? tx('מפגשים קרובים')
+    : tx('מפגשים, הרצאות ואימונים, ביחד')
 
   return (
     <div className="bg-white" style={{ borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
@@ -64,7 +65,7 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
           <MimoLeaf variant="blush" size={34} rotate={-12} />
         </span>
         <div className="min-w-0">
-          <h2 className="font-display" style={{ fontSize: 24, lineHeight: 1.05, fontWeight: 400, color: '#5E4938' }}>הקהילה של מימו</h2>
+          <h2 className="font-display" style={{ fontSize: 24, lineHeight: 1.05, fontWeight: 400, color: '#5E4938' }}>{tx('הקהילה של מימו')}</h2>
           <p className="font-semibold mt-1" style={{ fontSize: 13, color: '#957860' }}>{subtitle}</p>
         </div>
       </div>
@@ -80,8 +81,8 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
           <div className="flex items-center gap-3 rounded-2xl p-4" style={{ background: '#FAF7F1' }}>
             <MimoLeaf variant="sky-1" size={38} rotate={10} className="flex-shrink-0" />
             <div>
-              <p className="font-semibold" style={{ fontSize: 15, color: '#443327' }}>לוח האירועים הבא בדרך</p>
-              <p style={{ fontSize: 13, color: '#957860' }}>יוגה, הרצאות, קפה ביחד ועוד, ממש בקרוב</p>
+              <p className="font-semibold" style={{ fontSize: 15, color: '#443327' }}>{tx('לוח האירועים הבא בדרך')}</p>
+              <p style={{ fontSize: 13, color: '#957860' }}>{tx('יוגה, הרצאות, קפה ביחד ועוד, ממש בקרוב')}</p>
             </div>
           </div>
         ) : (
@@ -94,7 +95,7 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
               <button
                 key={ev.id}
                 onClick={openEvents}
-                className="w-full flex items-center text-right transition-shadow hover:shadow-sm"
+                className="w-full flex items-center text-start transition-shadow hover:shadow-sm"
                 style={{ padding: 12, border: '1px solid #F0EBE3', borderRadius: 18, gap: 12 }}
               >
                 {/* Date block. The rosa polvo wraps the date itself, so
@@ -112,14 +113,14 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
                 </span>
                 <span className="flex-shrink-0">
                   {isMine ? (
-                    <span className="font-bold rounded-full" style={{ fontSize: 12, padding: '5px 10px', background: '#E6E6E0', color: '#434434' }}>רשומה</span>
+                    <span className="font-bold rounded-full" style={{ fontSize: 12, padding: '5px 10px', background: '#E6E6E0', color: '#434434' }}>{tx('רשומה')}</span>
                   ) : spotsLeft != null && spotsLeft <= 3 && spotsLeft > 0 ? (
                     <span className="font-bold rounded-full" style={{ fontSize: 12, padding: '5px 10px', background: '#A35C3D', color: '#fff' }}>
-                      {spotsLeft === 1 ? 'מקום אחרון!' : `${spotsLeft} מקומות`}
+                      {spotsLeft === 1 ? tx('מקום אחרון!') : tx('{spotsLeft} מקומות', { spotsLeft })}
                     </span>
                   ) : (
                     <span className="font-bold rounded-full" style={{ fontSize: 12, padding: '5px 10px', background: '#F0EBE3', color: '#8A6A2F' }}>
-                      {ev.price > 0 ? `₪${ev.price}` : 'חינם'}
+                      {ev.price > 0 ? `₪${ev.price}` : tx('חינם')}
                     </span>
                   )}
                 </span>
@@ -139,14 +140,16 @@ export default function UpcomingEventsCard({ onNavigate }: { onNavigate: (page: 
           className="flex-1 text-center font-bold transition-all hover:bg-sand-50"
           style={{ border: '1.5px solid #DCD4C8', color: '#7B604C', borderRadius: 14, padding: '9px 12px', fontSize: 13.5 }}
         >
-          לכל האירועים
+          
+          {tx('לכל האירועים')}
         </button>
         <button
           onClick={openMembers}
           className="flex-1 text-center font-bold transition-all hover:bg-sand-50"
           style={{ border: '1.5px solid #DCD4C8', color: '#7B604C', borderRadius: 14, padding: '9px 12px', fontSize: 13.5 }}
         >
-          להכיר אמהות
+          
+          {tx('להכיר אמהות')}
         </button>
       </div>
     </div>

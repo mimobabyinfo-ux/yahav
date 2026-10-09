@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { neighborhoodsFor } from '../../data/neighborhoods'
 import { foldHebrew } from '../../utils/citySearch'
 
+import { tx } from '../../i18n'
 // Neighbourhood field, shared by onboarding and the community profile.
 //
 // Brenda 17.8.26: "there is a neighbourhood option but it doesn't let you
@@ -111,7 +112,7 @@ export default function NeighborhoodPicker({ city, value, onChange, label, class
           if (hit && hit !== value) onChange(hit)
           blurTimer.current = window.setTimeout(() => setOpen(false), 150)
         }}
-        placeholder={options.length ? 'חיפוש שכונה…' : 'שם השכונה'}
+        placeholder={options.length ? tx('חיפוש שכונה…') : tx('שם השכונה')}
         autoComplete="off"
         className={inputCls}
       />

@@ -11,6 +11,7 @@ import { signedMediaUrl } from '../utils/signedMedia'
 import WorkshopProgram from '../components/program/WorkshopProgram'
 import { loadProgram, Program } from '../lib/program'
 
+import { tx, DIR , LOCALE } from '../i18n'
 type ActiveWorkshop = PurchasedWorkshop & { workshop: Workshop | null }
 
 /**
@@ -180,7 +181,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
 
   if (!hasAccess) {
     return (
-      <div className="min-h-screen p-4 pb-24" dir="rtl">
+      <div className="min-h-screen p-4 pb-24" dir={DIR}>
         <div className="max-w-sm mx-auto space-y-5 pt-4">
           {/* הגישה לתוכן והשיוך לקבוצה הם שני דברים נפרדים במסד: התוכן חי
               ב-purchased_workshops והקבוצה ב-registration_leads. אמא שנרשמה
@@ -193,10 +194,12 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
             style={{ background: '#E7C78A' }}>
             <Lock className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-2xl font-black text-sand-800">הסדנאות נעולות</h2>
+          <h2 className="text-2xl font-black text-sand-800">{tx('הסדנאות נעולות')}</h2>
           <p className="text-sand-500 text-sm leading-relaxed">
-            הגישה לסדנאות ניתנת לאחר רכישה.<br />
-            פנייה ל{ownerName} לפתיחת גישה 🤎
+            
+            {tx('הגישה לסדנאות ניתנת לאחר רכישה.')}<br />
+            
+            {tx('פנייה ל')}{ownerName} {' '}{tx('לפתיחת גישה 🤎')}
           </p>
         </div>
       </div>
@@ -209,16 +212,16 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
   // wrong buttons for a second before the real screen appeared (Brenda 5.9.26).
   if (selected && contentLoading) {
     return (
-      <div className="min-h-screen pb-24" dir="rtl" style={{ background: '#FFFFFF' }}>
+      <div className="min-h-screen pb-24" dir={DIR} style={{ background: '#FFFFFF' }}>
         <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-sand-100 bg-white sticky top-0 z-10">
           <button onClick={() => { setSelected(null); setContent([]); setProgram(null); setPlayingId(null) }}
             className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 transition-colors">
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="flip-dir w-5 h-5" />
           </button>
           {selected.workshop?.image_url && (
             <img src={selected.workshop.image_url} alt="" className="w-9 h-9 rounded-xl object-cover" />
           )}
-          <h1 className="font-bold text-sand-800 text-base leading-tight">{selected.workshop?.title ?? 'סדנה'}</h1>
+          <h1 className="font-bold text-sand-800 text-base leading-tight">{selected.workshop?.title ?? tx('סדנה')}</h1>
         </div>
         <div className="flex justify-center py-16">
           <div className="w-7 h-7 border-2 border-mustard-300 border-t-mustard-600 rounded-full animate-spin" />
@@ -276,19 +279,19 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
     const pdfs     = content.filter(c => c.type === 'pdf')
 
     return (
-      <div className="min-h-screen pb-24" dir="rtl" style={{ background: '#FFFFFF' }}>
+      <div className="min-h-screen pb-24" dir={DIR} style={{ background: '#FFFFFF' }}>
         {/* Header */}
         <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-sand-100 bg-white sticky top-0 z-10">
           <button onClick={() => { setSelected(null); setContent([]); setProgram(null); setPlayingId(null) }}
             className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 transition-colors">
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="flip-dir w-5 h-5" />
           </button>
           {selected.workshop?.image_url && (
             <img src={selected.workshop.image_url} alt="" className="w-9 h-9 rounded-xl object-cover" />
           )}
           <div>
-            <h1 className="font-bold text-sand-800 text-base leading-tight">{selected.workshop?.title ?? 'סדנה'}</h1>
-            <p className="text-[11px] text-sand-400">{content.length} פריטים</p>
+            <h1 className="font-bold text-sand-800 text-base leading-tight">{selected.workshop?.title ?? tx('סדנה')}</h1>
+            <p className="text-[11px] text-sand-400">{content.length} {' '}{tx('פריטים')}</p>
           </div>
         </div>
 
@@ -298,27 +301,29 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
           {/* ── Message owner + Book next workshop ── */}
           <div className="grid grid-cols-2 gap-2">
             <a
-              href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי ${ownerName}! אני ${profile?.mother_name ?? ''} מסדנת "${selected.workshop?.title ?? 'הסדנה'}". רציתי לשאול...`)}`}
+              href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(tx('היי {ownerName}! אני {v1} מסדנת "{v2}". רציתי לשאול...', { ownerName, v1: profile?.mother_name ?? '', v2: selected.workshop?.title ?? 'הסדנה' }))}`}
               target="_blank" rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold"
               style={{ background: '#E8F5E9', color: '#2E7D32' }}
             >
               <MessageCircle className="w-4 h-4" />
-              שאלי את {ownerName}
+              
+              {tx('שאלי את')}{' '}{ownerName}
             </a>
             <button
               onClick={openNextModal}
               className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white"
               style={{ background: '#E7C78A' }}
             >
-              🎓 לסדנה הבאה
+              
+              {tx('🎓 לסדנה הבאה')}
             </button>
           </div>
 
           {/* ── Workshop summary (if exists) ── */}
           {selected.workshop?.summary && (
             <div className="bg-mustard-50 rounded-2xl p-4 border border-mustard-100">
-              <p className="text-xs font-bold text-mustard-700 mb-2">📝 תמצית הסדנה</p>
+              <p className="text-xs font-bold text-mustard-700 mb-2">{tx('📝 תמצית הסדנה')}</p>
               <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-line">
                 {selected.workshop?.summary}
               </p>
@@ -332,7 +337,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
           ) : content.length === 0 ? (
             <div className="text-center py-16 text-sand-400">
               <p className="text-4xl mb-3">📂</p>
-              <p className="text-sm">אין תוכן עדיין בסדנה זו</p>
+              <p className="text-sm">{tx('אין תוכן עדיין בסדנה זו')}</p>
             </div>
           ) : (
             <>
@@ -341,7 +346,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
                 <section>
                   <div className="flex items-center gap-2 mb-3">
                     <PlayCircle className="w-4 h-4 text-mustard-500" />
-                    <h2 className="font-bold text-sand-700 text-sm">סרטונים</h2>
+                    <h2 className="font-bold text-sand-700 text-sm">{tx('סרטונים')}</h2>
                     <span className="text-[10px] bg-mustard-100 text-mustard-600 px-1.5 py-0.5 rounded-md font-semibold">{videos.length}</span>
                   </div>
                   <div className="space-y-3">
@@ -376,7 +381,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
                 <section>
                   <div className="flex items-center gap-2 mb-3">
                     <BookOpen className="w-4 h-4 text-purple-500" />
-                    <h2 className="font-bold text-sand-700 text-sm">שיעורי בית</h2>
+                    <h2 className="font-bold text-sand-700 text-sm">{tx('שיעורי בית')}</h2>
                     <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-md font-semibold">{homework.length}</span>
                   </div>
                   <div className="space-y-3">
@@ -408,12 +413,12 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
                                 const done = doneKeys.has(`${item.id}:${i}`)
                                 return (
                                   <button key={i} onClick={() => toggleTask(item.id, i)}
-                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sand-50 transition-colors text-right">
+                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sand-50 transition-colors text-start">
                                     {done
                                       ? <CheckSquare className="w-4 h-4 text-purple-500 flex-shrink-0" />
                                       : <Square className="w-4 h-4 text-sand-300 flex-shrink-0" />
                                     }
-                                    <span className={`text-sm flex-1 text-right ${done ? 'line-through text-sand-300' : 'text-sand-700'}`}>{task}</span>
+                                    <span className={`text-sm flex-1 text-start ${done ? 'line-through text-sand-300' : 'text-sand-700'}`}>{task}</span>
                                   </button>
                                 )
                               })}
@@ -422,7 +427,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
                           {item.url && (
                             <div className="px-4 py-3 border-t border-sand-50">
                               <a href={item.url} target="_blank" rel="noopener noreferrer"
-                                className="text-xs text-mustard-600 font-medium">פתח קישור ←</a>
+                                className="text-xs text-mustard-600 font-medium">{tx('פתח קישור ←')}</a>
                             </div>
                           )}
                         </div>
@@ -437,7 +442,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
                 <section>
                   <div className="flex items-center gap-2 mb-3">
                     <FileText className="w-4 h-4 text-blue-500" />
-                    <h2 className="font-bold text-sand-700 text-sm">קבצים</h2>
+                    <h2 className="font-bold text-sand-700 text-sm">{tx('קבצים')}</h2>
                     <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-md font-semibold">{pdfs.length}</span>
                   </div>
                   <div className="space-y-2">
@@ -462,12 +467,12 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
 
         {/* ── Next Workshop Modal ── */}
         {showNextModal && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center" dir="rtl">
+          <div className="fixed inset-0 z-50 flex items-end justify-center" dir={DIR}>
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowNextModal(false)} />
             <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl max-h-[85vh] overflow-y-auto pb-8">
               <button
                 onClick={() => setShowNextModal(false)}
-                className="absolute top-4 left-4 p-2 rounded-xl hover:bg-sand-100 text-sand-400 z-10"
+                className="absolute top-4 end-4 p-2 rounded-xl hover:bg-sand-100 text-sand-400 z-10"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -483,7 +488,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
               <div className="p-5 space-y-4">
                 <div>
                   <h2 className="text-xl font-bold text-sand-800">
-                    {nextWorkshop ? nextWorkshop.title : 'הסדנה הבאה'}
+                    {nextWorkshop ? nextWorkshop.title : tx('הסדנה הבאה')}
                   </h2>
                   {(nextWorkshop ?? selected.workshop)?.price != null && (
                     <p className="text-mustard-600 font-bold text-lg mt-1">
@@ -500,16 +505,16 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
 
                 {nextWorkshopContent.length > 0 && (
                   <div className="bg-sand-50 rounded-2xl p-4 space-y-2">
-                    <p className="text-xs font-bold text-sand-600 mb-1">מה כלול בסדנה:</p>
+                    <p className="text-xs font-bold text-sand-600 mb-1">{tx('מה כלול בסדנה:')}</p>
                     {(() => {
                       const vids = nextWorkshopContent.filter(c => c.type === 'video').length
                       const hw   = nextWorkshopContent.filter(c => c.type === 'homework').length
                       const pdfs = nextWorkshopContent.filter(c => c.type === 'pdf').length
                       return (
                         <>
-                          {vids > 0 && <p className="text-sm text-sand-700">🎬 {vids} סרטונים</p>}
-                          {hw   > 0 && <p className="text-sm text-sand-700">📝 {hw} שיעורי בית</p>}
-                          {pdfs > 0 && <p className="text-sm text-sand-700">📄 {pdfs} קבצים</p>}
+                          {vids > 0 && <p className="text-sm text-sand-700">🎬 {vids} {' '}{tx('סרטונים')}</p>}
+                          {hw   > 0 && <p className="text-sm text-sand-700">📝 {hw} {' '}{tx('שיעורי בית')}</p>}
+                          {pdfs > 0 && <p className="text-sm text-sand-700">📄 {pdfs} {' '}{tx('קבצים')}</p>}
                         </>
                       )
                     })()}
@@ -525,18 +530,20 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
                       className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-white font-bold text-base"
                       style={{ background: '#E7C78A' }}
                     >
-                      להרשמה ותשלום ←
+                      
+                      {tx('להרשמה ותשלום ←')}
                     </a>
                   ) : null}
                   <a
-                    href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`שלום ${ownerName}, יש לי שאלה לגבי סדנת ${nextWorkshop?.title ?? selected.workshop?.title ?? 'הסדנה הבאה'}`)}`}
+                    href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(tx('שלום {ownerName}, יש לי שאלה לגבי סדנת {v1}', { ownerName, v1: nextWorkshop?.title ?? selected.workshop?.title ?? 'הסדנה הבאה' }))}`}
                     target="_blank" rel="noopener noreferrer"
                     onClick={() => track('next_workshop_question_click', { workshop_id: nextWorkshop?.id ?? selected.workshop_id })}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm"
                     style={{ background: '#E8F5E9', color: '#2E7D32' }}
                   >
                     <MessageCircle className="w-4 h-4" />
-                    יש לי שאלה
+                    
+                    {tx('יש לי שאלה')}
                   </a>
                 </div>
               </div>
@@ -549,24 +556,25 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
 
   // ── Workshop list view ─────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen p-4 pb-24" dir="rtl" style={{ background: '#FFFFFF' }}>
+    <div className="min-h-screen p-4 pb-24" dir={DIR} style={{ background: '#FFFFFF' }}>
       <div className="max-w-sm mx-auto space-y-4">
         <div className="pt-2">
-          <h1 className="text-2xl font-bold text-sand-800">סדנאות</h1>
-          <p className="text-sand-400 text-sm">תכנים מקצועיים עבורך</p>
+          <h1 className="text-2xl font-bold text-sand-800">{tx('סדנאות')}</h1>
+          <p className="text-sand-400 text-sm">{tx('תכנים מקצועיים עבורך')}</p>
         </div>
 
         {retentionWorkshop && !reminderDismissed && (
           <div className="bg-gradient-to-l from-mustard-50 to-sand-50 rounded-2xl p-4 border border-mustard-100 flex items-start gap-3">
             <span className="text-2xl flex-shrink-0">🌸</span>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-sand-800">היי! לא ראינו אותך בסדנה זמן מה</p>
+              <p className="text-sm font-bold text-sand-800">{tx('היי! לא ראינו אותך בסדנה זמן מה')}</p>
               <p className="text-xs text-sand-500 mt-0.5 leading-relaxed">
-                {retentionWorkshop.workshop?.title} מחכה לך. גם 10 דקות יכולות לשנות הרבה 🤎
+                {retentionWorkshop.workshop?.title} {' '}{tx('מחכה לך. גם 10 דקות יכולות לשנות הרבה 🤎')}
               </p>
               <button onClick={() => openWorkshop(retentionWorkshop)}
                 className="mt-2 text-xs font-bold text-mustard-700 underline underline-offset-2">
-                המשיכי לצפות ←
+                
+                {tx('המשיכי לצפות ←')}
               </button>
             </div>
             <button onClick={() => { setReminderDismissed(true); localStorage.setItem('reminder-dismissed', formatDate(new Date())) }}
@@ -581,7 +589,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
         ) : activeWorkshops.length === 0 ? (
           <div className="text-center py-16 text-sand-400">
             <p className="text-4xl mb-3">🎓</p>
-            <p className="text-sm">אין סדנאות פעילות כרגע</p>
+            <p className="text-sm">{tx('אין סדנאות פעילות כרגע')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -589,7 +597,7 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
               const w = aw.workshop
               return (
                 <button key={aw.id} onClick={() => openWorkshop(aw)}
-                  className="w-full bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all text-right">
+                  className="w-full bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all text-start">
                   {w?.image_url ? (
                     <img src={w.image_url} alt={w.title} className="w-full h-36 object-cover" />
                   ) : (
@@ -599,11 +607,12 @@ export default function ProAreaPage({ autoOpenWorkshopId = null, initialMeeting 
                     </div>
                   )}
                   <div className="p-4">
-                    <h3 className="font-bold text-sand-800">{w?.title ?? 'סדנה'}</h3>
+                    <h3 className="font-bold text-sand-800">{w?.title ?? tx('סדנה')}</h3>
                     {w?.description && <p className="text-xs text-sand-400 mt-1 line-clamp-2 leading-relaxed">{w.description}</p>}
                     {aw.access_end_date && (
                       <p className="text-[10px] text-mustard-500 font-medium mt-2">
-                        ✓ גישה פעילה עד {new Date(aw.access_end_date + 'T12:00:00').toLocaleDateString('he-IL')}
+                        
+                        {tx('✓ גישה פעילה עד')}{' '}{new Date(aw.access_end_date + 'T12:00:00').toLocaleDateString(LOCALE)}
                       </p>
                     )}
                   </div>

@@ -6,6 +6,7 @@ import {
 } from '../../hooks/useGraduateOffers'
 import type { Page } from '../../App'
 
+import { tx } from '../../i18n'
 /**
  * Yahav 19.9.26: "שיופיע באפליקציה באיזשהו אופן שיזכיר לה את ההנחה, בהתאם
  * לזמן שהיא נכנסת יופיע כמה ימים נשארו לה ... שזה יהיה לכולן".
@@ -27,8 +28,8 @@ import type { Page } from '../../App'
 
 function discountLabel(o: GraduateOffer): string {
   return o.discount_type === 'percent'
-    ? `${Number(o.discount_value)}% הנחה`
-    : `מחיר מיוחד ₪${Number(o.discount_value)}`
+    ? tx('{v0}% הנחה', { v0: Number(o.discount_value) })
+    : tx('מחיר מיוחד ₪{v0}', { v0: Number(o.discount_value) })
 }
 
 /** "ליווי התפתחותי - סדנת מגלים" is too long for one line at this size;
@@ -39,9 +40,9 @@ function shortTitle(o: GraduateOffer): string {
 
 function daysLabel(o: GraduateOffer): string {
   const days = graduateOfferDaysLeft(o)
-  if (days <= 1) return 'היום היום האחרון'
-  if (days === 2) return 'נשארו יומיים'
-  return `נשארו ${days} ימים`
+  if (days <= 1) return tx('היום היום האחרון')
+  if (days === 2) return tx('נשארו יומיים')
+  return tx('נשארו {days} ימים', { days })
 }
 
 export default function GraduateOfferStrip({ onNavigate }: { onNavigate: (page: Page) => void }) {
@@ -75,7 +76,7 @@ export default function GraduateOfferStrip({ onNavigate }: { onNavigate: (page: 
           >
             <Gift className="w-4 h-4 flex-shrink-0" style={{ color: '#B08A3C' }} />
             <p className="flex-1 min-w-0 font-semibold" style={{ fontSize: 13, lineHeight: 1.35, color: '#8A6A2F' }}>
-              {discountLabel(o)} על <span className="font-bold">{shortTitle(o)}</span>
+              {discountLabel(o)} {' '}{tx('על')}{' '}<span className="font-bold">{shortTitle(o)}</span>
               {' · '}
               <span className="font-bold" style={{ color: lastDay ? '#A35C3D' : '#8A6A2F' }}>{daysLabel(o)}</span>
             </p>
@@ -84,7 +85,8 @@ export default function GraduateOfferStrip({ onNavigate }: { onNavigate: (page: 
               className="flex-shrink-0 font-bold rounded-xl"
               style={{ background: '#E7C78A', color: '#4A3A28', fontSize: 12, padding: '7px 11px' }}
             >
-              להצעה
+              
+              {tx('להצעה')}
             </button>
           </div>
         )

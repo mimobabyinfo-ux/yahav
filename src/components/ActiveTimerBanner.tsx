@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatSeconds, timerElapsedSeconds, timerIsPaused, timersForChild } from '../hooks/useActiveTimer'
 import type { Page } from '../App'
 
+import { tx, DIR } from '../i18n'
 // Surfaces any running timer no matter which page the user is on.
 // Tapping it goes back to that timer's page to stop / save / adjust.
 //
@@ -31,9 +32,9 @@ const PAGE_FOR_TIMER: Record<string, Page | undefined> = {
 }
 
 const META: Record<string, { emoji: string; label: string }> = {
-  sleep: { emoji: '😴', label: 'שינה' },
-  feeding: { emoji: '🍼', label: 'האכלה' },
-  tummy_time: { emoji: '🤸🏼', label: 'זמן בטן' },
+  sleep: { emoji: '😴', label: tx('שינה') },
+  feeding: { emoji: '🍼', label: tx('האכלה') },
+  tummy_time: { emoji: '🤸🏼', label: tx('זמן בטן') },
 }
 
 export default function ActiveTimerBanner({ onNavigate, refetchKey = 0 }: Props) {
@@ -88,7 +89,7 @@ export default function ActiveTimerBanner({ onNavigate, refetchKey = 0 }: Props)
         bottom: 'calc(78px + env(safe-area-inset-bottom, 0px))',
         gap: 8,
       }}
-      dir="rtl"
+      dir={DIR}
     >
       {timers.map(t => {
         const meta = META[t.timer_type] ?? { emoji: '⏱️', label: t.timer_type }
@@ -100,7 +101,7 @@ export default function ActiveTimerBanner({ onNavigate, refetchKey = 0 }: Props)
             key={t.id}
             onClick={() => { if (targetPage) onNavigate(targetPage) }}
             disabled={!clickable}
-            title={paused ? `${meta.label} בהפסקה` : `${meta.label} פעיל`}
+            title={paused ? tx('{label} בהפסקה', { label: meta.label }) : tx('{label} פעיל', { label: meta.label })}
             className="flex items-center transition-all hover:brightness-95 active:scale-95"
             style={{
               gap: 7,

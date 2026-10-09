@@ -7,6 +7,7 @@ import { ENTRY_COLORS } from '../../DailyTimeline'
 import type { Bucket, Granularity } from '../../../hooks/useSummaryData'
 import { bucketKeyFor } from '../../../hooks/useSummaryData'
 
+import { tx } from '../../../i18n'
 // Sleep tab: total daily-average + nap/night sub-stats + stacked bar chart
 // of nap (60% opacity) + night (full opacity) per bucket. Tap a bar →
 // navigate to that day in DayView (for weekly buckets, navigate to the
@@ -84,8 +85,8 @@ export default function SleepSummary({ entries, buckets, granularity, dayCount, 
     return (
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-8 text-center space-y-2">
         <div className="text-4xl">😴</div>
-        <p className="text-sm font-semibold text-sand-700">אין נתוני שינה ב{rangeLabel}</p>
-        <p className="text-xs text-sand-400">החיתוך משתנה מיד אחרי שמירת רשומת שינה</p>
+        <p className="text-sm font-semibold text-sand-700">{tx('אין נתוני שינה ב')}{rangeLabel}</p>
+        <p className="text-xs text-sand-400">{tx('החיתוך משתנה מיד אחרי שמירת רשומת שינה')}</p>
       </div>
     )
   }
@@ -102,12 +103,12 @@ export default function SleepSummary({ entries, buckets, granularity, dayCount, 
     <div className="space-y-4">
       {/* BIG number + sub-stats */}
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5">
-        <p className="text-xs font-semibold text-sand-500 mb-1">ממוצע יומי</p>
+        <p className="text-xs font-semibold text-sand-500 mb-1">{tx('ממוצע יומי')}</p>
         <p className="text-2xl font-bold text-sand-800 leading-none">{formatDuration(Math.round(avgDailyMins))}</p>
         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-sand-600">
-          <span>שנת לילה: <strong>{formatDuration(Math.round(avgNightMins))}</strong></span>
+          <span>{tx('שנת לילה:')}{' '}<strong>{formatDuration(Math.round(avgNightMins))}</strong></span>
           <span className="text-sand-300">·</span>
-          <span>שנת יום: <strong>{formatDuration(Math.round(avgNapMins))}</strong></span>
+          <span>{tx('שנת יום:')}{' '}<strong>{formatDuration(Math.round(avgNapMins))}</strong></span>
         </div>
       </div>
 
@@ -140,7 +141,7 @@ export default function SleepSummary({ entries, buckets, granularity, dayCount, 
                 contentStyle={{ fontSize: 11, border: '1px solid #E5E0D2', borderRadius: 8, direction: 'rtl' }}
                 formatter={(value, name) => {
                   const v = typeof value === 'number' ? value : 0
-                  const label = name === 'night' ? 'שנת לילה' : 'שנת יום'
+                  const label = name === 'night' ? tx('שנת לילה') : tx('שנת יום')
                   return [formatDuration(Math.round(v * 60)), label]
                 }}
                 labelFormatter={(_, payload) => {
@@ -171,11 +172,13 @@ export default function SleepSummary({ entries, buckets, granularity, dayCount, 
         <div className="flex justify-center gap-4 mt-2 text-[10px] text-sand-500">
           <span className="flex items-center gap-1">
             <span className="w-3 h-3 rounded-sm inline-block" style={{ background: SLEEP_COLOR }} />
-            שנת לילה
+            
+            {tx('שנת לילה')}
           </span>
           <span className="flex items-center gap-1">
             <span className="w-3 h-3 rounded-sm inline-block" style={{ background: SLEEP_COLOR, opacity: 0.55 }} />
-            שנת יום
+            
+            {tx('שנת יום')}
           </span>
         </div>
       </div>

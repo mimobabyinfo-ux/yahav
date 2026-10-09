@@ -1,5 +1,6 @@
 import { COMMUNITY_TAGS, type CommunityTagId } from '../../constants/communityTags'
 
+import { tx } from '../../i18n'
 // Horizontal chip strip below the age/area filter on CommunityPage.
 //
 // Yahav 11.8.26: "לחפש לפי קפה ופארק ואימון ולא או או או" — the strip
@@ -30,12 +31,12 @@ export default function CommunityTagFilter({ value, onChange }: Props) {
       {/* Brenda 17.8.26: she answers "מה ההעדפות החברתיות שלך?" on her
           profile, so the search side has to ask in the same words —
           otherwise the two screens read as two different apps. */}
-      <p className="text-[11px] font-semibold px-1" style={{ color: '#A2937D' }}>העדפות חברתיות</p>
+      <p className="text-[11px] font-semibold px-1" style={{ color: '#A2937D' }}>{tx('העדפות חברתיות')}</p>
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
         <Chip
           active={value.length === 0}
           onClick={() => onChange([])}
-          label="הכל"
+          label={tx('הכל')}
         />
         {COMMUNITY_TAGS.map(tag => (
           <Chip
@@ -49,7 +50,8 @@ export default function CommunityTagFilter({ value, onChange }: Props) {
       </div>
       {value.length > 1 && (
         <p className="text-[11px] font-semibold px-1" style={{ color: '#A2937D' }}>
-          מוצגות רק מי שמחפשות את כל {value.length} הדברים
+          
+          {tx('מוצגות רק מי שמחפשות את כל')}{' '}{value.length} {' '}{tx('הדברים')}
         </p>
       )}
     </div>
@@ -66,7 +68,7 @@ function Chip({ active, onClick, label, emoji }: { active: boolean; onClick: () 
           : 'border-sand-200 bg-white text-sand-600'
       }`}
     >
-      {emoji && <span className="ml-1">{emoji}</span>}
+      {emoji && <span className="me-1">{emoji}</span>}
       {label}
     </button>
   )

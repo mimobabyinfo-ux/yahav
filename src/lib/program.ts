@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 
+import { tx } from '../i18n'
 /**
  * The workshop PROGRAM: exercises as records instead of one body_html block
  * per meeting. Brenda 3.9.26.
@@ -94,7 +95,7 @@ export async function loadProgram(workshopId: string): Promise<Program | null> {
   }
 }
 
-export const MEETING_ORDINAL = ['', 'מפגש ראשון', 'מפגש שני', 'מפגש שלישי', 'מפגש רביעי', 'מפגש חמישי', 'מפגש שישי', 'מפגש שביעי', 'מפגש שמיני']
+export const MEETING_ORDINAL = ['', tx('מפגש ראשון'), tx('מפגש שני'), tx('מפגש שלישי'), tx('מפגש רביעי'), tx('מפגש חמישי'), tx('מפגש שישי'), tx('מפגש שביעי'), tx('מפגש שמיני')]
 
 /** The meeting the mother should land on: the last one that already took
  *  place in HER cohort, else the first. */

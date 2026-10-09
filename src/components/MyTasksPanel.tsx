@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTracker } from '../hooks/useTracker'
 import { useOwnerSettings } from '../hooks/useOwnerSettings'
 
+import { tx, LOCALE, DIR } from '../i18n'
 type FormRecord = { id: string; title: string; description: string | null; fields_json: SurveyField[]; allow_anonymous?: boolean }
 type AssignedTask = {
   id: string
@@ -70,7 +71,7 @@ export default function MyTasksPanel() {
       .eq('user_id', user.id).eq('form_id', formId)
       .order('assigned_at', { ascending: false })
     const open = (rows ?? []).find(r => !r.completed_at)
-    if (!open && (rows ?? []).length > 0) { setNotice('כבר מילאת את השאלון הזה, תודה 🤍'); return }
+    if (!open && (rows ?? []).length > 0) { setNotice(tx('כבר מילאת את השאלון הזה, תודה 🤍')); return }
     const { data: form } = await supabase.from('forms').select('*').eq('id', formId).maybeSingle()
     if (!form) return
     const task = open
@@ -97,7 +98,7 @@ export default function MyTasksPanel() {
       p_responses: visibleAnswers(activeTask.forms.fields_json, answers),
       p_anonymous: anonymous && !!activeTask.forms.allow_anonymous,
     })
-    if (error) { setSubmitting(false); alert('משהו השתבש בשליחה, נסי שוב'); return }
+    if (error) { setSubmitting(false); alert(tx('משהו השתבש בשליחה, נסי שוב')); return }
     track('form_submit', { form_id: activeTask.form_id })
     setSubmitting(false)
     setSubmitted(true)
@@ -125,10 +126,10 @@ export default function MyTasksPanel() {
   return (
     <>
       {notice && (
-        <div className="rounded-3xl flex items-center justify-between gap-3" dir="rtl"
+        <div className="rounded-3xl flex items-center justify-between gap-3" dir={DIR}
           style={{ background: '#FBF1DC', border: `1.5px solid ${SURVEY.mustard}`, padding: '14px 16px' }}>
           <p className="font-bold" style={{ fontSize: 15, color: SURVEY.ink }}>{notice}</p>
-          <button onClick={() => setNotice(null)} className="p-1.5 rounded-full flex-shrink-0" style={{ background: SURVEY.chip, color: SURVEY.muted }} aria-label="סגירה">
+          <button onClick={() => setNotice(null)} className="p-1.5 rounded-full flex-shrink-0" style={{ background: SURVEY.chip, color: SURVEY.muted }} aria-label={tx('סגירה')}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -138,7 +139,7 @@ export default function MyTasksPanel() {
       {tasks.length > 0 && (
       <div
         className="rounded-3xl shadow-sm"
-        dir="rtl"
+        dir={DIR}
         style={{ background: 'linear-gradient(135deg, #FBF1DC 0%, #F6E6C4 100%)', border: `1.5px solid ${SURVEY.mustard}`, padding: '16px 16px 14px' }}
       >
         <div className="flex items-center gap-3 mb-3">
@@ -146,8 +147,8 @@ export default function MyTasksPanel() {
             <ClipboardList style={{ width: 22, height: 22, color: SURVEY.ink }} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold" style={{ fontSize: 16, color: SURVEY.ink }}>{tasks.length === 1 ? 'מחכה לך משהו קטן' : `${tasks.length} דברים קטנים מחכים לך`}</p>
-            <p style={{ fontSize: 13, color: SURVEY.muted }}>{tasks.length === 1 ? 'טופס אחד למילוי' : `${tasks.length} טפסים למילוי`}</p>
+            <p className="font-bold" style={{ fontSize: 16, color: SURVEY.ink }}>{tasks.length === 1 ? tx('מחכה לך משהו קטן') : tx('{length} דברים קטנים מחכים לך', { length: tasks.length })}</p>
+            <p style={{ fontSize: 13, color: SURVEY.muted }}>{tasks.length === 1 ? tx('טופס אחד למילוי') : tx('{length} טפסים למילוי', { length: tasks.length })}</p>
           </div>
         </div>
         <div className="space-y-2">
@@ -155,7 +156,7 @@ export default function MyTasksPanel() {
             <button
               key={task.id}
               onClick={() => openTask(task)}
-              className="w-full flex items-center gap-3 bg-white rounded-2xl text-right transition-transform active:scale-[0.99]"
+              className="w-full flex items-center gap-3 bg-white rounded-2xl text-start transition-transform active:scale-[0.99]"
               style={{ padding: '14px 16px', border: `1.5px solid ${SURVEY.border}` }}
             >
               <div className="flex-1 min-w-0">
@@ -165,13 +166,15 @@ export default function MyTasksPanel() {
                 )}
                 {task.due_date && (
                   <p className="mt-1" style={{ fontSize: 12, color: SURVEY.mustardDeep, fontWeight: 600 }}>
-                    עד {new Date(task.due_date + 'T12:00:00').toLocaleDateString('he-IL')}
+                    
+                    {tx('עד')}{' '}{new Date(task.due_date + 'T12:00:00').toLocaleDateString(LOCALE)}
                   </p>
                 )}
               </div>
               <span className="flex items-center gap-1 flex-shrink-0 rounded-xl font-bold" style={{ background: SURVEY.mustard, color: SURVEY.ink, fontSize: 14, padding: '10px 14px' }}>
-                למילוי
-                <ChevronLeft style={{ width: 16, height: 16 }} strokeWidth={2.5} />
+                
+                {tx('למילוי')}
+                <ChevronLeft className="flip-dir" style={{ width: 16, height: 16 }} strokeWidth={2.5} />
               </span>
             </button>
           ))}
@@ -181,7 +184,7 @@ export default function MyTasksPanel() {
 
       {/* Form sheet */}
       {activeTask && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45" dir="rtl">
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45" dir={DIR}>
           <div className="w-full max-w-md flex flex-col rounded-t-[28px] shadow-2xl overflow-hidden" style={{ background: SURVEY.sheet, maxHeight: '94vh' }}>
             <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3 bg-white" style={{ borderBottom: `1px solid ${SURVEY.border}` }}>
               <div className="flex-1 min-w-0">
@@ -191,7 +194,7 @@ export default function MyTasksPanel() {
                 )}
                 {!submitted && <SurveyProgress answered={answeredRequired} total={requiredTotal} done={missing.length === 0} />}
               </div>
-              <button onClick={() => setActiveTask(null)} className="p-2 rounded-full flex-shrink-0" style={{ background: SURVEY.chip, color: SURVEY.muted }} aria-label="סגירה">
+              <button onClick={() => setActiveTask(null)} className="p-2 rounded-full flex-shrink-0" style={{ background: SURVEY.chip, color: SURVEY.muted }} aria-label={tx('סגירה')}>
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -199,8 +202,8 @@ export default function MyTasksPanel() {
             {submitted ? (
               <div className="p-10 text-center space-y-3">
                 <div className="text-6xl">🎉</div>
-                <p className="font-bold" style={{ fontSize: 18, color: SURVEY.ink }}>תודה! התשובות נשלחו</p>
-                <p style={{ fontSize: 14, color: SURVEY.muted }}>{ownerName} קוראת כל תשובה</p>
+                <p className="font-bold" style={{ fontSize: 18, color: SURVEY.ink }}>{tx('תודה! התשובות נשלחו')}</p>
+                <p style={{ fontSize: 14, color: SURVEY.muted }}>{ownerName} {' '}{tx('קוראת כל תשובה')}</p>
               </div>
             ) : (
               <>
@@ -213,8 +216,8 @@ export default function MyTasksPanel() {
                       <input type="checkbox" checked={anonymous} onChange={e => setAnonymous(e.target.checked)}
                         className="mt-0.5 flex-shrink-0" style={{ width: 18, height: 18, accentColor: SURVEY.mustardDeep }} />
                       <span style={{ fontSize: 13.5, color: SURVEY.ink, lineHeight: 1.45 }}>
-                        <b>לשלוח בלי השם שלי</b>
-                        <span style={{ display: 'block', color: SURVEY.muted, fontSize: 12.5 }}>התשובות יישמרו בלי קישור אלייך</span>
+                        <b>{tx('לשלוח בלי השם שלי')}</b>
+                        <span style={{ display: 'block', color: SURVEY.muted, fontSize: 12.5 }}>{tx('התשובות יישמרו בלי קישור אלייך')}</span>
                       </span>
                     </label>
                   )}

@@ -7,6 +7,7 @@ import { rankCities, findExactCity, freeTextCity, cityToSave, canUseFreeText } f
 import NeighborhoodPicker from '../components/community/NeighborhoodPicker'
 import TagSelector from '../components/community/TagSelector'
 
+import { tx, DIR } from '../i18n'
 type Mode = 'mom' | 'pregnant'
 
 type Baby = {
@@ -17,8 +18,8 @@ type Baby = {
 }
 
 const genderOptions: { value: 'boy' | 'girl'; label: string }[] = [
-  { value: 'boy',  label: 'זכר' },
-  { value: 'girl', label: 'נקבה' },
+  { value: 'boy',  label: tx('זכר') },
+  { value: 'girl', label: tx('נקבה') },
 ]
 
 const emptyBaby = (): Baby => ({ firstName: '', lastName: '', dob: '', gender: 'girl' })
@@ -98,22 +99,22 @@ export default function OnboardingPage() {
     e.preventDefault()
     if (!user || !mode) return
 
-    if (!firstName.trim()) { setError('אנא הכניסי שם פרטי'); return }
-    if (!lastName.trim()) { setError('אנא הכניסי שם משפחה'); return }
+    if (!firstName.trim()) { setError(tx('אנא הכניסי שם פרטי')); return }
+    if (!lastName.trim()) { setError(tx('אנא הכניסי שם משפחה')); return }
     // Typed but never tapped a row: keep what she wrote (resolved to the
     // official name when we know it) rather than blocking the signup.
     const areaToSave = cityToSave(area, citySearch)
-    if (!areaToSave) { setError(citySearch.trim() ? 'אנא בחרי את היישוב מהרשימה' : 'אנא כתבי עיר או יישוב מגורים'); return }
-    if (!phone.trim()) { setError('אנא הכניסי מספר טלפון'); return }
+    if (!areaToSave) { setError(citySearch.trim() ? tx('אנא בחרי את היישוב מהרשימה') : tx('אנא כתבי עיר או יישוב מגורים')); return }
+    if (!phone.trim()) { setError(tx('אנא הכניסי מספר טלפון')); return }
 
     if (mode === 'pregnant') {
-      if (!dueDate) { setError('אנא הכניסי תאריך לידה משוער'); return }
+      if (!dueDate) { setError(tx('אנא הכניסי תאריך לידה משוער')); return }
     }
 
     if (mode === 'mom') {
-      if (babies.some(b => !b.firstName.trim())) { setError('אנא מלאי שם פרטי לכל תינוק/ת'); return }
-      if (babies.some(b => !b.lastName.trim())) { setError('אנא מלאי שם משפחה לכל תינוק/ת'); return }
-      if (babies.some(b => !b.dob)) { setError('אנא מלאי תאריך לידה לכל תינוק/ת'); return }
+      if (babies.some(b => !b.firstName.trim())) { setError(tx('אנא מלאי שם פרטי לכל תינוק/ת')); return }
+      if (babies.some(b => !b.lastName.trim())) { setError(tx('אנא מלאי שם משפחה לכל תינוק/ת')); return }
+      if (babies.some(b => !b.dob)) { setError(tx('אנא מלאי תאריך לידה לכל תינוק/ת')); return }
     }
 
     setError('')
@@ -168,24 +169,24 @@ export default function OnboardingPage() {
       await Promise.all([refreshProfile(), refreshChildren()])
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : (err as { message?: string })?.message
-      setError(msg || 'שגיאה, נסי שוב')
+      setError(msg || tx('שגיאה, נסי שוב'))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center p-6 pb-10" style={{ background: '#FFFFFF' }} dir="rtl">
+    <div className="min-h-screen flex flex-col justify-center p-6 pb-10" style={{ background: '#FFFFFF' }} dir={DIR}>
       <div className="w-full max-w-sm mx-auto space-y-5 relative">
         {/* Back arrow — visible only after a mode was selected */}
         {mode !== null && (
           <button
             type="button"
             onClick={backToModeSelection}
-            className="absolute top-0 left-0 p-2 rounded-xl text-sand-400 hover:text-sand-700 hover:bg-sand-50 transition-colors"
-            aria-label="חזרה לבחירת מצב"
+            className="absolute top-0 end-0 p-2 rounded-xl text-sand-400 hover:text-sand-700 hover:bg-sand-50 transition-colors"
+            aria-label={tx('חזרה לבחירת מצב')}
           >
-            <ArrowRight className="w-5 h-5" />
+            <ArrowRight className="flip-dir w-5 h-5" />
           </button>
         )}
 
@@ -198,7 +199,8 @@ export default function OnboardingPage() {
             <MimoLogo size={150} />
           </div>
           <h1 className="font-brand" style={{ fontSize: 34, lineHeight: 1.15, fontWeight: 400, color: '#A35C3D' }}>
-            ברוכה הבאה!
+            
+            {tx('ברוכה הבאה!')}
           </h1>
         </div>
 
@@ -209,11 +211,13 @@ export default function OnboardingPage() {
             <div className="flex gap-2">
               <button type="button" onClick={() => setMode('pregnant')}
                 className="flex-1 py-4 rounded-2xl text-sm font-bold border-2 border-sand-200 text-sand-500 hover:border-mustard-400 hover:bg-mustard-50 hover:text-mustard-700 transition-all">
-                🤰🏼 בהיריון
+                
+                {tx('🤰🏼 בהיריון')}
               </button>
               <button type="button" onClick={() => setMode('mom')}
                 className="flex-1 py-4 rounded-2xl text-sm font-bold border-2 border-sand-200 text-sand-500 hover:border-mustard-400 hover:bg-mustard-50 hover:text-mustard-700 transition-all">
-                👶🏼 כבר אמא
+                
+                {tx('👶🏼 כבר אמא')}
               </button>
             </div>
           </div>
@@ -227,15 +231,15 @@ export default function OnboardingPage() {
             {/* Name — split */}
             <div className="flex gap-2">
               <div className="flex-1">
-                <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם פרטי <span className="text-red-400">*</span></label>
+                <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('שם פרטי')}{' '}<span className="text-red-400">*</span></label>
                 <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
-                  placeholder="שם פרטי" required
+                  placeholder={tx('שם פרטי')} required
                   className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 text-sm" />
               </div>
               <div className="flex-1">
-                <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם משפחה <span className="text-red-400">*</span></label>
+                <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('שם משפחה')}{' '}<span className="text-red-400">*</span></label>
                 <input type="text" value={lastName} onChange={e => setLastName(e.target.value)}
-                  placeholder="שם משפחה" required
+                  placeholder={tx('שם משפחה')} required
                   className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 text-sm" />
               </div>
             </div>
@@ -243,7 +247,7 @@ export default function OnboardingPage() {
             {/* Phone — required. Brenda 17.8.26: it belongs directly under
                 the name, not after the city and community questions. */}
             <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1.5">מספר טלפון <span className="text-red-400">*</span></label>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('מספר טלפון')}{' '}<span className="text-red-400">*</span></label>
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
                 placeholder="050-0000000" required dir="ltr"
                 className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800" />
@@ -251,14 +255,14 @@ export default function OnboardingPage() {
 
             {/* City combobox */}
             <div className="relative">
-              <label className="block text-xs font-semibold text-sand-600 mb-1.5">עיר מגורים / יישוב <span className="text-red-400">*</span></label>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('עיר מגורים / יישוב')}{' '}<span className="text-red-400">*</span></label>
               <input
                 type="text"
                 value={citySearch}
                 onChange={e => onCityInput(e.target.value)}
                 onFocus={() => setShowCities(true)}
                 onBlur={() => setTimeout(() => setShowCities(false), 150)}
-                placeholder="עיר, מושב או קיבוץ..."
+                placeholder={tx('עיר, מושב או קיבוץ...')}
                 autoComplete="off"
                 className={`w-full px-4 py-3.5 border-2 rounded-2xl focus:outline-none bg-white text-sand-800 ${area ? 'border-mustard-400' : 'border-sand-200 focus:border-mustard-400'}`}
               />
@@ -266,16 +270,16 @@ export default function OnboardingPage() {
                   list closes, which read as "it won't let me pick". The check
                   says it was picked. */}
               {area && (
-                <span className="pointer-events-none absolute left-3 bottom-0 h-[54px] flex items-center gap-1 text-xs font-semibold text-mustard-600">
-                  <Check className="w-4 h-4" /> נבחר
+                <span className="pointer-events-none absolute end-3 bottom-0 h-[54px] flex items-center gap-1 text-xs font-semibold text-mustard-600">
+                  <Check className="w-4 h-4" /> {' '}{tx('נבחר')}
                 </span>
               )}
               {showCities && !(area && cityMatches.length === 1) && (
-                <div className="absolute top-full right-0 left-0 z-50 bg-white border-2 border-mustard-200 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto">
+                <div className="absolute top-full start-0 end-0 z-50 bg-white border-2 border-mustard-200 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto">
                   {cityMatches.map(c => (
                     <button key={c} type="button"
                       onMouseDown={() => { setArea(c); setCitySearch(c); setNeighborhood(''); setShowCities(false) }}
-                      className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-800 border-b border-sand-50 last:border-0 transition-colors">
+                      className="w-full text-start px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-800 border-b border-sand-50 last:border-0 transition-colors">
                       {c}
                     </button>
                   ))}
@@ -284,8 +288,9 @@ export default function OnboardingPage() {
                   {canUseFreeText(citySearch) && (
                     <button type="button"
                       onMouseDown={() => { const t = freeTextCity(citySearch)!; setArea(t); setCitySearch(t); setNeighborhood(''); setShowCities(false) }}
-                      className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-600 transition-colors">
-                      לא ברשימה? להשתמש ב״{freeTextCity(citySearch)}״
+                      className="w-full text-start px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-600 transition-colors">
+                      
+                      {tx('לא ברשימה? להשתמש ב״')}{freeTextCity(citySearch)}{tx('״')}
                     </button>
                   )}
                 </div>
@@ -298,14 +303,15 @@ export default function OnboardingPage() {
                 city={area}
                 value={neighborhood}
                 onChange={setNeighborhood}
-                label={`שכונה ב${area} (לא חובה)`}
+                label={tx('שכונה ב{area} (לא חובה)', { area })}
               />
             )}
 
             {/* What she's looking for in the community */}
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                מה ההעדפות החברתיות שלך? <span className="text-sand-400 font-normal">(לא חובה)</span>
+                
+                {tx('מה ההעדפות החברתיות שלך?')}{' '}<span className="text-sand-400 font-normal">{tx('(לא חובה)')}</span>
               </label>
               <TagSelector value={communityTags} onChange={setCommunityTags} />
               {/* Brenda 17.8.26: the question is for SOCIAL FILTERING only —
@@ -315,7 +321,8 @@ export default function OnboardingPage() {
                   list. Keep this wording identical on the community
                   profile form. */}
               <p className="text-[11px] text-sand-400 mt-1.5 leading-relaxed">
-                אמהות בסביבה שלך יראו את זה ויוכלו לפנות אלייך
+                
+                {tx('אמהות בסביבה שלך יראו את זה ויוכלו לפנות אלייך')}
               </p>
             </div>
 
@@ -324,11 +331,11 @@ export default function OnboardingPage() {
             <div className="rounded-2xl p-3.5 mt-3" style={{ background: '#FAF6EF', border: '1px solid #EFE4D3' }}>
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-sand-800">להופיע ברשימת החברות</p>
+                  <p className="text-sm font-bold text-sand-800">{tx('להופיע ברשימת החברות')}</p>
                   <p className="text-xs text-sand-600 leading-relaxed mt-0.5">
                     {showInDirectory
-                      ? 'אמהות אחרות בקהילה יכולות לראות את הפרופיל שלך'
-                      : 'הפרופיל שלך מוסתר. את עדיין רואה את כולן ויכולה להירשם לאירועים'}
+                      ? tx('אמהות אחרות בקהילה יכולות לראות את הפרופיל שלך')
+                      : tx('הפרופיל שלך מוסתר. את עדיין רואה את כולן ויכולה להירשם לאירועים')}
                   </p>
                 </div>
                 <button
@@ -341,7 +348,7 @@ export default function OnboardingPage() {
                 >
                   <span
                     className="absolute top-1 bg-white rounded-full shadow transition-all"
-                    style={{ width: 20, height: 20, right: showInDirectory ? 24 : 4 }}
+                    style={{ width: 20, height: 20, insetInlineStart: showInDirectory ? 24 : 4 }}
                   />
                 </button>
               </div>
@@ -355,7 +362,8 @@ export default function OnboardingPage() {
                 {showPhone && <Check className="w-3 h-3 text-white" />}
               </div>
               <span className="text-xs text-sand-600 leading-relaxed">
-                אני מסכימה לשתף את מספר הטלפון שלי עם אמהות אחרות בקהילת מימו
+                
+                {tx('אני מסכימה לשתף את מספר הטלפון שלי עם אמהות אחרות בקהילת מימו')}
               </span>
             </label>
           </div>
@@ -364,7 +372,8 @@ export default function OnboardingPage() {
           {mode === 'pregnant' && (
             <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5">
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                תאריך לידה משוער <span className="text-red-400">*</span>
+                
+                {tx('תאריך לידה משוער')}{' '}<span className="text-red-400">*</span>
               </label>
               <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
                 min={new Date().toISOString().split('T')[0]} required dir="ltr"
@@ -377,7 +386,7 @@ export default function OnboardingPage() {
             <div key={idx} className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sand-700 text-sm">
-                  {babies.length > 1 ? `תינוק/ת ${idx + 1}` : 'פרטי התינוק/ת'}
+                  {babies.length > 1 ? tx('תינוק/ת {v0}', { v0: idx + 1 }) : tx('פרטי התינוק/ת')}
                 </h3>
                 {babies.length > 1 && (
                   <button type="button" onClick={() => removeBaby(idx)}
@@ -390,21 +399,21 @@ export default function OnboardingPage() {
               {/* Baby name — split */}
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם פרטי <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('שם פרטי')}{' '}<span className="text-red-400">*</span></label>
                   <input type="text" value={baby.firstName} onChange={e => updateBaby(idx, { firstName: e.target.value })}
-                    placeholder="שם פרטי" required
+                    placeholder={tx('שם פרטי')} required
                     className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 text-sm" />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם משפחה <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('שם משפחה')}{' '}<span className="text-red-400">*</span></label>
                   <input type="text" value={baby.lastName} onChange={e => updateBaby(idx, { lastName: e.target.value })}
-                    placeholder="שם משפחה" required
+                    placeholder={tx('שם משפחה')} required
                     className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 text-sm" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-1.5">מין התינוק/ת <span className="text-red-400">*</span></label>
+                <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('מין התינוק/ת')}{' '}<span className="text-red-400">*</span></label>
                 <div className="flex gap-2">
                   {genderOptions.map(opt => (
                     <button key={opt.value} type="button"
@@ -419,7 +428,7 @@ export default function OnboardingPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-sand-600 mb-1.5">תאריך לידה <span className="text-red-400">*</span></label>
+                <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('תאריך לידה')}{' '}<span className="text-red-400">*</span></label>
                 <input type="date" value={baby.dob} onChange={e => updateBaby(idx, { dob: e.target.value })}
                   max={new Date().toISOString().split('T')[0]} required dir="ltr"
                   className="w-full px-4 py-3.5 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 bg-white text-sand-800 text-sm" />
@@ -432,7 +441,8 @@ export default function OnboardingPage() {
             <button type="button" onClick={addBaby}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-dashed border-mustard-300 text-mustard-600 font-semibold text-sm hover:bg-mustard-50 transition-colors">
               <Plus className="w-4 h-4" />
-              הוסיפי תינוק/ת נוסף/ת
+              
+              {tx('הוסיפי תינוק/ת נוסף/ת')}
             </button>
           )}
 
@@ -445,7 +455,7 @@ export default function OnboardingPage() {
           <button type="submit" disabled={loading}
             className="w-full text-white font-bold py-4 rounded-2xl transition-all shadow-lg disabled:opacity-50"
             style={{ background: '#E7C78A' }}>
-            {loading ? 'שומרת...' : 'בואי נתחיל! 🎉'}
+            {loading ? tx('שומרת...') : tx('בואי נתחיל! 🎉')}
           </button>
         </form>
         )}

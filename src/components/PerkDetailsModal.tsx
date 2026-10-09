@@ -4,6 +4,7 @@ import { supabase, PartnerPerk } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { perkBranches, branchMapUrl, type PerkBranch } from '../utils/perkBranches'
 
+import { tx, DIR } from '../i18n'
 type Props = {
   perk: PartnerPerk
   onClose: () => void
@@ -50,7 +51,7 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
   // shared z-50 the nav painted over the last rows and swallowed whatever sat
   // there: the third branch, the discount code.
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center" dir="rtl">
+    <div className="fixed inset-0 z-[70] flex items-end justify-center" dir={DIR}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -103,7 +104,7 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
             <div className="space-y-2">
               <p className="text-xs font-bold flex items-center gap-1.5" style={{ color: '#7B604C' }}>
                 <MapPin className="w-3.5 h-3.5" style={{ color: '#A35C3D' }} />
-                {branches.length > 1 ? 'הסניפים המשתתפים' : 'המיקום'}
+                {branches.length > 1 ? tx('הסניפים המשתתפים') : tx('המיקום')}
               </p>
               {branches.map((b, i) => {
                 const url = branchMapUrl(b)
@@ -112,7 +113,7 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
                     key={i}
                     onClick={() => handleNavigate(b)}
                     disabled={!url}
-                    className="w-full flex items-center justify-between gap-3 rounded-2xl p-3 text-right transition-all hover:shadow-md disabled:opacity-60"
+                    className="w-full flex items-center justify-between gap-3 rounded-2xl p-3 text-start transition-all hover:shadow-md disabled:opacity-60"
                     style={{ background: '#FAF7F1' }}
                   >
                     <div className="min-w-0">
@@ -128,7 +129,7 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
                         className="flex items-center gap-1 flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-bold text-white"
                         style={{ background: '#A35C3D' }}
                       >
-                        <Navigation className="w-3.5 h-3.5" /> ניווט
+                        <Navigation className="w-3.5 h-3.5" /> {' '}{tx('ניווט')}
                       </span>
                     )}
                   </button>
@@ -140,7 +141,7 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
           {/* Discount code */}
           {perk.discount_code && (
             <div className="bg-mustard-50 border-2 border-dashed border-mustard-200 rounded-2xl p-4">
-              <p className="text-xs text-mustard-600 font-medium mb-2">קוד הנחה</p>
+              <p className="text-xs text-mustard-600 font-medium mb-2">{tx('קוד הנחה')}</p>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-xl font-bold tracking-widest text-mustard-700">
                   {perk.discount_code}
@@ -154,7 +155,7 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
                   }`}
                 >
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? 'הועתק!' : 'העתיקי'}
+                  {copied ? tx('הועתק!') : tx('העתיקי')}
                 </button>
               </div>
             </div>
@@ -167,7 +168,8 @@ export default function PerkDetailsModal({ perk, onClose }: Props) {
               className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-mustard-500 to-mustard-600 hover:from-mustard-600 hover:to-mustard-700 text-white font-semibold py-3.5 px-6 rounded-2xl transition-all shadow-lg"
             >
               <ExternalLink className="w-4 h-4" />
-              לאתר השותף
+              
+              {tx('לאתר השותף')}
             </button>
           )}
         </div>

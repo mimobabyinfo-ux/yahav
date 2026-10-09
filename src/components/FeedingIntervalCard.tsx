@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
+import { tx, LOCALE, DIR } from '../i18n'
 // Local-date string in user's timezone — never throws on Invalid Date
 function localDateStr(d: Date): string {
   const y = d.getFullYear()
@@ -22,18 +23,18 @@ function parseEntryDateTime(entry_date: string, entry_time: string): Date | null
 
 function formatRemaining(ms: number): string {
   const totalMin = Math.round(ms / 60000)
-  if (totalMin < 60) return `${totalMin} דקות`
+  if (totalMin < 60) return tx('{totalMin} דקות', { totalMin })
   const h = Math.floor(totalMin / 60)
   const m = totalMin % 60
-  if (m === 0) return `${h} שעות`
-  return `${h} שעות ו-${m} דקות`
+  if (m === 0) return tx('{h} שעות', { h })
+  return tx('{h} שעות ו-{m} דקות', { h, m })
 }
 
 function formatElapsed(ms: number): string {
   const totalMin = Math.round(ms / 60000)
-  if (totalMin < 60) return `${totalMin} דקות`
+  if (totalMin < 60) return tx('{totalMin} דקות', { totalMin })
   const h = Math.round(totalMin / 60 * 10) / 10
-  return `${h} שעות`
+  return tx('{h} שעות', { h })
 }
 
 export default function FeedingIntervalCard() {
@@ -96,23 +97,23 @@ export default function FeedingIntervalCard() {
   }
 
   return (
-    <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm space-y-3" dir="rtl">
+    <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm space-y-3" dir={DIR}>
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 ${status === 'overdue' ? 'bg-orange-100' : 'bg-mustard-50'}`}>
           🍼
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-sand-800">מעקב האכלה</p>
+          <p className="text-sm font-bold text-sand-800">{tx('מעקב האכלה')}</p>
           <p className="text-xs text-sand-400">
             {loggedToday
-              ? `האכלה אחרונה: ${validLast!.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`
-              : 'רשמי האכלה ביומן כדי לעקוב'}
+              ? tx('האכלה אחרונה: {v0}', { v0: validLast!.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' }) })
+              : tx('רשמי האכלה ביומן כדי לעקוב')}
           </p>
         </div>
       </div>
 
       <div>
-        <p className="text-xs text-sand-400 mb-1.5">מרווח בין האכלות</p>
+        <p className="text-xs text-sand-400 mb-1.5">{tx('מרווח בין האכלות')}</p>
         <div className="flex gap-1.5 flex-wrap">
           {[2, 2.5, 3, 3.5, 4].map(h => (
             <button
@@ -121,7 +122,7 @@ export default function FeedingIntervalCard() {
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${intervalHours === h ? 'text-white shadow-sm' : 'bg-sand-100 text-sand-500'}`}
               style={intervalHours === h ? { background: '#E7C78A' } : {}}
             >
-              {h}ש׳
+              {h}{tx('ש׳')}
             </button>
           ))}
         </div>
@@ -129,23 +130,26 @@ export default function FeedingIntervalCard() {
 
       <div className="pt-1">
         {!loggedToday && (
-          <p className="text-xs text-sand-400">עוד לא תועדה האכלה היום</p>
+          <p className="text-xs text-sand-400">{tx('עוד לא תועדה האכלה היום')}</p>
         )}
         {status === 'normal' && remainingMs != null && (
           <p className="text-xs text-sand-600">
-            ההאכלה הבאה בעוד {formatRemaining(remainingMs)}
+            
+            {tx('ההאכלה הבאה בעוד')}{' '}{formatRemaining(remainingMs)}
           </p>
         )}
         {status === 'soon' && (
           <p className="text-xs font-semibold text-mustard-700">
-            ההאכלה הבאה: בקרוב
+            
+            {tx('ההאכלה הבאה: בקרוב')}
           </p>
         )}
         {status === 'overdue' && elapsedMs != null && (
           <div className="rounded-xl px-3 py-2" style={{ background: '#FFF4E6', border: '1px solid #F5C77E' }}>
-            <p className="text-sm font-bold" style={{ color: '#C2410C' }}>🍼 הגיע זמן ההאכלה</p>
+            <p className="text-sm font-bold" style={{ color: '#C2410C' }}>{tx('🍼 הגיע זמן ההאכלה')}</p>
             <p className="text-xs mt-0.5" style={{ color: '#9A3412' }}>
-              (חלפו {formatElapsed(elapsedMs)} מההאכלה האחרונה)
+              
+              {tx('(חלפו')}{' '}{formatElapsed(elapsedMs)} {' '}{tx('מההאכלה האחרונה)')}
             </p>
           </div>
         )}

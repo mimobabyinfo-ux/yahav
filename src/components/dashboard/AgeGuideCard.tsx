@@ -4,6 +4,7 @@ import { supabase, type AgeStage, type AgeStageTopic } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { cachedQuery } from '../../lib/queryCache'
 
+import { tx, DIR } from '../../i18n'
 // "מה קורה אצל X עכשיו" — the age guide, in the shape Yahav asked for on
 // 24.8.26 after two rounds of cutting.
 //
@@ -93,7 +94,7 @@ export default function AgeGuideCard() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="w-full text-right"
+        className="w-full text-start"
         style={{ background: '#FFFFFF', borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}
       >
         <div className="flex items-start" style={{ gap: 12 }}>
@@ -105,15 +106,17 @@ export default function AgeGuideCard() {
           </span>
           <div className="flex-1 min-w-0">
             <p className="font-bold" style={{ fontSize: 13, color: '#957860' }}>
-              מה קורה אצל {firstName} עכשיו
+              
+              {tx('מה קורה אצל')}{' '}{firstName} {' '}{tx('עכשיו')}
             </p>
             <p className="font-bold mt-1" style={{ fontSize: 13, color: '#8A6A2F' }}>{stage.title}</p>
             <p className="mt-0.5 leading-relaxed" style={{ fontSize: 14, color: '#443327' }}>
               {stage.headline}
             </p>
             <span className="inline-flex items-center mt-2 font-bold" style={{ fontSize: 12, color: '#8A6A2F', gap: 2 }}>
-              לקריאה
-              <ChevronLeft style={{ width: 14, height: 14 }} strokeWidth={2.5} />
+              
+              {tx('לקריאה')}
+              <ChevronLeft className="flip-dir" style={{ width: 14, height: 14 }} strokeWidth={2.5} />
             </span>
           </div>
         </div>
@@ -126,8 +129,8 @@ export default function AgeGuideCard() {
           onClick={() => setOpen(false)}
         >
           <div
-            dir="rtl"
-            className="w-full sm:max-w-lg text-right flex flex-col"
+            dir={DIR}
+            className="w-full sm:max-w-lg text-start flex flex-col"
             style={{
               background: '#FBF8F4',
               borderTopLeftRadius: 28,
@@ -140,19 +143,20 @@ export default function AgeGuideCard() {
               className="flex items-start justify-between flex-shrink-0"
               style={{ padding: '18px 18px 12px', borderBottom: '1px solid #EFE7DC' }}
             >
-              <div className="min-w-0" style={{ paddingLeft: 8 }}>
+              <div className="min-w-0" style={{ paddingInlineEnd: 8 }}>
                 <p className="font-bold" style={{ fontSize: 12, color: '#957860' }}>
                   {firstName}, {stage.title}
                 </p>
                 <p className="font-bold mt-0.5 leading-snug" style={{ fontSize: 16, color: '#443327' }}>
-                  מה קורה בשלב הזה
+                  
+                  {tx('מה קורה בשלב הזה')}
                 </p>
               </div>
               <button
                 onClick={() => setOpen(false)}
                 className="rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ width: 32, height: 32, background: '#F0EBE3' }}
-                aria-label="סגירה"
+                aria-label={tx('סגירה')}
               >
                 <X style={{ width: 17, height: 17, color: '#8A6A2F' }} strokeWidth={2.5} />
               </button>
@@ -189,7 +193,7 @@ export default function AgeGuideCard() {
                   >
                     <button
                       onClick={() => setOpenTopicId(isOpen ? null : t.id)}
-                      className="w-full text-right flex items-center"
+                      className="w-full text-start flex items-center"
                       style={{ padding: 14, gap: 10 }}
                     >
                       {t.emoji && <span style={{ fontSize: 20, lineHeight: 1 }}>{t.emoji}</span>}
@@ -229,7 +233,8 @@ export default function AgeGuideCard() {
               })}
 
               <p className="leading-relaxed" style={{ fontSize: 11.5, color: '#A9937A', paddingTop: 4, flexShrink: 0 }}>
-                התוכן כאן הוא מידע כללי ותומך, מתוך חומרי הקורס של מימו. הוא אינו ייעוץ רפואי ואינו תחליף לרופא, לאחות טיפת חלב או לאיש מקצוע.
+                
+                {tx('התוכן כאן הוא מידע כללי ותומך, מתוך חומרי הקורס של מימו. הוא אינו ייעוץ רפואי ואינו תחליף לרופא, לאחות טיפת חלב או לאיש מקצוע.')}
               </p>
             </div>
           </div>

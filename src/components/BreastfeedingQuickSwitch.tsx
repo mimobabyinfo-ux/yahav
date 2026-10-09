@@ -1,3 +1,4 @@
+import { tx, IS_RTL } from '../i18n'
 type Props = {
   side: 'left' | 'right' | 'both'
   onChange: (side: 'left' | 'right' | 'both') => void
@@ -5,10 +6,12 @@ type Props = {
 
 export default function BreastfeedingQuickSwitch({ side, onChange }: Props) {
   const options: { value: 'right' | 'left' | 'both'; label: string }[] = [
-    { value: 'right', label: 'ימין' },
-    { value: 'both', label: 'שניהם' },
-    { value: 'left', label: 'שמאל' },
+    { value: 'right', label: tx('ימין') },
+    { value: 'both', label: tx('שניהם') },
+    { value: 'left', label: tx('שמאל') },
   ]
+  // Right stays on the physical right in the LTR (Spanish) interface too.
+  if (!IS_RTL) options.reverse()
 
   return (
     <div className="flex gap-1 bg-sand-100 rounded-2xl p-1">

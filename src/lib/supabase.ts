@@ -30,6 +30,7 @@ export type UserProfile = {
   // is on the row. attach_paid_lead creates a profile for every paying
   // mother, so the row existing is no longer proof she registered.
   onboarding_completed_at: string | null
+  language?: 'he' | 'es' | null
   /** Where this account came from. null / 'app' = she signed up herself.
    *  'course_purchase' = the account was created automatically when she
    *  bought a digital course, so she may have no baby details and no

@@ -17,6 +17,7 @@ import MyBookingsTab from '../components/community/MyBookingsTab'
 import MembershipCard from '../components/community/MembershipCard'
 import InviteFriendCard from '../components/dashboard/InviteFriendCard'
 
+import { tx, DIR } from '../i18n'
 type CommunityProfile = {
   id: string
   mother_name: string | null
@@ -176,7 +177,7 @@ export default function CommunityPage() {
     if (!user) return
     // A near miss (פתח תקוו) is not saved as typed: she picks from the list.
     const areaToSave = cityToSave(areaInput, citySearch)
-    if (!areaToSave && citySearch.trim()) { setSaveError('אנא בחרי את היישוב מהרשימה'); return }
+    if (!areaToSave && citySearch.trim()) { setSaveError(tx('אנא בחרי את היישוב מהרשימה')); return }
     setSavingProfile(true)
     setSaveError('')
     const { error } = await supabase
@@ -193,7 +194,7 @@ export default function CommunityPage() {
       })
       .eq('id', user.id)
     setSavingProfile(false)
-    if (error) { setSaveError('שגיאה בשמירה. נסי שוב'); return }
+    if (error) { setSaveError(tx('שגיאה בשמירה. נסי שוב')); return }
     setRegisteredInSession(true)
     setEditMode(false)
     refreshProfile()
@@ -267,7 +268,7 @@ export default function CommunityPage() {
   const genderEmoji = (g: string | null) => g === 'boy' ? '👶🏼' : g === 'girl' ? '👧🏼' : '👶🏼'
 
   return (
-    <div className="min-h-screen p-4 pb-28 relative" dir="rtl">
+    <div className="min-h-screen p-4 pb-28 relative" dir={DIR}>
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
         <span className="text-[250px] opacity-5">{isPregnant ? '🤰🏼' : '👩‍👩‍👧'}</span>
       </div>
@@ -275,7 +276,7 @@ export default function CommunityPage() {
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
         {/* Header */}
         <div className="pt-2 flex items-center justify-between">
-          <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>קהילת מימו</h1>
+          <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>{tx('קהילת מימו')}</h1>
           <div className="flex items-center gap-2">
             {pageTab === 'members' && profileComplete && !editMode && (
               <button
@@ -283,7 +284,8 @@ export default function CommunityPage() {
                 className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-2xl text-xs font-semibold text-sand-500 shadow-sm hover:text-sand-700 transition-colors"
               >
                 <Pencil className="w-3.5 h-3.5" />
-                ערוך פרופיל
+                
+                {tx('ערוך פרופיל')}
               </button>
             )}
             {creditBalance > 0 && (
@@ -291,9 +293,10 @@ export default function CommunityPage() {
                 onClick={() => setPageTab('bookings')}
                 className="flex items-center gap-1 px-2.5 py-2 rounded-2xl text-xs font-bold shadow-sm transition-all"
                 style={{ background: '#EADBDD', color: '#5E4938' }}
-                title="הזיכוי שלך, לשימוש באירועי הקהילה"
+                title={tx('הזיכוי שלך, לשימוש באירועי הקהילה')}
               >
-                יתרה ₪{creditBalance}
+                
+                {tx('יתרה ₪')}{creditBalance}
               </button>
             )}
             {/* Digital membership card — shown at partner businesses for perks */}
@@ -303,7 +306,8 @@ export default function CommunityPage() {
               style={{ background: '#F6ECD8', border: '1px solid #E7C78A', color: '#4A3A28' }}
             >
               <WalletCards className="w-4 h-4" />
-              כרטיס קהילה
+              
+              {tx('כרטיס קהילה')}
             </button>
           </div>
         </div>
@@ -313,9 +317,9 @@ export default function CommunityPage() {
             the events (IA handoff §3). */}
         <div className="flex" style={{ gap: 26, borderBottom: '1px solid #E4DAD0' }}>
           {([
-            ['events',   'אירועים'],
-            ['bookings', 'ההזמנות שלי'],
-            ['members',  'חברות'],
+            ['events',   tx('אירועים')],
+            ['bookings', tx('ההזמנות שלי')],
+            ['members',  tx('חברות')],
           ] as [PageTab, string][]).map(([v, label]) => (
             <button
               key={v}
@@ -353,20 +357,21 @@ export default function CommunityPage() {
         {pageTab === 'members' && (showEditSection ? (
           <div className="bg-white rounded-3xl p-5 shadow-sm space-y-4">
             <p className="text-base font-bold text-sand-800">
-              {isPregnant ? 'הצטרפי לקהילת הריון 🤰🏼' : 'הצטרפי לקהילה 🌸'}
+              {isPregnant ? tx('הצטרפי לקהילת הריון 🤰🏼') : tx('הצטרפי לקהילה 🌸')}
             </p>
 
             <div className="relative">
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                <MapPin className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
-                עיר מגורים / יישוב
+                <MapPin className="w-3.5 h-3.5 inline me-1 text-mustard-500" />
+                
+                {tx('עיר מגורים / יישוב')}
               </label>
               <input
                 value={citySearch}
                 onChange={e => { setCitySearch(e.target.value); setAreaInput(findExactCity(e.target.value) ?? ''); setShowCities(true) }}
                 onFocus={() => setShowCities(true)}
                 onBlur={() => setTimeout(() => setShowCities(false), 150)}
-                placeholder="עיר, מושב או קיבוץ..."
+                placeholder={tx('עיר, מושב או קיבוץ...')}
                 autoComplete="off"
                 className={`w-full px-4 py-3 border-2 rounded-2xl text-sm focus:outline-none bg-white ${areaInput ? 'border-mustard-400' : 'border-sand-200 focus:border-mustard-400'}`}
               />
@@ -374,16 +379,16 @@ export default function CommunityPage() {
                   list closes, which read as "it won't let me pick". The check
                   says it was picked. */}
               {areaInput && (
-                <span className="pointer-events-none absolute left-3 bottom-0 h-[48px] flex items-center gap-1 text-xs font-semibold text-mustard-600">
-                  <Check className="w-4 h-4" /> נבחר
+                <span className="pointer-events-none absolute end-3 bottom-0 h-[48px] flex items-center gap-1 text-xs font-semibold text-mustard-600">
+                  <Check className="w-4 h-4" /> {' '}{tx('נבחר')}
                 </span>
               )}
               {showCities && (
-                <div className="absolute top-full right-0 left-0 z-50 bg-white border-2 border-mustard-200 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto">
+                <div className="absolute top-full start-0 end-0 z-50 bg-white border-2 border-mustard-200 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto">
                   {cityMatches.map(c => (
                     <button key={c} type="button"
                       onMouseDown={() => { setAreaInput(c); setCitySearch(c); setShowCities(false) }}
-                      className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-800 border-b border-sand-50 last:border-0 transition-colors">
+                      className="w-full text-start px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-800 border-b border-sand-50 last:border-0 transition-colors">
                       {c}
                     </button>
                   ))}
@@ -392,8 +397,9 @@ export default function CommunityPage() {
                   {canUseFreeText(citySearch) && (
                     <button type="button"
                       onMouseDown={() => { const t = freeTextCity(citySearch)!; setAreaInput(t); setCitySearch(t); setShowCities(false) }}
-                      className="w-full text-right px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-600 transition-colors">
-                      לא ברשימה? להשתמש ב״{freeTextCity(citySearch)}״
+                      className="w-full text-start px-4 py-2.5 text-sm hover:bg-mustard-50 text-sand-600 transition-colors">
+                      
+                      {tx('לא ברשימה? להשתמש ב״')}{freeTextCity(citySearch)}{tx('״')}
                     </button>
                   )}
                 </div>
@@ -406,8 +412,9 @@ export default function CommunityPage() {
             {areaInput.trim() && (
               <div>
                 <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                  <MapPin className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
-                  שכונה ב{areaInput.trim()} <span className="text-sand-400 font-normal">(לא חובה)</span>
+                  <MapPin className="w-3.5 h-3.5 inline me-1 text-mustard-500" />
+                  
+                  {tx('שכונה ב')}{areaInput.trim()} <span className="text-sand-400 font-normal">{tx('(לא חובה)')}</span>
                 </label>
                 <NeighborhoodPicker
                   city={areaInput.trim()}
@@ -419,8 +426,9 @@ export default function CommunityPage() {
 
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                <Phone className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
-                מספר טלפון
+                <Phone className="w-3.5 h-3.5 inline me-1 text-mustard-500" />
+                
+                {tx('מספר טלפון')}
               </label>
               <input
                 value={phoneInput}
@@ -434,15 +442,15 @@ export default function CommunityPage() {
 
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                <AlignLeft className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
-                {isPregnant ? 'קצת עליי / שבוע הריון ומה אני מחפשת' : 'קצת עליי / מה אני מחפשת'}
+                <AlignLeft className="w-3.5 h-3.5 inline me-1 text-mustard-500" />
+                {isPregnant ? tx('קצת עליי / שבוע הריון ומה אני מחפשת') : tx('קצת עליי / מה אני מחפשת')}
               </label>
               <textarea
                 value={bioInput}
                 onChange={e => setBioInput(e.target.value)}
                 placeholder={isPregnant
-                  ? 'למשל: שבוע 28, מחפשת חברותא לטיולים ולמדריכי לידה...'
-                  : 'למשל: אמא לתינוקת בת 3 חודשים, מחפשת אמא לטיולים משותפים...'}
+                  ? tx('למשל: שבוע 28, מחפשת חברותא לטיולים ולמדריכי לידה...')
+                  : tx('למשל: אמא לתינוקת בת 3 חודשים, מחפשת אמא לטיולים משותפים...')}
                 rows={3}
                 className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 resize-none"
               />
@@ -452,12 +460,14 @@ export default function CommunityPage() {
                 = mom not surfaced under any tag filter. */}
             <div>
               <label className="block text-xs font-semibold text-sand-600 mb-1.5">
-                <Tag className="w-3.5 h-3.5 inline ml-1 text-mustard-500" />
-                מה ההעדפות החברתיות שלך?
+                <Tag className="w-3.5 h-3.5 inline me-1 text-mustard-500" />
+                
+                {tx('מה ההעדפות החברתיות שלך?')}
               </label>
               <TagSelector value={tagsInput} onChange={setTagsInput} />
               <p className="text-[13px] text-sand-600 mt-1.5 leading-relaxed">
-                בחירת תגיות תופיע בפרופיל שלך וגם תעזור לאמהות אחרות למצוא אותך.
+                
+                {tx('בחירת תגיות תופיע בפרופיל שלך וגם תעזור לאמהות אחרות למצוא אותך.')}
               </p>
             </div>
 
@@ -469,11 +479,11 @@ export default function CommunityPage() {
             <div className="rounded-2xl p-3.5" style={{ background: '#FAF6EF', border: '1px solid #EFE4D3' }}>
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-sand-800">להופיע ברשימת החברות</p>
+                  <p className="text-sm font-bold text-sand-800">{tx('להופיע ברשימת החברות')}</p>
                   <p className="text-xs text-sand-600 leading-relaxed mt-0.5">
                     {visibleChecked
-                      ? 'אמהות אחרות בקהילה יכולות לראות את הפרופיל שלך'
-                      : 'הפרופיל שלך מוסתר. את עדיין רואה את כולן ויכולה להירשם לאירועים'}
+                      ? tx('אמהות אחרות בקהילה יכולות לראות את הפרופיל שלך')
+                      : tx('הפרופיל שלך מוסתר. את עדיין רואה את כולן ויכולה להירשם לאירועים')}
                   </p>
                 </div>
                 <button
@@ -489,7 +499,7 @@ export default function CommunityPage() {
                 >
                   <span
                     className="absolute top-1 bg-white rounded-full shadow transition-all"
-                    style={{ width: 20, height: 20, right: visibleChecked ? 24 : 4 }}
+                    style={{ width: 20, height: 20, insetInlineStart: visibleChecked ? 24 : 4 }}
                   />
                 </button>
               </div>
@@ -504,7 +514,8 @@ export default function CommunityPage() {
                 {consentChecked && <Check className="w-3 h-3 text-white" />}
               </div>
               <span className="text-xs text-sand-600 leading-relaxed">
-                אני מסכימה לשתף את מספר הטלפון שלי עם נשים אחרות בקהילת מימו
+                
+                {tx('אני מסכימה לשתף את מספר הטלפון שלי עם נשים אחרות בקהילת מימו')}
               </span>
             </label>
 
@@ -513,7 +524,8 @@ export default function CommunityPage() {
             <div className="flex gap-2">
               {editMode && (
                 <button onClick={() => setEditMode(false)} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold whitespace-nowrap">
-                  חזרה לחברות
+                  
+                  {tx('חזרה לחברות')}
                 </button>
               )}
               <button
@@ -522,7 +534,7 @@ export default function CommunityPage() {
                 className="flex-1 py-3 rounded-2xl text-[#4A3A28] text-sm font-bold disabled:opacity-40 transition-all"
                 style={{ background: '#E7C78A' }}
               >
-                {savingProfile ? 'שומרת...' : editMode ? 'עדכון' : 'הצטרפי לקהילה ✓'}
+                {savingProfile ? tx('שומרת...') : editMode ? tx('עדכון') : tx('הצטרפי לקהילה ✓')}
               </button>
             </div>
           </div>
@@ -536,15 +548,16 @@ export default function CommunityPage() {
           <div className="rounded-3xl p-4 shadow-sm flex items-center justify-between gap-3"
             style={{ background: '#FAF6EF', border: '1px solid #EFE4D3' }}>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-sand-800">את מוסתרת מרשימת החברות</p>
-              <p className="text-xs text-sand-600 mt-0.5">אף אחת לא רואה את הפרופיל שלך כרגע</p>
+              <p className="text-sm font-bold text-sand-800">{tx('את מוסתרת מרשימת החברות')}</p>
+              <p className="text-xs text-sand-600 mt-0.5">{tx('אף אחת לא רואה את הפרופיל שלך כרגע')}</p>
             </div>
             <button
               onClick={() => setVisibility(true)}
               className="flex-shrink-0 px-3.5 py-2 rounded-2xl text-xs font-bold text-[#4A3A28]"
               style={{ background: '#E7C78A' }}
             >
-              להופיע שוב
+              
+              {tx('להופיע שוב')}
             </button>
           </div>
         )}
@@ -553,9 +566,9 @@ export default function CommunityPage() {
         {isPregnant ? (
           <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
             {([
-              ['all',  'כולן'],
-              ['week', 'שבוע דומה'],
-              ['area', 'אותו אזור'],
+              ['all',  tx('כולן')],
+              ['week', tx('שבוע דומה')],
+              ['area', tx('אותו אזור')],
             ] as [PregnancyFilter, string][]).map(([v, label]) => (
               <button
                 key={v}
@@ -570,9 +583,9 @@ export default function CommunityPage() {
         ) : (
           <div className="flex bg-white rounded-2xl p-1 shadow-sm gap-1">
             {([
-              ['all',  'כולן'],
-              ['age',  'גיל דומה'],
-              ['area', 'אותו אזור'],
+              ['all',  tx('כולן')],
+              ['age',  tx('גיל דומה')],
+              ['area', tx('אותו אזור')],
             ] as [FilterMode, string][]).map(([v, label]) => (
               <button
                 key={v}
@@ -597,21 +610,21 @@ export default function CommunityPage() {
               <p className="text-3xl">🔍</p>
               <p className="font-semibold text-sand-700 text-sm">
                 {pregnancyFilter === 'week' && myWeek == null
-                  ? 'הוסיפי תאריך לידה משוער בפרופיל שלך כדי לסנן לפי שבוע'
+                  ? tx('הוסיפי תאריך לידה משוער בפרופיל שלך כדי לסנן לפי שבוע')
                   : pregnancyFilter === 'area' && !myArea
-                  ? 'הזיני עיר / אזור בפרופיל שלך כדי לחפש'
+                  ? tx('הזיני עיר / אזור בפרופיל שלך כדי לחפש')
                   : tagFilters.length > 0
                   ? (tagFilters.length === 1
-                      ? 'אין בנות בהריון עם התגית הזו. נסי "הכל" או תגית אחרת'
-                      : 'אין בנות בהריון שמחפשות את כל הדברים האלה. נסי להוריד תגית')
-                  : 'לא נמצאו בנות בהריון בסינון זה. נסי "כולן"'}
+                      ? tx('אין בנות בהריון עם התגית הזו. נסי "הכל" או תגית אחרת')
+                      : tx('אין בנות בהריון שמחפשות את כל הדברים האלה. נסי להוריד תגית'))
+                  : tx('לא נמצאו בנות בהריון בסינון זה. נסי "כולן"')}
               </p>
             </div>
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-sand-600 flex items-center gap-1">
                 <Filter className="w-3.5 h-3.5" />
-                {filteredPregnant.length} בנות בהריון נמצאו
+                {filteredPregnant.length} {' '}{tx('בנות בהריון נמצאו')}
               </p>
               {filteredPregnant.map(p => {
                 const week = p.due_date ? pregnancyWeek(p.due_date) : null
@@ -632,10 +645,10 @@ export default function CommunityPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sand-800 text-sm">
-                          {p.mother_name ?? 'בהריון'}
+                          {p.mother_name ?? tx('בהריון')}
                         </p>
                         <p className="text-xs text-sand-600">
-                          {week != null ? `שבוע ${week}` : 'בהריון'}
+                          {week != null ? tx('שבוע {week}', { week }) : tx('בהריון')}
                           {p.area && ` · ${p.area}`}
                         </p>
                         {p.community_bio && (
@@ -654,7 +667,7 @@ export default function CommunityPage() {
                       {p.community_consent && p.phone_number && (
                         <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
                           <a
-                            href={waLink(p.phone_number, 'היי! מצאתי אותך בקהילת הריון של Mimo 🤰🏼') ?? '#'}
+                            href={waLink(p.phone_number, tx('היי! מצאתי אותך בקהילת הריון של Mimo 🤰🏼')) ?? '#'}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors"
@@ -679,21 +692,21 @@ export default function CommunityPage() {
               <p className="text-3xl">🔍</p>
               <p className="font-semibold text-sand-700 text-sm">
                 {filterMode === 'area' && !myArea
-                  ? 'הזיני עיר / אזור בפרופיל שלך כדי לחפש'
+                  ? tx('הזיני עיר / אזור בפרופיל שלך כדי לחפש')
                   : filterMode === 'age' && myMonths == null
-                  ? 'הוסיפי תאריך לידה לתינוק/ת כדי לסנן לפי גיל'
+                  ? tx('הוסיפי תאריך לידה לתינוק/ת כדי לסנן לפי גיל')
                   : tagFilters.length > 0
                   ? (tagFilters.length === 1
-                      ? 'אין אמהות עם התגית הזו. נסי "הכל" או תגית אחרת'
-                      : 'אין אמהות שמחפשות את כל הדברים האלה. נסי להוריד תגית')
-                  : 'לא נמצאו אמהות בסינון זה. נסי "כולן"'}
+                      ? tx('אין אמהות עם התגית הזו. נסי "הכל" או תגית אחרת')
+                      : tx('אין אמהות שמחפשות את כל הדברים האלה. נסי להוריד תגית'))
+                  : tx('לא נמצאו אמהות בסינון זה. נסי "כולן"')}
               </p>
             </div>
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-sand-600 flex items-center gap-1">
                 <Filter className="w-3.5 h-3.5" />
-                {filteredMoms.length} אמהות נמצאו
+                {filteredMoms.length} {' '}{tx('אמהות נמצאו')}
               </p>
               {filteredMoms.map(p => {
                 const memberTags = (p.community_tags ?? []).map(tagDef).filter((t): t is (typeof COMMUNITY_TAGS)[number] => !!t)
@@ -713,15 +726,15 @@ export default function CommunityPage() {
                           and the baby moves to its own "אמא של" line. */}
                       <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5 font-display"
                         style={{ background: '#F4EDE1', fontSize: 19, color: '#8A6A2F' }}>
-                        {(p.mother_name ?? 'א').trim().charAt(0)}
+                        {(p.mother_name ?? tx('א')).trim().charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sand-800 text-sm">
-                          {p.mother_name ?? 'אמא'}
+                          {p.mother_name ?? tx('אמא')}
                         </p>
                         <p className="text-xs text-sand-600">
                           {[
-                            p.child_name ? `אמא של ${p.child_name}` : 'אמא',
+                            p.child_name ? tx('אמא של {child_name}', { child_name: p.child_name }) : tx('אמא'),
                             p.child_dob ? getBabyAge(p.child_dob) : null,
                             p.area,
                           ].filter(Boolean).join(' · ')}
@@ -747,7 +760,7 @@ export default function CommunityPage() {
                       {p.community_consent && p.phone_number && (
                         <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
                           <a
-                            href={waLink(p.phone_number, 'היי! מצאתי אותך בקהילת Mimo 🌿') ?? '#'}
+                            href={waLink(p.phone_number, tx('היי! מצאתי אותך בקהילת Mimo 🌿')) ?? '#'}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold hover:bg-green-100 transition-colors"
@@ -772,15 +785,15 @@ export default function CommunityPage() {
           variants share the same component, parameterized via props. */}
       {openMember?.kind === 'mom' && (() => {
         const m = openMember.member
-        const firstName = m.mother_name?.split(' ')[0] ?? 'אמא'
-        const secondary = m.child_dob ? `אמא ל${m.child_gender === 'girl' ? 'תינוקת' : 'תינוק'} (${getBabyAge(m.child_dob)})` : 'אמא בקהילה'
+        const firstName = m.mother_name?.split(' ')[0] ?? tx('אמא')
+        const secondary = m.child_dob ? (m.child_gender === 'girl' ? tx('אמא לתינוקת ({age})', { age: getBabyAge(m.child_dob) }) : tx('אמא לתינוק ({age})', { age: getBabyAge(m.child_dob) })) : tx('אמא בקהילה')
         return (
           <CommunityMemberSheet
             member={m}
             avatarEmoji={genderEmoji(m.child_gender)}
             secondaryLine={secondary}
-            whatsappGreeting={`היי ${firstName}! מצאתי אותך בקהילת Mimo 🌿`}
-            fallbackGreeting={`היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוק${m.child_gender === 'girl' ? 'ת' : ''} בגיל דומה 🌿`}
+            whatsappGreeting={tx('היי {firstName}! מצאתי אותך בקהילת Mimo 🌿', { firstName })}
+            fallbackGreeting={(m.child_gender === 'girl' ? tx('היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוקת בגיל דומה 🌿') : tx('היי! אני רוצה להתחבר עם אמא מהקהילה שיש לה תינוק בגיל דומה 🌿'))}
             onClose={() => setOpenMember(null)}
           />
         )
@@ -788,16 +801,16 @@ export default function CommunityPage() {
 
       {openMember?.kind === 'pregnant' && (() => {
         const m = openMember.member
-        const firstName = m.mother_name?.split(' ')[0] ?? 'בהריון'
+        const firstName = m.mother_name?.split(' ')[0] ?? tx('בהריון')
         const week = m.due_date ? pregnancyWeek(m.due_date) : null
-        const secondary = week != null ? `שבוע ${week} להריון` : 'בהריון'
+        const secondary = week != null ? tx('שבוע {week} להריון', { week }) : tx('בהריון')
         return (
           <CommunityMemberSheet
             member={m}
             avatarEmoji="🤰🏼"
             secondaryLine={secondary}
-            whatsappGreeting={`היי ${firstName}! מצאתי אותך בקהילת הריון של Mimo 🤰🏼`}
-            fallbackGreeting="היי! אני בהריון ורוצה להתחבר עם בנות בשבוע דומה 🤰🏼"
+            whatsappGreeting={tx('היי {firstName}! מצאתי אותך בקהילת הריון של Mimo 🤰🏼', { firstName })}
+            fallbackGreeting={tx('היי! אני בהריון ורוצה להתחבר עם בנות בשבוע דומה 🤰🏼')}
             onClose={() => setOpenMember(null)}
           />
         )

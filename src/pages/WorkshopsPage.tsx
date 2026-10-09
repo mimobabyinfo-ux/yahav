@@ -17,6 +17,7 @@ import {
 import GiftCardModal from '../components/giftcard/GiftCardModal'
 import type { Page } from '../App'
 
+import { tx, DIR } from '../i18n'
 type WorkshopExt = Workshop & { whatsapp_number?: string }
 
 // ── Cohorts (מחזורים) ─────────────────────────────────────────────────────────
@@ -34,10 +35,10 @@ function cohortDateLabel(c: PublicCohort): string {
 function CohortSpots({ c }: { c: PublicCohort }) {
   const spotsLeft = c.capacity != null ? c.capacity - c.registered_count : null
   const full = spotsLeft != null && spotsLeft <= 0
-  if (full) return <span className="font-bold text-red-500">המחזור מלא</span>
-  if (spotsLeft === 1) return <span className="font-bold text-amber-600">נותר מקום אחרון!</span>
-  if (spotsLeft != null && spotsLeft <= 3) return <span className="font-bold text-amber-600">נותרו {spotsLeft} מקומות</span>
-  return <span className="text-green-700 font-semibold">יש מקום 🤍</span>
+  if (full) return <span className="font-bold text-red-500">{tx('המחזור מלא')}</span>
+  if (spotsLeft === 1) return <span className="font-bold text-amber-600">{tx('נותר מקום אחרון!')}</span>
+  if (spotsLeft != null && spotsLeft <= 3) return <span className="font-bold text-amber-600">{tx('נותרו')}{' '}{spotsLeft} {' '}{tx('מקומות')}</span>
+  return <span className="text-green-700 font-semibold">{tx('יש מקום 🤍')}</span>
 }
 
 // Selectable list of upcoming cohorts — used inside the product modal.
@@ -49,7 +50,7 @@ function CohortList({ list, selected, onSelect }: { list: PublicCohort[]; select
   return (
     <div>
       <p className="text-xs font-bold text-sand-700 mb-2 flex items-center gap-1.5">
-        <CalendarDays className="w-3.5 h-3.5" /> באיזה מחזור תרצי להשתתף?
+        <CalendarDays className="w-3.5 h-3.5" /> {' '}{tx('באיזה מחזור תרצי להשתתף?')}
       </p>
       <div className="grid grid-cols-2 gap-2">
         {list.slice(0, 4).map(c => {
@@ -62,7 +63,7 @@ function CohortList({ list, selected, onSelect }: { list: PublicCohort[]; select
               type="button"
               disabled={full}
               onClick={() => onSelect(c.id)}
-              className={`text-right p-2.5 rounded-xl border-2 transition-all ${
+              className={`text-start p-2.5 rounded-xl border-2 transition-all ${
                 full
                   ? 'border-sand-200 bg-sand-50 opacity-50 cursor-not-allowed'
                   : chosen
@@ -164,7 +165,7 @@ function WaitlistButton({ ws, compact = false }: { ws: WorkshopExt; compact?: bo
     return (
       <div className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl text-sm font-bold ${compact ? 'py-2.5' : 'py-3.5'}`}
         style={{ background: '#F0EAE0', color: '#7B604C' }}>
-        <Check className="w-4 h-4" /> נעדכן אותך
+        <Check className="w-4 h-4" /> {' '}{tx('נעדכן אותך')}
       </div>
     )
   }
@@ -173,7 +174,7 @@ function WaitlistButton({ ws, compact = false }: { ws: WorkshopExt; compact?: bo
       className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-60 ${compact ? 'py-2.5' : 'py-3.5'}`}
       style={{ background: '#E7C78A' }}>
       <Bell className="w-4 h-4" />
-      {state === 'saving' ? 'רגע...' : 'עדכנו אותי כשייפתח'}
+      {state === 'saving' ? tx('רגע...') : tx('עדכנו אותי כשייפתח')}
     </button>
   )
 }
@@ -190,7 +191,8 @@ function GraduateBadge({ offer }: { offer: GraduateOffer }) {
     <span className="inline-flex items-center gap-1 text-[12px] font-bold px-2.5 py-1 rounded-full"
       style={{ background: '#F6E3DA', color: '#A35C3D' }}>
       <Gift className="w-3 h-3" />
-      משפחת מימו · {days <= 1 ? 'יום אחרון' : `עד ${graduateOfferDeadline(offer)}`}
+      
+      {tx('משפחת מימו ·')}{' '}{days <= 1 ? tx('יום אחרון') : tx('עד {v0}', { v0: graduateOfferDeadline(offer) })}
     </span>
   )
 }
@@ -227,13 +229,13 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts, offer }: { ws: Work
   // empty list here means exactly "nothing to sign up to".
   const showWaitlist = cohorts.length === 0 && ws.waitlist_enabled
   const registerHref = `${window.location.origin}/?register=${ws.id}${selectedCohort ? `&cohort=${selectedCohort}` : ''}`
-  const waText = `היי! אני מעוניינת ב: ${ws.title}${chosen ? ` (מחזור ${cohortDateLabel(chosen)})` : ''}`
+  const waText = tx('היי! אני מעוניינת ב: {title}{v1}', { title: ws.title, v1: chosen ? tx(' (מחזור {d})', { d: cohortDateLabel(chosen) }) : '' })
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
       <div
         className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm max-h-[88vh] flex flex-col shadow-2xl"
         onClick={e => e.stopPropagation()}
-        dir="rtl"
+        dir={DIR}
       >
       {/* Scrollable body — image + details. The CTA footer below stays
           pinned so הרשמה / וואטסאפ are always visible without scrolling. */}
@@ -244,7 +246,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts, offer }: { ws: Work
             <img src={ws.image_url} alt={ws.title} className="w-full h-52 object-cover rounded-t-3xl" />
             <button
               onClick={onClose}
-              className="absolute top-4 left-4 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow"
+              className="absolute top-4 end-4 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow"
             >
               <X className="w-5 h-5 text-sand-700" />
             </button>
@@ -254,7 +256,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts, offer }: { ws: Work
             <ShoppingBag className="w-10 h-10 text-sand-500" />
             <button
               onClick={onClose}
-              className="absolute top-4 left-4 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow"
+              className="absolute top-4 end-4 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow"
             >
               <X className="w-5 h-5 text-sand-700" />
             </button>
@@ -272,7 +274,7 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts, offer }: { ws: Work
               <span className="flex-shrink-0"><GraduatePrice ws={ws} offer={offer} size="modal" /></span>
             ) : ws.price != null && (
               <span className="text-xl font-bold text-mustard-600 flex-shrink-0">
-                {ws.price === 0 ? 'חינם' : `₪${ws.price}`}
+                {ws.price === 0 ? tx('חינם') : `₪${ws.price}`}
               </span>
             )}
           </div>
@@ -312,8 +314,8 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts, offer }: { ws: Work
             className="flex-1 flex flex-col items-center justify-center font-bold py-2.5 rounded-2xl text-sm transition-all"
             style={{ background: '#A35C3D', color: '#FFFFFF' }}
           >
-            <span className="flex items-center gap-2"><Gift className="w-4 h-4" /> להרשמה בהנחה</span>
-            <span className="text-[12px] font-semibold opacity-90 mt-0.5">המחיר שלך כבר מעודכן בקישור</span>
+            <span className="flex items-center gap-2"><Gift className="w-4 h-4" /> {' '}{tx('להרשמה בהנחה')}</span>
+            <span className="text-[12px] font-semibold opacity-90 mt-0.5">{tx('המחיר שלך כבר מעודכן בקישור')}</span>
           </a>
         ) : registerFlow ? (
           /* Registration page with the chosen cohort pre-selected —
@@ -324,8 +326,8 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts, offer }: { ws: Work
             className="flex-1 flex flex-col items-center justify-center font-bold py-2.5 rounded-2xl text-sm transition-all"
             style={{ background: '#C8A460', color: '#33281B' }}
           >
-            <span className="flex items-center gap-2"><ExternalLink className="w-4 h-4" /> להרשמה</span>
-            {chosen && <span className="text-[12px] font-semibold opacity-80 mt-0.5">למחזור {cohortDateLabel(chosen)}</span>}
+            <span className="flex items-center gap-2"><ExternalLink className="w-4 h-4" /> {' '}{tx('להרשמה')}</span>
+            {chosen && <span className="text-[12px] font-semibold opacity-80 mt-0.5">{tx('למחזור')}{' '}{cohortDateLabel(chosen)}</span>}
           </a>
         ) : showWaitlist ? (
           <WaitlistButton ws={ws} />
@@ -339,7 +341,8 @@ function ProductModal({ ws, onClose, ownerWhatsapp, cohorts, offer }: { ws: Work
             style={{ background: '#C8A460', color: '#33281B' }}
           >
             <ExternalLink className="w-4 h-4" />
-            להרשמה
+            
+            {tx('להרשמה')}
           </a>
         )}
       </div>
@@ -489,7 +492,7 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
     : workshops.filter(w => w.workshop_type === category)
 
   return (
-    <div className="min-h-screen pb-28" dir="rtl">
+    <div className="min-h-screen pb-28" dir={DIR}>
       {/* Brand header — cream, matching the rest of the app */}
       <div className="px-5 pt-8 pb-5">
         {/* Brenda 17.8.26: plain "מוצרים" — "מיוחדים" and "נבחרו במיוחד
@@ -497,14 +500,14 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
             seeing it: "take out the star on the left." With the subtitle
             gone the badge was decorating an empty row. */}
         <div className="max-w-sm mx-auto">
-          <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>מוצרים</h1>
+          <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>{tx('מוצרים')}</h1>
         </div>
 
         {/* Category filters. Brenda 12.9.26: the חנות / הרכישות שלי switcher
             is gone; הרכישות שלי lives in settings under ניהול שיתופים. */}
         {(
           <div className="max-w-sm mx-auto flex gap-2 mt-4 overflow-x-auto scroll-hide pb-1">
-            {[{ key: 'all', label: 'הכל' }, ...activeCategories.map(cat => ({ key: cat.name, label: categoryLabel(cat) }))].map(c => (
+            {[{ key: 'all', label: tx('הכל') }, ...activeCategories.map(cat => ({ key: cat.name, label: tx(categoryLabel(cat)) }))].map(c => (
               <button
                 key={c.key}
                 onClick={() => setCategory(c.key)}
@@ -529,16 +532,17 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
             {giftableProducts.length > 0 && (
               <button
                 onClick={() => { setGiftOpen(true); track('gift_card_open') }}
-                className="w-full text-right rounded-3xl shadow-sm p-4 flex items-center gap-3 active:scale-[0.98] transition-all hover:shadow-md"
+                className="w-full text-start rounded-3xl shadow-sm p-4 flex items-center gap-3 active:scale-[0.98] transition-all hover:shadow-md"
                 style={{ background: '#F6ECD8', border: '1px solid #E7C78A' }}
               >
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0" style={{ background: '#FFFFFF' }}>
                   🎁
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm" style={{ color: '#3D2E20' }}>גיפט קארד</p>
+                  <p className="font-bold text-sm" style={{ color: '#3D2E20' }}>{tx('גיפט קארד')}</p>
                   <p className="text-xs mt-0.5 leading-relaxed" style={{ color: '#7B604C' }}>
-                    מתנה לחברה: סדנה או ליווי, נשלח אליה במייל
+                    
+                    {tx('מתנה לחברה: סדנה או ליווי, נשלח אליה במייל')}
                   </p>
                 </div>
                 <Gift className="w-5 h-5 flex-shrink-0" style={{ color: '#B98F4E' }} />
@@ -552,7 +556,7 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
             ) : filtered.length === 0 ? (
               <div className="text-center py-12 text-sand-600">
                 <p className="text-4xl mb-3">🛍️</p>
-                <p className="text-sm">אין מוצרים בקטגוריה זו</p>
+                <p className="text-sm">{tx('אין מוצרים בקטגוריה זו')}</p>
               </div>
             ) : (
               filtered.map(ws => {
@@ -575,7 +579,8 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
                         <h3 className="font-bold text-sm leading-snug" style={{ color: '#3D2E20' }}>{ws.title}</h3>
                         {!noDetails && (
                           <span className="inline-flex items-center gap-0.5 text-xs font-bold" style={{ color: '#8A6A2F' }}>
-                            לפרטים נוספים <ChevronLeft className="w-3.5 h-3.5" />
+                            
+                            {tx('לפרטים נוספים')}{' '}<ChevronLeft className="flip-dir w-3.5 h-3.5" />
                           </span>
                         )}
                         {gradOffer ? (
@@ -584,7 +589,7 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
                             <GraduateBadge offer={gradOffer} />
                           </div>
                         ) : ws.price != null && (
-                          <p className="text-lg font-black" style={{ color: '#D9B978' }}>{ws.price === 0 ? 'חינם' : `₪${ws.price}`}</p>
+                          <p className="text-lg font-black" style={{ color: '#D9B978' }}>{ws.price === 0 ? tx('חינם') : `₪${ws.price}`}</p>
                         )}
                       </div>
                       <div className="relative flex-shrink-0">
@@ -596,8 +601,8 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
                           </div>
                         )}
                         {isFeatured && (
-                          <div className="absolute -top-2 -right-2 flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[13px] font-bold text-white" style={{ background: '#A35C3D' }}>
-                            <Star className="w-2.5 h-2.5" /> מומלץ
+                          <div className="absolute -top-2 -start-2 flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[13px] font-bold text-white" style={{ background: '#A35C3D' }}>
+                            <Star className="w-2.5 h-2.5" /> {' '}{tx('מומלץ')}
                           </div>
                         )}
                       </div>
@@ -619,8 +624,8 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
                             >
                               {cohortDateLabel(c)}
                               {!full && spotsLeft != null && spotsLeft <= 3 && (
-                                <span className="mr-1" style={{ color: '#A35C3D' }}>
-                                  · {spotsLeft === 1 ? 'מקום אחרון!' : `נותרו ${spotsLeft}`}
+                                <span className="ms-1" style={{ color: '#A35C3D' }}>
+                                  · {spotsLeft === 1 ? tx('מקום אחרון!') : tx('נותרו {spotsLeft}', { spotsLeft })}
                                 </span>
                               )}
                             </span>
@@ -629,18 +634,18 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
                       </div>
                     )}
                     <div className="flex gap-2 px-4 pb-4" onClick={e => e.stopPropagation()}>
-                      <a href={`https://wa.me/${ws.whatsapp_number ?? ownerWhatsapp}?text=${encodeURIComponent(`היי! אני מעוניינת ב: ${ws.title}`)}`}
+                      <a href={`https://wa.me/${ws.whatsapp_number ?? ownerWhatsapp}?text=${encodeURIComponent(tx('היי! אני מעוניינת ב: {title}', { title: ws.title }))}`}
                         target="_blank" rel="noopener noreferrer"
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white"
                         style={{ background: '#818267' }}>
-                        <MessageCircle className="w-4 h-4" /> וואטסאפ
+                        <MessageCircle className="w-4 h-4" /> {' '}{tx('וואטסאפ')}
                       </a>
                       {gradOffer ? (
                         <a href={graduateOfferLink(gradOffer)}
                           onClick={() => track('product_pay_click', { workshop_id: ws.id, title: ws.title, route: 'graduate_offer' })}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white"
                           style={{ background: '#A35C3D' }}>
-                          <Gift className="w-4 h-4" /> להרשמה בהנחה
+                          <Gift className="w-4 h-4" /> {' '}{tx('להרשמה בהנחה')}
                         </a>
                       ) : wsCohorts.length > 0 && ws.public_registration ? (
                         /* Cohort-based product — open the modal to pick a
@@ -648,7 +653,7 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
                         <button onClick={() => openProduct(ws)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28]"
                           style={{ background: '#E7C78A' }}>
-                          <CalendarDays className="w-4 h-4" /> להרשמה
+                          <CalendarDays className="w-4 h-4" /> {' '}{tx('להרשמה')}
                         </button>
                       ) : wsCohorts.length === 0 && ws.waitlist_enabled ? (
                         <WaitlistButton ws={ws} compact />
@@ -657,7 +662,7 @@ export default function WorkshopsPage({ onNavigate: _onNavigate }: { onNavigate?
                           onClick={() => recordStorePurchase(ws, profile, null)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-[#4A3A28]"
                           style={{ background: '#E7C78A' }}>
-                          <CreditCard className="w-4 h-4" /> רכישה
+                          <CreditCard className="w-4 h-4" /> {' '}{tx('רכישה')}
                         </a>
                       )}
                     </div>

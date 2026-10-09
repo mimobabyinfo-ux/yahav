@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
+import { tx, DIR } from '../i18n'
 type Props = {
   open: boolean
   title: string
@@ -35,7 +36,7 @@ export default function BottomSheet({ open, title, onClose, children }: Props) {
         className={`absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl transition-transform duration-300 ease-out p-5 pb-8 ${
           open ? 'translate-y-0' : 'translate-y-full'
         }`}
-        dir="rtl"
+        dir={DIR}
       >
         <div className="max-w-sm mx-auto">
           {/* Drag affordance */}
@@ -46,7 +47,7 @@ export default function BottomSheet({ open, title, onClose, children }: Props) {
             <button
               onClick={onClose}
               className="text-sand-400 hover:text-sand-600 p-1"
-              aria-label="סגור"
+              aria-label={tx('סגור')}
             >
               <X className="w-5 h-5" />
             </button>

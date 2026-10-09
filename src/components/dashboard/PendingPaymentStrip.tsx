@@ -3,6 +3,7 @@ import { Clock } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
+import { tx } from '../../i18n'
 /**
  * One thin line on the home screen for a mother who started registering
  * for a paid event and never finished paying.
@@ -91,8 +92,8 @@ export default function PendingPaymentStrip() {
             <Clock className="w-4 h-4 flex-shrink-0" style={{ color: claimed ? '#5C7A4A' : '#B08A3C' }} />
             <p className="flex-1 min-w-0 font-semibold" style={{ fontSize: 13, lineHeight: 1.35, color: claimed ? '#4F6B3E' : '#8A6A2F' }}>
               {claimed
-                ? `קיבלנו! מאשרות את התשלום ל${ev.title} ושומרות לך מקום`
-                : <>ההרשמה שלך ל<span className="font-bold">{ev.title}</span> נעצרה לפני התשלום</>}
+                ? tx('קיבלנו! מאשרות את התשלום ל{title} ושומרות לך מקום', { title: ev.title })
+                : <>{tx('ההרשמה שלך ל')}<span className="font-bold">{ev.title}</span> {' '}{tx('נעצרה לפני התשלום')}</>}
             </p>
             {!claimed && link && (
               <a
@@ -102,7 +103,8 @@ export default function PendingPaymentStrip() {
                 className="flex-shrink-0 font-bold rounded-xl"
                 style={{ background: '#E7C78A', color: '#4A3A28', fontSize: 12, padding: '7px 11px' }}
               >
-                להשלמה
+                
+                {tx('להשלמה')}
               </a>
             )}
           </div>

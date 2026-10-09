@@ -5,6 +5,7 @@ import { sleepTypeFromStartTime } from '../../utils/sleepTypeFromTime'
 import { ENTRY_COLORS } from '../DailyTimeline'
 import TimelineLegend from './TimelineLegend'
 
+import { tx } from '../../i18n'
 // The day's Gantt timeline: 00:00 at the top, 24:00 at the bottom, blocks
 // placed by real time.
 //
@@ -107,7 +108,7 @@ function buildSegmentsForDay(entries: DailyLogEntryWithDetails[], day: string): 
         isInstant = true
       } else {
         const kind = resolveSleepKind(e, sd)
-        primaryLabel = kind === 'night' ? 'שנת לילה' : 'שנת יום'
+        primaryLabel = kind === 'night' ? tx('שנת לילה') : tx('שנת יום')
       }
     } else if (e.entry_type === 'feeding') {
       const fd = firstOf<FeedingDetail>(e.feeding_details as FeedingDetail | FeedingDetail[] | null)
@@ -115,14 +116,14 @@ function buildSegmentsForDay(entries: DailyLogEntryWithDetails[], day: string): 
       durMin = perSideSec > 0 ? perSideSec / 60 : (fd?.duration_minutes ?? 0)
       if (durMin <= 0) {
         isInstant = true
-      } else if (fd?.feeding_type === 'breast') { primaryLabel = 'הנקה'; emoji = '🤱🏼' }
-      else if (fd?.feeding_type === 'bottle')  { primaryLabel = 'בקבוק'; emoji = '🍼' }
-      else if (fd?.feeding_type === 'solid')   { primaryLabel = 'אוכל';  emoji = '🥄' }
-      else primaryLabel = 'האכלה'
+      } else if (fd?.feeding_type === 'breast') { primaryLabel = tx('הנקה'); emoji = '🤱🏼' }
+      else if (fd?.feeding_type === 'bottle')  { primaryLabel = tx('בקבוק'); emoji = '🍼' }
+      else if (fd?.feeding_type === 'solid')   { primaryLabel = tx('אוכל');  emoji = '🥄' }
+      else primaryLabel = tx('האכלה')
     } else if (e.entry_type === 'tummy_time') {
       durMin = tummyDurationFromNotes(e.notes) ?? 0
       if (durMin <= 0) isInstant = true
-      else primaryLabel = 'זמן בטן'
+      else primaryLabel = tx('זמן בטן')
     } else {
       isInstant = true
     }
@@ -291,7 +292,7 @@ export default function DayTimelineChart({ entries, selectedDate }: Props) {
     <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] overflow-hidden">
       {/* The pinch is the whole zoom control now. */}
       <div className="px-3 pt-3">
-        <span className="text-[11px] font-semibold text-sand-500">ציר הזמן של היום · אפשר לצבוט להגדלה</span>
+        <span className="text-[11px] font-semibold text-sand-500">{tx('ציר הזמן של היום · אפשר לצבוט להגדלה')}</span>
       </div>
 
       <div

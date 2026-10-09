@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Play, Square, Pause } from 'lucide-react'
 import { formatSeconds } from '../../hooks/useActiveTimer'
 
+import { tx } from '../../i18n'
 // Shared timer-display + start/pause/resume/stop UI used by SleepPage,
 // TummyTimePage, (and eventually BreastfeedingPage for the per-side block).
 // Stateless — the parent owns the active timer (via useActiveTimer) and
@@ -41,9 +42,9 @@ export default function TimerControls({
   onResume,
   onStop,
   onDelete,
-  startLabel = 'התחל',
-  stopLabel = 'עצור ושמור',
-  deleteLabel = 'מחיקת רשומה',
+  startLabel = tx('התחל'),
+  stopLabel = tx('עצור ושמור'),
+  deleteLabel = tx('מחיקת רשומה'),
   accent = '#A35C3D',
   showStartButton = true,
 }: Props) {
@@ -59,7 +60,7 @@ export default function TimerControls({
         </div>
 
         <div className="text-sm text-sand-500">
-          {paused ? 'בהפסקה' : 'הטיימר רץ'}
+          {paused ? tx('בהפסקה') : tx('הטיימר רץ')}
         </div>
 
         {/* Pause / Resume toggle — secondary action */}
@@ -70,7 +71,8 @@ export default function TimerControls({
             style={{ borderColor: accent, color: accent, background: 'white' }}
           >
             <Play className="w-5 h-5 fill-current" />
-            המשיכי
+            
+            {tx('המשיכי')}
           </button>
         ) : (
           <button
@@ -79,7 +81,8 @@ export default function TimerControls({
             style={{ borderColor: accent, color: accent, background: 'white' }}
           >
             <Pause className="w-5 h-5 fill-current" />
-            הפסקה
+            
+            {tx('הפסקה')}
           </button>
         )}
 

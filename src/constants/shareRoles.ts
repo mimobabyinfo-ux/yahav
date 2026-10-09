@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 // Phase 4 / C1: the 5 family roles a mom can assign to a share invite.
 // Matches the CHECK constraint on family_invite_tokens.role and
 // user_profiles.family_role from migration 20260603000000.
@@ -11,11 +12,11 @@ export type ShareRoleDef = {
 }
 
 export const SHARE_ROLES: ShareRoleDef[] = [
-  { id: 'father',  label: 'אבא',    emoji: '👨🏼' },
-  { id: 'grandma', label: 'סבתא',   emoji: '👵🏼' },
-  { id: 'grandpa', label: 'סבא',    emoji: '👴🏼' },
-  { id: 'aunt',    label: 'דודה',   emoji: '👩🏼' },
-  { id: 'nanny',   label: 'מטפלת',  emoji: '👩🏼‍⚕️' },
+  { id: 'father',  label: tx('אבא'),    emoji: '👨🏼' },
+  { id: 'grandma', label: tx('סבתא'),   emoji: '👵🏼' },
+  { id: 'grandpa', label: tx('סבא'),    emoji: '👴🏼' },
+  { id: 'aunt',    label: tx('דודה'),   emoji: '👩🏼' },
+  { id: 'nanny',   label: tx('מטפלת'),  emoji: '👩🏼‍⚕️' },
 ]
 
 export function roleDef(id: ShareRole | null | undefined): ShareRoleDef | null {
@@ -30,5 +31,5 @@ export function roleOfBabyLabel(role: ShareRole | null | undefined, babyName: st
   const def = roleDef(role)
   if (!def) return ''
   if (!babyName) return def.label
-  return `${def.label} של ${babyName}`
+  return tx('{label} של {babyName}', { label: def.label, babyName })
 }

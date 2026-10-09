@@ -18,6 +18,7 @@ import { Sparkles, X, CalendarHeart, GraduationCap, Megaphone, ChevronLeft } fro
 import { supabase } from '../../lib/supabase'
 import type { Page } from '../../App'
 
+import { tx, LOCALE, DIR } from '../../i18n'
 type NewEvent = { id: string; title: string; emoji: string | null; event_date: string; start_time: string | null; location: string | null; price: number | null }
 type NewCohort = { id: string; workshop_id: string; workshop_title: string; label: string | null; start_date: string | null; start_time: string | null; location: string | null }
 type NewAnnouncement = { id: string; title: string; body: string | null; emoji: string | null; link_type: 'workshops' | 'benefits' | 'community' | 'url' | null; link_url: string | null }
@@ -33,7 +34,7 @@ function ddmm(iso: string | null): string {
 }
 function weekday(iso: string | null): string {
   if (!iso) return ''
-  return new Date(iso + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'long' })
+  return new Date(iso + 'T12:00:00').toLocaleDateString(LOCALE, { weekday: 'long' })
 }
 function hhmm(t: string | null): string {
   return t ? t.slice(0, 5) : ''
@@ -91,7 +92,7 @@ export default function WhatsNewModal({ onNavigate }: { onNavigate: (page: Page)
   const moreCohorts = data.cohorts.length - cohorts.length
   const total = data.events.length + data.cohorts.length + data.announcements.length
 
-  const rowCls = 'w-full flex items-center gap-3 text-right rounded-2xl px-3 py-2.5 transition-all active:scale-[0.99]'
+  const rowCls = 'w-full flex items-center gap-3 text-start rounded-2xl px-3 py-2.5 transition-all active:scale-[0.99]'
   const rowStyle = { background: '#FAF6EF' }
 
   return (
@@ -100,22 +101,22 @@ export default function WhatsNewModal({ onNavigate }: { onNavigate: (page: Page)
         className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col"
         style={{ maxHeight: '88vh' }}
         onClick={e => e.stopPropagation()}
-        dir="rtl"
+        dir={DIR}
       >
         <div className="relative px-6 pt-7 pb-5 text-center flex-shrink-0" style={{ background: '#F6ECD8' }}>
           <button
             onClick={markSeen}
-            className="absolute top-4 left-4 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center"
-            aria-label="סגירה"
+            className="absolute top-4 end-4 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center"
+            aria-label={tx('סגירה')}
           >
             <X className="w-4 h-4 text-sand-700" />
           </button>
           <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center" style={{ background: '#E7C78A' }}>
             <Sparkles className="w-7 h-7" style={{ color: '#4A3A28' }} />
           </div>
-          <h2 className="mt-3 font-bold text-lg" style={{ color: '#3D2E20' }}>חדש במימו</h2>
+          <h2 className="mt-3 font-bold text-lg" style={{ color: '#3D2E20' }}>{tx('חדש במימו')}</h2>
           <p className="mt-1 text-sm" style={{ color: '#7B604C' }}>
-            {total === 1 ? 'משהו חדש מאז הפעם הקודמת שנכנסת' : `${total} דברים חדשים מאז הפעם הקודמת שנכנסת`}
+            {total === 1 ? tx('משהו חדש מאז הפעם הקודמת שנכנסת') : tx('{total} דברים חדשים מאז הפעם הקודמת שנכנסת', { total })}
           </p>
         </div>
 
@@ -124,7 +125,7 @@ export default function WhatsNewModal({ onNavigate }: { onNavigate: (page: Page)
             const clickable = (a.link_type === 'url' && !!a.link_url) || a.link_type === 'workshops' || a.link_type === 'benefits' || a.link_type === 'community'
             return (
               <button key={a.id} onClick={() => clickable && openAnnouncement(a)} disabled={!clickable}
-                className={`w-full text-right rounded-2xl px-4 py-3 ${clickable ? 'active:scale-[0.99]' : 'cursor-default'}`}
+                className={`w-full text-start rounded-2xl px-4 py-3 ${clickable ? 'active:scale-[0.99]' : 'cursor-default'}`}
                 style={{ background: 'linear-gradient(135deg, #E7C78A 0%, #C8A460 100%)' }}>
                 <span className="flex items-start gap-3">
                   <span className="flex-shrink-0 text-2xl leading-none">{a.emoji || <Megaphone className="w-6 h-6" style={{ color: '#33281B' }} />}</span>
@@ -132,7 +133,7 @@ export default function WhatsNewModal({ onNavigate }: { onNavigate: (page: Page)
                     <span className="block font-bold text-[15px]" style={{ color: '#33281B' }}>{a.title}</span>
                     {a.body && <span className="block text-[13px] mt-0.5 whitespace-pre-line" style={{ color: '#4A3A28' }}>{a.body}</span>}
                   </span>
-                  {clickable && <ChevronLeft className="w-5 h-5 flex-shrink-0 self-center" style={{ color: '#33281B' }} />}
+                  {clickable && <ChevronLeft className="flip-dir w-5 h-5 flex-shrink-0 self-center" style={{ color: '#33281B' }} />}
                 </span>
               </button>
             )
@@ -142,7 +143,7 @@ export default function WhatsNewModal({ onNavigate }: { onNavigate: (page: Page)
             <div>
               <p className="flex items-center gap-1.5 text-xs font-bold mb-2" style={{ color: '#A2937D' }}>
                 <CalendarHeart className="w-3.5 h-3.5" />
-                {data.events.length === 1 ? 'מפגש חדש בקהילה' : `${data.events.length} מפגשים חדשים בקהילה`}
+                {data.events.length === 1 ? tx('מפגש חדש בקהילה') : tx('{length} מפגשים חדשים בקהילה', { length: data.events.length })}
               </p>
               <div className="space-y-2">
                 {events.map(e => (
@@ -154,12 +155,13 @@ export default function WhatsNewModal({ onNavigate }: { onNavigate: (page: Page)
                         {[`${weekday(e.event_date)} ${ddmm(e.event_date)}`, hhmm(e.start_time), e.location].filter(Boolean).join(' · ')}
                       </span>
                     </span>
-                    <ChevronLeft className="w-4 h-4 text-sand-400 flex-shrink-0" />
+                    <ChevronLeft className="flip-dir w-4 h-4 text-sand-400 flex-shrink-0" />
                   </button>
                 ))}
                 {moreEvents > 0 && (
                   <button onClick={() => go('community')} className="w-full text-center text-xs font-bold py-1" style={{ color: '#B98F4E' }}>
-                    ועוד {moreEvents} בקהילה
+                    
+                    {tx('ועוד')}{' '}{moreEvents} {' '}{tx('בקהילה')}
                   </button>
                 )}
               </div>
@@ -170,7 +172,7 @@ export default function WhatsNewModal({ onNavigate }: { onNavigate: (page: Page)
             <div>
               <p className="flex items-center gap-1.5 text-xs font-bold mb-2" style={{ color: '#A2937D' }}>
                 <GraduationCap className="w-3.5 h-3.5" />
-                {data.cohorts.length === 1 ? 'נפתח מחזור חדש' : `${data.cohorts.length} מחזורים חדשים נפתחו`}
+                {data.cohorts.length === 1 ? tx('נפתח מחזור חדש') : tx('{length} מחזורים חדשים נפתחו', { length: data.cohorts.length })}
               </p>
               <div className="space-y-2">
                 {cohorts.map(c => (
@@ -179,15 +181,16 @@ export default function WhatsNewModal({ onNavigate }: { onNavigate: (page: Page)
                     <span className="flex-1 min-w-0">
                       <span className="block font-bold text-sm text-sand-800 leading-snug truncate">{c.workshop_title}</span>
                       <span className="block text-xs text-sand-500 mt-0.5">
-                        {[c.label, c.start_date ? `מתחיל ${weekday(c.start_date)} ${ddmm(c.start_date)}` : null, hhmm(c.start_time), c.location].filter(Boolean).join(' · ')}
+                        {[c.label, c.start_date ? tx('מתחיל {v0} {v1}', { v0: weekday(c.start_date), v1: ddmm(c.start_date) }) : null, hhmm(c.start_time), c.location].filter(Boolean).join(' · ')}
                       </span>
                     </span>
-                    <ChevronLeft className="w-4 h-4 text-sand-400 flex-shrink-0" />
+                    <ChevronLeft className="flip-dir w-4 h-4 text-sand-400 flex-shrink-0" />
                   </button>
                 ))}
                 {moreCohorts > 0 && (
                   <button onClick={() => go('workshops')} className="w-full text-center text-xs font-bold py-1" style={{ color: '#B98F4E' }}>
-                    ועוד {moreCohorts} בעמוד המוצרים
+                    
+                    {tx('ועוד')}{' '}{moreCohorts} {' '}{tx('בעמוד המוצרים')}
                   </button>
                 )}
               </div>
@@ -197,14 +200,15 @@ export default function WhatsNewModal({ onNavigate }: { onNavigate: (page: Page)
 
         <div className="p-5 pt-2 flex gap-2 flex-shrink-0">
           <button onClick={markSeen} className="px-4 py-3 rounded-2xl text-sm font-bold" style={{ background: '#F0EAE0', color: '#7B604C' }}>
-            סגירה
+            
+            {tx('סגירה')}
           </button>
           <button
             onClick={() => go(data.events.length > 0 || data.cohorts.length === 0 ? 'community' : 'workshops')}
             className="flex-1 py-3 rounded-2xl text-sm font-bold"
             style={{ background: '#E7C78A', color: '#4A3A28' }}
           >
-            {data.events.length > 0 || data.cohorts.length === 0 ? 'לקהילה' : 'לעמוד המוצרים'}
+            {data.events.length > 0 || data.cohorts.length === 0 ? tx('לקהילה') : tx('לעמוד המוצרים')}
           </button>
         </div>
       </div>

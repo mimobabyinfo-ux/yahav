@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { CalendarDays, Check, Clock, X, RotateCcw, Pencil, ChevronDown } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
+import { tx, DIR } from '../i18n'
 // לוח המפגשים של האמא, וממנו גם השלמת מפגש שפוספס.
 //
 // כל העניין נשען על הפרדה אחת: בקשה זה לא אישור. כשהיא מבקשת להשלים,
@@ -57,7 +58,7 @@ type Option = {
   available_now: boolean
 }
 
-const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+const DAY_NAMES = [tx('ראשון'), tx('שני'), tx('שלישי'), tx('רביעי'), tx('חמישי'), tx('שישי'), tx('שבת')]
 
 function ddmm(date: string): string {
   const [, m, d] = date.split('-')
@@ -75,9 +76,9 @@ function hhmm(t: string | null): string {
 // איך ההקצאה עובדת, בלי מיקום בתור, בלי תאריך הכרעה, ובלי המילה "תור".
 // האמא רואה: יש/אין מקום פנוי כרגע, "הבקשה התקבלה", ו"נעדכן אותך".
 const PICK_NOTE =
-  'ההרשמה על בסיס מקום פנוי, וניתן להשלים עד 2 מפגשים.'
+  tx('ההרשמה על בסיס מקום פנוי, וניתן להשלים עד 2 מפגשים.')
 const CHANGE_NOTE =
-  'בחירת מועד חדש מבטלת את הבקשה הקודמת.'
+  tx('בחירת מועד חדש מבטלת את הבקשה הקודמת.')
 
 // workshopId: בתוך סדנה מציגים רק את המחזור של אותה סדנה. ברנדה 5.9.26:
 // "אם מישהי רשומה גם לליווי התפתחותי וגם עיסוי תינוקות ולכל אחד מהם
@@ -116,8 +117,8 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
     setConfirmUndo(null)
     if (rpcError) {
       setError(rpcError.message.includes('allocation already ran')
-        ? 'המקומות למפגש הזה כבר חולקו, אז אי אפשר לבטל את הסימון. דברי איתנו'
-        : 'משהו השתבש. נסי שוב')
+        ? tx('המקומות למפגש הזה כבר חולקו, אז אי אפשר לבטל את הסימון. דברי איתנו')
+        : tx('משהו השתבש. נסי שוב'))
       return
     }
     await load()
@@ -155,10 +156,10 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
     if (rpcError) {
       setError(
         rpcError.message.includes('quota exhausted')
-          ? 'כבר ניצלת את שתי ההשלמות שלך בסדנה הזאת'
+          ? tx('כבר ניצלת את שתי ההשלמות שלך בסדנה הזאת')
           : rpcError.message.includes('target not available')
-            ? 'המועד הזה כבר לא פתוח להשלמה. רענני ובחרי מועד אחר'
-            : 'משהו השתבש. נסי שוב'
+            ? tx('המועד הזה כבר לא פתוח להשלמה. רענני ובחרי מועד אחר')
+            : tx('משהו השתבש. נסי שוב')
       )
       return
     }
@@ -175,7 +176,7 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
       p_request_id: row.makeup_request_id,
     })
     setBusy(null)
-    if (rpcError) { setError('משהו השתבש. נסי שוב'); return }
+    if (rpcError) { setError(tx('משהו השתבש. נסי שוב')); return }
     await load()
   }
 
@@ -195,22 +196,24 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between gap-2 text-right"
+        className="w-full flex items-center justify-between gap-2 text-start"
         aria-expanded={open}
       >
         <div className="min-w-0">
           <p className="font-bold text-sand-800 text-sm inline-flex items-center gap-1.5">
             <CalendarDays className="w-4 h-4 text-mustard-600" />
-            המפגשים שלי
+            
+            {tx('המפגשים שלי')}
           </p>
           <p className="text-xs text-sand-500 truncate">
             {head.workshop_title}
-            {!open && next ? ` · הבא: יום ${dayName(next.meeting_date)} ${ddmm(next.meeting_date)}` : ''}
+            {!open && next ? tx(' · הבא: יום {v0} {v1}', { v0: dayName(next.meeting_date), v1: ddmm(next.meeting_date) }) : ''}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-[11px] font-semibold text-sand-500 bg-white px-2 py-1 rounded-full">
-            השלמות: {used}/{allowed}
+            
+            {tx('השלמות:')}{' '}{used}/{allowed}
           </span>
           <ChevronDown className={`w-4 h-4 text-sand-500 transition-transform ${open ? 'rotate-180' : ''}`} />
         </div>
@@ -234,17 +237,18 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
                   {r.meeting_number}
                 </span>
                 <span className={`text-sm font-bold ${r.is_past ? 'text-sand-400' : 'text-sand-800'}`}>
-                  יום {dayName(r.meeting_date)}, {ddmm(r.meeting_date)}
+                  
+                  {tx('יום')}{' '}{dayName(r.meeting_date)}, {ddmm(r.meeting_date)}
                 </span>
                 {r.start_time && (
                   <span className="text-xs text-sand-400">{hhmm(r.start_time)}</span>
                 )}
                 {r.is_cancelled && (
-                  <span className="text-[11px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">בוטל</span>
+                  <span className="text-[11px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">{tx('בוטל')}</span>
                 )}
                 {r.i_am_absent && !r.is_cancelled && (
-                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full mr-auto">
-                    {r.is_past ? 'לא הגעתי' : 'לא מגיעה'}
+                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full ms-auto">
+                    {r.is_past ? tx('לא הגעתי') : tx('לא מגיעה')}
                   </span>
                 )}
               </div>
@@ -253,11 +257,13 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
                 <div className="mt-2 rounded-xl bg-sand-50 px-3 py-2">
                   <p className="text-xs text-sand-700 font-semibold inline-flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    הבקשה התקבלה{r.makeup_meeting_date ? ` ליום ${dayName(r.makeup_meeting_date)}, ${ddmm(r.makeup_meeting_date)}` : ''}
+                    
+                    {tx('הבקשה התקבלה')}{r.makeup_meeting_date ? tx(' ליום {v0}, {v1}', { v0: dayName(r.makeup_meeting_date), v1: ddmm(r.makeup_meeting_date) }) : ''}
                     {r.makeup_time ? ` ${hhmm(r.makeup_time)}` : ''}
                   </p>
                   <p className="text-[11px] text-sand-500 mt-0.5 leading-relaxed">
-                    ברגע שההשלמה תאושר, נעדכן אותך.
+                    
+                    {tx('ברגע שההשלמה תאושר, נעדכן אותך.')}
                   </p>
                   <div className="flex items-center gap-4 flex-wrap mt-1">
                     <button
@@ -265,14 +271,15 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
                       disabled={isBusy}
                       className="py-2 min-h-[40px] text-xs font-semibold text-mustard-700 hover:text-mustard-800 inline-flex items-center gap-1 disabled:opacity-40"
                     >
-                      <Pencil className="w-3 h-3" /> שינוי המועד
+                      <Pencil className="w-3 h-3" /> {' '}{tx('שינוי המועד')}
                     </button>
                     <button
                       onClick={() => cancelRequest(r)}
                       disabled={isBusy}
                       className="py-2 min-h-[40px] text-xs text-sand-500 hover:text-sand-700 disabled:opacity-40"
                     >
-                      ביטול הבקשה
+                      
+                      {tx('ביטול הבקשה')}
                     </button>
                   </div>
                 </div>
@@ -282,12 +289,13 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
                 <div className="mt-2 rounded-xl bg-[#E8F5E9] px-3 py-2">
                   <p className="text-xs font-semibold text-[#2E7D32] inline-flex items-center gap-1">
                     <Check className="w-3 h-3" />
-                    ההשלמה אושרה
-                    {r.makeup_meeting_date ? ` ליום ${dayName(r.makeup_meeting_date)}, ${ddmm(r.makeup_meeting_date)}` : ''}
+                    
+                    {tx('ההשלמה אושרה')}
+                    {r.makeup_meeting_date ? tx(' ליום {v0}, {v1}', { v0: dayName(r.makeup_meeting_date), v1: ddmm(r.makeup_meeting_date) }) : ''}
                     {r.makeup_time ? ` ${hhmm(r.makeup_time)}` : ''}
                   </p>
                   {r.makeup_cohort_label && (
-                    <p className="text-[11px] text-[#2E7D32] opacity-80 mt-0.5">קבוצת {r.makeup_cohort_label}</p>
+                    <p className="text-[11px] text-[#2E7D32] opacity-80 mt-0.5">{tx('קבוצת')}{' '}{r.makeup_cohort_label}</p>
                   )}
                   {r.makeup_status === 'confirmed' && (
                     <div className="flex items-center gap-4 flex-wrap mt-1">
@@ -296,14 +304,15 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
                         disabled={isBusy}
                         className="py-2 min-h-[40px] text-xs font-semibold text-[#2E7D32] hover:underline inline-flex items-center gap-1 disabled:opacity-40"
                       >
-                        <Pencil className="w-3 h-3" /> שינוי המועד
+                        <Pencil className="w-3 h-3" /> {' '}{tx('שינוי המועד')}
                       </button>
                       <button
                         onClick={() => cancelRequest(r)}
                         disabled={isBusy}
                         className="py-2 min-h-[40px] text-xs text-[#2E7D32] opacity-80 hover:underline disabled:opacity-40"
                       >
-                        ביטול ההשלמה
+                        
+                        {tx('ביטול ההשלמה')}
                       </button>
                     </div>
                   )}
@@ -318,7 +327,7 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
                       disabled={isBusy}
                       className="text-xs font-semibold text-sand-600 bg-sand-100 hover:bg-sand-200 px-3.5 py-2.5 min-h-[40px] rounded-xl disabled:opacity-40"
                     >
-                      {r.is_past ? 'לא הגעתי למפגש הזה' : 'לא אוכל להגיע'}
+                      {r.is_past ? tx('לא הגעתי למפגש הזה') : tx('לא אוכל להגיע')}
                     </button>
                   )}
                   {r.i_am_absent && !r.makeup_status && (
@@ -328,7 +337,8 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
                       className="text-xs font-bold px-3.5 py-2.5 min-h-[40px] rounded-xl disabled:opacity-40"
                       style={{ background: '#C8A460', color: '#33281B' }}
                     >
-                      בחירת מועד להשלמה
+                      
+                      {tx('בחירת מועד להשלמה')}
                     </button>
                   )}
                   {/* ביטול הסימון זמין תמיד, גם אחרי שהמפגש עבר. ברנדה 3.9.26:
@@ -340,11 +350,11 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
                       className="py-2 min-h-[40px] text-xs text-sand-500 hover:text-sand-700 inline-flex items-center gap-1 disabled:opacity-40"
                     >
                       <RotateCcw className="w-3 h-3" />
-                      {r.is_past ? 'בעצם הגעתי' : 'בעצם כן אגיע'}
+                      {r.is_past ? tx('בעצם הגעתי') : tx('בעצם כן אגיע')}
                     </button>
                   )}
                   {used >= allowed && r.i_am_absent && !r.makeup_status && (
-                    <span className="text-[11px] text-sand-400">ניצלת את שתי ההשלמות</span>
+                    <span className="text-[11px] text-sand-400">{tx('ניצלת את שתי ההשלמות')}</span>
                   )}
                 </div>
               )}
@@ -359,14 +369,14 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
       {/* אישור לביטול סימון שגורר ביטול השלמה */}
       {confirmUndo && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4"
-          onClick={() => setConfirmUndo(null)} dir="rtl">
+          onClick={() => setConfirmUndo(null)} dir={DIR}>
           <div className="bg-white rounded-3xl w-full max-w-xs shadow-2xl p-5 space-y-3"
             onClick={e => e.stopPropagation()}>
-            <p className="font-bold text-sand-800 text-sm">לבטל את הסימון?</p>
+            <p className="font-bold text-sand-800 text-sm">{tx('לבטל את הסימון?')}</p>
             <p className="text-xs text-sand-600 leading-relaxed">
               {confirmUndo.makeup_status === 'confirmed'
-                ? 'ההשלמה שכבר אושרה לך תתבטל, והמקום יחזור לקבוצה.'
-                : 'הבקשה להשלמה שממתינה תתבטל יחד עם הסימון.'}
+                ? tx('ההשלמה שכבר אושרה לך תתבטל, והמקום יחזור לקבוצה.')
+                : tx('הבקשה להשלמה שממתינה תתבטל יחד עם הסימון.')}
             </p>
             <div className="flex gap-2 pt-1">
               <button
@@ -374,13 +384,15 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
                 className="flex-1 py-2 rounded-xl text-sm font-bold"
                 style={{ background: '#C8A460', color: '#33281B' }}
               >
-                כן, הגעתי
+                
+                {tx('כן, הגעתי')}
               </button>
               <button
                 onClick={() => setConfirmUndo(null)}
                 className="px-4 py-2 rounded-xl bg-sand-100 text-sand-600 text-sm font-semibold"
               >
-                חזרה
+                
+                {tx('חזרה')}
               </button>
             </div>
           </div>
@@ -389,15 +401,15 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
 
       {picking && (
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/40 px-4"
-          onClick={() => { setPicking(null); setOptions(null) }} dir="rtl">
+          onClick={() => { setPicking(null); setOptions(null) }} dir={DIR}>
           <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl flex flex-col max-h-[85vh] mb-4 sm:mb-0 pb-[env(safe-area-inset-bottom)]"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-sand-100">
               <div>
                 <h3 className="font-bold text-sand-800 text-sm">
-                  {picking.mode === 'change' ? 'שינוי מועד' : 'השלמת'} מפגש {picking.row.meeting_number}
+                  {picking.mode === 'change' ? tx('שינוי מועד') : tx('השלמת')} {' '}{tx('מפגש')}{' '}{picking.row.meeting_number}
                 </h3>
-                <p className="text-xs text-sand-500">אותו תוכן, בקבוצה אחרת</p>
+                <p className="text-xs text-sand-500">{tx('אותו תוכן, בקבוצה אחרת')}</p>
               </div>
               <button onClick={() => { setPicking(null); setOptions(null) }}
                 className="p-2.5 -m-1 text-sand-300 hover:text-sand-600">
@@ -406,13 +418,13 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
             </div>
             <div className="overflow-y-auto flex-1 px-5 py-4 space-y-2">
               {options === null ? (
-                <p className="text-center text-sand-400 text-sm py-6">טוענת...</p>
+                <p className="text-center text-sand-400 text-sm py-6">{tx('טוענת...')}</p>
               ) : options.length === 0 ? (
                 <div className="text-center py-6 space-y-2">
-                  <p className="text-sand-600 text-sm font-semibold">אין כרגע מועד פתוח להשלמה</p>
+                  <p className="text-sand-600 text-sm font-semibold">{tx('אין כרגע מועד פתוח להשלמה')}</p>
                   <p className="text-sand-500 text-xs leading-relaxed">
-                    אפשר להשלים את אותו מפגש רק בשני המחזורים הקרובים, וכרגע אין כזה
-                    שעוד לא התחיל. סיכום המפגש והתרגילים ממתינים לך באפליקציה.
+                    
+                    {tx('אפשר להשלים את אותו מפגש רק בשני המחזורים הקרובים, וכרגע אין כזה שעוד לא התחיל. סיכום המפגש והתרגילים ממתינים לך באפליקציה.')}
                   </p>
                 </div>
               ) : (
@@ -428,23 +440,26 @@ export default function MyWorkshopMeetings({ workshopId }: { workshopId?: string
                         key={o.meeting_id}
                         onClick={() => chooseOption(o)}
                         disabled={busy === o.meeting_id || isCurrent}
-                        className={`w-full text-right rounded-2xl border-2 p-3 transition-colors disabled:opacity-50 ${
+                        className={`w-full text-start rounded-2xl border-2 p-3 transition-colors disabled:opacity-50 ${
                           isCurrent ? 'border-mustard-300 bg-mustard-50' : 'border-sand-200 hover:border-mustard-300'
                         }`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold text-sand-800">
-                            יום {dayName(o.meeting_date)}, {ddmm(o.meeting_date)}
+                            
+                            {tx('יום')}{' '}{dayName(o.meeting_date)}, {ddmm(o.meeting_date)}
                           </span>
                           {o.start_time && <span className="text-xs text-sand-500">{hhmm(o.start_time)}</span>}
                           {isCurrent && (
-                            <span className="text-[11px] font-semibold text-mustard-700 bg-white px-2 py-0.5 rounded-full mr-auto">
-                              המועד הנוכחי שלך
+                            <span className="text-[11px] font-semibold text-mustard-700 bg-white px-2 py-0.5 rounded-full ms-auto">
+                              
+                              {tx('המועד הנוכחי שלך')}
                             </span>
                           )}
                         </div>
                         <p className="text-[11px] text-sand-400 mt-1">
-                          קבוצת {o.cohort_label} · {o.available_now ? 'יש כרגע מקום פנוי' : 'אין כרגע מקום פנוי'}
+                          
+                          {tx('קבוצת')}{' '}{o.cohort_label} · {o.available_now ? tx('יש כרגע מקום פנוי') : tx('אין כרגע מקום פנוי')}
                         </p>
                       </button>
                     )

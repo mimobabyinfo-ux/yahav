@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
+import { tx, DIR } from '../i18n'
 type Props = {
   storagePath: string
   entryId: string
@@ -43,7 +44,7 @@ export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted, 
         {isVideo ? (
           <video src={signedUrl} className="w-10 h-10 object-cover" muted playsInline />
         ) : (
-          <img src={signedUrl} alt="תמונה" className="w-10 h-10 object-cover" />
+          <img src={signedUrl} alt={tx('תמונה')} className="w-10 h-10 object-cover" />
         )}
       </button>
 
@@ -56,13 +57,13 @@ export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted, 
       {fullscreen && createPortal(
         <div
           className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4"
-          dir="rtl"
+          dir={DIR}
           onClick={e => { e.stopPropagation(); setFullscreen(false) }}
         >
           <button
             onClick={e => { e.stopPropagation(); setFullscreen(false) }}
             style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
-            className="absolute right-4 p-2 bg-white/20 rounded-full text-white"
+            className="absolute start-4 p-2 bg-white/20 rounded-full text-white"
           >
             <X className="w-5 h-5" />
           </button>
@@ -76,7 +77,7 @@ export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted, 
           ) : (
             <img
               src={signedUrl}
-              alt="תמונה"
+              alt={tx('תמונה')}
               className="max-w-full max-h-[80vh] rounded-2xl object-contain"
               onClick={e => e.stopPropagation()}
             />
@@ -87,7 +88,7 @@ export default function DiaperPhotoThumbnail({ storagePath, entryId, onDeleted, 
             className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-red-500/80 hover:bg-red-600 text-white rounded-2xl text-sm font-semibold transition-colors disabled:opacity-50"
           >
             <Trash2 className="w-4 h-4" />
-            {deleting ? 'מוחק...' : 'מחק מדיה'}
+            {deleting ? tx('מוחק...') : tx('מחק מדיה')}
           </button>
         </div>,
         document.body

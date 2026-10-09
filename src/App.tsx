@@ -31,6 +31,7 @@ import CreditWonModal, { creditWonSeen, markCreditWonSeen } from './components/d
 import type { MyCredit } from './lib/supabase'
 import { captureCampaignSrc, getCampaignSrc, clearCampaignSrc } from './utils/campaignSrc'
 
+import { tx, LANG, setLang, hasSavedLang } from './i18n'
 // Lazy: AdminPage is ~8,000 lines and pulls all of components/admin and
 // @dnd-kit with it. renderPage already gates it at RUNTIME; importing it
 // statically still shipped Brenda's whole admin panel to every mother.
@@ -221,6 +222,23 @@ function AppInner() {
       .then(() => setPwaPingDone(true))
   }, [user, profile, isGuest])
 
+  // Interface language (9.10.26). The choice lives on the device AND on
+  // her profile, so it follows her to another phone. A choice made on
+  // this device wins (it is the newest thing she did); with none, the
+  // profile wins; with neither, whatever the device guessed is recorded.
+  const langSynced = useRef(false)
+  useEffect(() => {
+    if (langSynced.current) return
+    if (!user || !profile || isGuest) return
+    langSynced.current = true
+    const saved = profile.language ?? null
+    if (saved && saved !== LANG && !hasSavedLang()) { setLang(saved); return }
+    if (saved !== LANG) {
+      supabase.from('user_profiles').update({ language: LANG }).eq('id', user.id)
+        .then(({ error }) => { if (error) console.error('[language]', error) })
+    }
+  }, [user, profile, isGuest])
+
   // חברה מביאה חברה: attach the inviter, once, as soon as there is a
   // profile. The RPC refuses self-invites, second claims and anyone who
   // already installed; whatever it answers, the code is spent.
@@ -394,7 +412,7 @@ function AppInner() {
           <div className="animate-pulse">
             <MimoLogo size={120} />
           </div>
-          <p className="text-sand-400 text-sm">טוענת...</p>
+          <p className="text-sand-400 text-sm">{tx('טוענת...')}</p>
         </div>
       </div>
     )
@@ -453,7 +471,7 @@ function AppInner() {
       case 'workshops':  return <WorkshopsPage onNavigate={navigate} />
       case 'pro':        return <ProAreaPage autoOpenWorkshopId={isCoursePage ? courseWorkshopId : null} initialMeeting={isCoursePage ? deepMeeting : null} initialTopic={isCoursePage ? deepTopic : null} />
       case 'admin':      return (
-        <Suspense fallback={<p className="text-center text-sand-400 text-sm py-12">טוען...</p>}>
+        <Suspense fallback={<p className="text-center text-sand-400 text-sm py-12">{tx('טוען...')}</p>}>
           <AdminPage defaultSection={adminSection} unreadForms={unreadForms} onFormsViewed={clearFormsBadge} unreadRegistrations={unreadRegistrations} onRegistrationsViewed={clearRegistrationsBadge} overview={adminOverview} />
         </Suspense>
       )

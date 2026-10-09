@@ -4,6 +4,7 @@ import { formatDuration } from '../utils/dateUtils'
 import { sleepTypeFromStartTime } from '../utils/sleepTypeFromTime'
 import { ENTRY_COLORS } from './DailyTimeline'
 
+import { tx } from '../i18n'
 type Props = {
   entries: DailyLogEntryWithDetails[]
 }
@@ -38,8 +39,8 @@ export default function DailySummary({ entries }: Props) {
   if (entries.length === 0) {
     return (
       <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] p-5 text-center">
-        <p className="text-sand-600 text-sm">עדיין אין פעילויות היום</p>
-        <p className="text-sand-500 text-xs mt-1">הוסיפי רשומה ראשונה למטה</p>
+        <p className="text-sand-600 text-sm">{tx('עדיין אין פעילויות היום')}</p>
+        <p className="text-sand-500 text-xs mt-1">{tx('הוסיפי רשומה ראשונה למטה')}</p>
       </div>
     )
   }
@@ -98,11 +99,11 @@ export default function DailySummary({ entries }: Props) {
   function composeSleepSub(): string {
     const parts: string[] = []
     if (nightCount > 0) {
-      const label = nightCount === 1 ? 'שנת לילה' : `${nightCount} שנות לילה`
+      const label = nightCount === 1 ? tx('שנת לילה') : tx('{nightCount} שנות לילה', { nightCount })
       parts.push(`${label}: ${formatDuration(nightMins)}`)
     }
     if (napCount > 0) {
-      const label = napCount === 1 ? 'שינת יום' : `${napCount} שינות יום`
+      const label = napCount === 1 ? tx('שינת יום') : tx('{napCount} שינות יום', { napCount })
       parts.push(`${label}: ${formatDuration(napMins)}`)
     }
     return parts.join(' · ')
@@ -111,16 +112,16 @@ export default function DailySummary({ entries }: Props) {
   function composeFeedingSub(): string {
     const parts: string[] = []
     if (breast.count > 0) {
-      const label = breast.count === 1 ? 'הנקה' : `${breast.count} הנקות`
+      const label = breast.count === 1 ? tx('הנקה') : tx('{count} הנקות', { count: breast.count })
       const mins = Math.round(breast.totalSeconds / 60)
       parts.push(mins > 0 ? `${label} · ${formatDuration(mins)}` : label)
     }
     if (bottle.count > 0) {
-      const label = bottle.count === 1 ? 'בקבוק' : `${bottle.count} בקבוקים`
-      parts.push(bottle.totalMl > 0 ? `${label} · ${bottle.totalMl} מ"ל` : label)
+      const label = bottle.count === 1 ? tx('בקבוק') : tx('{count} בקבוקים', { count: bottle.count })
+      parts.push(bottle.totalMl > 0 ? tx('{label} · {totalMl} מ"ל', { label, totalMl: bottle.totalMl }) : label)
     }
     if (solid.count > 0) {
-      const label = solid.count === 1 ? 'מנת מוצק' : `${solid.count} מנות מוצק`
+      const label = solid.count === 1 ? tx('מנת מוצק') : tx('{count} מנות מוצק', { count: solid.count })
       parts.push(label)
     }
     return parts.join(' · ')
@@ -128,15 +129,15 @@ export default function DailySummary({ entries }: Props) {
 
   function composeDiaperSub(): string {
     const parts: string[] = []
-    if (diaper.wet > 0) parts.push(`${diaper.wet} פיפי`)
-    if (diaper.dirty > 0) parts.push(`${diaper.dirty} קקי`)
-    if (diaper.both > 0) parts.push(`${diaper.both} שניהם`)
-    if (diaper.dry > 0) parts.push(`${diaper.dry} יבש`)
+    if (diaper.wet > 0) parts.push(tx('{wet} פיפי', { wet: diaper.wet }))
+    if (diaper.dirty > 0) parts.push(tx('{dirty} קקי', { dirty: diaper.dirty }))
+    if (diaper.both > 0) parts.push(tx('{both} שניהם', { both: diaper.both }))
+    if (diaper.dry > 0) parts.push(tx('{dry} יבש', { dry: diaper.dry }))
     return parts.join(' · ')
   }
 
   function composeTummySub(): string {
-    return tummyCount === 1 ? 'סשן אחד' : `${tummyCount} סשנים`
+    return tummyCount === 1 ? tx('סשן אחד') : tx('{tummyCount} סשנים', { tummyCount })
   }
 
   // ── 24h color bar (kept above the cards per spec) ─────────────────
@@ -160,9 +161,9 @@ export default function DailySummary({ entries }: Props) {
     })
 
   const legend = [
-    { label: 'האכלה', color: ENTRY_COLORS.feeding.dot },
-    { label: 'שינה',  color: ENTRY_COLORS.sleep.dot },
-    { label: 'חיתול', color: ENTRY_COLORS.diaper.dot },
+    { label: tx('האכלה'), color: ENTRY_COLORS.feeding.dot },
+    { label: tx('שינה'),  color: ENTRY_COLORS.sleep.dot },
+    { label: tx('חיתול'), color: ENTRY_COLORS.diaper.dot },
   ]
 
   // Renderable card list — gated on non-zero counts.
@@ -171,7 +172,7 @@ export default function DailySummary({ entries }: Props) {
     cards.push({
       icon: Moon,
       color: ENTRY_COLORS.sleep.dot,
-      label: 'שינה',
+      label: tx('שינה'),
       primary: formatDuration(totalSleepMins),
       sub: composeSleepSub(),
     })
@@ -180,7 +181,7 @@ export default function DailySummary({ entries }: Props) {
     cards.push({
       icon: Milk,
       color: ENTRY_COLORS.feeding.dot,
-      label: 'האכלה',
+      label: tx('האכלה'),
       primary: `${totalFeedingCount}`,
       sub: composeFeedingSub(),
     })
@@ -189,7 +190,7 @@ export default function DailySummary({ entries }: Props) {
     cards.push({
       icon: Droplets,
       color: ENTRY_COLORS.diaper.dot,
-      label: 'חיתולים',
+      label: tx('חיתולים'),
       primary: `${diaper.total}`,
       sub: composeDiaperSub(),
     })
@@ -198,7 +199,7 @@ export default function DailySummary({ entries }: Props) {
     cards.push({
       icon: Shapes,
       color: ENTRY_COLORS.tummy_time.dot,
-      label: 'זמן בטן',
+      label: tx('זמן בטן'),
       primary: tummyMins > 0 ? formatDuration(tummyMins) : `${tummyCount}`,
       sub: composeTummySub(),
     })
@@ -209,7 +210,7 @@ export default function DailySummary({ entries }: Props) {
       {/* 24-hour color bar (preserved per Addition 1 spec) */}
       <div className="bg-white rounded-3xl shadow-sm border border-[#F0EAE0] p-4">
         <div className="flex items-center justify-between mb-1.5">
-          <h3 className="text-xs font-semibold text-sand-500">יום בצבעים</h3>
+          <h3 className="text-xs font-semibold text-sand-500">{tx('יום בצבעים')}</h3>
           <div className="flex items-center gap-2">
             {legend.map(l => (
               <span key={l.label} className="flex items-center gap-0.5 text-[13px] text-sand-600">

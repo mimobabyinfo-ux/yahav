@@ -4,6 +4,7 @@ import type { DailyLogEntryWithDetails, FeedingDetail } from '../../../lib/supab
 import type { Bucket, Granularity } from '../../../hooks/useSummaryData'
 import { bucketKeyFor } from '../../../hooks/useSummaryData'
 
+import { tx } from '../../../i18n'
 // Feeding tab: daily-average feedings + per-subtype sub-stats + stacked
 // bar chart per bucket showing breast / bottle / solid counts. Colors
 // match the timeline's feeding-subtype palette so the visual language
@@ -65,8 +66,8 @@ export default function FeedingSummary({ entries, buckets, granularity, dayCount
     return (
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-8 text-center space-y-2">
         <div className="text-4xl">🤱🏼</div>
-        <p className="text-sm font-semibold text-sand-700">אין נתוני האכלה ב{rangeLabel}</p>
-        <p className="text-xs text-sand-400">החיתוך משתנה מיד אחרי שמירת האכלה</p>
+        <p className="text-sm font-semibold text-sand-700">{tx('אין נתוני האכלה ב')}{rangeLabel}</p>
+        <p className="text-xs text-sand-400">{tx('החיתוך משתנה מיד אחרי שמירת האכלה')}</p>
       </div>
     )
   }
@@ -79,21 +80,22 @@ export default function FeedingSummary({ entries, buckets, granularity, dayCount
 
   // Sub-stat line — show only subtypes with data.
   const subStats: string[] = []
-  if (totals.breast > 0) subStats.push(`הנקה: ${(totals.breast / dayCount).toFixed(1)} ליום`)
-  if (totals.bottle > 0) subStats.push(`בקבוק: ${(totals.bottle / dayCount).toFixed(1)} ליום`)
-  if (totals.solid > 0) subStats.push(`מוצק: ${(totals.solid / dayCount).toFixed(1)} ליום`)
+  if (totals.breast > 0) subStats.push(tx('הנקה: {v0} ליום', { v0: (totals.breast / dayCount).toFixed(1) }))
+  if (totals.bottle > 0) subStats.push(tx('בקבוק: {v0} ליום', { v0: (totals.bottle / dayCount).toFixed(1) }))
+  if (totals.solid > 0) subStats.push(tx('מוצק: {v0} ליום', { v0: (totals.solid / dayCount).toFixed(1) }))
 
   return (
     <div className="space-y-4">
       <div className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5">
-        <p className="text-xs font-semibold text-sand-500 mb-1">ממוצע יומי</p>
-        <p className="text-2xl font-bold text-sand-800 leading-none">{avgPerDay.toFixed(1)} <span className="text-sm font-semibold text-sand-500">האכלות</span></p>
+        <p className="text-xs font-semibold text-sand-500 mb-1">{tx('ממוצע יומי')}</p>
+        <p className="text-2xl font-bold text-sand-800 leading-none">{avgPerDay.toFixed(1)} <span className="text-sm font-semibold text-sand-500">{tx('האכלות')}</span></p>
         {subStats.length > 0 && (
           <p className="text-xs text-sand-600 mt-3 leading-relaxed">{subStats.join(' · ')}</p>
         )}
         {totals.bottleMl > 0 && (
           <p className="text-[11px] text-sand-400 mt-1">
-            סה"כ בקבוק: {totals.bottleMl} מ"ל ב-{dayCount} ימים
+            
+            {tx('סה"כ בקבוק:')}{' '}{totals.bottleMl} {' '}{tx('מ"ל ב-')}{dayCount} {' '}{tx('ימים')}
           </p>
         )}
       </div>
@@ -125,7 +127,7 @@ export default function FeedingSummary({ entries, buckets, granularity, dayCount
                 cursor={{ fill: 'rgba(0,0,0,0.04)' }}
                 contentStyle={{ fontSize: 11, border: '1px solid #E5E0D2', borderRadius: 8, direction: 'rtl' }}
                 formatter={(value, name) => {
-                  const label = name === 'breast' ? 'הנקה' : name === 'bottle' ? 'בקבוק' : 'מוצק'
+                  const label = name === 'breast' ? tx('הנקה') : name === 'bottle' ? tx('בקבוק') : tx('מוצק')
                   return [`${value ?? 0}`, label]
                 }}
                 labelFormatter={(_, payload) => {
@@ -140,9 +142,9 @@ export default function FeedingSummary({ entries, buckets, granularity, dayCount
           </ResponsiveContainer>
         </div>
         <div className="flex justify-center gap-3 mt-2 text-[10px] text-sand-500">
-          {totals.breast > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_BREAST }} />הנקה</span>}
-          {totals.bottle > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_BOTTLE }} />בקבוק</span>}
-          {totals.solid > 0  && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_SOLID  }} />מוצק</span>}
+          {totals.breast > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_BREAST }} />{tx('הנקה')}</span>}
+          {totals.bottle > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_BOTTLE }} />{tx('בקבוק')}</span>}
+          {totals.solid > 0  && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: COLOR_SOLID  }} />{tx('מוצק')}</span>}
         </div>
       </div>
     </div>

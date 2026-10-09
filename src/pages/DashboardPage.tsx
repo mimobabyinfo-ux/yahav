@@ -29,6 +29,7 @@ import MimoLeaf from '../components/MimoLeaf'
 import PerkDetailsModal from '../components/PerkDetailsModal'
 import type { Page } from '../App'
 
+import { tx, LOCALE, DIR } from '../i18n'
 type EntryType = 'feeding' | 'sleep' | 'diaper' | 'tummy_time' | 'milestone' | 'doctor_visit' | 'note'
 
 type Props = {
@@ -40,16 +41,16 @@ function jerusalemHour(): number {
   return Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: 'numeric', hourCycle: 'h23' }).format(new Date()))
 }
 function jerusalemClock(): string {
-  return new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date())
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date())
 }
 function greetingByHour(h: number): string {
-  if (h >= 5 && h < 12) return 'בוקר טוב'
-  if (h >= 12 && h < 17) return 'צהריים טובים'
-  if (h >= 17 && h < 21) return 'ערב טוב'
-  return 'לילה טוב'
+  if (h >= 5 && h < 12) return tx('בוקר טוב')
+  if (h >= 12 && h < 17) return tx('צהריים טובים')
+  if (h >= 17 && h < 21) return tx('ערב טוב')
+  return tx('לילה טוב')
 }
 function hebrewToday(): string {
-  return new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'long' }).format(new Date())
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'long' }).format(new Date())
 }
 
 export type NightModePref = 'auto' | 'on' | 'off'
@@ -141,7 +142,7 @@ export default function DashboardPage({ onNavigate }: Props) {
     const sleepSince = formatTimeSince(lastSleep, '')
     const feedSince = formatTimeSince(lastFeeding, '')
     return (
-      <div className="min-h-screen pb-28" dir="rtl" style={{ background: '#221F1B', padding: '22px 20px 100px' }}>
+      <div className="min-h-screen pb-28" dir={DIR} style={{ background: '#221F1B', padding: '22px 20px 100px' }}>
         <div className="max-w-sm mx-auto flex flex-col" style={{ gap: 18 }}>
           {/* Header */}
           <div className="pt-2 flex items-start justify-between">
@@ -150,7 +151,7 @@ export default function DashboardPage({ onNavigate }: Props) {
                 {jerusalemClock()} · {greetingByHour(hour)}
               </p>
               <h1 className="font-display mt-1 truncate" style={{ fontSize: 26, lineHeight: 1.15, fontWeight: 400, color: '#DCD4C8' }}>
-                {selectedChild?.name ?? profile?.mother_name ?? 'לילה רגוע'}
+                {selectedChild?.name ?? profile?.mother_name ?? tx('לילה רגוע')}
               </h1>
             </div>
             <div className="flex flex-shrink-0" style={{ gap: 8 }}>
@@ -158,8 +159,8 @@ export default function DashboardPage({ onNavigate }: Props) {
                 onClick={switchToDay}
                 className="rounded-full flex items-center justify-center transition-colors hover:brightness-125"
                 style={{ width: 44, height: 44, background: '#2B2823' }}
-                title="מעבר למצב יום"
-                aria-label="מעבר למצב יום"
+                title={tx('מעבר למצב יום')}
+                aria-label={tx('מעבר למצב יום')}
               >
                 <Sun style={{ width: 20, height: 20, color: '#E7C78A' }} strokeWidth={2} />
               </button>
@@ -167,7 +168,7 @@ export default function DashboardPage({ onNavigate }: Props) {
                 href="?settings"
                 className="rounded-full flex items-center justify-center transition-colors hover:brightness-125"
                 style={{ width: 44, height: 44, background: '#2B2823' }}
-                title="הגדרות"
+                title={tx('הגדרות')}
               >
                 <SettingsIcon style={{ width: 20, height: 20, color: '#8A8370' }} />
               </a>
@@ -177,14 +178,14 @@ export default function DashboardPage({ onNavigate }: Props) {
           {/* Primary action — sleep */}
           <button
             onClick={() => openLogPage('sleep')}
-            className="w-full flex items-center text-right"
+            className="w-full flex items-center text-start"
             style={{ background: '#3A342B', borderRadius: 20, padding: '18px 20px', gap: 14 }}
           >
             <span className="rounded-full flex items-center justify-center flex-shrink-0" style={{ width: 46, height: 46, background: '#4A4237' }}>
               <Moon style={{ width: 22, height: 22, color: '#E7C78A' }} strokeWidth={2.2} />
             </span>
             <span className="flex-1 min-w-0">
-              <span className="block font-bold" style={{ fontSize: 18, color: '#EFE8DC' }}>שינה</span>
+              <span className="block font-bold" style={{ fontSize: 18, color: '#EFE8DC' }}>{tx('שינה')}</span>
               {sleepSince && <span className="block font-semibold mt-0.5" style={{ fontSize: 14, color: '#8A8370' }}>{sleepSince}</span>}
             </span>
           </button>
@@ -192,14 +193,14 @@ export default function DashboardPage({ onNavigate }: Props) {
           {/* Secondary action — feeding */}
           <button
             onClick={() => openLogPage('feeding-breast')}
-            className="w-full flex items-center text-right"
+            className="w-full flex items-center text-start"
             style={{ background: '#31352F', borderRadius: 20, padding: '18px 20px', gap: 14 }}
           >
             <span className="rounded-full flex items-center justify-center flex-shrink-0" style={{ width: 46, height: 46, background: '#3F453C' }}>
               <Baby style={{ width: 22, height: 22, color: '#C3CDD2' }} strokeWidth={2.2} />
             </span>
             <span className="flex-1 min-w-0">
-              <span className="block font-bold" style={{ fontSize: 18, color: '#EFE8DC' }}>הנקה</span>
+              <span className="block font-bold" style={{ fontSize: 18, color: '#EFE8DC' }}>{tx('הנקה')}</span>
               {feedSince && <span className="block font-semibold mt-0.5" style={{ fontSize: 14, color: '#8A8370' }}>{feedSince}</span>}
             </span>
           </button>
@@ -207,23 +208,25 @@ export default function DashboardPage({ onNavigate }: Props) {
           {/* Third — anything else */}
           <button
             onClick={() => onNavigate('journal')}
-            className="w-full flex items-center text-right"
+            className="w-full flex items-center text-start"
             style={{ border: '1.5px solid #4A4237', borderRadius: 20, padding: '16px 20px', gap: 14 }}
           >
             <Plus style={{ width: 20, height: 20, color: '#8A8370' }} strokeWidth={2.2} />
-            <span className="font-bold" style={{ fontSize: 16, color: '#8A8370' }}>פעולה אחרת</span>
+            <span className="font-bold" style={{ fontSize: 16, color: '#8A8370' }}>{tx('פעולה אחרת')}</span>
           </button>
 
           {/* Reassurance strip */}
           <div className="flex items-center" style={{ background: '#2B2823', borderRadius: 22, padding: '16px 18px', gap: 14 }}>
             <MimoLeaf variant="sky-1" size={38} rotate={12} className="flex-shrink-0" />
             <p style={{ fontSize: 15, lineHeight: 1.55, color: '#A8A088' }}>
-              גם באמצע הלילה, את לא לבד. רישום קצר וחזרה לישון 🤍
+              
+              {tx('גם באמצע הלילה, את לא לבד. רישום קצר וחזרה לישון 🤍')}
             </p>
           </div>
 
           <p className="text-center font-semibold" style={{ fontSize: 13, color: '#6B6658' }}>
-            מצב לילה מופעל אוטומטית בין 21:00 ל־06:00 · <a href="?settings" className="underline" style={{ color: '#8A8370' }}>לשינוי בהגדרות</a>
+            
+            {tx('מצב לילה מופעל אוטומטית בין 21:00 ל־06:00 ·')}{' '}<a href="?settings" className="underline" style={{ color: '#8A8370' }}>{tx('לשינוי בהגדרות')}</a>
           </p>
         </div>
 
@@ -242,7 +245,7 @@ export default function DashboardPage({ onNavigate }: Props) {
 
   // ── Day mode — 3 tiers: act → content → footer ──────────────────────
   return (
-    <div className="min-h-screen" dir="rtl" style={{ padding: '22px 20px 100px' }}>
+    <div className="min-h-screen" dir={DIR} style={{ padding: '22px 20px 100px' }}>
       <div className="max-w-sm mx-auto flex flex-col" style={{ gap: 18 }}>
 
         {/* 1 · Header — plain, no card */}
@@ -252,7 +255,7 @@ export default function DashboardPage({ onNavigate }: Props) {
               {greetingByHour(hour)}{profile?.mother_name ? `, ${profile.mother_name}` : ''}
             </p>
             <h1 className="font-display" style={{ fontSize: 26, lineHeight: 1.15, fontWeight: 400, color: '#5E4938' }}>
-              {selectedChild?.name ?? 'ברוכה הבאה'}
+              {selectedChild?.name ?? tx('ברוכה הבאה')}
             </h1>
             {selectedChild?.dob && (
               <p className="font-semibold" style={{ fontSize: 14, color: '#957860' }}>{getBabyAge(selectedChild.dob)}</p>
@@ -264,8 +267,8 @@ export default function DashboardPage({ onNavigate }: Props) {
                 onClick={switchToNight}
                 className="rounded-full flex items-center justify-center transition-colors hover:brightness-95"
                 style={{ width: 44, height: 44, background: '#F0EBE3' }}
-                title="חזרה למצב לילה"
-                aria-label="חזרה למצב לילה"
+                title={tx('חזרה למצב לילה')}
+                aria-label={tx('חזרה למצב לילה')}
               >
                 <Moon style={{ width: 20, height: 20, color: '#7B604C' }} strokeWidth={2} />
               </button>
@@ -278,8 +281,8 @@ export default function DashboardPage({ onNavigate }: Props) {
                 onClick={() => onNavigate('pro')}
                 className="rounded-full flex items-center justify-center transition-colors hover:brightness-95"
                 style={{ width: 44, height: 44, background: '#F6ECD8' }}
-                title="התכנים שלך"
-                aria-label="התכנים שלך"
+                title={tx('התכנים שלך')}
+                aria-label={tx('התכנים שלך')}
               >
                 <GraduationCap style={{ width: 22, height: 22, color: '#8A6A2F' }} strokeWidth={2} />
               </button>
@@ -294,8 +297,8 @@ export default function DashboardPage({ onNavigate }: Props) {
               onClick={openInstallGuide}
               className="rounded-full flex items-center justify-center transition-colors hover:brightness-95"
               style={{ width: 44, height: 44, background: '#F0EBE3' }}
-              title="איך שמים את מימו במסך הבית"
-              aria-label="איך שמים את מימו במסך הבית"
+              title={tx('איך שמים את מימו במסך הבית')}
+              aria-label={tx('איך שמים את מימו במסך הבית')}
             >
               <HelpCircle style={{ width: 22, height: 22, color: '#7B604C' }} strokeWidth={2} />
             </button>
@@ -304,7 +307,7 @@ export default function DashboardPage({ onNavigate }: Props) {
               href="?settings"
               className="rounded-full flex items-center justify-center transition-colors hover:brightness-95"
               style={{ width: 44, height: 44, background: '#F0EBE3' }}
-              title="הגדרות"
+              title={tx('הגדרות')}
             >
               <SettingsIcon style={{ width: 22, height: 22, color: '#7B604C' }} />
             </a>
@@ -343,8 +346,8 @@ export default function DashboardPage({ onNavigate }: Props) {
         {selectedChild && (
           <div className="flex flex-col" style={{ background: '#F6ECD8', borderRadius: 26, padding: '18px 16px 14px', gap: 14 }}>
             <div className="flex items-center justify-between">
-              <span className="font-bold" style={{ fontSize: 16, color: '#4A3A28' }}>רישום מהיר ביומן</span>
-              <span className="font-semibold" style={{ fontSize: 13, color: '#8A6A2F' }}>היום · {hebrewToday()}</span>
+              <span className="font-bold" style={{ fontSize: 16, color: '#4A3A28' }}>{tx('רישום מהיר ביומן')}</span>
+              <span className="font-semibold" style={{ fontSize: 13, color: '#8A6A2F' }}>{tx('היום ·')}{' '}{hebrewToday()}</span>
             </div>
             {children.length > 1 && <ChildSwitcher />}
             <ActivityTimers
@@ -392,14 +395,15 @@ export default function DashboardPage({ onNavigate }: Props) {
         {showPerks && featuredPerks.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>הטבות מומלצות</h2>
+              <h2 className="font-bold" style={{ fontSize: 16, color: '#443327' }}>{tx('הטבות מומלצות')}</h2>
               <button
                 onClick={() => onNavigate('benefits')}
                 className="flex items-center gap-1 font-semibold"
                 style={{ fontSize: 13, color: '#8A6A2F' }}
               >
-                הכל
-                <ChevronLeft className="w-3.5 h-3.5" />
+                
+                {tx('הכל')}
+                <ChevronLeft className="flip-dir w-3.5 h-3.5" />
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -407,7 +411,7 @@ export default function DashboardPage({ onNavigate }: Props) {
                 <button
                   key={perk.id}
                   onClick={() => setSelectedPerk(perk)}
-                  className="bg-white rounded-2xl p-3 shadow-sm hover:shadow-md transition-all text-right"
+                  className="bg-white rounded-2xl p-3 shadow-sm hover:shadow-md transition-all text-start"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     {perk.logo_url ? (
@@ -436,16 +440,18 @@ export default function DashboardPage({ onNavigate }: Props) {
         <div className="flex items-center" style={{ gap: 12, padding: '10px 6px', minHeight: 44 }}>
           <MessageCircle style={{ width: 20, height: 20, color: '#818267' }} />
           <span className="font-semibold" style={{ fontSize: 14, color: '#7B604C' }}>
-            יש לך שאלה? מוזמנת לפנות אלינו
+            
+            {tx('יש לך שאלה? מוזמנת לפנות אלינו')}
           </span>
           <a
             href={`https://wa.me/${ownerWhatsapp}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-bold mr-auto whitespace-nowrap"
+            className="font-bold ms-auto whitespace-nowrap"
             style={{ fontSize: 14, color: '#A35C3D' }}
           >
-            שלחי הודעה בוואטסאפ
+            
+            {tx('שלחי הודעה בוואטסאפ')}
           </a>
         </div>
       </div>

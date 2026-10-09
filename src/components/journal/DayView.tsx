@@ -7,6 +7,7 @@ import DailyTimeline from '../DailyTimeline'
 import DayTimelineChart from './DayTimelineChart'
 import JournalHeader from './JournalHeader'
 
+import { tx } from '../../i18n'
 // The day screen.
 //
 // Brenda 17.8.26: "the journal is very very crowded and messy and hard to
@@ -30,14 +31,14 @@ import JournalHeader from './JournalHeader'
 
 type TimelineFilter = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time'
 const TIMELINE_FILTERS: { value: TimelineFilter; label: string }[] = [
-  { value: 'all',        label: 'הכל' },
-  { value: 'feeding',    label: 'האכלה' },
-  { value: 'sleep',      label: 'שינה' },
-  { value: 'diaper',     label: 'חיתול' },
-  { value: 'tummy_time', label: 'בטן' },
+  { value: 'all',        label: tx('הכל') },
+  { value: 'feeding',    label: tx('האכלה') },
+  { value: 'sleep',      label: tx('שינה') },
+  { value: 'diaper',     label: tx('חיתול') },
+  { value: 'tummy_time', label: tx('בטן') },
 ]
 
-const HE_WEEKDAY = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'שבת']
+const HE_WEEKDAY = [tx('יום ראשון'), tx('יום שני'), tx('יום שלישי'), tx('יום רביעי'), tx('יום חמישי'), tx('יום שישי'), tx('שבת')]
 
 type Props = {
   selectedDate: string                                  // YYYY-MM-DD
@@ -116,15 +117,16 @@ export default function DayView({
         onPrev={() => onDateChange(shiftDate(selectedDate, -1))}
         onNext={() => onDateChange(shiftDate(selectedDate, 1))}
         nextDisabled={isToday}
-        prevLabel="יום קודם"
-        nextLabel="יום הבא"
+        prevLabel={tx('יום קודם')}
+        nextLabel={tx('יום הבא')}
         onOpenViews={onOpenViews}
       >
         <span className="font-display" style={{ fontSize: 26, lineHeight: 1, color: '#443327' }}>{num}</span>
         <span className="font-semibold" style={{ fontSize: 15, color: '#7B604C' }}>{weekday}</span>
         {isToday && (
           <span className="font-bold rounded-full" style={{ fontSize: 11, padding: '2px 7px', background: '#F6ECD8', color: '#8A6A2F' }}>
-            היום
+            
+            {tx('היום')}
           </span>
         )}
       </JournalHeader>
@@ -142,7 +144,7 @@ export default function DayView({
 
           {/* 2 — פירוט */}
           <div className="space-y-2">
-            <p className="text-[13px] font-bold px-1" style={{ color: '#7B604C' }}>פירוט</p>
+            <p className="text-[13px] font-bold px-1" style={{ color: '#7B604C' }}>{tx('פירוט')}</p>
             <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1">
               {TIMELINE_FILTERS.map(f => (
                 <button
@@ -163,8 +165,8 @@ export default function DayView({
                 <MimoLeaf variant="sand-2" size={64} rotate={-8} className="mx-auto" />
                 <p className="text-sm text-sand-500">
                   {todayEntries.length > 0
-                    ? 'אין רשומות בקטגוריה הזו'
-                    : isToday ? 'עוד לא נרשמו פעולות היום' : `אין רשומות מ${formatDisplayDate(selectedDate)}`}
+                    ? tx('אין רשומות בקטגוריה הזו')
+                    : isToday ? tx('עוד לא נרשמו פעולות היום') : tx('אין רשומות מ{v0}', { v0: formatDisplayDate(selectedDate) })}
                 </p>
               </div>
             ) : (
@@ -175,7 +177,7 @@ export default function DayView({
           {/* 3 — סיכום יומי */}
           {todayEntries.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[13px] font-bold px-1" style={{ color: '#7B604C' }}>סיכום יומי</p>
+              <p className="text-[13px] font-bold px-1" style={{ color: '#7B604C' }}>{tx('סיכום יומי')}</p>
               <DailySummary entries={todayEntries} />
             </div>
           )}

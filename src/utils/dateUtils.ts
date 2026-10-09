@@ -1,3 +1,4 @@
+import { tx, LOCALE } from '../i18n'
 // Date formatting and calculation utilities.
 // All "today/yesterday/tomorrow" logic and YYYY-MM-DD strings use Israel timezone
 // (Asia/Jerusalem), regardless of the browser's local timezone. The app is Israel-only;
@@ -29,12 +30,12 @@ export function formatDisplayDate(dateStr: string): string {
   const yesterdayStr = formatDate(new Date(anchor.getTime() - 86400000))
   const tomorrowStr  = formatDate(new Date(anchor.getTime() + 86400000))
 
-  if (dateStr === todayStr)     return 'היום'
-  if (dateStr === yesterdayStr) return 'אתמול'
-  if (dateStr === tomorrowStr)  return 'מחר'
+  if (dateStr === todayStr)     return tx('היום')
+  if (dateStr === yesterdayStr) return tx('אתמול')
+  if (dateStr === tomorrowStr)  return tx('מחר')
 
   // Fall back to a Hebrew weekday + day + month label.
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString(LOCALE, {
     timeZone: ISRAEL_TZ,
     weekday: 'long',
     day: 'numeric',
@@ -45,13 +46,13 @@ export function formatDisplayDate(dateStr: string): string {
 export function formatDuration(minutes: number): string {
   if (minutes < 1) {
     const secs = Math.round(minutes * 60)
-    return `${secs} שנ'`
+    return tx('{secs} שנ\'', { secs })
   }
   const h = Math.floor(minutes / 60)
   const m = Math.round(minutes % 60)
-  if (h === 0) return `${m} דק'`
-  if (m === 0) return `${h} ש'`
-  return `${h} ש' ${m} דק'`
+  if (h === 0) return tx('{m} דק\'', { m })
+  if (m === 0) return tx('{h} ש\'', { h })
+  return tx('{h} ש\' {m} דק\'', { h, m })
 }
 
 export function formatElapsed(startTime: string): string {
@@ -82,12 +83,12 @@ export function getBabyAge(dob: string | null): string {
   const weeks = Math.floor(days / 7)
   const months = Math.floor(days / 30.44)
 
-  if (days < 14) return `${days} ימים`
-  if (weeks < 8) return `${weeks} שבועות`
-  if (months < 24) return `${months} חודשים`
+  if (days < 14) return tx('{days} ימים', { days })
+  if (weeks < 8) return tx('{weeks} שבועות', { weeks })
+  if (months < 24) return tx('{months} חודשים', { months })
   const years = Math.floor(months / 12)
   const remMonths = months % 12
-  return remMonths > 0 ? `${years} שנים ו-${remMonths} חודשים` : `${years} שנים`
+  return remMonths > 0 ? tx('{years} שנים ו-{remMonths} חודשים', { years, remMonths }) : tx('{years} שנים', { years })
 }
 
 export function getWeekDates(centerDate: Date, count = 7): Date[] {
@@ -108,14 +109,14 @@ export function isToday(dateStr: string): boolean {
 
 export function entryTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    feeding: 'האכלה',
-    sleep: 'שינה',
-    diaper: 'חיתול',
-    tummy_time: 'זמן בטן',
-    pumping: 'שאיבה',
-    milestone: 'אבן דרך',
-    doctor_visit: 'ביקור רופא',
-    note: 'הערה',
+    feeding: tx('האכלה'),
+    sleep: tx('שינה'),
+    diaper: tx('חיתול'),
+    tummy_time: tx('זמן בטן'),
+    pumping: tx('שאיבה'),
+    milestone: tx('אבן דרך'),
+    doctor_visit: tx('ביקור רופא'),
+    note: tx('הערה'),
   }
   return labels[type] ?? type
 }

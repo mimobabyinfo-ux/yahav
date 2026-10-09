@@ -8,6 +8,7 @@ import { useTracker } from '../hooks/useTracker'
 import { perkValidity, perkValidityLabel } from '../utils/perkValidity'
 import { perkBranches, branchCountLabel } from '../utils/perkBranches'
 
+import { tx, DIR } from '../i18n'
 export default function BenefitsPage() {
   const { user, profile } = useAuth()
   const { track } = useTracker()
@@ -65,7 +66,7 @@ export default function BenefitsPage() {
     <button
       key={perk.id}
       onClick={() => trackView(perk)}
-      className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all text-right"
+      className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all text-start"
     >
       {perk.logo_url ? (
         <img
@@ -106,7 +107,7 @@ export default function BenefitsPage() {
       {perk.redeem_in_person && (
         <div className="mt-2 rounded-xl px-2 py-1 inline-flex items-center gap-1" style={{ background: '#E4EBEF' }}>
           <WalletCards className="w-3 h-3" style={{ color: '#3E5966' }} />
-          <span className="text-xs font-bold" style={{ color: '#3E5966' }}>בהצגת הכרטיס</span>
+          <span className="text-xs font-bold" style={{ color: '#3E5966' }}>{tx('בהצגת הכרטיס')}</span>
         </div>
       )}
       {/* Branches hint: a mom scanning the grid should see there is
@@ -127,7 +128,7 @@ export default function BenefitsPage() {
   )
 
   return (
-    <div className="min-h-screen p-4 pb-24 relative" dir="rtl">
+    <div className="min-h-screen p-4 pb-24 relative" dir={DIR}>
       {/* Watermark */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
         <span className="text-[250px] opacity-5">🎁</span>
@@ -136,19 +137,19 @@ export default function BenefitsPage() {
       <div className="relative z-10 max-w-sm mx-auto space-y-4">
         {/* Header */}
         <div className="pt-2">
-          <h1 className="text-2xl font-bold text-sand-800">הטבות</h1>
-          <p className="text-sand-400 text-sm">הנחות ומבצעים בלעדיים</p>
+          <h1 className="text-2xl font-bold text-sand-800">{tx('הטבות')}</h1>
+          <p className="text-sand-400 text-sm">{tx('הנחות ומבצעים בלעדיים')}</p>
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-sand-400" />
+          <Search className="absolute start-4 top-1/2 -translate-y-1/2 w-4 h-4 text-sand-400" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="חיפוש..."
-            className="w-full pr-10 pl-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 bg-white text-sand-800"
+            placeholder={tx('חיפוש...')}
+            className="w-full ps-10 pe-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 bg-white text-sand-800"
           />
         </div>
 
@@ -160,7 +161,7 @@ export default function BenefitsPage() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-sand-400">
             <p className="text-4xl mb-3">🎁</p>
-            <p className="text-sm">לא נמצאו הטבות</p>
+            <p className="text-sm">{tx('לא נמצאו הטבות')}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -168,7 +169,7 @@ export default function BenefitsPage() {
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <WalletCards className="w-4 h-4" style={{ color: '#3E5966' }} />
-                  <h2 className="font-bold" style={{ fontSize: 15, color: '#443327' }}>בבתי העסק, בהצגת הכרטיס</h2>
+                  <h2 className="font-bold" style={{ fontSize: 15, color: '#443327' }}>{tx('בבתי העסק, בהצגת הכרטיס')}</h2>
                 </div>
                 <div className="grid grid-cols-2 gap-3">{inPerson.map(perkCard)}</div>
               </div>
@@ -176,7 +177,7 @@ export default function BenefitsPage() {
             {online.length > 0 && (
               <div>
                 {inPerson.length > 0 && (
-                  <h2 className="font-bold mb-2" style={{ fontSize: 15, color: '#443327' }}>אונליין, קוד או קישור</h2>
+                  <h2 className="font-bold mb-2" style={{ fontSize: 15, color: '#443327' }}>{tx('אונליין, קוד או קישור')}</h2>
                 )}
                 <div className="grid grid-cols-2 gap-3">{online.map(perkCard)}</div>
               </div>

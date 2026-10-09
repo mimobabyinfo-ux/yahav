@@ -7,6 +7,7 @@ import { compressImage } from '../../utils/imageCompress'
 import { MILESTONE_CHIPS } from '../../constants/milestones'
 import ActionPageLayout from './ActionPageLayout'
 
+import { tx } from '../../i18n'
 type Props = {
   onBack: () => void
   onSaved?: () => void
@@ -49,7 +50,7 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
     const video = file.type.startsWith('video/')
     if (video) {
       if (file.size > MAX_VIDEO_BYTES) {
-        setSaveError('הסרטון גדול מדי. מקסימום 50MB')
+        setSaveError(tx('הסרטון גדול מדי. מקסימום 50MB'))
         return
       }
       setMedia(file)
@@ -57,7 +58,7 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
       setIsVideo(true)
     } else {
       if (file.size > MAX_PHOTO_BYTES) {
-        setSaveError('התמונה גדולה מדי. מקסימום 5MB')
+        setSaveError(tx('התמונה גדולה מדי. מקסימום 5MB'))
         return
       }
       const compressed = await compressImage(file)
@@ -79,7 +80,7 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
     // over the chip — typing in custom is a stronger intent signal.
     const milestoneText = custom.trim() || selectedChip
     if (!milestoneText) {
-      setSaveError('יש לבחור אבן דרך או לתאר אבן דרך מותאמת')
+      setSaveError(tx('יש לבחור אבן דרך או לתאר אבן דרך מותאמת'))
       return
     }
     setSaving(true)
@@ -104,7 +105,7 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
         })
         .select()
         .single()
-      if (error || !entry) throw error ?? new Error('שגיאה בשמירה')
+      if (error || !entry) throw error ?? new Error(tx('שגיאה בשמירה'))
 
       if (media) {
         const ext = isVideo ? 'mp4' : 'jpg'
@@ -122,14 +123,14 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
       onSaved?.()
       onBack()
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'שגיאה בשמירה')
+      setSaveError(err instanceof Error ? err.message : tx('שגיאה בשמירה'))
       setSaving(false)
     }
   }
 
   return (
     <ActionPageLayout
-      title="אבן דרך"
+      title={tx('אבן דרך')}
       emoji="🎯"
       accent={ACCENT}
       onBack={onBack}
@@ -142,14 +143,14 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
             className="w-full font-semibold py-4 rounded-2xl text-white shadow-md transition-all disabled:opacity-50"
             style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}dd)` }}
           >
-            {saving ? 'שומרת…' : 'שמירה ✓'}
+            {saving ? tx('שומרת…') : tx('שמירה ✓')}
           </button>
         </>
       }
     >
       <div className="max-w-xs mx-auto space-y-5">
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-2 text-right">בחרי אבן דרך</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-2 text-start">{tx('בחרי אבן דרך')}</label>
           <div className="flex flex-wrap gap-2">
             {MILESTONE_CHIPS.map(chip => (
               <button
@@ -172,7 +173,7 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">או אבן דרך מותאמת</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('או אבן דרך מותאמת')}</label>
           <input
             type="text"
             value={custom}
@@ -180,13 +181,13 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
               setCustom(e.target.value)
               if (e.target.value.trim()) setSelectedChip(null) // custom wins
             }}
-            placeholder="תיאור חופשי…"
-            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-right"
+            placeholder={tx('תיאור חופשי…')}
+            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 text-start"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">תאריך</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('תאריך')}</label>
           <input
             type="date"
             value={dateStr}
@@ -208,13 +209,13 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
               {isVideo ? (
                 <video src={mediaPreview} className="w-14 h-14 rounded-xl object-cover border border-sand-200" muted playsInline />
               ) : (
-                <img src={mediaPreview} alt="תצוגה מקדימה" className="w-14 h-14 rounded-xl object-cover border border-sand-200" />
+                <img src={mediaPreview} alt={tx('תצוגה מקדימה')} className="w-14 h-14 rounded-xl object-cover border border-sand-200" />
               )}
-              <div className="flex-1 text-right">
-                <p className="text-xs text-sand-600 font-medium">{isVideo ? 'סרטון נבחר' : 'תמונה נבחרה'}</p>
-                <p className="text-[10px] text-sand-400">תישמר עם הרשומה</p>
+              <div className="flex-1 text-start">
+                <p className="text-xs text-sand-600 font-medium">{isVideo ? tx('סרטון נבחר') : tx('תמונה נבחרה')}</p>
+                <p className="text-[10px] text-sand-400">{tx('תישמר עם הרשומה')}</p>
               </div>
-              <button onClick={removeMedia} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" aria-label="הסרת מדיה">
+              <button onClick={removeMedia} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" aria-label={tx('הסרת מדיה')}>
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
@@ -225,19 +226,20 @@ export default function MilestonePage({ onBack, onSaved }: Props) {
               className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-sand-200 rounded-2xl text-sand-500 hover:border-mustard-300 hover:text-mustard-600 transition-colors text-sm"
             >
               <Camera className="w-4 h-4" />
-              הוסיפי תמונה או סרטון (אופציונלי)
+              
+              {tx('הוסיפי תמונה או סרטון (אופציונלי)')}
             </button>
           )}
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">הערות נוספות</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('הערות נוספות')}</label>
           <textarea
             value={extraNotes}
             onChange={e => setExtraNotes(e.target.value)}
-            placeholder="הערות (אופציונלי)"
+            placeholder={tx('הערות (אופציונלי)')}
             rows={3}
-            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-right"
+            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-start"
           />
         </div>
       </div>

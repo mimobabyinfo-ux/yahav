@@ -5,6 +5,7 @@ import { cachedQuery } from '../../lib/queryCache'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Page } from '../../App'
 
+import { tx } from '../../i18n'
 // Age-matched product recommendation for the home dashboard.
 // Matches the selected child's age (in months) against the admin-set
 // age_range_start_months / age_range_end_months on active store
@@ -40,9 +41,9 @@ function cohortDateLabel(c: PublicCohort): string {
 function ageRangeLabel(from: number, to: number | null): string {
   const f = Number.isInteger(from) ? from : from.toFixed(1)
   const t = to == null ? null : (Number.isInteger(to) ? to : to.toFixed(1))
-  if (from === 0) return t == null ? 'מלידה' : `לידה עד ${t} חודשים`
-  if (t == null) return `מגיל ${f} חודשים`
-  return `לגילאי ${f}–${t} חודשים`
+  if (from === 0) return t == null ? tx('מלידה') : tx('לידה עד {t} חודשים', { t })
+  if (t == null) return tx('מגיל {f} חודשים', { f })
+  return tx('לגילאי {f}–{t} חודשים', { f, t })
 }
 
 export default function RecommendedWorkshopCard({ onNavigate }: { onNavigate: (page: Page) => void }) {
@@ -121,7 +122,7 @@ export default function RecommendedWorkshopCard({ onNavigate }: { onNavigate: (p
   return (
     <button
       onClick={openProduct}
-      className="w-full text-right transition-all hover:shadow-md active:scale-[0.99]"
+      className="w-full text-start transition-all hover:shadow-md active:scale-[0.99]"
       style={{ background: CARD_BG, borderRadius: 26, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}
     >
       <div className="flex items-center" style={{ gap: 12 }}>
@@ -130,7 +131,8 @@ export default function RecommendedWorkshopCard({ onNavigate }: { onNavigate: (p
         </span>
         <div className="flex-1 min-w-0">
           <p className="font-bold" style={{ fontSize: 13, color: INK }}>
-            מתאים בדיוק לגיל של {childFirstName}
+            
+            {tx('מתאים בדיוק לגיל של')}{' '}{childFirstName}
           </p>
           <p className="font-bold truncate mt-0.5" style={{ fontSize: 17, color: INK_STRONG }}>{match.title}</p>
           <p className="font-semibold mt-0.5" style={{ fontSize: 13, color: INK_SOFT }}>
@@ -142,16 +144,17 @@ export default function RecommendedWorkshopCard({ onNavigate }: { onNavigate: (p
           {nextCohort && (
             <p className="flex items-center gap-1 font-semibold mt-1" style={{ fontSize: 13, color: INK }}>
               <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
-              המחזור הקרוב: {cohortDateLabel(nextCohort)}
+              
+              {tx('המחזור הקרוב:')}{' '}{cohortDateLabel(nextCohort)}
               {spotsLeft != null && spotsLeft > 0 && spotsLeft <= 3 && (
                 <span className="font-bold" style={{ color: '#A35C3D' }}>
-                  · {spotsLeft === 1 ? 'מקום אחרון!' : `נותרו ${spotsLeft} מקומות`}
+                  · {spotsLeft === 1 ? tx('מקום אחרון!') : tx('נותרו {spotsLeft} מקומות', { spotsLeft })}
                 </span>
               )}
             </p>
           )}
         </div>
-        <ChevronLeft className="w-5 h-5 flex-shrink-0" style={{ color: INK }} />
+        <ChevronLeft className="flip-dir w-5 h-5 flex-shrink-0" style={{ color: INK }} />
       </div>
     </button>
   )

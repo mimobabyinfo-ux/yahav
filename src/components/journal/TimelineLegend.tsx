@@ -1,5 +1,6 @@
 import { ENTRY_COLORS } from '../DailyTimeline'
 
+import { tx } from '../../i18n'
 // The key for both Gantt charts.
 //
 // Brenda 17.8.26: "add the emoji of each of the things — nursing, sleep,
@@ -12,12 +13,12 @@ import { ENTRY_COLORS } from '../DailyTimeline'
 // Shared so the day chart and the week chart can never drift apart.
 
 export const TIMELINE_LEGEND: { type: string; emoji: string; label: string }[] = [
-  { type: 'feeding',    emoji: '🤱🏼', label: 'הנקה' },
-  { type: 'feeding',    emoji: '🍼',  label: 'בקבוק' },
-  { type: 'feeding',    emoji: '🥄',  label: 'אוכל' },
-  { type: 'sleep',      emoji: '😴',  label: 'שינה' },
-  { type: 'diaper',     emoji: '💩',  label: 'חיתול' },
-  { type: 'tummy_time', emoji: '🤸🏼', label: 'זמן בטן' },
+  { type: 'feeding',    emoji: '🤱🏼', label: tx('הנקה') },
+  { type: 'feeding',    emoji: '🍼',  label: tx('בקבוק') },
+  { type: 'feeding',    emoji: '🥄',  label: tx('אוכל') },
+  { type: 'sleep',      emoji: '😴',  label: tx('שינה') },
+  { type: 'diaper',     emoji: '💩',  label: tx('חיתול') },
+  { type: 'tummy_time', emoji: '🤸🏼', label: tx('זמן בטן') },
 ]
 
 export default function TimelineLegend({ className = '' }: { className?: string }) {

@@ -6,6 +6,8 @@ import { pixelTrack } from '../utils/metaPixel'
 import { getCampaignSrc, oauthRedirectTo } from '../utils/campaignSrc'
 import MimoLogo from '../components/MimoLogo'
 
+import { tx, DIR } from '../i18n'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 const REMEMBERED_EMAIL_KEY = 'mimo_remembered_email'
 
 function moveSessionToSessionStorage() {
@@ -57,7 +59,7 @@ export default function LoginPage() {
   useEffect(() => {
     supabase.from('global_settings').select('setting_value')
       .eq('setting_key', 'app_subtitle').limit(1)
-      .then(({ data }) => setSubtitle(data?.[0]?.setting_value || 'בית עוטף ומלטף'))
+      .then(({ data }) => setSubtitle(data?.[0]?.setting_value || tx('בית עוטף ומלטף')))
 
     // Restore remembered email (Remember-Me)
     const saved = localStorage.getItem(REMEMBERED_EMAIL_KEY)
@@ -72,7 +74,7 @@ export default function LoginPage() {
     // a way around the consent entirely — and onboarding would then have
     // had to invent a timestamp for a tick that never happened.
     if (mode === 'signup' && !acceptedTerms) {
-      setError('כדי לפתוח חשבון צריך לאשר את תנאי השימוש ומדיניות הפרטיות')
+      setError(tx('כדי לפתוח חשבון צריך לאשר את תנאי השימוש ומדיניות הפרטיות'))
       return
     }
     setError('')
@@ -90,7 +92,7 @@ export default function LoginPage() {
     try {
       if (mode === 'signup') {
         if (!acceptedTerms) {
-          setError('כדי לפתוח חשבון צריך לאשר את תנאי השימוש ומדיניות הפרטיות')
+          setError(tx('כדי לפתוח חשבון צריך לאשר את תנאי השימוש ומדיניות הפרטיות'))
           setLoading(false)
           return
         }
@@ -137,9 +139,9 @@ export default function LoginPage() {
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'שגיאה, נסי שוב'
-      if (msg.includes('Invalid login credentials')) setError('אימייל או סיסמה שגויים')
-      else if (msg.includes('already registered')) setError('כתובת אימייל זו כבר רשומה')
+      const msg = err instanceof Error ? err.message : tx('שגיאה, נסי שוב')
+      if (msg.includes('Invalid login credentials')) setError(tx('אימייל או סיסמה שגויים'))
+      else if (msg.includes('already registered')) setError(tx('כתובת אימייל זו כבר רשומה'))
       else setError(msg)
     } finally {
       setLoading(false)
@@ -152,7 +154,7 @@ export default function LoginPage() {
     setLoading(true)
     const { error } = await supabase.functions.invoke('request-password-reset', { body: { email: email.trim() } })
     setLoading(false)
-    if (error) { setError('לא הצלחנו לשלוח כרגע, נסי שוב בעוד רגע'); return }
+    if (error) { setError(tx('לא הצלחנו לשלוח כרגע, נסי שוב בעוד רגע')); return }
     setResetSent(true)
   }
 
@@ -160,8 +162,13 @@ export default function LoginPage() {
     <div
       className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
       style={{ background: '#F8F4EC' }}
-      dir="rtl"
+      dir={DIR}
     >
+
+      {/* Language — top corner, before she has an account (9.10.26). */}
+      <div className="absolute top-4 end-4 z-20">
+        <LanguageSwitcher compact />
+      </div>
 
       <div className="w-full max-w-sm relative z-10 flex flex-col items-center gap-6">
         {/* Logo */}
@@ -173,17 +180,20 @@ export default function LoginPage() {
         {signupSent && (
           <div className="w-full bg-white rounded-3xl p-7 shadow-sm border border-[#F0EAE0] text-center space-y-4">
             <div className="w-14 h-14 mx-auto rounded-full flex items-center justify-center" style={{ background: '#F6ECD8' }}><Mail className="w-7 h-7" style={{ color: '#8A6A2F' }} /></div>
-            <h2 className="font-bold text-sand-800 text-xl">בדקי את האימייל שלך!</h2>
+            <h2 className="font-bold text-sand-800 text-xl">{tx('בדקי את האימייל שלך!')}</h2>
             <p className="text-sand-500 text-sm leading-relaxed">
-              שלחנו לך לינק לאימות ל-<strong>{email}</strong>.<br />
-              לחצי על הלינק וחזרי לכאן להתחבר.
+              
+              {tx('שלחנו לך לינק לאימות ל-')}<strong>{email}</strong>.<br />
+              
+              {tx('לחצי על הלינק וחזרי לכאן להתחבר.')}
             </p>
             <button
               onClick={() => { setSignupSent(false); setMode('login') }}
               className="w-full font-bold py-3.5 rounded-2xl text-[#4A3A28]"
               style={{ background: '#E7C78A' }}
             >
-              חזרה לכניסה
+              
+              {tx('חזרה לכניסה')}
             </button>
           </div>
         )}
@@ -199,32 +209,35 @@ export default function LoginPage() {
             transition: 'opacity .25s ease',
           }}
         >
-          {subtitle ?? '\u00A0'}
+          {subtitle ? tx(subtitle) : '\u00A0'}
         </p>
 
         {/* Card */}
         {!signupSent && forgot && (
           <div className="w-full bg-white rounded-3xl p-7 shadow-sm border border-[#F0EAE0] mt-2">
             <h2 className="font-display text-center mb-4" style={{ fontSize: '1.5rem', fontWeight: 400, color: '#5E4938' }}>
-              שכחתי סיסמה
+              
+              {tx('שכחתי סיסמה')}
             </h2>
             {resetSent ? (
               <div className="text-center space-y-4">
                 <div className="w-14 h-14 mx-auto rounded-full flex items-center justify-center" style={{ background: '#F6ECD8' }}><Mail className="w-7 h-7" style={{ color: '#8A6A2F' }} /></div>
                 <p className="text-sm leading-relaxed" style={{ color: '#5A4B3C' }}>
-                  אם <strong>{email}</strong> רשום אצלנו, שלחנו אליו מייל עם קישור לבחירת סיסמה חדשה.
-                  <br />לא הגיע תוך כמה דקות? כדאי להציץ בספאם.
+                  
+                  {tx('אם')}{' '}<strong>{email}</strong> {' '}{tx('רשום אצלנו, שלחנו אליו מייל עם קישור לבחירת סיסמה חדשה.')}
+                  <br />{tx('לא הגיע תוך כמה דקות? כדאי להציץ בספאם.')}
                 </p>
                 <button onClick={() => { setForgot(false); setResetSent(false) }} className="w-full font-bold py-3.5 rounded-2xl" style={{ background: '#E7C78A', color: '#4A3A28' }}>
-                  חזרה לכניסה
+                  
+                  {tx('חזרה לכניסה')}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleForgot} className="space-y-4">
                 <p className="text-sm text-center leading-relaxed" style={{ color: '#818267' }}>
                   {cameBackFromDeadLink
-                    ? 'הקישור כבר לא בתוקף. אפשר לבקש קישור חדש כאן.'
-                    : 'כתבי את המייל שאיתו נרשמת ונשלח לך קישור לבחירת סיסמה חדשה.'}
+                    ? tx('הקישור כבר לא בתוקף. אפשר לבקש קישור חדש כאן.')
+                    : tx('כתבי את המייל שאיתו נרשמת ונשלח לך קישור לבחירת סיסמה חדשה.')}
                 </p>
                 <input
                   type="email"
@@ -233,20 +246,22 @@ export default function LoginPage() {
                   onChange={e => setEmail(e.target.value)}
                   placeholder="email@example.com"
                   required
-                  className="w-full px-4 py-3.5 rounded-2xl text-right focus:outline-none"
+                  className="w-full px-4 py-3.5 rounded-2xl text-start focus:outline-none"
                   style={{ border: '1.5px solid #C6BDA0', color: '#3D2E20', background: 'white', fontSize: '0.95rem' }}
                 />
                 {error && (
                   <div className="rounded-2xl p-3 text-sm text-center" style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{error}</div>
                 )}
                 <button type="submit" disabled={loading} className="w-full font-bold py-4 rounded-2xl disabled:opacity-50" style={{ background: '#E7C78A', color: '#4A3A28' }}>
-                  {loading ? '...' : 'שליחת קישור'}
+                  {loading ? '...' : tx('שליחת קישור')}
                 </button>
                 <p className="text-xs text-center leading-relaxed" style={{ color: '#9C8A74' }}>
-                  נרשמת דרך Google? אין צורך בסיסמה, פשוט לחזור ולבחור "המשך עם Google".
+                  
+                  {tx('נרשמת דרך Google? אין צורך בסיסמה, פשוט לחזור ולבחור "המשך עם Google".')}
                 </p>
                 <button type="button" onClick={() => { setForgot(false); setError('') }} className="w-full text-sm font-bold underline" style={{ color: '#A35C3D' }}>
-                  חזרה לכניסה
+                  
+                  {tx('חזרה לכניסה')}
                 </button>
               </form>
             )}
@@ -258,13 +273,14 @@ export default function LoginPage() {
             className="font-display text-center mb-6"
             style={{ fontSize: '1.5rem', fontWeight: 400, color: '#5E4938' }}
           >
-            {mode === 'login' ? 'התחברות' : 'הרשמה'}
+            {mode === 'login' ? tx('התחברות') : tx('הרשמה')}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
             <div>
-              <label className="block text-sm text-right mb-1.5" style={{ color: '#818267' }}>
-                אימייל
+              <label className="block text-sm text-start mb-1.5" style={{ color: '#818267' }}>
+                
+                {tx('אימייל')}
               </label>
               <input
                 type="email"
@@ -274,7 +290,7 @@ export default function LoginPage() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="email@example.com"
                 required
-                className="w-full px-4 py-3.5 rounded-2xl text-right focus:outline-none transition-colors"
+                className="w-full px-4 py-3.5 rounded-2xl text-start focus:outline-none transition-colors"
                 style={{
                   border: '1.5px solid #C6BDA0',
                   color: '#3D2E20',
@@ -287,8 +303,9 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm text-right mb-1.5" style={{ color: '#818267' }}>
-                סיסמה
+              <label className="block text-sm text-start mb-1.5" style={{ color: '#818267' }}>
+                
+                {tx('סיסמה')}
               </label>
               <div className="relative">
                 <input
@@ -300,7 +317,7 @@ export default function LoginPage() {
                   placeholder="••••••"
                   required
                   minLength={6}
-                  className="w-full pr-4 pl-11 py-3.5 rounded-2xl text-right focus:outline-none transition-colors"
+                  className="w-full ps-4 pe-11 py-3.5 rounded-2xl text-start focus:outline-none transition-colors"
                   style={{
                     border: '1.5px solid #C6BDA0',
                     color: '#3D2E20',
@@ -313,8 +330,8 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(v => !v)}
-                  className="absolute top-1/2 -translate-y-1/2 left-3 p-1 text-sand-600 hover:text-sand-600"
-                  aria-label={showPassword ? 'הסתר סיסמה' : 'הצג סיסמה'}
+                  className="absolute top-1/2 -translate-y-1/2 end-3 p-1 text-sand-600 hover:text-sand-600"
+                  aria-label={showPassword ? tx('הסתר סיסמה') : tx('הצג סיסמה')}
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -331,10 +348,11 @@ export default function LoginPage() {
                   onChange={e => setRememberMe(e.target.checked)}
                   className="w-4 h-4 rounded accent-mustard-500"
                 />
-                <span className="text-sm" style={{ color: '#818267' }}>זכרי אותי</span>
+                <span className="text-sm" style={{ color: '#818267' }}>{tx('זכרי אותי')}</span>
               </label>
               <button type="button" onClick={() => { setForgot(true); setError('') }} className="text-sm font-bold underline" style={{ color: '#A35C3D' }}>
-                שכחתי סיסמה
+                
+                {tx('שכחתי סיסמה')}
               </button>
               </div>
             )}
@@ -353,10 +371,11 @@ export default function LoginPage() {
                     aria-describedby="consent-note"
                   />
                   <span className="text-[13px] leading-snug" style={{ color: '#5A4B3C' }}>
-                    קראתי ואני מאשרת את{' '}
-                    <a href="/?legal=terms" target="_blank" rel="noopener noreferrer" className="font-bold underline" style={{ color: '#A35C3D' }}>תנאי השימוש</a>
-                    {' '}ואת{' '}
-                    <a href="/?legal=privacy" target="_blank" rel="noopener noreferrer" className="font-bold underline" style={{ color: '#A35C3D' }}>מדיניות הפרטיות</a>
+                    
+                    {tx('קראתי ואני מאשרת את')}{' '}
+                    <a href="/?legal=terms" target="_blank" rel="noopener noreferrer" className="font-bold underline" style={{ color: '#A35C3D' }}>{tx('תנאי השימוש')}</a>
+                    {' '}{tx('ואת')}{' '}
+                    <a href="/?legal=privacy" target="_blank" rel="noopener noreferrer" className="font-bold underline" style={{ color: '#A35C3D' }}>{tx('מדיניות הפרטיות')}</a>
                   </span>
                 </label>
                 <label className="flex items-start gap-2.5 cursor-pointer select-none">
@@ -391,14 +410,14 @@ export default function LoginPage() {
                 marginTop: '8px',
               }}
             >
-              {loading ? '...' : mode === 'login' ? 'כניסה' : 'הרשמה'}
+              {loading ? '...' : mode === 'login' ? tx('כניסה') : tx('הרשמה')}
             </button>
           </form>
 
           {/* Divider */}
           <div className="flex items-center gap-3 my-2">
             <div className="flex-1 h-px" style={{ background: '#C6BDA0' }} />
-            <span className="text-xs" style={{ color: '#818267' }}>או</span>
+            <span className="text-xs" style={{ color: '#818267' }}>{tx('או')}</span>
             <div className="flex-1 h-px" style={{ background: '#C6BDA0' }} />
           </div>
 
@@ -415,28 +434,29 @@ export default function LoginPage() {
               <path fill="#FBBC05" d="M10.6 28.7A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.8 10.7l7.8-6z"/>
               <path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2 1.4-4.6 2.2-7.7 2.2-6.2 0-11.5-4.2-13.4-9.8l-7.8 6C6.7 42.6 14.7 48 24 48z"/>
             </svg>
-            המשך עם Google
+            
+            {tx('המשך עם Google')}
           </button>
 
           {/* Toggle */}
           <p className="text-center mt-4 text-sm" style={{ color: '#818267' }}>
-            {mode === 'login' ? 'אין לך חשבון? ' : 'יש לך חשבון? '}
+            {mode === 'login' ? tx('אין לך חשבון? ') : tx('יש לך חשבון? ')}
             <button
               onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
               className="font-bold underline"
               style={{ color: '#A35C3D' }}
             >
-              {mode === 'login' ? 'הרשמה' : 'כניסה'}
+              {mode === 'login' ? tx('הרשמה') : tx('כניסה')}
             </button>
           </p>
 
           {/* Reachable from every entry point, signed in or not. The
               accessibility statement has to be findable from the service
               itself, not only from inside it. */}
-          <nav className="flex justify-center gap-3 mt-3 text-[11px]" aria-label="מסמכים">
-            <a href="/?legal=privacy" className="underline" style={{ color: '#9C8A74' }}>פרטיות</a>
-            <a href="/?legal=terms" className="underline" style={{ color: '#9C8A74' }}>תנאי שימוש</a>
-            <a href="/?legal=accessibility" className="underline" style={{ color: '#9C8A74' }}>נגישות</a>
+          <nav className="flex justify-center gap-3 mt-3 text-[11px]" aria-label={tx('מסמכים')}>
+            <a href="/?legal=privacy" className="underline" style={{ color: '#9C8A74' }}>{tx('פרטיות')}</a>
+            <a href="/?legal=terms" className="underline" style={{ color: '#9C8A74' }}>{tx('תנאי שימוש')}</a>
+            <a href="/?legal=accessibility" className="underline" style={{ color: '#9C8A74' }}>{tx('נגישות')}</a>
           </nav>
         </div>}
       </div>

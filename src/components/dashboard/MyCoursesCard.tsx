@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { formatDate } from '../../utils/dateUtils'
 import type { Page } from '../../App'
 
+import { tx, LOCALE } from '../../i18n'
 /**
  * "התכנים שלך" — the way in to a purchased course.
  *
@@ -61,28 +62,29 @@ export default function MyCoursesCard({ onNavigate }: { onNavigate: (page: Page)
   return (
     <button
       onClick={() => onNavigate('pro')}
-      className="w-full flex items-center gap-3 rounded-3xl p-4 shadow-sm text-right transition-all hover:shadow-md hover:-translate-y-0.5"
+      className="w-full flex items-center gap-3 rounded-3xl p-4 shadow-sm text-start transition-all hover:shadow-md hover:-translate-y-0.5"
       style={{ background: 'linear-gradient(135deg, #F7E8C0, #EDD898)' }}
     >
       <span className="w-11 h-11 rounded-2xl bg-white/70 flex items-center justify-center flex-shrink-0">
         <GraduationCap className="w-5 h-5" style={{ color: '#8A6A2F' }} />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block font-bold text-sm" style={{ color: '#4A3A28' }}>התכנים שלך</span>
+        <span className="block font-bold text-sm" style={{ color: '#4A3A28' }}>{tx('התכנים שלך')}</span>
         <span className="block text-xs truncate" style={{ color: '#6E5836' }}>
           {titles.length > 0
             ? titles.join(' · ')
             : activeIds.length > 0
-              ? `${activeIds.length} תכנים פתוחים עבורך`
-              : 'תצוגת אדמין: כל התכנים'}
+              ? tx('{length} תכנים פתוחים עבורך', { length: activeIds.length })
+              : tx('תצוגת אדמין: כל התכנים')}
         </span>
         {until && (
           <span className="block text-[11px] mt-0.5" style={{ color: '#8A6A2F' }}>
-            פתוח עד {new Date(until + 'T12:00:00').toLocaleDateString('he-IL')}
+            
+            {tx('פתוח עד')}{' '}{new Date(until + 'T12:00:00').toLocaleDateString(LOCALE)}
           </span>
         )}
       </span>
-      <ChevronLeft className="w-5 h-5 flex-shrink-0" style={{ color: '#8A6A2F' }} />
+      <ChevronLeft className="flip-dir w-5 h-5 flex-shrink-0" style={{ color: '#8A6A2F' }} />
     </button>
   )
 }

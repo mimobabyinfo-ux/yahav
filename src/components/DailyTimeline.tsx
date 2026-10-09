@@ -5,6 +5,7 @@ import { entryTypeLabel, formatDuration } from '../utils/dateUtils'
 import { supabase } from '../lib/supabase'
 import DiaperPhotoThumbnail from './DiaperPhotoThumbnail'
 
+import { tx, localizeStoredNotes } from '../i18n'
 // Phase 3 / C7: tap-to-edit is wired for every standard log type. Feeding
 // (incl. per-side breast), diaper (with 'dry'), and milestone joined in C7
 // — LogEntryModal now round-trips their data. Photos/videos on diaper +
@@ -100,31 +101,31 @@ function entrySubtitle(entry: DailyLogEntryWithDetails): string {
     const fd = pick(entry.feeding_details)
     if (!fd) return entry.notes ?? ''
     const parts: string[] = []
-    if (fd.feeding_type === 'breast') parts.push('הנקה')
-    else if (fd.feeding_type === 'bottle') parts.push('בקבוק')
-    else if (fd.feeding_type === 'solid') parts.push('מוצק')
-    if (fd.breast_side === 'left') parts.push('שמאל')
-    else if (fd.breast_side === 'right') parts.push('ימין')
-    else if (fd.breast_side === 'both') parts.push('שניהם')
+    if (fd.feeding_type === 'breast') parts.push(tx('הנקה'))
+    else if (fd.feeding_type === 'bottle') parts.push(tx('בקבוק'))
+    else if (fd.feeding_type === 'solid') parts.push(tx('מוצק'))
+    if (fd.breast_side === 'left') parts.push(tx('שמאל'))
+    else if (fd.breast_side === 'right') parts.push(tx('ימין'))
+    else if (fd.breast_side === 'both') parts.push(tx('שניהם'))
     if (fd.duration_minutes) parts.push(formatDuration(fd.duration_minutes))
-    if (fd.amount_ml) parts.push(`${fd.amount_ml} מ"ל`)
+    if (fd.amount_ml) parts.push(tx('{amount_ml} מ"ל', { amount_ml: fd.amount_ml }))
     return parts.join(' · ')
   }
   if (entry.entry_type === 'sleep') {
     const sd = pick(entry.sleep_details)
     if (!sd) return entry.notes ?? ''
     const parts: string[] = []
-    if (sd.sleep_type === 'nap') parts.push('שנת צהריים')
-    else if (sd.sleep_type === 'night') parts.push('שנת לילה')
+    if (sd.sleep_type === 'nap') parts.push(tx('שנת צהריים'))
+    else if (sd.sleep_type === 'night') parts.push(tx('שנת לילה'))
     if (sd.duration_minutes) parts.push(formatDuration(sd.duration_minutes))
     return parts.join(' · ')
   }
   if (entry.entry_type === 'diaper') {
     const dd = pick(entry.diaper_details)
     if (!dd) return entry.notes ?? ''
-    if (dd.diaper_type === 'wet') return 'פיפי'
-    if (dd.diaper_type === 'dirty') return 'קקי'
-    if (dd.diaper_type === 'both') return 'פיפי וקקי'
+    if (dd.diaper_type === 'wet') return tx('פיפי')
+    if (dd.diaper_type === 'dirty') return tx('קקי')
+    if (dd.diaper_type === 'both') return tx('פיפי וקקי')
   }
   return ''
 }
@@ -145,7 +146,7 @@ export default function DailyTimeline({ entries, onRefresh, onEditEntry, hideHea
 
   return (
     <div className="space-y-1.5">
-      {!hideHeading && <h3 className="text-sm font-semibold text-musgo-600 px-1">ציר זמן</h3>}
+      {!hideHeading && <h3 className="text-sm font-semibold text-musgo-600 px-1">{tx('ציר זמן')}</h3>}
       {entries.map((entry, idx) => {
         const colors = entryColors(entry)
         const subtitle = entrySubtitle(entry)
@@ -165,7 +166,7 @@ export default function DailyTimeline({ entries, onRefresh, onEditEntry, hideHea
             </div>
 
             {/* Time */}
-            <div className="pt-1 w-10 flex-shrink-0 text-right">
+            <div className="pt-1 w-10 flex-shrink-0 text-start">
               <span className="text-[13px] font-bold text-sand-600">
                 {entry.entry_time?.slice(0, 5)}
               </span>
@@ -190,7 +191,7 @@ export default function DailyTimeline({ entries, onRefresh, onEditEntry, hideHea
                     </span>
                     {editable && (
                       <Pencil
-                        className="w-3 h-3 ml-auto opacity-50"
+                        className="w-3 h-3 me-auto opacity-50"
                         style={{ color: colors.label }}
                         aria-hidden="true"
                       />
@@ -202,7 +203,7 @@ export default function DailyTimeline({ entries, onRefresh, onEditEntry, hideHea
                     </p>
                   )}
                   {entry.notes && entry.entry_type !== 'note' && (
-                    <p className="text-xs text-sand-600 mt-0.5 italic">{entry.notes}</p>
+                    <p className="text-xs text-sand-600 mt-0.5 italic">{localizeStoredNotes(entry.notes)}</p>
                   )}
                   {entry.entry_type === 'note' && entry.notes && (
                     <p className="text-xs text-sand-600 mt-0.5">{entry.notes}</p>
@@ -227,7 +228,7 @@ export default function DailyTimeline({ entries, onRefresh, onEditEntry, hideHea
                 <button
                   onClick={e => { e.stopPropagation(); deleteEntry(entry.id) }}
                   className="opacity-0 group-hover:opacity-100 p-1 text-sand-500 hover:text-red-400 transition-all flex-shrink-0"
-                  aria-label="מחיקה"
+                  aria-label={tx('מחיקה')}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

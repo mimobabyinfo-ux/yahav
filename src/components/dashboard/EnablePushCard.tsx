@@ -3,6 +3,7 @@ import { Bell, X } from 'lucide-react'
 import { enablePush, getPushState, type PushState } from '../../utils/webPush'
 import { useTracker } from '../../hooks/useTracker'
 
+import { tx } from '../../i18n'
 // "הפעילי התראות" on the home screen.
 //
 // Yahav 18.9.26: 9 of 125 mothers had push on, while 47 had installed the
@@ -58,10 +59,12 @@ export default function EnablePushCard() {
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-bold" style={{ fontSize: 14, color: '#5E4938' }}>
-          שנעדכן אותך?
+          
+          {tx('שנעדכן אותך?')}
         </p>
         <p className="mt-0.5" style={{ fontSize: 13, color: '#7B604C', lineHeight: 1.6 }}>
-          מפגש חדש בקהילה, תזכורת לפני אירוע, ומקום שהתפנה להשלמה. בלי ספאם.
+          
+          {tx('מפגש חדש בקהילה, תזכורת לפני אירוע, ומקום שהתפנה להשלמה. בלי ספאם.')}
         </p>
         <div className="flex items-center gap-2 mt-2.5">
           <button
@@ -70,14 +73,15 @@ export default function EnablePushCard() {
             className="px-4 py-2 rounded-2xl text-sm font-bold text-[#4A3A28] disabled:opacity-40 transition-all hover:brightness-95"
             style={{ background: '#E7C78A' }}
           >
-            {busy ? 'רגע...' : 'הפעלת התראות'}
+            {busy ? tx('רגע...') : tx('הפעלת התראות')}
           </button>
           <button onClick={later} className="px-3 py-2 text-[13px] font-semibold" style={{ color: '#8C7D6B' }}>
-            לא עכשיו
+            
+            {tx('לא עכשיו')}
           </button>
         </div>
       </div>
-      <button onClick={later} className="p-1 -m-1 text-sand-400 hover:text-sand-600" aria-label="סגירה">
+      <button onClick={later} className="p-1 -m-1 text-sand-400 hover:text-sand-600" aria-label={tx('סגירה')}>
         <X className="w-4 h-4" />
       </button>
     </div>

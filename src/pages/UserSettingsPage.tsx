@@ -6,12 +6,14 @@ import { getBabyAge } from '../utils/dateUtils'
 import SharingManagementPanel from '../components/sharing/SharingManagementPanel'
 import MyPurchasesSection from '../components/settings/MyPurchasesSection'
 
+import { tx, LOCALE, DIR, LANG } from '../i18n'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 function genderEmoji(g: string | null) {
   return g === 'boy' ? '👶🏼' : g === 'girl' ? '👧🏼' : '👶🏼'
 }
 
 function genderLabel(g: string | null) {
-  return g === 'boy' ? 'בן' : g === 'girl' ? 'בת' : 'אחר'
+  return g === 'boy' ? tx('בן') : g === 'girl' ? tx('בת') : tx('אחר')
 }
 
 // Same calc as PregnancyDashboard's local helper — keep the two in sync if either changes.
@@ -55,36 +57,36 @@ export default function UserSettingsPage() {
 
   async function saveDueDate() {
     if (!user) return
-    if (!newDueDate) { setDueDateError('נא לבחור תאריך'); return }
+    if (!newDueDate) { setDueDateError(tx('נא לבחור תאריך')); return }
     setDueDateError('')
     setSavingDueDate(true)
     const { error } = await supabase.from('user_profiles').update({ due_date: newDueDate }).eq('id', user.id)
     setSavingDueDate(false)
-    if (error) { setDueDateError('שגיאה בשמירה. נסי שוב'); return }
+    if (error) { setDueDateError(tx('שגיאה בשמירה. נסי שוב')); return }
     await refreshProfile()
     setEditingDueDate(false)
   }
 
   async function saveMotherName() {
     if (!user) return
-    if (!newMotherName.trim()) { setNameError('נא למלא שם'); return }
+    if (!newMotherName.trim()) { setNameError(tx('נא למלא שם')); return }
     setNameError('')
     setSavingName(true)
     const { error } = await supabase.from('user_profiles').update({ mother_name: newMotherName.trim() }).eq('id', user.id)
     setSavingName(false)
-    if (error) { setNameError('שגיאה בשמירה. נסי שוב'); return }
+    if (error) { setNameError(tx('שגיאה בשמירה. נסי שוב')); return }
     await refreshProfile()
     setEditingName(false)
   }
 
   async function savePhone() {
     if (!user) return
-    if (!newPhone.trim()) { setPhoneError('נא למלא טלפון'); return }
+    if (!newPhone.trim()) { setPhoneError(tx('נא למלא טלפון')); return }
     setPhoneError('')
     setSavingPhone(true)
     const { error } = await supabase.from('user_profiles').update({ phone_number: newPhone.trim() }).eq('id', user.id)
     setSavingPhone(false)
-    if (error) { setPhoneError('שגיאה בשמירה. נסי שוב'); return }
+    if (error) { setPhoneError(tx('שגיאה בשמירה. נסי שוב')); return }
     await refreshProfile()
     setEditingPhone(false)
   }
@@ -115,15 +117,15 @@ export default function UserSettingsPage() {
     e.preventDefault()
     if (!user) return
     setSaveError('')
-    if (!newName.trim()) { setSaveError('נא למלא שם'); return }
-    if (!newDob) { setSaveError('נא לבחור תאריך לידה'); return }
+    if (!newName.trim()) { setSaveError(tx('נא למלא שם')); return }
+    if (!newDob) { setSaveError(tx('נא לבחור תאריך לידה')); return }
     setSaving(true)
     const payload = { name: newName.trim(), dob: newDob, gender: newGender }
     const { error } = editingChildId
       ? await supabase.from('children').update(payload).eq('id', editingChildId)
       : await supabase.from('children').insert({ user_id: user.id, ...payload })
     setSaving(false)
-    if (error) { setSaveError('שגיאה בשמירה. נסי שוב'); return }
+    if (error) { setSaveError(tx('שגיאה בשמירה. נסי שוב')); return }
     await refreshChildren()
     setNewName(''); setNewDob(''); setNewGender('girl')
     setShowAdd(false)
@@ -131,34 +133,34 @@ export default function UserSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen p-5 pb-12" dir="rtl" style={{ background: '#FFFFFF' }}>
+    <div className="min-h-screen p-5 pb-12" dir={DIR} style={{ background: '#FFFFFF' }}>
       <div className="max-w-sm mx-auto space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between pt-2">
-          <h1 className="text-2xl font-bold text-sand-800">הגדרות</h1>
+          <h1 className="text-2xl font-bold text-sand-800">{tx('הגדרות')}</h1>
           <button
             onClick={exitSettings}
             className="p-2 rounded-xl hover:bg-sand-100 text-sand-500"
-            title="חזרה"
+            title={tx('חזרה')}
           >
-            <ArrowRight className="w-5 h-5" />
+            <ArrowRight className="flip-dir w-5 h-5" />
           </button>
         </div>
 
         {/* פרטים אישיים — name + phone editable */}
         <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
-          <h2 className="text-sm font-bold text-sand-700">פרטים אישיים</h2>
+          <h2 className="text-sm font-bold text-sand-700">{tx('פרטים אישיים')}</h2>
           <div className="space-y-2.5">
             {/* Name */}
             <div>
-              <p className="text-[13px] text-sand-600 mb-1">שם</p>
+              <p className="text-[13px] text-sand-600 mb-1">{tx('שם')}</p>
               {editingName ? (
                 <div className="space-y-2">
                   <input
                     autoFocus
                     value={newMotherName}
                     onChange={e => setNewMotherName(e.target.value)}
-                    placeholder="שם פרטי ומשפחה"
+                    placeholder={tx('שם פרטי ומשפחה')}
                     className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
                   />
                   {nameError && <p className="text-xs text-red-500">{nameError}</p>}
@@ -166,7 +168,7 @@ export default function UserSettingsPage() {
                     <button type="button" onClick={saveMotherName} disabled={savingName}
                       className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-50"
                       style={{ background: '#E7C78A' }}>
-                      {savingName ? '...' : <><Check className="w-4 h-4" /> שמירה</>}
+                      {savingName ? '...' : <><Check className="w-4 h-4" /> {' '}{tx('שמירה')}</>}
                     </button>
                     <button type="button" onClick={() => { setEditingName(false); setNameError('') }}
                       className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-sm">
@@ -177,13 +179,14 @@ export default function UserSettingsPage() {
               ) : (
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm text-sand-800 font-medium">
-                    {profile?.mother_name || <span className="text-sand-600 italic">לא הוגדר</span>}
+                    {profile?.mother_name || <span className="text-sand-600 italic">{tx('לא הוגדר')}</span>}
                   </p>
                   <button type="button"
                     onClick={() => { setNewMotherName(profile?.mother_name ?? ''); setEditingName(true) }}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-700 hover:text-mustard-800">
                     <Pencil className="w-3.5 h-3.5" />
-                    ערכי
+                    
+                    {tx('ערכי')}
                   </button>
                 </div>
               )}
@@ -191,7 +194,7 @@ export default function UserSettingsPage() {
 
             {/* Phone */}
             <div>
-              <p className="text-[13px] text-sand-600 mb-1">טלפון</p>
+              <p className="text-[13px] text-sand-600 mb-1">{tx('טלפון')}</p>
               {editingPhone ? (
                 <div className="space-y-2">
                   <input
@@ -208,7 +211,7 @@ export default function UserSettingsPage() {
                     <button type="button" onClick={savePhone} disabled={savingPhone}
                       className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-50"
                       style={{ background: '#E7C78A' }}>
-                      {savingPhone ? '...' : <><Check className="w-4 h-4" /> שמירה</>}
+                      {savingPhone ? '...' : <><Check className="w-4 h-4" /> {' '}{tx('שמירה')}</>}
                     </button>
                     <button type="button" onClick={() => { setEditingPhone(false); setPhoneError('') }}
                       className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-sm">
@@ -219,13 +222,14 @@ export default function UserSettingsPage() {
               ) : (
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm text-sand-800 font-medium" dir="ltr">
-                    {profile?.phone_number || <span className="text-sand-600 italic">לא הוגדר</span>}
+                    {profile?.phone_number || <span className="text-sand-600 italic">{tx('לא הוגדר')}</span>}
                   </p>
                   <button type="button"
                     onClick={() => { setNewPhone(profile?.phone_number ?? ''); setEditingPhone(true) }}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-700 hover:text-mustard-800">
                     <Pencil className="w-3.5 h-3.5" />
-                    ערכי
+                    
+                    {tx('ערכי')}
                   </button>
                 </div>
               )}
@@ -233,7 +237,7 @@ export default function UserSettingsPage() {
 
             {/* Email — read-only */}
             <div>
-              <p className="text-[13px] text-sand-600">אימייל</p>
+              <p className="text-[13px] text-sand-600">{tx('אימייל')}</p>
               <p className="text-sm text-sand-800 font-medium" dir="ltr">
                 {user?.email || <span className="text-sand-600 italic">—</span>}
               </p>
@@ -244,10 +248,10 @@ export default function UserSettingsPage() {
         {/* פרטי הריון — pregnant users only */}
         {profile?.user_mode === 'pregnant' && (
           <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
-            <h2 className="text-sm font-bold text-sand-700">פרטי הריון</h2>
+            <h2 className="text-sm font-bold text-sand-700">{tx('פרטי הריון')}</h2>
             <div className="space-y-2.5">
               <div>
-                <p className="text-[13px] text-sand-600 mb-1">תאריך לידה משוער</p>
+                <p className="text-[13px] text-sand-600 mb-1">{tx('תאריך לידה משוער')}</p>
                 {editingDueDate ? (
                   <div className="space-y-2">
                     <div dir="ltr">
@@ -269,7 +273,7 @@ export default function UserSettingsPage() {
                         className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-50"
                         style={{ background: '#E7C78A' }}
                       >
-                        {savingDueDate ? '...' : <><Check className="w-4 h-4" /> שמירה</>}
+                        {savingDueDate ? '...' : <><Check className="w-4 h-4" /> {' '}{tx('שמירה')}</>}
                       </button>
                       <button
                         type="button"
@@ -284,8 +288,8 @@ export default function UserSettingsPage() {
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm text-sand-800 font-medium">
                       {profile.due_date
-                        ? new Date(profile.due_date + 'T12:00:00').toLocaleDateString('he-IL')
-                        : <span className="text-sand-600 italic">לא הוגדר</span>}
+                        ? new Date(profile.due_date + 'T12:00:00').toLocaleDateString(LOCALE)
+                        : <span className="text-sand-600 italic">{tx('לא הוגדר')}</span>}
                     </p>
                     <button
                       type="button"
@@ -293,15 +297,16 @@ export default function UserSettingsPage() {
                       className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-700 hover:text-mustard-800"
                     >
                       <Pencil className="w-3.5 h-3.5" />
-                      ערכי
+                      
+                      {tx('ערכי')}
                     </button>
                   </div>
                 )}
               </div>
               {profile.due_date && (
                 <div>
-                  <p className="text-[13px] text-sand-600">שבוע הריון נוכחי</p>
-                  <p className="text-sm text-sand-800 font-medium">שבוע {pregnancyWeek(profile.due_date)}</p>
+                  <p className="text-[13px] text-sand-600">{tx('שבוע הריון נוכחי')}</p>
+                  <p className="text-sm text-sand-800 font-medium">{tx('שבוע')}{' '}{pregnancyWeek(profile.due_date)}</p>
                 </div>
               )}
             </div>
@@ -311,10 +316,10 @@ export default function UserSettingsPage() {
         {/* הילדים שלי — mom users only */}
         {profile?.user_mode === 'mom' && (
         <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
-          <h2 className="text-sm font-bold text-sand-700">הילדים שלי</h2>
+          <h2 className="text-sm font-bold text-sand-700">{tx('הילדים שלי')}</h2>
 
           {children.length === 0 && (
-            <p className="text-xs text-sand-600 italic">עדיין לא הוספת ילדים.</p>
+            <p className="text-xs text-sand-600 italic">{tx('עדיין לא הוספת ילדים.')}</p>
           )}
 
           <div className="space-y-2">
@@ -325,7 +330,7 @@ export default function UserSettingsPage() {
                   <p className="text-sm font-bold text-sand-800">{child.name}</p>
                   <p className="text-[13px] text-sand-500">
                     {genderLabel(child.gender)}
-                    {child.dob && ` · נולד/ה ${new Date(child.dob + 'T12:00:00').toLocaleDateString('he-IL')}`}
+                    {child.dob && tx(' · נולד/ה {v0}', { v0: new Date(child.dob + 'T12:00:00').toLocaleDateString(LOCALE) })}
                     {child.dob && ` · ${getBabyAge(child.dob)}`}
                   </p>
                 </div>
@@ -333,10 +338,11 @@ export default function UserSettingsPage() {
                   type="button"
                   onClick={() => startEdit(child)}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-mustard-700 hover:text-mustard-800 px-2 py-1.5"
-                  title="ערכי"
+                  title={tx('ערכי')}
                 >
                   <Pencil className="w-3.5 h-3.5" />
-                  ערכי
+                  
+                  {tx('ערכי')}
                 </button>
               </div>
             ))}
@@ -345,20 +351,20 @@ export default function UserSettingsPage() {
           {(showAdd || editingChildId) ? (
             <form onSubmit={saveChild} className="space-y-2.5 pt-1">
               <p className="text-xs font-bold text-sand-700">
-                {editingChildId ? 'עריכת פרטי הילד/ה' : 'הוספת ילד/ה חדש/ה'}
+                {editingChildId ? tx('עריכת פרטי הילד/ה') : tx('הוספת ילד/ה חדש/ה')}
               </p>
               <div>
-                <label className="block text-[13px] font-semibold text-sand-500 mb-1">שם <span className="text-red-400">*</span></label>
+                <label className="block text-[13px] font-semibold text-sand-500 mb-1">{tx('שם')}{' '}<span className="text-red-400">*</span></label>
                 <input
                   autoFocus
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
-                  placeholder="שם התינוק/ת"
+                  placeholder={tx('שם התינוק/ת')}
                   className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-semibold text-sand-500 mb-1">תאריך לידה <span className="text-red-400">*</span></label>
+                <label className="block text-[13px] font-semibold text-sand-500 mb-1">{tx('תאריך לידה')}{' '}<span className="text-red-400">*</span></label>
                 <div dir="ltr">
                   <input
                     type="date"
@@ -370,7 +376,7 @@ export default function UserSettingsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-[13px] font-semibold text-sand-500 mb-1">מגדר</label>
+                <label className="block text-[13px] font-semibold text-sand-500 mb-1">{tx('מגדר')}</label>
                 <div className="flex gap-2">
                   {(['girl', 'boy', 'other'] as const).map(g => (
                     <button
@@ -379,7 +385,7 @@ export default function UserSettingsPage() {
                       onClick={() => setNewGender(g)}
                       className={`flex-1 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${newGender === g ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}
                     >
-                      {g === 'girl' ? 'בת 👧🏼' : g === 'boy' ? 'בן 👶🏼' : 'אחר 👶🏼'}
+                      {g === 'girl' ? tx('בת 👧🏼') : g === 'boy' ? tx('בן 👶🏼') : tx('אחר 👶🏼')}
                     </button>
                   ))}
                 </div>
@@ -392,7 +398,7 @@ export default function UserSettingsPage() {
                   className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50"
                   style={{ background: '#E7C78A' }}
                 >
-                  {saving ? '...' : <><Check className="w-4 h-4" /> שמירה</>}
+                  {saving ? '...' : <><Check className="w-4 h-4" /> {' '}{tx('שמירה')}</>}
                 </button>
                 <button
                   type="button"
@@ -410,7 +416,8 @@ export default function UserSettingsPage() {
               className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-semibold text-mustard-700 bg-mustard-50 hover:bg-mustard-100 border-2 border-dashed border-mustard-200 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              הוסף תינוק/ת
+              
+              {tx('הוסף תינוק/ת')}
             </button>
           )}
         </section>
@@ -421,21 +428,29 @@ export default function UserSettingsPage() {
             invites are per-child. */}
         {profile?.user_mode !== 'pregnant' && children.length > 0 && (
           <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
-            <h2 className="text-sm font-bold text-sand-700">ניהול שיתופים</h2>
+            <h2 className="text-sm font-bold text-sand-700">{tx('ניהול שיתופים')}</h2>
             <SharingManagementPanel />
           </section>
         )}
 
         {/* הרכישות שלי — moved here from the store (Brenda 12.9.26). */}
         <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
-          <h2 className="text-sm font-bold text-sand-700">הרכישות שלי</h2>
+          <h2 className="text-sm font-bold text-sand-700">{tx('הרכישות שלי')}</h2>
           <MyPurchasesSection />
+        </section>
+
+        {/* שפה / Idioma (9.10.26). The heading stays bilingual on purpose:
+            whoever opened Settings in the wrong language still finds it. */}
+        <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
+          <h2 className="text-sm font-bold text-sand-700">{LANG === 'he' ? 'שפה · Idioma' : 'Idioma · שפה'}</h2>
+          <LanguageSwitcher />
+          <p className="text-[12px] text-sand-500 leading-relaxed">{tx('בספרדית מתורגמים המסכים והיומן. תכני הסדנאות, הקהילה וההודעות נשארים בעברית.')}</p>
         </section>
 
         {/* מצב לילה */}
         <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
-          <h2 className="text-sm font-bold text-sand-700">מצב לילה</h2>
-          <p className="text-[13px] text-sand-600 leading-relaxed">מסך בית כהה ושקט לרישום באמצע הלילה. במצב אוטומטי הוא נדלק בין 21:00 ל־06:00.</p>
+          <h2 className="text-sm font-bold text-sand-700">{tx('מצב לילה')}</h2>
+          <p className="text-[13px] text-sand-600 leading-relaxed">{tx('מסך בית כהה ושקט לרישום באמצע הלילה. במצב אוטומטי הוא נדלק בין 21:00 ל־06:00.')}</p>
           <NightModeSelector />
         </section>
 
@@ -443,12 +458,12 @@ export default function UserSettingsPage() {
             הנגישות מחייבות שהצהרת הנגישות תהיה נגישה מהשירות עצמו — לכן
             הם כאן, לא רק במסך ההרשמה. */}
         <section className="bg-[#F5F1EB] rounded-3xl shadow-sm p-5 space-y-3">
-          <h2 className="text-sm font-bold text-sand-700">מידע משפטי</h2>
+          <h2 className="text-sm font-bold text-sand-700">{tx('מידע משפטי')}</h2>
           <div className="flex flex-col">
             {([
-              ['privacy', 'מדיניות פרטיות'],
-              ['terms', 'תנאי שימוש'],
-              ['accessibility', 'הצהרת נגישות'],
+              ['privacy', tx('מדיניות פרטיות')],
+              ['terms', tx('תנאי שימוש')],
+              ['accessibility', tx('הצהרת נגישות')],
             ] as const).map(([id, label]) => (
               <a
                 key={id}
@@ -456,12 +471,13 @@ export default function UserSettingsPage() {
                 className="flex items-center justify-between py-2.5 text-sm border-b last:border-b-0 border-[#E8DFCB] text-sand-700 hover:text-sand-800"
               >
                 <span>{label}</span>
-                <ChevronLeft className="w-4 h-4 text-sand-500" />
+                <ChevronLeft className="flip-dir w-4 h-4 text-sand-500" />
               </a>
             ))}
           </div>
           <p className="text-[11px] leading-relaxed text-sand-500">
-            למחיקת החשבון והמידע שנשמר עלייך, או לעיון ותיקון של הפרטים, כתבי אלינו: mimobaby.info@gmail.com
+            
+            {tx('למחיקת החשבון והמידע שנשמר עלייך, או לעיון ותיקון של הפרטים, כתבי אלינו: mimobaby.info@gmail.com')}
           </p>
         </section>
 
@@ -472,7 +488,8 @@ export default function UserSettingsPage() {
             className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-red-600 hover:bg-red-50 transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            יציאה
+            
+            {tx('יציאה')}
           </button>
         </section>
       </div>
@@ -492,9 +509,9 @@ function NightModeSelector() {
     setPref(v)
   }
   const OPTIONS: { id: 'auto' | 'on' | 'off'; label: string }[] = [
-    { id: 'auto', label: 'אוטומטי' },
-    { id: 'on', label: 'תמיד' },
-    { id: 'off', label: 'כבוי' },
+    { id: 'auto', label: tx('אוטומטי') },
+    { id: 'on', label: tx('תמיד') },
+    { id: 'off', label: tx('כבוי') },
   ]
   return (
     <div className="flex bg-white rounded-2xl p-1 gap-1 border border-[#F0EAE0]">

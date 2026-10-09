@@ -5,6 +5,7 @@ import { downloadIcs, googleCalendarUrl, icsFilename, type CalendarEvent } from 
 import MembershipCard from './MembershipCard'
 import EventRemindersCard from './EventRemindersCard'
 
+import { tx , LOCALE } from '../../i18n'
 // "ההזמנות שלי" — everything she signed up for, in one place.
 //
 // Reads the same get_community_events RPC the events tab uses (it
@@ -17,7 +18,7 @@ import EventRemindersCard from './EventRemindersCard'
 
 function dayLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00')
-  const weekday = d.toLocaleDateString('he-IL', { weekday: 'long' })
+  const weekday = d.toLocaleDateString(LOCALE, { weekday: 'long' })
   const [, m, dd] = dateStr.split('-')
   return `${weekday} · ${dd}/${m}`
 }
@@ -39,9 +40,9 @@ function toCalendarEvent(ev: CommunityEventRow): CalendarEvent {
   // where it reads better anyway.
   const parts = [
     ev.location ? `📍 ${ev.location}` : null,
-    ev.vendor_name ? `עם ${ev.vendor_name}` : null,
+    ev.vendor_name ? tx('עם {vendor_name}', { vendor_name: ev.vendor_name }) : null,
     ev.description,
-    'הקהילה של מימו 🐣',
+    tx('הקהילה של מימו 🐣'),
   ]
   return {
     uid: ev.id,
@@ -98,8 +99,8 @@ export default function MyBookingsTab() {
     return (
       <div className="text-center py-14 space-y-2">
         <CalendarDays className="w-12 h-12 mx-auto" style={{ color: '#DCD4C8' }} />
-        <p className="text-sm font-semibold" style={{ color: '#7B604C' }}>עוד לא נרשמת לאירועים</p>
-        <p className="text-xs" style={{ color: '#A2937D' }}>כל מה שתירשמי אליו יופיע כאן, עם אפשרות להוסיף ליומן.</p>
+        <p className="text-sm font-semibold" style={{ color: '#7B604C' }}>{tx('עוד לא נרשמת לאירועים')}</p>
+        <p className="text-xs" style={{ color: '#A2937D' }}>{tx('כל מה שתירשמי אליו יופיע כאן, עם אפשרות להוסיף ליומן.')}</p>
       </div>
     )
   }
@@ -114,23 +115,23 @@ export default function MyBookingsTab() {
       {credits.length > 0 && (
         <div className="rounded-3xl p-4 space-y-2" style={{ background: '#EADBDD' }}>
           <p className="font-bold" style={{ fontSize: 15, color: '#5E4938' }}>
-            {credits.length === 1 ? 'יש לך זיכוי' : `יש לך ${credits.length} זיכויים`}
+            {credits.length === 1 ? tx('יש לך זיכוי') : tx('יש לך {length} זיכויים', { length: credits.length })}
           </p>
           <div className="space-y-1.5">
             {credits.map(c => (
               <div key={c.id} className="flex items-center justify-between rounded-2xl px-3 py-2" style={{ background: 'rgba(255,255,255,.6)' }}>
                 <span className="font-bold" style={{ fontSize: 15, color: '#5E4938' }}>₪{Number(c.amount)}</span>
-                <span className="font-semibold text-left" style={{ fontSize: 12, color: '#8C6E63' }}>
+                <span className="font-semibold text-end" style={{ fontSize: 12, color: '#8C6E63' }}>
                   {c.valid_event_to
-                    ? `לאירועים עד ${new Date(c.valid_event_to + 'T12:00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`
-                    : `בתוקף עד ${new Date(c.expires_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`}
+                    ? tx('לאירועים עד {v0}', { v0: new Date(c.valid_event_to + 'T12:00:00').toLocaleDateString(LOCALE, { day: 'numeric', month: 'numeric' }) })
+                    : tx('בתוקף עד {v0}', { v0: new Date(c.expires_at).toLocaleDateString(LOCALE, { day: 'numeric', month: 'numeric' }) })}
                 </span>
               </div>
             ))}
           </div>
           <p className="font-semibold" style={{ fontSize: 12, color: '#8C6E63', lineHeight: 1.5 }}>
-            כל זיכוי משמש לאירוע קהילה אחד בסכום הזה או פחות. בוחרות אירוע ולוחצות "לשימוש בזיכוי שלי",
-            ואם נשאר עודף הוא חוזר אלייך כזיכוי חדש.
+            
+            {tx('כל זיכוי משמש לאירוע קהילה אחד בסכום הזה או פחות. בוחרות אירוע ולוחצות "לשימוש בזיכוי שלי", ואם נשאר עודף הוא חוזר אלייך כזיכוי חדש.')}
           </p>
         </div>
       )}
@@ -145,7 +146,7 @@ export default function MyBookingsTab() {
                 {ev.event_date.split('-')[2]}/{ev.event_date.split('-')[1]}
               </span>
               <span className="font-semibold" style={{ fontSize: 10.5, color: '#8C6E63' }}>
-                {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'short' })}
+                {new Date(ev.event_date + 'T12:00:00').toLocaleDateString(LOCALE, { weekday: 'short' })}
               </span>
             </span>
             <div className="flex-1 min-w-0">
@@ -158,7 +159,8 @@ export default function MyBookingsTab() {
               </p>
               {(ev.my_guests?.length ?? 0) > 0 && (
                 <p className="text-xs font-semibold mt-1" style={{ color: '#8C6E63' }}>
-                  מגיעה עם {ev.my_guests!.join(', ')}
+                  
+                  {tx('מגיעה עם')}{' '}{ev.my_guests!.join(', ')}
                 </p>
               )}
             </div>
@@ -176,15 +178,15 @@ export default function MyBookingsTab() {
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold transition-all hover:brightness-95"
                 style={{ background: '#F6ECD8', color: '#6E5836' }}
               >
-                <CalendarPlus className="w-4 h-4" /> יומן גוגל
+                <CalendarPlus className="w-4 h-4" /> {' '}{tx('יומן גוגל')}
               </a>
               <button
                 onClick={() => downloadIcs([toCalendarEvent(ev)], icsFilename(ev.title, ev.event_date))}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold transition-all hover:brightness-95"
                 style={{ background: '#F1EBE1', color: '#6E5836' }}
-                title="קובץ שנפתח באייפון, אאוטלוק וכל יומן אחר"
+                title={tx('קובץ שנפתח באייפון, אאוטלוק וכל יומן אחר')}
               >
-                <Download className="w-4 h-4" /> יומן אחר
+                <Download className="w-4 h-4" /> {' '}{tx('יומן אחר')}
               </button>
             </div>
             <button
@@ -192,7 +194,7 @@ export default function MyBookingsTab() {
               className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white transition-all hover:brightness-95"
               style={{ background: '#818267' }}
             >
-              <Ticket className="w-4 h-4" /> כרטיס הכניסה
+              <Ticket className="w-4 h-4" /> {' '}{tx('כרטיס הכניסה')}
             </button>
           </div>
         </div>
@@ -200,7 +202,7 @@ export default function MyBookingsTab() {
 
       {past.length > 0 && (
         <div className="space-y-2">
-          <p className="font-bold" style={{ fontSize: 13, color: '#8A7A63' }}>היינו שם</p>
+          <p className="font-bold" style={{ fontSize: 13, color: '#8A7A63' }}>{tx('היינו שם')}</p>
           {past.map(ev => (
             <div key={ev.id} className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: '#F5F1EB' }}>
               <span className="flex-1 min-w-0 truncate font-semibold" style={{ fontSize: 14, color: '#7B604C' }}>

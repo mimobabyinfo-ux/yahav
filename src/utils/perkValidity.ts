@@ -1,5 +1,6 @@
 import type { PartnerPerk } from '../lib/supabase'
 
+import { tx } from '../i18n'
 // Brenda 17.8.26: "in the membership card, add an expiry to a perk — if
 // the cafe gives 15% only for the first month after joining the
 // community, I want to control that, counted from her signup date."
@@ -54,11 +55,11 @@ export function perkValidity(perk: PartnerPerk, joinedAt: string | null | undefi
 /** Short Hebrew chip: urgency while it is closing, a plain date otherwise. */
 export function perkValidityLabel(v: PerkValidity): string | null {
   if (v.lastDay == null) return null
-  if (!v.active) return 'ההטבה הסתיימה'
-  if (v.daysLeft != null && v.daysLeft <= 1) return 'היום האחרון!'
-  if (v.daysLeft != null && v.daysLeft <= 7) return `עוד ${v.daysLeft} ימים`
+  if (!v.active) return tx('ההטבה הסתיימה')
+  if (v.daysLeft != null && v.daysLeft <= 1) return tx('היום האחרון!')
+  if (v.daysLeft != null && v.daysLeft <= 7) return tx('עוד {daysLeft} ימים', { daysLeft: v.daysLeft })
   const [y, m, d] = v.lastDay.split('-')
-  return `בתוקף עד ${Number(d)}.${Number(m)}.${y.slice(2)}`
+  return tx('בתוקף עד {v0}.{v1}.{v2}', { v0: Number(d), v1: Number(m), v2: y.slice(2) })
 }
 
 /** Keep only the perks this mother can still claim. */

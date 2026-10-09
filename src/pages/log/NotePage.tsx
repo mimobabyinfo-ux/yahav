@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { formatDate, formatTime } from '../../utils/dateUtils'
 import ActionPageLayout from './ActionPageLayout'
 
+import { tx } from '../../i18n'
 type Props = {
   onBack: () => void
   onSaved?: () => void
@@ -26,14 +27,14 @@ export default function NotePage({ onBack, onSaved }: Props) {
   async function handleSave() {
     if (!user || saving) return
     if (!content.trim()) {
-      setSaveError('יש לכתוב את הערה לפני השמירה')
+      setSaveError(tx('יש לכתוב את הערה לפני השמירה'))
       return
     }
     setSaving(true)
     setSaveError(null)
     try {
       const whenDate = new Date(when)
-      if (Number.isNaN(whenDate.getTime())) throw new Error('שעה/תאריך לא תקינים')
+      if (Number.isNaN(whenDate.getTime())) throw new Error(tx('שעה/תאריך לא תקינים'))
       const { error } = await supabase
         .from('daily_log_entries')
         .insert({
@@ -48,14 +49,14 @@ export default function NotePage({ onBack, onSaved }: Props) {
       onSaved?.()
       onBack()
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'שגיאה בשמירה')
+      setSaveError(err instanceof Error ? err.message : tx('שגיאה בשמירה'))
       setSaving(false)
     }
   }
 
   return (
     <ActionPageLayout
-      title="הערה"
+      title={tx('הערה')}
       emoji="📝"
       accent={ACCENT}
       onBack={onBack}
@@ -68,26 +69,26 @@ export default function NotePage({ onBack, onSaved }: Props) {
             className="w-full font-semibold py-4 rounded-2xl text-white shadow-md transition-all disabled:opacity-50"
             style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}dd)` }}
           >
-            {saving ? 'שומרת…' : 'שמירה ✓'}
+            {saving ? tx('שומרת…') : tx('שמירה ✓')}
           </button>
         </>
       }
     >
       <div className="max-w-xs mx-auto space-y-5">
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">הערה</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('הערה')}</label>
           <textarea
             value={content}
             onChange={e => setContent(e.target.value)}
-            placeholder="כל דבר שתרצי לזכור…"
+            placeholder={tx('כל דבר שתרצי לזכור…')}
             rows={8}
             autoFocus
-            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-right"
+            className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-start"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">תאריך ושעה</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('תאריך ושעה')}</label>
           <input
             type="datetime-local"
             value={when}

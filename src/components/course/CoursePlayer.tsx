@@ -8,6 +8,7 @@ import type { EventType, EventData } from '../../hooks/useTracker'
 import { signedMediaUrl } from '../../utils/signedMedia'
 import MyWorkshopMeetings from '../MyWorkshopMeetings'
 
+import { tx, DIR } from '../../i18n'
 /**
  * Digital-course player.
  *
@@ -53,7 +54,7 @@ export default function CoursePlayer({
   const modules = useMemo<Module[]>(() => {
     const out: Module[] = []
     for (const it of items) {
-      const name = (it.section ?? '').trim() || 'שיעורים'
+      const name = (it.section ?? '').trim() || tx('שיעורים')
       const last = out[out.length - 1]
       if (last && last.name === name) last.lessons.push(it)
       else out.push({ name, lessons: [it] })
@@ -127,11 +128,11 @@ export default function CoursePlayer({
     const next = openIdx < items.length - 1 ? items[openIdx + 1] : null
 
     return (
-      <div className="min-h-screen pb-28" dir="rtl" style={{ background: '#FFFFFF' }}>
+      <div className="min-h-screen pb-28" dir={DIR} style={{ background: '#FFFFFF' }}>
         <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-sand-100 bg-white sticky top-0 z-10">
           <button onClick={() => setOpenIdx(null)}
             className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 transition-colors">
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="flip-dir w-5 h-5" />
           </button>
           <div className="min-w-0">
             <p className="text-[11px] text-mustard-600 font-semibold truncate">
@@ -157,7 +158,7 @@ export default function CoursePlayer({
             <a href={lesson.url} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-3 bg-[#F5F1EB] rounded-2xl p-4 shadow-sm">
               <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" />
-              <span className="text-sm font-semibold text-sand-800">פתחי את הקובץ</span>
+              <span className="text-sm font-semibold text-sand-800">{tx('פתחי את הקובץ')}</span>
             </a>
           )}
 
@@ -170,7 +171,7 @@ export default function CoursePlayer({
               : { background: '#E7C78A', color: '#FFFFFF' }}
           >
             {isDone ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
-            {isDone ? 'סיימת את השיעור' : 'סיימתי את השיעור'}
+            {isDone ? tx('סיימת את השיעור') : tx('סיימתי את השיעור')}
           </button>
 
           <div className="flex items-center gap-2">
@@ -179,19 +180,20 @@ export default function CoursePlayer({
               disabled={!prev}
               className="flex-1 flex items-center justify-center gap-1 py-3 rounded-2xl text-sm font-semibold bg-sand-100 text-sand-600 disabled:opacity-40"
             >
-              <ChevronRight className="w-4 h-4" /> הקודם
+              <ChevronRight className="flip-dir w-4 h-4" /> {' '}{tx('הקודם')}
             </button>
             <button
               onClick={() => setOpenIdx(openIdx + 1)}
               disabled={!next}
               className="flex-1 flex items-center justify-center gap-1 py-3 rounded-2xl text-sm font-semibold bg-sand-100 text-sand-600 disabled:opacity-40"
             >
-              הבא <ChevronLeft className="w-4 h-4" />
+              
+              {tx('הבא')}{' '}<ChevronLeft className="flip-dir w-4 h-4" />
             </button>
           </div>
 
           {next && (
-            <p className="text-center text-[11px] text-sand-400">הבא: {next.title}</p>
+            <p className="text-center text-[11px] text-sand-400">{tx('הבא:')}{' '}{next.title}</p>
           )}
         </div>
       </div>
@@ -201,18 +203,18 @@ export default function CoursePlayer({
   // ── Course index ───────────────────────────────────────────────────────────
   let counter = 0
   return (
-    <div className="min-h-screen pb-24" dir="rtl" style={{ background: '#FFFFFF' }}>
+    <div className="min-h-screen pb-24" dir={DIR} style={{ background: '#FFFFFF' }}>
       <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-sand-100 bg-white sticky top-0 z-10">
         <button onClick={onBack}
           className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 transition-colors">
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="flip-dir w-5 h-5" />
         </button>
         {workshop.image_url && (
           <img src={workshop.image_url} alt="" className="w-9 h-9 rounded-xl object-cover" />
         )}
         <div className="min-w-0">
           <h1 className="font-bold text-sand-800 text-base leading-tight truncate">{workshop.title}</h1>
-          <p className="text-[11px] text-sand-400">{items.length} שיעורים</p>
+          <p className="text-[11px] text-sand-400">{items.length} {' '}{tx('שיעורים')}</p>
         </div>
       </div>
 
@@ -223,7 +225,7 @@ export default function CoursePlayer({
         {/* Progress */}
         <div className="bg-[#F5F1EB] rounded-2xl p-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-bold text-sand-800">ההתקדמות שלך</p>
+            <p className="text-sm font-bold text-sand-800">{tx('ההתקדמות שלך')}</p>
             <span className="text-xs font-bold text-mustard-700">{doneCount}/{items.length}</span>
           </div>
           <div className="h-2 bg-white rounded-full overflow-hidden">
@@ -231,7 +233,7 @@ export default function CoursePlayer({
               style={{ width: `${pct}%`, background: '#E7C78A' }} />
           </div>
           {doneCount === items.length && items.length > 0 && (
-            <p className="text-xs text-green-700 font-semibold mt-2">סיימת את הקורס. כל הכבוד 🤎</p>
+            <p className="text-xs text-green-700 font-semibold mt-2">{tx('סיימת את הקורס. כל הכבוד 🤎')}</p>
           )}
         </div>
 
@@ -253,7 +255,7 @@ export default function CoursePlayer({
                 type="button"
                 onClick={() => toggleModule(mi)}
                 aria-expanded={open}
-                className="w-full flex items-center gap-3 p-3.5 text-right min-h-[52px]"
+                className="w-full flex items-center gap-3 p-3.5 text-start min-h-[52px]"
               >
                 <span className={`w-7 h-7 rounded-xl text-xs font-black flex items-center justify-center flex-shrink-0 ${
                   modDone === mod.lessons.length ? 'bg-green-100 text-green-700' : 'bg-mustard-100 text-mustard-700'
@@ -263,8 +265,8 @@ export default function CoursePlayer({
                 <span className="flex-1 min-w-0">
                   <span className="block text-sm font-bold text-sand-800 truncate">{mod.name}</span>
                   <span className="block text-xs text-sand-400">
-                    {mod.lessons.length === 1 ? 'פריט אחד' : `${mod.lessons.length} פריטים`}
-                    {modDone > 0 && modDone < mod.lessons.length ? ` · ${modDone} הושלמו` : ''}
+                    {mod.lessons.length === 1 ? tx('פריט אחד') : tx('{length} פריטים', { length: mod.lessons.length })}
+                    {modDone > 0 && modDone < mod.lessons.length ? tx(' · {modDone} הושלמו', { modDone }) : ''}
                   </span>
                 </span>
                 <ChevronDown className={`w-4 h-4 text-sand-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -277,7 +279,7 @@ export default function CoursePlayer({
                     return (
                       <button key={lesson.id}
                         onClick={() => { setOpenIdx(idx); track('lesson_open', { content_id: lesson.id, title: lesson.title }) }}
-                        className="w-full flex items-center gap-3 bg-white rounded-xl p-3 text-right hover:bg-sand-50 transition-colors min-h-[48px]">
+                        className="w-full flex items-center gap-3 bg-white rounded-xl p-3 text-start hover:bg-sand-50 transition-colors min-h-[48px]">
                         <span className="flex-shrink-0">
                           {isDone
                             ? <CheckCircle2 className="w-5 h-5 text-green-600" />
@@ -290,10 +292,10 @@ export default function CoursePlayer({
                             {lesson.title}
                           </span>
                           <span className="block text-xs text-sand-400">
-                            {lesson.type === 'video' ? 'סרטון' : 'לקריאה'}
+                            {lesson.type === 'video' ? tx('סרטון') : tx('לקריאה')}
                           </span>
                         </span>
-                        <ChevronLeft className="w-4 h-4 text-sand-300 flex-shrink-0" />
+                        <ChevronLeft className="flip-dir w-4 h-4 text-sand-300 flex-shrink-0" />
                       </button>
                     )
                   })}
@@ -304,13 +306,14 @@ export default function CoursePlayer({
         })}
 
         <a
-          href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי ${ownerName}! יש לי שאלה על "${workshop.title}"`)}`}
+          href={`https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(tx('היי {ownerName}! יש לי שאלה על "{title}"', { ownerName, title: workshop.title }))}`}
           target="_blank" rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold"
           style={{ background: '#E8F5E9', color: '#2E7D32' }}
         >
           <MessageCircle className="w-4 h-4" />
-          שאלי את {ownerName}
+          
+          {tx('שאלי את')}{' '}{ownerName}
         </a>
       </div>
     </div>

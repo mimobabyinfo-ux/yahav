@@ -2,6 +2,7 @@ import { ArrowRight } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import type { ReactNode } from 'react'
 
+import { tx, DIR } from '../../i18n'
 // Shared shell for the dedicated tracking action pages (sleep, breastfeeding,
 // tummy time, …). All variants follow the same three-region layout:
 //
@@ -59,16 +60,16 @@ export default function ActionPageLayout({
         // Account for the active-timer banner when present (set in App.tsx).
         paddingTop: 'var(--banner-height, 0px)',
       }}
-      dir="rtl"
+      dir={DIR}
     >
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-sand-100 bg-white">
         <button
           onClick={onBack}
           className="p-2 rounded-xl hover:bg-sand-100 text-sand-600 transition-colors"
-          aria-label="חזרה"
+          aria-label={tx('חזרה')}
         >
-          <ArrowRight className="w-5 h-5" />
+          <ArrowRight className="flip-dir w-5 h-5" />
         </button>
         {selectedChild?.name && (
           <span className="text-sm font-semibold text-sand-700">{selectedChild.name}</span>

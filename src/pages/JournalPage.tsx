@@ -15,6 +15,7 @@ import DayView from '../components/journal/DayView'
 import WeekView from '../components/journal/WeekView'
 import type { Page } from '../App'
 
+import { tx, DIR } from '../i18n'
 // The summary tab is the only place in the app that draws charts, and
 // recharts (with redux, immer and d3 behind it) is ~1 MB of source — half
 // of the main bundle before 19.9.26. It is downloaded the first time she
@@ -27,10 +28,10 @@ type TimelineFilter = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time'
 // ── Upsell hooks shown briefly after a manual log entry on a past date ──
 // (Kept local — only the journal page surfaces these.)
 const UPSELLS: Record<string, { emoji: string; text: string; cta: string; wa: string }> = {
-  sleep:   { emoji: '😴', text: 'מתמודדת עם שינה קשה?',   cta: 'סדנת שינה לתינוקות',    wa: 'היי! אני מתמודדת עם שינה קשה ורוצה לשמוע על הסדנה' },
-  diaper:  { emoji: '🍼', text: 'הרבה חיתולים מלוכלכים? נסי עיסוי בטן', cta: 'סדנת עיסוי תינוקות', wa: 'היי! אני מעוניינת לשמוע על סדנת עיסוי תינוקות' },
-  note:    { emoji: '🤎', text: 'כתבת הערה. אנחנו כאן לכל שאלה',       cta: 'שאלי אותנו בוואטסאפ',  wa: 'היי! יש לי שאלה לגבי התינוק שלי' },
-  feeding: { emoji: '🤱🏼', text: 'רוצה תמיכה בהנקה?',     cta: 'להתייעצות עם מנחה',     wa: 'היי! אני מעוניינת בייעוץ הנקה' },
+  sleep:   { emoji: '😴', text: tx('מתמודדת עם שינה קשה?'),   cta: tx('סדנת שינה לתינוקות'),    wa: tx('היי! אני מתמודדת עם שינה קשה ורוצה לשמוע על הסדנה') },
+  diaper:  { emoji: '🍼', text: tx('הרבה חיתולים מלוכלכים? נסי עיסוי בטן'), cta: tx('סדנת עיסוי תינוקות'), wa: tx('היי! אני מעוניינת לשמוע על סדנת עיסוי תינוקות') },
+  note:    { emoji: '🤎', text: tx('כתבת הערה. אנחנו כאן לכל שאלה'),       cta: tx('שאלי אותנו בוואטסאפ'),  wa: tx('היי! יש לי שאלה לגבי התינוק שלי') },
+  feeding: { emoji: '🤱🏼', text: tx('רוצה תמיכה בהנקה?'),     cta: tx('להתייעצות עם מנחה'),     wa: tx('היי! אני מעוניינת בייעוץ הנקה') },
 }
 
 function UpsellCard({ type, onDismiss, ownerWhatsapp }: { type: EntryType; onDismiss: () => void; ownerWhatsapp: string }) {
@@ -193,11 +194,11 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
   // ── Header label per tab ─────────────────────────────────────────────
   const headerSubLabel =
     tab === 'day'  ? formatDisplayDate(selectedDate) :
-    tab === 'week' ? `שבוע ${formatDate(weekStart)} – ${formatDate(addDays(weekStart, 6))}` :
-    'תצוגת סיכום'
+    tab === 'week' ? tx('שבוע {v0} – {v1}', { v0: formatDate(weekStart), v1: formatDate(addDays(weekStart, 6)) }) :
+    tx('תצוגת סיכום')
 
   return (
-    <div className="min-h-screen p-4 pb-28 relative" dir="rtl">
+    <div className="min-h-screen p-4 pb-28 relative" dir={DIR}>
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
         <MimoLeaf variant="sand-1" size={300} rotate={-18} className="opacity-[0.08]" />
       </div>
@@ -209,19 +210,19 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
             else the role, else just the baby's name. */}
         {isGuest && selectedChild && (() => {
           const roleLabelMap: Record<string, { emoji: string; label: string }> = {
-            father:  { emoji: '👨🏼',    label: 'אבא' },
-            grandma: { emoji: '👵🏼',    label: 'סבתא' },
-            grandpa: { emoji: '👴🏼',    label: 'סבא' },
-            aunt:    { emoji: '👩🏼',    label: 'דודה' },
-            nanny:   { emoji: '👩🏼‍⚕️', label: 'מטפלת' },
+            father:  { emoji: '👨🏼',    label: tx('אבא') },
+            grandma: { emoji: '👵🏼',    label: tx('סבתא') },
+            grandpa: { emoji: '👴🏼',    label: tx('סבא') },
+            aunt:    { emoji: '👩🏼',    label: tx('דודה') },
+            nanny:   { emoji: '👩🏼‍⚕️', label: tx('מטפלת') },
           }
           const def = profile?.family_role ? roleLabelMap[profile.family_role] : null
           const name = profile?.family_display_name?.trim()
           const greeting = name
-            ? `היי ${name}! זה היומן של ${selectedChild.name}`
+            ? tx('היי {name}! זה היומן של {name_}', { name, name_: selectedChild.name })
             : def
-              ? `שלום ${def.label}, זה היומן של ${selectedChild.name}`
-              : `היי! זה היומן של ${selectedChild.name}`
+              ? tx('שלום {label}, זה היומן של {name}', { label: def.label, name: selectedChild.name })
+              : tx('היי! זה היומן של {name}', { name: selectedChild.name })
           return (
             <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={{ background: 'linear-gradient(135deg, #FFF8E7, #FFF0CC)' }}>
               <span className="text-lg">{def?.emoji ?? '👶🏼'}</span>
@@ -233,13 +234,13 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
         {/* Header */}
         <div className="pt-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>יומן</h1>
+            <h1 className="font-display" style={{ fontSize: 26, fontWeight: 400, color: '#5E4938' }}>{tx('יומן')}</h1>
             {selectedChild && !isGuest && (
               <button
                 onClick={() => setShareOpen(true)}
                 className="p-2 rounded-xl text-sand-600 hover:text-mustard-600 hover:bg-mustard-50 transition-colors"
-                title="שיתוף יומן"
-                aria-label="שיתוף יומן"
+                title={tx('שיתוף יומן')}
+                aria-label={tx('שיתוף יומן')}
               >
                 <Share2 className="w-5 h-5" />
               </button>
@@ -316,7 +317,7 @@ export default function JournalPage({ onNavigate }: JournalPageProps = {}) {
           />
         )}
         {tab === 'summary' && (
-          <Suspense fallback={<p className="text-center text-sand-400 text-sm py-12">טוענת סיכום...</p>}>
+          <Suspense fallback={<p className="text-center text-sand-400 text-sm py-12">{tx('טוענת סיכום...')}</p>}>
             <SummaryView
               refetchKey={refetchKey}
               onNavigateToDay={(iso) => {

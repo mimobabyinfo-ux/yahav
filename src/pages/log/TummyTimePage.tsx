@@ -10,6 +10,7 @@ import ActionPageLayout from './ActionPageLayout'
 import TimerControls from './TimerControls'
 import ManualEntrySheet from './ManualEntrySheet'
 
+import { tx } from '../../i18n'
 type Props = {
   onBack: () => void
   /** Bumps when an entry is saved so dashboards/journal refresh. */
@@ -17,12 +18,20 @@ type Props = {
 }
 
 const ACCENT = '#E89651'
-const DELETE_CONFIRM = 'ביטול זמן הבטן? הטיימר יימחק ולא תישמר רשומה.'
+const DELETE_CONFIRM = tx('ביטול זמן הבטן? הטיימר יימחק ולא תישמר רשומה.')
 
+// Stored in daily_log_entries.notes as "משך: N דקות" and parsed back by
+// regex in the journal charts, so the STORED form is always Hebrew,
+// whatever the interface language. Only the on-screen label translates.
 function buildDurationLabel(durationSecs: number): string {
   return durationSecs < 60
     ? `${durationSecs} שניות`
     : `${Math.round(durationSecs / 60)} דקות`
+}
+function displayDurationLabel(durationSecs: number): string {
+  return durationSecs < 60
+    ? tx('{durationSecs} שניות', { durationSecs })
+    : tx('{v0} דקות', { v0: Math.round(durationSecs / 60) })
 }
 
 function defaultManualStart(): string {
@@ -108,7 +117,7 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
       onSaved?.()
       onBack()
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'שגיאה בשמירה')
+      setSaveError(err instanceof Error ? err.message : tx('שגיאה בשמירה'))
       setSaving(false)
     }
   }
@@ -133,7 +142,7 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
     if (!user || mSaving) return
     const secs = manualDurationSeconds()
     if (secs == null || secs <= 0) {
-      setMError('יש להזין שעת התחלה ושעת סיום (סיום אחרי התחלה)')
+      setMError(tx('יש להזין שעת התחלה ושעת סיום (סיום אחרי התחלה)'))
       return
     }
     setMSaving(true)
@@ -163,7 +172,7 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
       setRefetchTick(t => t + 1)
       onSaved?.()
     } catch (err) {
-      setMError(err instanceof Error ? err.message : 'שגיאה בשמירה')
+      setMError(err instanceof Error ? err.message : tx('שגיאה בשמירה'))
     } finally {
       setMSaving(false)
     }
@@ -173,8 +182,8 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
     <button
       onClick={() => setManualOpen(true)}
       className="p-2 rounded-xl hover:bg-sand-100 text-sand-600 transition-colors"
-      aria-label="הוספת רשומה ידנית"
-      title="הוספת רשומה ידנית"
+      aria-label={tx('הוספת רשומה ידנית')}
+      title={tx('הוספת רשומה ידנית')}
     >
       <Plus className="w-5 h-5" />
     </button>
@@ -182,21 +191,21 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
 
   const notesField = (
     <div className="mt-6 max-w-xs mx-auto">
-      <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">הערות</label>
+      <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('הערות')}</label>
       <textarea
         value={notes}
         onChange={e => setNotes(e.target.value)}
-        placeholder="כל מה שתרצי לזכור על הסשן הזה…"
+        placeholder={tx('כל מה שתרצי לזכור על הסשן הזה…')}
         rows={2}
-        className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-right"
+        className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-start"
       />
     </div>
   )
 
   if (loading) {
     return (
-      <ActionPageLayout title="זמן בטן" emoji="🤸🏼" accent={ACCENT} onBack={onBack} headerAction={headerAction}>
-        <div className="text-center text-sand-400 text-sm py-8">טוענת…</div>
+      <ActionPageLayout title={tx('זמן בטן')} emoji="🤸🏼" accent={ACCENT} onBack={onBack} headerAction={headerAction}>
+        <div className="text-center text-sand-400 text-sm py-8">{tx('טוענת…')}</div>
       </ActionPageLayout>
     )
   }
@@ -206,12 +215,12 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
     return (
       <>
         <ActionPageLayout
-          title="זמן בטן"
+          title={tx('זמן בטן')}
           emoji="🤸🏼"
           accent={ACCENT}
           onBack={onBack}
           headerAction={headerAction}
-          status={<span>התחלה: {formatTime(startedAt)}</span>}
+          status={<span>{tx('התחלה:')}{' '}{formatTime(startedAt)}</span>}
           bottom={saveError ? <p className="text-xs text-red-500 text-center">{saveError}</p> : null}
         >
           <TimerControls
@@ -224,7 +233,7 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
             onStop={handleStop}
             onDelete={handleDelete}
             accent={ACCENT}
-            stopLabel={saving ? 'שומרת…' : 'עצור ושמור'}
+            stopLabel={saving ? tx('שומרת…') : tx('עצור ושמור')}
           />
           {notesField}
         </ActionPageLayout>
@@ -236,13 +245,13 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
   return (
     <>
       <ActionPageLayout
-        title="זמן בטן"
+        title={tx('זמן בטן')}
         emoji="🤸🏼"
         accent={ACCENT}
         onBack={onBack}
         headerAction={headerAction}
-        status={<span>{formatTimeSince(lastTummy, 'טרם נרשם זמן בטן')}</span>}
-        bottom={<p className="text-[11px] text-sand-400 text-center">אפשר להשהות ולהמשיך כשהתינוק מתעייף</p>}
+        status={<span>{formatTimeSince(lastTummy, tx('טרם נרשם זמן בטן'))}</span>}
+        bottom={<p className="text-[11px] text-sand-400 text-center">{tx('אפשר להשהות ולהמשיך כשהתינוק מתעייף')}</p>}
       >
         <TimerControls
           running={false}
@@ -253,15 +262,15 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
           onStop={() => {}}
           onDelete={() => {}}
           accent={ACCENT}
-          startLabel="התחל זמן בטן"
+          startLabel={tx('התחל זמן בטן')}
         />
         {notesField}
 
         {lastTummy && (
           <div className="mt-8 mx-auto max-w-xs text-center bg-[#F5F1EB] rounded-2xl p-4">
-            <p className="text-xs text-sand-500 mb-1">זמן הבטן האחרון</p>
+            <p className="text-xs text-sand-500 mb-1">{tx('זמן הבטן האחרון')}</p>
             <p className="text-sm font-semibold text-sand-700">
-              {formatTime(lastTummy)} · לפני {formatTimeSince(lastTummy, '').replace('לפני ', '')}
+              {formatTime(lastTummy)} {' '}{tx('· לפני')}{' '}{formatTimeSince(lastTummy, '').replace(tx('לפני '), '')}
             </p>
           </div>
         )}
@@ -275,7 +284,7 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
     return (
       <ManualEntrySheet
         open={manualOpen}
-        title="הוספת זמן בטן ידנית"
+        title={tx('הוספת זמן בטן ידנית')}
         onClose={() => setManualOpen(false)}
         bottom={
           <>
@@ -286,13 +295,13 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
               className="w-full font-semibold py-4 rounded-2xl text-white shadow-md transition-all disabled:opacity-50"
               style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}dd)` }}
             >
-              {mSaving ? 'שומרת…' : 'שמירה ✓'}
+              {mSaving ? tx('שומרת…') : tx('שמירה ✓')}
             </button>
           </>
         }
       >
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5">התחלה</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('התחלה')}</label>
           <input
             type="datetime-local"
             value={mStart}
@@ -302,7 +311,7 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5">סיום</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('סיום')}</label>
           <input
             type="datetime-local"
             value={mEnd}
@@ -312,14 +321,14 @@ export default function TummyTimePage({ onBack, onSaved }: Props) {
           />
         </div>
         {secs != null && (
-          <p className="text-xs text-sand-500">משך: {buildDurationLabel(secs)}</p>
+          <p className="text-xs text-sand-500">{tx('משך:')}{' '}{displayDurationLabel(secs)}</p>
         )}
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5">הערות</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('הערות')}</label>
           <textarea
             value={mNotes}
             onChange={e => setMNotes(e.target.value)}
-            placeholder="הערות (אופציונלי)"
+            placeholder={tx('הערות (אופציונלי)')}
             rows={3}
             className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none"
           />

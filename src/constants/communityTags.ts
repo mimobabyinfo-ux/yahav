@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 // The community preference tags. Mom picks any subset at signup and on
 // her profile; the members directory filters on them (multi-select, AND).
 // IDs are stored as text in user_profiles.community_tags[] — there is no
@@ -38,12 +39,12 @@ export type CommunityTagDef = {
 }
 
 export const COMMUNITY_TAGS: CommunityTagDef[] = [
-  { id: 'coffee',            label: 'קפה ביחד',    emoji: '☕'     },
-  { id: 'park',              label: 'הליכה בפארק', emoji: '🌳'     },
-  { id: 'workout',           label: 'אימון',       emoji: '🏃‍♀️' },
-  { id: 'playdate',          label: 'פליי דייט',   emoji: '🧸'     },
-  { id: 'emotional_support', label: 'אוזן קשבת',   emoji: '💙'     },
-  { id: 'night_out',         label: 'יציאה בערב, בלי תינוקות', shortLabel: 'יציאה בערב', emoji: '🌙' },
+  { id: 'coffee',            label: tx('קפה ביחד'),    emoji: '☕'     },
+  { id: 'park',              label: tx('הליכה בפארק'), emoji: '🌳'     },
+  { id: 'workout',           label: tx('אימון'),       emoji: '🏃‍♀️' },
+  { id: 'playdate',          label: tx('פליי דייט'),   emoji: '🧸'     },
+  { id: 'emotional_support', label: tx('אוזן קשבת'),   emoji: '💙'     },
+  { id: 'night_out',         label: tx('יציאה בערב, בלי תינוקות'), shortLabel: tx('יציאה בערב'), emoji: '🌙' },
 ]
 
 export function tagDef(id: string | null | undefined): CommunityTagDef | null {

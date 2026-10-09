@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Bell, BellOff, Share, PlusSquare, Check } from 'lucide-react'
 import { disablePush, enablePush, getPushState, isIos, type PushState } from '../../utils/webPush'
 
+import { tx } from '../../i18n'
 // "תזכורת לפני האירוע" — the opt-in, plus the nudge that has to come
 // first on iPhone.
 //
@@ -31,7 +32,8 @@ export default function EventRemindersCard() {
       <div className="flex items-center gap-2 rounded-2xl px-4 py-2.5" style={{ background: '#EDEDE6' }}>
         <Check className="w-4 h-4 flex-shrink-0" style={{ color: '#4F5040' }} />
         <p className="flex-1 font-semibold" style={{ fontSize: 13, color: '#4F5040' }}>
-          נשלח לך תזכורת יום לפני כל מפגש
+          
+          {tx('נשלח לך תזכורת יום לפני כל מפגש')}
         </p>
         <button
           onClick={toggle}
@@ -39,7 +41,7 @@ export default function EventRemindersCard() {
           className="flex-shrink-0 font-bold disabled:opacity-40"
           style={{ fontSize: 12, color: '#7B604C' }}
         >
-          {busy ? '...' : 'ביטול'}
+          {busy ? '...' : tx('ביטול')}
         </button>
       </div>
     )
@@ -50,23 +52,27 @@ export default function EventRemindersCard() {
     return (
       <div className="rounded-3xl p-4 space-y-2.5" style={{ background: '#F6ECD8', border: '1px solid #E7C78A' }}>
         <p className="flex items-center gap-2 font-bold" style={{ fontSize: 14, color: '#6E5836' }}>
-          <Bell className="w-4 h-4" /> רוצה תזכורת לפני המפגש?
+          <Bell className="w-4 h-4" /> {' '}{tx('רוצה תזכורת לפני המפגש?')}
         </p>
         <p style={{ fontSize: 13, color: '#7B604C', lineHeight: 1.6 }}>
-          באייפון אפשר לקבל התראות רק אחרי שמוסיפים את מימו למסך הבית. זה לוקח שתי שניות:
+          
+          {tx('באייפון אפשר לקבל התראות רק אחרי שמוסיפים את מימו למסך הבית. זה לוקח שתי שניות:')}
         </p>
         <ol className="space-y-1.5" style={{ fontSize: 13, color: '#5E4938' }}>
           <li className="flex items-center gap-2">
             <Share className="w-4 h-4 flex-shrink-0" style={{ color: '#8A6A2F' }} />
-            לוחצים על כפתור השיתוף למטה במסך
+            
+            {tx('לוחצים על כפתור השיתוף למטה במסך')}
           </li>
           <li className="flex items-center gap-2">
             <PlusSquare className="w-4 h-4 flex-shrink-0" style={{ color: '#8A6A2F' }} />
-            בוחרים "הוספה למסך הבית"
+            
+            {tx('בוחרים "הוספה למסך הבית"')}
           </li>
         </ol>
         <p style={{ fontSize: 12, color: '#A2937D' }}>
-          אחרי זה תפתחי את מימו מהאייקון החדש, והכפתור להפעלת התזכורות יופיע כאן.
+          
+          {tx('אחרי זה תפתחי את מימו מהאייקון החדש, והכפתור להפעלת התזכורות יופיע כאן.')}
         </p>
       </div>
     )
@@ -79,7 +85,8 @@ export default function EventRemindersCard() {
       <div className="flex items-start gap-2 rounded-2xl px-4 py-3" style={{ background: '#F5F1EB' }}>
         <BellOff className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#8A7A63' }} />
         <p style={{ fontSize: 12.5, color: '#7B604C', lineHeight: 1.6 }}>
-          התראות חסומות עבור מימו בדפדפן. אפשר להחזיר אותן בהגדרות האתר{isIos() ? '' : ' (האייקון ליד כתובת האתר)'}, או פשוט להוסיף כל מפגש ליומן.
+          
+          {tx('התראות חסומות עבור מימו בדפדפן. אפשר להחזיר אותן בהגדרות האתר')}{isIos() ? '' : tx(' (האייקון ליד כתובת האתר)')}{tx(', או פשוט להוסיף כל מפגש ליומן.')}
         </p>
       </div>
     )
@@ -89,16 +96,17 @@ export default function EventRemindersCard() {
     <button
       onClick={toggle}
       disabled={busy}
-      className="w-full flex items-center gap-3 rounded-3xl px-4 py-3.5 text-right transition-all hover:brightness-95 disabled:opacity-50"
+      className="w-full flex items-center gap-3 rounded-3xl px-4 py-3.5 text-start transition-all hover:brightness-95 disabled:opacity-50"
       style={{ background: '#F6ECD8', border: '1px solid #E7C78A' }}
     >
       <Bell className="w-5 h-5 flex-shrink-0" style={{ color: '#8A6A2F' }} />
       <span className="flex-1 min-w-0">
         <span className="block font-bold" style={{ fontSize: 14, color: '#6E5836' }}>
-          {busy ? 'רגע...' : 'הפעילי תזכורת לפני המפגש'}
+          {busy ? tx('רגע...') : tx('הפעילי תזכורת לפני המפגש')}
         </span>
         <span className="block" style={{ fontSize: 12, color: '#8A7A63' }}>
-          נזכיר לך יום לפני, בהתראה לטלפון
+          
+          {tx('נזכיר לך יום לפני, בהתראה לטלפון')}
         </span>
       </span>
     </button>

@@ -2,6 +2,7 @@
 import { X } from 'lucide-react'
 import { useTracker } from '../hooks/useTracker'
 
+import { tx, DIR } from '../i18n'
 /** "איך שמים את מימו במסך הבית" — one 24-second silent clip that covers
  *  both אייפון/ספארי and אנדרואיד/כרום.
  *
@@ -94,7 +95,7 @@ export default function InstallGuide() {
   return (
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4"
-      dir="rtl"
+      dir={DIR}
       onClick={close}
     >
       <div
@@ -104,13 +105,13 @@ export default function InstallGuide() {
       >
         <div className="flex items-start justify-between px-4 pt-4 pb-2">
           <div>
-            <p className="font-bold text-sand-800 text-sm">שמים את מימו במסך הבית</p>
-            <p className="text-xs text-sand-400 mt-0.5">חצי דקה, ואת נכנסת בלחיצה אחת</p>
+            <p className="font-bold text-sand-800 text-sm">{tx('שמים את מימו במסך הבית')}</p>
+            <p className="text-xs text-sand-400 mt-0.5">{tx('חצי דקה, ואת נכנסת בלחיצה אחת')}</p>
           </div>
           <button
             onClick={close}
             className="p-1.5 text-sand-300 hover:text-sand-500 flex-shrink-0"
-            aria-label="סגירה"
+            aria-label={tx('סגירה')}
           >
             <X className="w-4 h-4" />
           </button>
@@ -143,7 +144,8 @@ export default function InstallGuide() {
               className="w-full py-3 rounded-2xl font-bold text-sm text-[#4A3A28] transition-all hover:brightness-95"
               style={{ background: '#E7C78A' }}
             >
-              📲 להתקנה עכשיו
+              
+              {tx('📲 להתקנה עכשיו')}
             </button>
           )}
           <button
@@ -151,7 +153,8 @@ export default function InstallGuide() {
             className="w-full py-2.5 rounded-2xl text-sm font-semibold"
             style={{ background: '#EFE9DF', color: '#8A7A63' }}
           >
-            הבנתי, תודה
+            
+            {tx('הבנתי, תודה')}
           </button>
         </div>
       </div>

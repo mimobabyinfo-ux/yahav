@@ -10,6 +10,7 @@ import JournalHeader from './JournalHeader'
 import TimelineLegend from './TimelineLegend'
 import { hebrewWeekRange } from '../../utils/hebrewWeekRange'
 
+import { tx } from '../../i18n'
 // The week screen.
 //
 // Brenda 17.8.26: "the list tab — fold it into the week, exactly the way
@@ -37,14 +38,14 @@ type Props = {
 
 type TimelineFilter = 'all' | 'feeding' | 'sleep' | 'diaper' | 'tummy_time'
 const TIMELINE_FILTERS: { value: TimelineFilter; label: string }[] = [
-  { value: 'all',        label: 'הכל' },
-  { value: 'feeding',    label: 'האכלה' },
-  { value: 'sleep',      label: 'שינה' },
-  { value: 'diaper',     label: 'חיתול' },
-  { value: 'tummy_time', label: 'בטן' },
+  { value: 'all',        label: tx('הכל') },
+  { value: 'feeding',    label: tx('האכלה') },
+  { value: 'sleep',      label: tx('שינה') },
+  { value: 'diaper',     label: tx('חיתול') },
+  { value: 'tummy_time', label: tx('בטן') },
 ]
 
-const HEBREW_WEEKDAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+const HEBREW_WEEKDAYS = [tx('ראשון'), tx('שני'), tx('שלישי'), tx('רביעי'), tx('חמישי'), tx('שישי'), tx('שבת')]
 
 function firstOf<T>(v: T[] | T | null | undefined): T | null {
   if (v == null) return null
@@ -178,8 +179,8 @@ export default function WeekView({
         onPrev={() => onWeekShift(addDays(weekStart, -7))}
         onNext={() => onWeekShift(addDays(weekStart, 7))}
         nextDisabled={!canGoForward}
-        prevLabel="שבוע קודם"
-        nextLabel="שבוע הבא"
+        prevLabel={tx('שבוע קודם')}
+        nextLabel={tx('שבוע הבא')}
         onOpenViews={onOpenViews}
       >
         <span className="font-semibold" style={{ fontSize: 17, color: '#443327' }}>{weekLabel}</span>
@@ -193,7 +194,7 @@ export default function WeekView({
 
       {/* 2 — פירוט */}
       <div className="space-y-2">
-        <p className="text-[13px] font-bold px-1" style={{ color: '#7B604C' }}>פירוט</p>
+        <p className="text-[13px] font-bold px-1" style={{ color: '#7B604C' }}>{tx('פירוט')}</p>
         <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-[#F0EAE0] gap-1">
           {TIMELINE_FILTERS.map(f => (
             <button
@@ -217,7 +218,7 @@ export default function WeekView({
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-[#F0EAE0] text-center space-y-2">
             <MimoLeaf variant="sand-2" size={64} rotate={-8} className="mx-auto" />
             <p className="text-sm text-sand-500">
-              {anyThisWeek ? 'אין רשומות בקטגוריה הזו השבוע' : 'אין רשומות בשבוע הזה'}
+              {anyThisWeek ? tx('אין רשומות בקטגוריה הזו השבוע') : tx('אין רשומות בשבוע הזה')}
             </p>
           </div>
         ) : (
@@ -226,12 +227,12 @@ export default function WeekView({
               <div key={g.date} className="space-y-2">
                 <button
                   onClick={() => onDayClick(g.date)}
-                  className="flex items-center gap-2 pt-1 text-right"
+                  className="flex items-center gap-2 pt-1 text-start"
                 >
                   <span className="text-xs font-bold text-sand-700">{hebrewDateHeader(g.date)}</span>
                   <span className="text-[13px] text-sand-600">·</span>
                   <span className="text-[13px] text-sand-600">
-                    {g.items.length === 1 ? 'רשומה אחת' : `${g.items.length} רשומות`}
+                    {g.items.length === 1 ? tx('רשומה אחת') : tx('{length} רשומות', { length: g.items.length })}
                   </span>
                 </button>
                 <DailyTimeline
@@ -249,31 +250,31 @@ export default function WeekView({
       {/* 3 — סיכום שבועי */}
       {anyThisWeek && (
         <div className="space-y-2">
-          <p className="text-[13px] font-bold px-1" style={{ color: '#7B604C' }}>סיכום שבועי</p>
+          <p className="text-[13px] font-bold px-1" style={{ color: '#7B604C' }}>{tx('סיכום שבועי')}</p>
           <div className="grid grid-cols-2 gap-2">
             <HighlightCard
               icon={Moon}
               headline={highlights.longestSleep ? formatDuration(highlights.longestSleep.mins) : '—'}
-              sub={highlights.longestSleep ? `יום ${hebrewWeekday(highlights.longestSleep.date)}` : 'אין רישומי שינה השבוע'}
-              label="שינה ארוכה ביותר"
+              sub={highlights.longestSleep ? tx('יום {v0}', { v0: hebrewWeekday(highlights.longestSleep.date) }) : tx('אין רישומי שינה השבוע')}
+              label={tx('שינה ארוכה ביותר')}
             />
             <HighlightCard
               icon={Baby}
               headline={highlights.mostFeedings ? `${highlights.mostFeedings.count}` : '—'}
-              sub={highlights.mostFeedings ? `יום ${hebrewWeekday(highlights.mostFeedings.date)}` : 'אין רישומי האכלה השבוע'}
-              label="הכי הרבה האכלות"
+              sub={highlights.mostFeedings ? tx('יום {v0}', { v0: hebrewWeekday(highlights.mostFeedings.date) }) : tx('אין רישומי האכלה השבוע')}
+              label={tx('הכי הרבה האכלות')}
             />
             <HighlightCard
               icon={Shapes}
               headline={highlights.totalTummyMins > 0 ? formatDuration(highlights.totalTummyMins) : '—'}
-              sub="סה״כ השבוע"
-              label="זמן בטן"
+              sub={tx('סה״כ השבוע')}
+              label={tx('זמן בטן')}
             />
             <HighlightCard
               icon={Droplets}
               headline={highlights.totalDiapers > 0 ? `${highlights.totalDiapers}` : '—'}
-              sub="סה״כ השבוע"
-              label="חיתולים"
+              sub={tx('סה״כ השבוע')}
+              label={tx('חיתולים')}
             />
           </div>
         </div>

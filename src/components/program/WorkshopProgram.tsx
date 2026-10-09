@@ -10,6 +10,7 @@ import {
   MEETING_ORDINAL, defaultMeeting, markTerms,
 } from '../../lib/program'
 
+import { tx, DIR } from '../../i18n'
 /**
  * The workshop program as the mother sees it. Built to Brenda's mockup
  * (3.9.26): a topic bar that FILTERS across all five meetings, a meetings
@@ -128,7 +129,7 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
 
   const activeTemplate = templates.find(t => t.meeting_number === meeting) ?? templates[0]
 
-  const waHref = `https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(`היי ${ownerName}! אני ${motherName ?? ''} מסדנת "${workshop.title}". רציתי לשאול...`)}`
+  const waHref = `https://wa.me/${ownerWhatsapp}?text=${encodeURIComponent(tx('היי {ownerName}! אני {v1} מסדנת "{title}". רציתי לשאול...', { ownerName, v1: motherName ?? '', title: workshop.title }))}`
 
   function openTerm(name: string) {
     const g = glossary.find(x => x.term === name)
@@ -136,16 +137,16 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
   }
 
   return (
-    <div className="min-h-screen pb-28" dir="rtl" style={{ background: '#FBFAF7' }}>
+    <div className="min-h-screen pb-28" dir={DIR} style={{ background: '#FBFAF7' }}>
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-sand-100 bg-white sticky top-0 z-20">
         <button onClick={onBack} className="p-2 rounded-xl hover:bg-sand-100 text-sand-500 transition-colors">
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="flip-dir w-5 h-5" />
         </button>
         {workshop.image_url && <img src={workshop.image_url} alt="" className="w-9 h-9 rounded-xl object-cover" />}
         <div className="min-w-0">
           <h1 className="font-bold text-sand-800 text-base leading-tight truncate">{workshop.title}</h1>
-          <p className="text-[11px] text-sand-400">{templates.length} מפגשים</p>
+          <p className="text-[11px] text-sand-400">{templates.length} {' '}{tx('מפגשים')}</p>
         </div>
       </div>
 
@@ -160,8 +161,8 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
         {/* ── Mode: topics / meetings ── */}
         <div className="px-4 pt-4">
           <div className="grid grid-cols-2 gap-2">
-            <ModeButton active={mode === 'meetings'} onClick={() => { setMode('meetings'); setTopic(null) }}>כל המפגשים</ModeButton>
-            <ModeButton active={mode === 'topics'} onClick={() => { setMode('topics'); track('program_mode', { mode: 'topics' }) }}>לפי נושא</ModeButton>
+            <ModeButton active={mode === 'meetings'} onClick={() => { setMode('meetings'); setTopic(null) }}>{tx('כל המפגשים')}</ModeButton>
+            <ModeButton active={mode === 'topics'} onClick={() => { setMode('topics'); track('program_mode', { mode: 'topics' }) }}>{tx('לפי נושא')}</ModeButton>
           </div>
         </div>
 
@@ -176,7 +177,7 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
               ))}
             </div>
             {topic === null && (
-              <p className="text-[13px] text-[#8C8177] mt-3">בחרי נושא כדי לראות את כל התרגילים שלו, מכל המפגשים.</p>
+              <p className="text-[13px] text-[#8C8177] mt-3">{tx('בחרי נושא כדי לראות את כל התרגילים שלו, מכל המפגשים.')}</p>
             )}
           </div>
         )}
@@ -230,7 +231,8 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
             className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold mt-6"
             style={{ background: '#E8F5E9', color: '#2E7D32' }}>
             <MessageCircle className="w-4 h-4" />
-            שאלי את {ownerName}
+            
+            {tx('שאלי את')}{' '}{ownerName}
           </a>
         </div>
       </div>
@@ -240,15 +242,15 @@ export default function WorkshopProgram({ workshop, program, ownerName, ownerWha
           Inside the page it was z-40 and trapped by ancestors, so the nav
           covered everything but the first line (Brenda, 23.9.26). */}
       {term && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-end justify-center" dir="rtl" onClick={() => setTerm(null)}>
+        <div className="fixed inset-0 z-[100] flex items-end justify-center" dir={DIR} onClick={() => setTerm(null)}>
           <div className="absolute inset-0 bg-black/30" />
           <div className="relative w-full max-w-[480px] bg-white rounded-t-3xl p-5 shadow-xl overflow-y-auto"
             style={{ maxHeight: '75vh', paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' }}
             onClick={e => e.stopPropagation()}>
-            <button onClick={() => setTerm(null)} className="absolute top-4 left-4 p-1.5 rounded-lg text-sand-400 hover:bg-sand-100">
+            <button onClick={() => setTerm(null)} className="absolute top-4 end-4 p-1.5 rounded-lg text-sand-400 hover:bg-sand-100">
               <X className="w-4 h-4" />
             </button>
-            <p className="text-[11px] font-bold tracking-wide text-[#8C8177] mb-1">מונח</p>
+            <p className="text-[11px] font-bold tracking-wide text-[#8C8177] mb-1">{tx('מונח')}</p>
             <h3 className="text-lg font-bold text-sand-800 mb-2">{term.term}</h3>
             <p className="text-[15px] leading-relaxed text-[#4A443C]">{term.plain}</p>
           </div>
@@ -292,7 +294,7 @@ function MeetingHeader({ template }: { template: SessionTemplate }) {
         <span className="w-9 h-9 rounded-full flex items-center justify-center text-[15px] font-bold flex-shrink-0"
           style={{ background: '#E7C78A', color: '#3B2E1C' }}>{template.meeting_number}</span>
         <span className="text-[12px] font-bold tracking-widest" style={{ color: '#8C8177' }}>
-          {MEETING_ORDINAL[template.meeting_number] ?? `מפגש ${template.meeting_number}`}
+          {MEETING_ORDINAL[template.meeting_number] ?? tx('מפגש {meeting_number}', { meeting_number: template.meeting_number })}
         </span>
       </div>
       <h2 className="font-brand text-[30px] leading-tight mb-3" style={{ color: '#2E2823', fontWeight: 400 }}>{template.title}</h2>
@@ -320,10 +322,10 @@ function MeetingView({ template, lists, warmup, warmupOpen, onToggleWarmup, glos
           where she meets it for the first time. */}
       {template.include_warmup && warmup.length > 0 && (
         <section className="rounded-2xl border" style={{ background: '#FFF8EA', borderColor: '#F2E3C4' }}>
-          <button onClick={onToggleWarmup} className="w-full flex items-center justify-between px-4 py-3 text-right">
-            <span className="font-bold text-sand-800 text-[15px]">החימום של מימו</span>
+          <button onClick={onToggleWarmup} className="w-full flex items-center justify-between px-4 py-3 text-start">
+            <span className="font-bold text-sand-800 text-[15px]">{tx('החימום של מימו')}</span>
             <span className="flex items-center gap-2 text-[12px] text-sand-500">
-              {warmup.length} שירים ותרגילים
+              {warmup.length} {' '}{tx('שירים ותרגילים')}
               <ChevronDown className={`w-4 h-4 transition-transform ${warmupOpen ? 'rotate-180' : ''}`} />
             </span>
           </button>
@@ -338,7 +340,7 @@ function MeetingView({ template, lists, warmup, warmupOpen, onToggleWarmup, glos
       {lists.carried.length > 0 && (
         <section className="space-y-2">
           <p className="text-[12px] font-bold tracking-wide" style={{ color: '#8C8177' }}>
-            {isCurrent ? 'נמשיך היום ממה שלא הספקנו במפגש הקודם' : 'המשך מהמפגש הקודם'}
+            {isCurrent ? tx('נמשיך היום ממה שלא הספקנו במפגש הקודם') : tx('המשך מהמפגש הקודם')}
           </p>
           {lists.carried.map(e => <ExerciseCard key={e.id} ex={e} glossary={glossary} onTerm={onTerm} track={track} />)}
         </section>
@@ -357,11 +359,11 @@ function warmupCountFor(t: SessionTemplate, warmup: Exercise[]): number {
   return t.include_warmup ? warmup.length : 0
 }
 
-const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+const DAY_NAMES = [tx('ראשון'), tx('שני'), tx('שלישי'), tx('רביעי'), tx('חמישי'), tx('שישי'), tx('שבת')]
 function dateLabel(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number)
   const day = DAY_NAMES[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
-  return `יום ${day}, ${d}.${m}`
+  return tx('יום {day}, {d}.{m}', { day, d, m })
 }
 
 /** A meeting that has not happened yet: the header, the date, and the
@@ -387,7 +389,7 @@ function LockedMeetingView({ template, items, date, warmupCount, warmupOpen, war
       <div className="rounded-2xl px-4 py-3.5 flex items-start gap-3" style={{ background: '#F5F1EB', border: '1px solid #E5DCD0' }}>
         <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#7B604C' }} />
         <div className="text-[14px] leading-relaxed" style={{ color: '#4A443C' }}>
-          <p className="font-bold">התוכן של המפגש ייפתח כאן אחרי שניפגש</p>
+          <p className="font-bold">{tx('התוכן של המפגש ייפתח כאן אחרי שניפגש')}</p>
           {date && <p className="text-[13px]" style={{ color: '#7B604C' }}>{dateLabel(date)}</p>}
         </div>
       </div>
@@ -395,10 +397,10 @@ function LockedMeetingView({ template, items, date, warmupCount, warmupOpen, war
       {warmupCount > 0 && (
         warmupOpen ? (
           <section className="rounded-2xl border" style={{ background: '#FFF8EA', borderColor: '#F2E3C4' }}>
-            <button onClick={() => setShowWarmup(o => !o)} className="w-full flex items-center justify-between px-4 py-3 text-right">
-              <span className="font-bold text-sand-800 text-[15px]">החימום של מימו</span>
+            <button onClick={() => setShowWarmup(o => !o)} className="w-full flex items-center justify-between px-4 py-3 text-start">
+              <span className="font-bold text-sand-800 text-[15px]">{tx('החימום של מימו')}</span>
               <span className="flex items-center gap-2 text-[12px] text-sand-500">
-                {warmup.length} שירים ותרגילים
+                {warmup.length} {' '}{tx('שירים ותרגילים')}
                 <ChevronDown className={`w-4 h-4 transition-transform ${showWarmup ? 'rotate-180' : ''}`} />
               </span>
             </button>
@@ -410,8 +412,8 @@ function LockedMeetingView({ template, items, date, warmupCount, warmupOpen, war
           </section>
         ) : (
           <div className="rounded-2xl border px-4 py-3 flex items-center justify-between" style={{ background: '#FFF8EA', borderColor: '#F2E3C4', opacity: 0.7 }}>
-            <span className="font-bold text-sand-800 text-[15px]">החימום של מימו</span>
-            <span className="flex items-center gap-1.5 text-[12px] text-sand-500">{warmupCount} שירים ותרגילים <Lock className="w-3.5 h-3.5" /></span>
+            <span className="font-bold text-sand-800 text-[15px]">{tx('החימום של מימו')}</span>
+            <span className="flex items-center gap-1.5 text-[12px] text-sand-500">{warmupCount} {' '}{tx('שירים ותרגילים')}{' '}<Lock className="w-3.5 h-3.5" /></span>
           </div>
         )
       )}
@@ -451,7 +453,7 @@ function FilteredView({ templates, exercisesOf, warmup, isOpen, topic, topicLabe
   if (wu.length === 0 && groups.length === 0) {
     return (
       <p className="text-sm text-sand-400 text-center py-8">
-        {upcoming > 0 ? `התרגילים בנושא ${topicLabel} ייפתחו כאן אחרי המפגשים הבאים.` : `אין עדיין תרגילים בנושא ${topicLabel}.`}
+        {upcoming > 0 ? tx('התרגילים בנושא {topicLabel} ייפתחו כאן אחרי המפגשים הבאים.', { topicLabel }) : tx('אין עדיין תרגילים בנושא {topicLabel}.', { topicLabel })}
       </p>
     )
   }
@@ -459,7 +461,7 @@ function FilteredView({ templates, exercisesOf, warmup, isOpen, topic, topicLabe
     <>
       {wu.length > 0 && (
         <section className="space-y-2">
-          <p className="text-[12px] font-bold tracking-wide" style={{ color: '#8C8177' }}>החימום של מימו</p>
+          <p className="text-[12px] font-bold tracking-wide" style={{ color: '#8C8177' }}>{tx('החימום של מימו')}</p>
           {wu.map(e => <ExerciseCard key={e.id} ex={e} glossary={glossary} onTerm={onTerm} track={track} />)}
         </section>
       )}
@@ -475,7 +477,7 @@ function FilteredView({ templates, exercisesOf, warmup, isOpen, topic, topicLabe
       ))}
       {upcoming > 0 && (
         <p className="text-[13px] text-center py-3 flex items-center justify-center gap-1.5" style={{ color: '#8C8177' }}>
-          <Lock className="w-3.5 h-3.5" /> {upcoming === 1 ? 'עוד תרגיל אחד בנושא ייפתח' : `עוד ${upcoming} תרגילים בנושא ייפתחו`} אחרי המפגשים הבאים
+          <Lock className="w-3.5 h-3.5" /> {upcoming === 1 ? tx('עוד תרגיל אחד בנושא ייפתח') : tx('עוד {upcoming} תרגילים בנושא ייפתחו', { upcoming })} {' '}{tx('אחרי המפגשים הבאים')}
         </p>
       )}
     </>

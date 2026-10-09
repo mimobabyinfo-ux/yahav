@@ -11,6 +11,7 @@ import ActionPageLayout from './ActionPageLayout'
 import TimerControls from './TimerControls'
 import ManualEntrySheet from './ManualEntrySheet'
 
+import { tx } from '../../i18n'
 type Props = {
   onBack: () => void
   /** Bumps when an entry is saved so dashboards/journal refresh. */
@@ -18,7 +19,7 @@ type Props = {
 }
 
 const ACCENT = '#5C7CB8' // calm blue, matching the sleep theme
-const DELETE_CONFIRM = 'התינוק לא באמת נרדם? הטיימר יימחק ולא תישמר רשומה.'
+const DELETE_CONFIRM = tx('התינוק לא באמת נרדם? הטיימר יימחק ולא תישמר רשומה.')
 
 // Default the manual modal's start to 1h ago (per spec).
 function defaultManualStart(): string {
@@ -127,7 +128,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
         })
         .select()
         .single()
-      if (error || !entry) throw error ?? new Error('שגיאה בשמירה')
+      if (error || !entry) throw error ?? new Error(tx('שגיאה בשמירה'))
 
       await supabase.from('sleep_details').insert({
         log_entry_id: entry.id,
@@ -141,7 +142,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
       onSaved?.()
       onBack()
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'שגיאה בשמירה')
+      setSaveError(err instanceof Error ? err.message : tx('שגיאה בשמירה'))
       setSaving(false)
     }
   }
@@ -167,7 +168,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
     if (!user || mSaving) return
     const dur = manualDurationMinutes()
     if (dur == null || dur <= 0) {
-      setMError('יש להזין שעת התחלה ושעת סיום (סיום אחרי התחלה)')
+      setMError(tx('יש להזין שעת התחלה ושעת סיום (סיום אחרי התחלה)'))
       return
     }
     setMSaving(true)
@@ -188,7 +189,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
         })
         .select()
         .single()
-      if (error || !entry) throw error ?? new Error('שגיאה בשמירה')
+      if (error || !entry) throw error ?? new Error(tx('שגיאה בשמירה'))
       await supabase.from('sleep_details').insert({
         log_entry_id: entry.id,
         sleep_type: sleepTypeFromStartTime(startDate),
@@ -201,7 +202,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
       setRefetchTick(t => t + 1)
       onSaved?.()
     } catch (err) {
-      setMError(err instanceof Error ? err.message : 'שגיאה בשמירה')
+      setMError(err instanceof Error ? err.message : tx('שגיאה בשמירה'))
     } finally {
       setMSaving(false)
     }
@@ -211,8 +212,8 @@ export default function SleepPage({ onBack, onSaved }: Props) {
     <button
       onClick={() => setManualOpen(true)}
       className="p-2 rounded-xl hover:bg-sand-100 text-sand-600 transition-colors"
-      aria-label="הוספת רשומה ידנית"
-      title="הוספת רשומה ידנית"
+      aria-label={tx('הוספת רשומה ידנית')}
+      title={tx('הוספת רשומה ידנית')}
     >
       <Plus className="w-5 h-5" />
     </button>
@@ -220,13 +221,13 @@ export default function SleepPage({ onBack, onSaved }: Props) {
 
   const notesField = (
     <div className="mt-6 max-w-xs mx-auto">
-      <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-right">הערות</label>
+      <label className="block text-xs font-semibold text-sand-600 mb-1.5 text-start">{tx('הערות')}</label>
       <textarea
         value={notes}
         onChange={e => { setNotes(e.target.value); setNoteSaved(false) }}
-        placeholder="כל מה שתרצי לזכור על השינה הזו…"
+        placeholder={tx('כל מה שתרצי לזכור על השינה הזו…')}
         rows={2}
-        className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-right"
+        className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none text-start"
       />
       {timer && (
         <button
@@ -236,7 +237,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
           className="mt-1.5 w-full py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40"
           style={{ background: noteSaved ? '#EDEDE6' : '#F6ECD8', color: noteSaved ? '#4F5040' : '#6E5836' }}
         >
-          {noteSaving ? 'שומרת…' : noteSaved ? '✓ ההערה נשמרה' : 'שמירת ההערה'}
+          {noteSaving ? tx('שומרת…') : noteSaved ? tx('✓ ההערה נשמרה') : tx('שמירת ההערה')}
         </button>
       )}
     </div>
@@ -244,8 +245,8 @@ export default function SleepPage({ onBack, onSaved }: Props) {
 
   if (loading) {
     return (
-      <ActionPageLayout title="שינה" emoji="😴" accent={ACCENT} onBack={onBack} headerAction={headerAction}>
-        <div className="text-center text-sand-400 text-sm py-8">טוענת…</div>
+      <ActionPageLayout title={tx('שינה')} emoji="😴" accent={ACCENT} onBack={onBack} headerAction={headerAction}>
+        <div className="text-center text-sand-400 text-sm py-8">{tx('טוענת…')}</div>
       </ActionPageLayout>
     )
   }
@@ -256,12 +257,12 @@ export default function SleepPage({ onBack, onSaved }: Props) {
     return (
       <>
         <ActionPageLayout
-          title="שינה"
+          title={tx('שינה')}
           emoji="😴"
           accent={ACCENT}
           onBack={onBack}
           headerAction={headerAction}
-          status={<span>התחלה: {formatTime(startedAt)}</span>}
+          status={<span>{tx('התחלה:')}{' '}{formatTime(startedAt)}</span>}
           bottom={
             saveError ? (
               <p className="text-xs text-red-500 text-center">{saveError}</p>
@@ -278,7 +279,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
             onStop={handleStop}
             onDelete={handleDelete}
             accent={ACCENT}
-            stopLabel={saving ? 'שומרת…' : 'עצור ושמור'}
+            stopLabel={saving ? tx('שומרת…') : tx('עצור ושמור')}
           />
           {notesField}
         </ActionPageLayout>
@@ -291,15 +292,16 @@ export default function SleepPage({ onBack, onSaved }: Props) {
   return (
     <>
       <ActionPageLayout
-        title="שינה"
+        title={tx('שינה')}
         emoji="😴"
         accent={ACCENT}
         onBack={onBack}
         headerAction={headerAction}
-        status={<span>{formatTimeSince(lastSleep, 'טרם נרשמה שינה')}</span>}
+        status={<span>{formatTimeSince(lastSleep, tx('טרם נרשמה שינה'))}</span>}
         bottom={
           <p className="text-[11px] text-sand-400 text-center">
-            אפשר להשהות ולהמשיך אם התינוק מתעורר לרגע
+            
+            {tx('אפשר להשהות ולהמשיך אם התינוק מתעורר לרגע')}
           </p>
         }
       >
@@ -312,15 +314,15 @@ export default function SleepPage({ onBack, onSaved }: Props) {
           onStop={() => {}}
           onDelete={() => {}}
           accent={ACCENT}
-          startLabel="התחל שינה"
+          startLabel={tx('התחל שינה')}
         />
         {notesField}
 
         {lastSleep && (
           <div className="mt-8 mx-auto max-w-xs text-center bg-[#F5F1EB] rounded-2xl p-4">
-            <p className="text-xs text-sand-500 mb-1">השינה האחרונה</p>
+            <p className="text-xs text-sand-500 mb-1">{tx('השינה האחרונה')}</p>
             <p className="text-sm font-semibold text-sand-700">
-              {formatTime(lastSleep)} · לפני {formatTimeSince(lastSleep, '').replace('לפני ', '')}
+              {formatTime(lastSleep)} {' '}{tx('· לפני')}{' '}{formatTimeSince(lastSleep, '').replace(tx('לפני '), '')}
             </p>
           </div>
         )}
@@ -334,7 +336,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
     return (
       <ManualEntrySheet
         open={manualOpen}
-        title="הוספת שינה ידנית"
+        title={tx('הוספת שינה ידנית')}
         onClose={() => setManualOpen(false)}
         bottom={
           <>
@@ -345,13 +347,13 @@ export default function SleepPage({ onBack, onSaved }: Props) {
               className="w-full font-semibold py-4 rounded-2xl text-white shadow-md transition-all disabled:opacity-50"
               style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}dd)` }}
             >
-              {mSaving ? 'שומרת…' : 'שמירה ✓'}
+              {mSaving ? tx('שומרת…') : tx('שמירה ✓')}
             </button>
           </>
         }
       >
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5">התחלה</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('התחלה')}</label>
           <input
             type="datetime-local"
             value={mStart}
@@ -361,7 +363,7 @@ export default function SleepPage({ onBack, onSaved }: Props) {
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5">סיום</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('סיום')}</label>
           <input
             type="datetime-local"
             value={mEnd}
@@ -371,14 +373,14 @@ export default function SleepPage({ onBack, onSaved }: Props) {
           />
         </div>
         {dur != null && (
-          <p className="text-xs text-sand-500">משך: {dur < 60 ? `${Math.round(dur)} דקות` : `${Math.floor(dur / 60)}ש ${Math.round(dur % 60)}דק'`}</p>
+          <p className="text-xs text-sand-500">{tx('משך:')}{' '}{dur < 60 ? tx('{v0} דקות', { v0: Math.round(dur) }) : tx('{v0}ש {v1}דק\'', { v0: Math.floor(dur / 60), v1: Math.round(dur % 60) })}</p>
         )}
         <div>
-          <label className="block text-xs font-semibold text-sand-600 mb-1.5">הערות</label>
+          <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('הערות')}</label>
           <textarea
             value={mNotes}
             onChange={e => setMNotes(e.target.value)}
-            placeholder="הערות (אופציונלי)"
+            placeholder={tx('הערות (אופציונלי)')}
             rows={3}
             className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-500 resize-none"
           />

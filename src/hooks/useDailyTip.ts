@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatDate, getBabyAge } from '../utils/dateUtils'
 import { pregnancyWeek } from '../utils/pregnancyWeek'
 import { djb2 } from '../utils/hashString'
+import { tx, LANG } from '../i18n'
 
 // Picks one daily tip for the current user, matched to either the
 // selected child's age (mom mode) or the current pregnancy week
@@ -29,14 +30,16 @@ function babyAgeDays(dob: string): number {
 
 function labelForMom(name: string | null, gender: 'boy' | 'girl' | 'other' | null, dob: string): string {
   const age = getBabyAge(dob)
-  const subject = name ?? 'התינוק/ת'
+  const subject = name ?? tx('התינוק/ת')
+  // Spanish has no gendered linker here; "Noa · 2 meses".
+  if (LANG !== 'he') return `${subject} · ${age}`
   // Hebrew gendering: בן / בת. 'other' or null → omit the gendered word.
   const linker = gender === 'boy' ? 'בן' : gender === 'girl' ? 'בת' : null
   return linker ? `${subject} ${linker} ${age}` : `${subject} · ${age}`
 }
 
 function labelForPregnancy(week: number): string {
-  return `שבוע ${week}`
+  return tx('שבוע {week}', { week })
 }
 
 export function useDailyTip(): DailyTipResult {

@@ -15,6 +15,7 @@ import { BUYING_SUBCATEGORIES, BuyingSubcategoryId } from '../data/buyingSubcate
 import type { Page } from '../App'
 import WhatsNewModal from '../components/dashboard/WhatsNewModal'
 
+import { tx, DIR } from '../i18n'
 type Props = { onNavigate: (page: Page) => void }
 type DashTab = 'medical' | 'buying' | 'reminders'
 
@@ -29,8 +30,8 @@ function groupByWeek(items: PregnancyChecklistItem[]) {
     if (!seen.has(key)) {
       seen.add(key)
       const label = item.week_from && item.week_to
-        ? `שבוע ${item.week_from}–${item.week_to}`
-        : item.week_from ? `מסביב לשבוע ${item.week_from}` : 'כללי'
+        ? tx('שבוע {week_from}–{week_to}', { week_from: item.week_from, week_to: item.week_to })
+        : item.week_from ? tx('מסביב לשבוע {week_from}', { week_from: item.week_from }) : tx('כללי')
       buckets.push({ label, key, items: [] })
     }
     buckets.find(b => b.key === key)!.items.push(item)
@@ -72,7 +73,7 @@ function WeekGuideCard({ guide, week, items = [] }: { guide: PregnancyWeeklyGuid
   return (
     <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
       <button
-        className="w-full p-4 flex items-center gap-3 text-right"
+        className="w-full p-4 flex items-center gap-3 text-start"
         onClick={() => setOpen(v => !v)}
       >
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
@@ -80,9 +81,9 @@ function WeekGuideCard({ guide, week, items = [] }: { guide: PregnancyWeeklyGuid
           {guide.baby_size_emoji ?? '🤰🏼'}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-purple-600">מדריך שבוע {week}</p>
+          <p className="text-xs font-bold text-purple-600">{tx('מדריך שבוע')}{' '}{week}</p>
           <p className="font-bold text-sand-800 text-sm mt-0.5">
-            {guide.baby_size ?? `שבוע ${week} בהריון`}
+            {guide.baby_size ?? tx('שבוע {week} בהריון', { week })}
           </p>
           {!open && (
             <p className="text-xs text-sand-400 mt-0.5 truncate">{guide.development?.slice(0, 50)}...</p>
@@ -94,29 +95,29 @@ function WeekGuideCard({ guide, week, items = [] }: { guide: PregnancyWeeklyGuid
       {open && (
         <div className="border-t border-sand-100 p-4 space-y-3">
           {guide.image_url && (
-            <img src={guide.image_url} alt={`שבוע ${week}`} className="w-full h-36 object-cover rounded-2xl" />
+            <img src={guide.image_url} alt={tx('שבוע {week}', { week })} className="w-full h-36 object-cover rounded-2xl" />
           )}
           {guide.development && (
             <div className="bg-purple-50 rounded-2xl p-3">
-              <p className="text-xs font-bold text-purple-700 mb-1">🍼 התפתחות</p>
+              <p className="text-xs font-bold text-purple-700 mb-1">{tx('🍼 התפתחות')}</p>
               <p className="text-sm text-sand-700 leading-relaxed">{guide.development}</p>
             </div>
           )}
           {guide.symptoms && (
             <div className="bg-mustard-50 rounded-2xl p-3">
-              <p className="text-xs font-bold text-mustard-700 mb-1">🤎 סימפטומים שכדאי להכיר</p>
+              <p className="text-xs font-bold text-mustard-700 mb-1">{tx('🤎 סימפטומים שכדאי להכיר')}</p>
               <p className="text-sm text-sand-700 leading-relaxed">{guide.symptoms}</p>
             </div>
           )}
           {guide.fun_fact && (
             <div className="bg-amber-50 rounded-2xl p-3 border border-amber-100">
-              <p className="text-xs font-bold text-amber-700 mb-1">💡 ידעת?</p>
+              <p className="text-xs font-bold text-amber-700 mb-1">{tx('💡 ידעת?')}</p>
               <p className="text-sm text-sand-700 leading-relaxed">{guide.fun_fact}</p>
             </div>
           )}
           {items.length > 0 && (
             <div className="bg-blue-50 rounded-2xl p-3 border border-blue-100">
-              <p className="text-xs font-bold text-blue-700 mb-2">📝 המשימות שלך לשבוע הזה</p>
+              <p className="text-xs font-bold text-blue-700 mb-2">{tx('📝 המשימות שלך לשבוע הזה')}</p>
               <ul className="space-y-1.5">
                 {items.map(item => (
                   <li key={item.id} className="flex items-center gap-2 text-sm">
@@ -217,7 +218,7 @@ function CustomRemindersPanel({ currentWeek }: { currentWeek?: number }) {
       {/* Recommended templates — horizontal scroll, filtered by current week */}
       {visibleTemplates.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-sand-500 mb-2">💡 תבניות מומלצות לשבוע שלך</p>
+          <p className="text-xs font-semibold text-sand-500 mb-2">{tx('💡 תבניות מומלצות לשבוע שלך')}</p>
           <div className="flex gap-2 overflow-x-auto scroll-hide pb-1">
             {visibleTemplates.map(t => {
               const added = reminderLabels.has(t.label)
@@ -225,14 +226,14 @@ function CustomRemindersPanel({ currentWeek }: { currentWeek?: number }) {
                 <button
                   key={t.id}
                   onClick={() => applyTemplate(t)}
-                  className="min-w-[160px] flex-shrink-0 bg-[#F5F1EB] rounded-2xl p-3 text-right border-2 border-transparent hover:border-mustard-200 transition-all"
+                  className="min-w-[160px] flex-shrink-0 bg-[#F5F1EB] rounded-2xl p-3 text-start border-2 border-transparent hover:border-mustard-200 transition-all"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-xl">{t.emoji}</span>
                     {added ? (
-                      <span className="text-[10px] text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">✓ נוסף</span>
+                      <span className="text-[10px] text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">{tx('✓ נוסף')}</span>
                     ) : (
-                      <span className="text-[10px] text-sand-400 bg-sand-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">שבוע {t.weekFrom}-{t.weekTo}</span>
+                      <span className="text-[10px] text-sand-400 bg-sand-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">{tx('שבוע')}{' '}{t.weekFrom}-{t.weekTo}</span>
                     )}
                   </div>
                   <p className="text-xs font-bold text-sand-800 mt-1.5">{t.label}</p>
@@ -247,8 +248,8 @@ function CustomRemindersPanel({ currentWeek }: { currentWeek?: number }) {
       {reminders.length === 0 && !adding && (
         <div className="bg-[#F5F1EB] rounded-3xl p-8 text-center shadow-sm">
           <p className="text-3xl mb-2">🔔</p>
-          <p className="font-semibold text-sand-700 text-sm">אין תזכורות עדיין</p>
-          <p className="text-xs text-sand-400 mt-1">הוסיפי תזכורות אישיות להריון</p>
+          <p className="font-semibold text-sand-700 text-sm">{tx('אין תזכורות עדיין')}</p>
+          <p className="text-xs text-sand-400 mt-1">{tx('הוסיפי תזכורות אישיות להריון')}</p>
         </div>
       )}
 
@@ -263,7 +264,7 @@ function CustomRemindersPanel({ currentWeek }: { currentWeek?: number }) {
             onClick={() => toggle(r)}
             className={`w-11 h-6 rounded-full transition-all relative flex-shrink-0 ${r.is_enabled ? 'bg-mustard-500' : 'bg-sand-200'}`}
           >
-            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${r.is_enabled ? 'left-5' : 'left-0.5'}`} />
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${r.is_enabled ? 'end-5' : 'end-0.5'}`} />
           </button>
           <button onClick={() => del(r.id)} className="text-sand-200 hover:text-red-400 flex-shrink-0">
             <Trash2 className="w-4 h-4" />
@@ -281,13 +282,13 @@ function CustomRemindersPanel({ currentWeek }: { currentWeek?: number }) {
             />
             <input
               value={newLabel} onChange={e => setNewLabel(e.target.value)}
-              placeholder="תיאור התזכורת..."
+              placeholder={tx('תיאור התזכורת...')}
               className="flex-1 px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
               autoFocus
             />
           </div>
           <div>
-            <label className="text-xs text-sand-500 mb-1 block">שעת תזכורת (אופציונלי)</label>
+            <label className="text-xs text-sand-500 mb-1 block">{tx('שעת תזכורת (אופציונלי)')}</label>
             <input
               type="time" value={newTime} onChange={e => setNewTime(e.target.value)}
               className="w-full px-4 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
@@ -297,15 +298,15 @@ function CustomRemindersPanel({ currentWeek }: { currentWeek?: number }) {
             <button onClick={add} disabled={saving || !newLabel.trim()}
               className="flex-1 py-2.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
               style={{ background: '#E7C78A' }}>
-              {saving ? '...' : 'הוסיפי'}
+              {saving ? '...' : tx('הוסיפי')}
             </button>
-            <button onClick={() => setAdding(false)} className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>
+            <button onClick={() => setAdding(false)} className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">{tx('ביטול')}</button>
           </div>
         </div>
       ) : (
         <button onClick={() => setAdding(true)}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-mustard-200 text-mustard-600 text-sm font-semibold hover:bg-mustard-50 transition-colors">
-          <Plus className="w-4 h-4" /> הוסיפי תזכורת אישית
+          <Plus className="w-4 h-4" /> {' '}{tx('הוסיפי תזכורת אישית')}
         </button>
       )}
     </div>
@@ -408,11 +409,11 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
     if (!profile) return
     const active: { key: string; emoji: string; text: string }[] = []
     if (profile.reminder_water_enabled && reminderDue('reminder_water', profile.reminder_water_hours))
-      active.push({ key: 'reminder_water', emoji: '💧', text: 'זמן לשתות מים! שתייה מספקת חשובה מאוד בהריון' })
+      active.push({ key: 'reminder_water', emoji: '💧', text: tx('זמן לשתות מים! שתייה מספקת חשובה מאוד בהריון') })
     if (profile.reminder_vitamins_enabled && timeIsDue(profile.reminder_vitamins_time))
-      active.push({ key: `reminder_time_${profile.reminder_vitamins_time}`, emoji: '💊', text: `זמן לויטמינים / תרופות (${profile.reminder_vitamins_time})` })
+      active.push({ key: `reminder_time_${profile.reminder_vitamins_time}`, emoji: '💊', text: tx('זמן לויטמינים / תרופות ({reminder_vitamins_time})', { reminder_vitamins_time: profile.reminder_vitamins_time }) })
     if (profile.reminder_exercise_enabled && timeIsDue(profile.reminder_exercise_time))
-      active.push({ key: `reminder_time_${profile.reminder_exercise_time}`, emoji: '🧘🏼', text: `זמן לתרגיל יומי (${profile.reminder_exercise_time})` })
+      active.push({ key: `reminder_time_${profile.reminder_exercise_time}`, emoji: '🧘🏼', text: tx('זמן לתרגיל יומי ({reminder_exercise_time})', { reminder_exercise_time: profile.reminder_exercise_time }) })
     setReminders(active)
   }, [profile])
 
@@ -528,14 +529,14 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
   const myPersonalBuying = personalItems.filter(i => i.category === 'buying')
 
   return (
-    <div className="min-h-screen pb-28" dir="rtl">
+    <div className="min-h-screen pb-28" dir={DIR}>
       {/* ── Header ── */}
       <div className="px-5 pt-10 pb-6" style={{ background: 'linear-gradient(160deg, #3D2E20 0%, #2A1F15 100%)' }}>
         <div className="max-w-sm mx-auto">
           <div className="flex items-start justify-between mb-5">
             <div>
-              <p className="text-sm" style={{ color: '#D9B978' }}>שלום,</p>
-              <h1 className="text-2xl font-bold text-white">{profile?.mother_name ?? 'אמא לעתיד'} 🤰🏼</h1>
+              <p className="text-sm" style={{ color: '#D9B978' }}>{tx('שלום,')}</p>
+              <h1 className="text-2xl font-bold text-white">{profile?.mother_name ?? tx('אמא לעתיד')} 🤰🏼</h1>
             </div>
             {/* Brenda 1.9.26: same pair as the mother home screen — the
                 how-to-install video beside the gear. יציאה was removed from
@@ -545,15 +546,15 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
               <button
                 onClick={openInstallGuide}
                 className="p-2 rounded-xl text-white/50 hover:text-white transition-colors"
-                title="איך שמים את מימו במסך הבית"
-                aria-label="איך שמים את מימו במסך הבית"
+                title={tx('איך שמים את מימו במסך הבית')}
+                aria-label={tx('איך שמים את מימו במסך הבית')}
               >
                 <HelpCircle className="w-5 h-5" />
               </button>
               <a
                 href="?settings"
                 className="p-2 rounded-xl text-white/50 hover:text-white transition-colors"
-                title="הגדרות"
+                title={tx('הגדרות')}
               >
                 <SettingsIcon className="w-5 h-5" />
               </a>
@@ -563,17 +564,17 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
           {profile?.due_date ? (
             <div className="rounded-3xl p-5 relative overflow-hidden mb-4" style={{ background: '#E7C78A' }}>
               <div className="relative z-10">
-                <p className="text-sm font-semibold text-white/80">שבוע הריון</p>
+                <p className="text-sm font-semibold text-white/80">{tx('שבוע הריון')}</p>
                 <p className="text-5xl font-black text-white mt-1">{week}</p>
                 <p className="text-sm text-white/80 mt-2">
-                  {daysLeft === 0 ? '🎉 יום הלידה הגיע!' : `עוד ${daysLeft} ימים ללידה`}
+                  {daysLeft === 0 ? tx('🎉 יום הלידה הגיע!') : tx('עוד {daysLeft} ימים ללידה', { daysLeft })}
                 </p>
               </div>
-              <div className="absolute left-4 top-4 text-6xl opacity-20">👶🏼</div>
+              <div className="absolute end-4 top-4 text-6xl opacity-20">👶🏼</div>
             </div>
           ) : (
             <div className="bg-white/10 rounded-3xl p-4 text-center mb-4">
-              <p className="text-white/60 text-sm">הוסיפי תאריך לידה משוער בפרופיל שלך</p>
+              <p className="text-white/60 text-sm">{tx('הוסיפי תאריך לידה משוער בפרופיל שלך')}</p>
             </div>
           )}
 
@@ -584,7 +585,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                   style={{ width: `${pct}%`, background: '#E7C78A' }} />
               </div>
             </div>
-            <p className="text-xs font-bold text-white/80 flex-shrink-0">{doneCount}/{totalItems} הושלמו</p>
+            <p className="text-xs font-bold text-white/80 flex-shrink-0">{doneCount}/{totalItems} {' '}{tx('הושלמו')}</p>
           </div>
         </div>
       </div>
@@ -619,9 +620,9 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
         {/* ── Tab Switcher ── */}
         <div className="flex bg-[#F5F1EB] rounded-2xl p-1 shadow-sm gap-1">
           {([
-            { id: 'medical' as DashTab,   icon: <Stethoscope className="w-3.5 h-3.5" />, label: 'רפואי' },
-            { id: 'buying' as DashTab,    icon: <ShoppingBag className="w-3.5 h-3.5" />, label: 'קניות' },
-            { id: 'reminders' as DashTab, icon: <Bell className="w-3.5 h-3.5" />,        label: 'תזכורות' },
+            { id: 'medical' as DashTab,   icon: <Stethoscope className="w-3.5 h-3.5" />, label: tx('רפואי') },
+            { id: 'buying' as DashTab,    icon: <ShoppingBag className="w-3.5 h-3.5" />, label: tx('קניות') },
+            { id: 'reminders' as DashTab, icon: <Bell className="w-3.5 h-3.5" />,        label: tx('תזכורות') },
           ]).map(t => (
             <button
               key={t.id}
@@ -648,9 +649,9 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                       <div className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 ${allDone ? 'bg-green-100' : 'bg-mustard-50'}`}>
                         {allDone ? '✅' : '🩺'}
                       </div>
-                      <div className="text-right">
+                      <div className="text-start">
                         <p className="font-bold text-sand-800 text-sm">{bucket.label}</p>
-                        <p className="text-xs text-sand-400">{bucketDone}/{bucket.items.length} הושלמו</p>
+                        <p className="text-xs text-sand-400">{bucketDone}/{bucket.items.length} {' '}{tx('הושלמו')}</p>
                       </div>
                     </div>
                     {isOpen ? <ChevronUp className="w-4 h-4 text-sand-400" /> : <ChevronDown className="w-4 h-4 text-sand-400" />}
@@ -660,16 +661,16 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                       {bucket.items.map(item => {
                         const done = completed.has(item.id)
                         return (
-                          <div key={item.id} className="flex items-center gap-1 pr-4 pl-2 hover:bg-sand-50 transition-colors">
+                          <div key={item.id} className="flex items-center gap-1 ps-4 pe-2 hover:bg-sand-50 transition-colors">
                             <button onClick={() => toggleItem(item.id)}
-                              className="flex items-center gap-3 flex-1 py-3 text-right">
+                              className="flex items-center gap-3 flex-1 py-3 text-start">
                               {done ? <CheckCircle2 className="w-5 h-5 text-mustard-500 flex-shrink-0" /> : <Circle className="w-5 h-5 text-sand-300 flex-shrink-0" />}
-                              <span className={`text-sm flex-1 text-right ${done ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
+                              <span className={`text-sm flex-1 text-start ${done ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
                             </button>
                             <button
                               onClick={() => hideItem(item.id)}
                               className="p-2 text-sand-200 hover:text-red-400 transition-colors flex-shrink-0"
-                              title="הסר פריט"
+                              title={tx('הסר פריט')}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -686,7 +687,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
             {myPersonalMedical.length > 0 && (
               <div className="bg-[#F5F1EB] rounded-3xl shadow-sm overflow-hidden">
                 <div className="p-4 border-b border-sand-100">
-                  <p className="text-xs font-bold text-mustard-600">📝 הוספות אישיות שלי</p>
+                  <p className="text-xs font-bold text-mustard-600">{tx('📝 הוספות אישיות שלי')}</p>
                 </div>
                 <div className="divide-y divide-sand-50">
                   {myPersonalMedical.map(item => editingId === item.id ? (
@@ -695,18 +696,18 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                         className="w-full px-3 py-2 border-2 border-mustard-300 rounded-xl text-sm focus:outline-none" autoFocus />
                       <div className="flex gap-2">
                         <input type="number" value={editWeekFrom} onChange={e => setEditWeekFrom(e.target.value)}
-                          placeholder="שבוע מ-" min={1} max={42}
+                          placeholder={tx('שבוע מ-')} min={1} max={42}
                           className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none" />
                         <input type="number" value={editWeekTo} onChange={e => setEditWeekTo(e.target.value)}
-                          placeholder="שבוע עד" min={1} max={42}
+                          placeholder={tx('שבוע עד')} min={1} max={42}
                           className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none" />
                       </div>
                       <div className="flex gap-2">
                         <button onClick={saveEdit} className="flex-1 py-2 rounded-xl text-white font-bold text-xs"
                           style={{ background: '#E7C78A' }}>
-                          <Check className="w-3.5 h-3.5 inline ml-1" />שמירה
+                          <Check className="w-3.5 h-3.5 inline me-1" />{tx('שמירה')}
                         </button>
-                        <button onClick={() => setEditingId(null)} className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-xs font-semibold">ביטול</button>
+                        <button onClick={() => setEditingId(null)} className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-xs font-semibold">{tx('ביטול')}</button>
                       </div>
                     </div>
                   ) : (
@@ -714,9 +715,9 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                       <button onClick={() => togglePersonal(item)}>
                         {item.is_completed ? <CheckCircle2 className="w-5 h-5 text-mustard-500" /> : <Circle className="w-5 h-5 text-sand-300" />}
                       </button>
-                      <span className={`text-sm flex-1 text-right ${item.is_completed ? 'line-through text-sand-400' : 'text-sand-700'}`}>
+                      <span className={`text-sm flex-1 text-start ${item.is_completed ? 'line-through text-sand-400' : 'text-sand-700'}`}>
                         {item.text}
-                        {item.week_from && <span className="text-xs text-mustard-500 mr-1"> · שבוע {item.week_from}{item.week_to && `–${item.week_to}`}</span>}
+                        {item.week_from && <span className="text-xs text-mustard-500 ms-1"> {' '}{tx('· שבוע')}{' '}{item.week_from}{item.week_to && `–${item.week_to}`}</span>}
                       </span>
                       <button onClick={() => startEdit(item)} className="text-sand-200 hover:text-mustard-400 flex-shrink-0">
                         <Pencil className="w-3.5 h-3.5" />
@@ -736,19 +737,19 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                 <input
                   value={newItemText}
                   onChange={e => setNewItemText(e.target.value)}
-                  placeholder="שם הבדיקה / פגישה..."
+                  placeholder={tx('שם הבדיקה / פגישה...')}
                   className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
                   autoFocus
                 />
                 <div className="flex gap-2">
                   <input
                     type="number" value={newItemWeekFrom} onChange={e => setNewItemWeekFrom(e.target.value)}
-                    placeholder="שבוע מ-" min={1} max={42}
+                    placeholder={tx('שבוע מ-')} min={1} max={42}
                     className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
                   />
                   <input
                     type="number" value={newItemWeekTo} onChange={e => setNewItemWeekTo(e.target.value)}
-                    placeholder="שבוע עד" min={1} max={42}
+                    placeholder={tx('שבוע עד')} min={1} max={42}
                     className="flex-1 px-3 py-2.5 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
                   />
                 </div>
@@ -756,15 +757,15 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                   <button onClick={addPersonalItem} disabled={savingPersonal || !newItemText.trim()}
                     className="flex-1 py-2.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
                     style={{ background: '#E7C78A' }}>
-                    {savingPersonal ? '...' : 'הוסיפי'}
+                    {savingPersonal ? '...' : tx('הוסיפי')}
                   </button>
-                  <button onClick={() => setAddingPersonal(false)} className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>
+                  <button onClick={() => setAddingPersonal(false)} className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">{tx('ביטול')}</button>
                 </div>
               </div>
             ) : (
               <button onClick={() => setAddingPersonal(true)}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-mustard-200 text-mustard-600 text-sm font-semibold hover:bg-mustard-50 transition-colors">
-                <Plus className="w-4 h-4" /> הוסיפי בדיקה / פגישה אישית
+                <Plus className="w-4 h-4" /> {' '}{tx('הוסיפי בדיקה / פגישה אישית')}
               </button>
             )}
           </div>
@@ -787,8 +788,8 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                   <button onClick={() => toggleBucket(bucketKey)}
                     className="w-full px-4 py-3 flex items-center gap-3 hover:bg-sand-50 transition-colors">
                     <span className="text-xl flex-shrink-0">{sub.emoji}</span>
-                    <p className="flex-1 text-sm font-bold text-sand-800 text-right">{sub.label}</p>
-                    <span className="text-xs text-sand-500 flex-shrink-0">{done}/{total} הושלמו</span>
+                    <p className="flex-1 text-sm font-bold text-sand-800 text-start">{sub.label}</p>
+                    <span className="text-xs text-sand-500 flex-shrink-0">{done}/{total} {' '}{tx('הושלמו')}</span>
                     {expanded ? <ChevronUp className="w-4 h-4 text-sand-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-sand-400 flex-shrink-0" />}
                   </button>
                   {expanded && (
@@ -797,15 +798,15 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                       {masterInGroup.map(item => {
                         const itemDone = completed.has(item.id)
                         return (
-                          <div key={item.id} className="flex items-center gap-1 pr-4 pl-2 hover:bg-sand-50 transition-colors">
+                          <div key={item.id} className="flex items-center gap-1 ps-4 pe-2 hover:bg-sand-50 transition-colors">
                             <button onClick={() => toggleItem(item.id)}
-                              className="flex items-center gap-3 flex-1 py-3.5 text-right">
+                              className="flex items-center gap-3 flex-1 py-3.5 text-start">
                               {itemDone ? <CheckCircle2 className="w-5 h-5 text-mustard-500 flex-shrink-0" /> : <Circle className="w-5 h-5 text-sand-300 flex-shrink-0" />}
-                              <span className={`text-sm flex-1 text-right ${itemDone ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
+                              <span className={`text-sm flex-1 text-start ${itemDone ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
                               {itemDone && <span className="text-xs text-mustard-500 font-semibold flex-shrink-0">✓</span>}
                             </button>
                             <button onClick={() => hideItem(item.id)}
-                              className="p-2 text-sand-200 hover:text-red-400 transition-colors flex-shrink-0" title="הסר פריט">
+                              className="p-2 text-sand-200 hover:text-red-400 transition-colors flex-shrink-0" title={tx('הסר פריט')}>
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -819,9 +820,9 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                           <div className="flex gap-2">
                             <button onClick={saveEdit} className="flex-1 py-2 rounded-xl text-white font-bold text-xs"
                               style={{ background: '#E7C78A' }}>
-                              <Check className="w-3.5 h-3.5 inline ml-1" />שמירה
+                              <Check className="w-3.5 h-3.5 inline me-1" />{tx('שמירה')}
                             </button>
-                            <button onClick={() => setEditingId(null)} className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-xs font-semibold">ביטול</button>
+                            <button onClick={() => setEditingId(null)} className="px-3 py-2 rounded-xl bg-sand-100 text-sand-600 text-xs font-semibold">{tx('ביטול')}</button>
                           </div>
                         </div>
                       ) : (
@@ -829,7 +830,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                           <button onClick={() => togglePersonal(item)}>
                             {item.is_completed ? <CheckCircle2 className="w-5 h-5 text-mustard-500" /> : <Circle className="w-5 h-5 text-sand-300" />}
                           </button>
-                          <span className={`text-sm flex-1 text-right ${item.is_completed ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
+                          <span className={`text-sm flex-1 text-start ${item.is_completed ? 'line-through text-sand-400' : 'text-sand-700'}`}>{item.text}</span>
                           <button onClick={() => startEdit(item)} className="text-sand-200 hover:text-mustard-400 flex-shrink-0">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -848,12 +849,12 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
               <div className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm space-y-3">
                 <input
                   value={newItemText} onChange={e => setNewItemText(e.target.value)}
-                  placeholder="מה עוד צריך לקנות?"
+                  placeholder={tx('מה עוד צריך לקנות?')}
                   className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400"
                   autoFocus
                 />
                 <div>
-                  <label className="text-xs text-sand-500 mb-1 block">קטגוריה</label>
+                  <label className="text-xs text-sand-500 mb-1 block">{tx('קטגוריה')}</label>
                   <select value={newItemSubcategory} onChange={e => setNewItemSubcategory(e.target.value as BuyingSubcategoryId)}
                     className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400 bg-white">
                     {BUYING_SUBCATEGORIES.map(s => (
@@ -865,15 +866,15 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
                   <button onClick={addPersonalItem} disabled={savingPersonal || !newItemText.trim()}
                     className="flex-1 py-2.5 rounded-2xl text-white font-bold text-sm disabled:opacity-50"
                     style={{ background: '#E7C78A' }}>
-                    {savingPersonal ? '...' : 'הוסיפי'}
+                    {savingPersonal ? '...' : tx('הוסיפי')}
                   </button>
-                  <button onClick={() => setAddingPersonal(false)} className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>
+                  <button onClick={() => setAddingPersonal(false)} className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">{tx('ביטול')}</button>
                 </div>
               </div>
             ) : (
               <button onClick={() => setAddingPersonal(true)}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-mustard-200 text-mustard-600 text-sm font-semibold hover:bg-mustard-50 transition-colors">
-                <Plus className="w-4 h-4" /> הוסיפי פריט אישי
+                <Plus className="w-4 h-4" /> {' '}{tx('הוסיפי פריט אישי')}
               </button>
             )}
           </div>
@@ -890,16 +891,16 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
         {/* ── Quick links + Graduation (always visible) ── */}
         <div className="grid grid-cols-2 gap-3 pt-1">
           <button onClick={() => onNavigate('workshops')}
-            className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm text-right hover:shadow-md hover:-translate-y-0.5 transition-all">
+            className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm text-start hover:shadow-md hover:-translate-y-0.5 transition-all">
             <span className="text-3xl block mb-2">🛍️</span>
-            <p className="font-bold text-sand-800 text-sm">מוצרים</p>
-            <p className="text-xs text-sand-400">לקראת הלידה</p>
+            <p className="font-bold text-sand-800 text-sm">{tx('מוצרים')}</p>
+            <p className="text-xs text-sand-400">{tx('לקראת הלידה')}</p>
           </button>
           <button onClick={() => onNavigate('community')}
-            className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm text-right hover:shadow-md hover:-translate-y-0.5 transition-all">
+            className="bg-[#F5F1EB] rounded-3xl p-4 shadow-sm text-start hover:shadow-md hover:-translate-y-0.5 transition-all">
             <span className="text-3xl block mb-2">🌸</span>
-            <p className="font-bold text-sand-800 text-sm">קהילה</p>
-            <p className="text-xs text-sand-400">בנות בהריון כמוך</p>
+            <p className="font-bold text-sand-800 text-sm">{tx('קהילה')}</p>
+            <p className="text-xs text-sand-400">{tx('בנות בהריון כמוך')}</p>
           </button>
         </div>
 
@@ -908,21 +909,22 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
             className="w-full flex items-center justify-center gap-2 py-4 rounded-3xl text-white font-bold shadow-lg"
             style={{ background: 'linear-gradient(135deg, #a78bfa, #7c3aed)' }}>
             <Sparkles className="w-5 h-5" />
-            התינוק נולד! 🎉 עברי ליומן
+            
+            {tx('התינוק נולד! 🎉 עברי ליומן')}
           </button>
         ) : (
           <div className="bg-[#F5F1EB] rounded-3xl p-5 shadow-sm space-y-4">
             <div className="text-center">
               <p className="text-2xl">🎉</p>
-              <p className="font-bold text-sand-800 mt-1">מזל טוב! ספרי לנו על התינוק</p>
+              <p className="font-bold text-sand-800 mt-1">{tx('מזל טוב! ספרי לנו על התינוק')}</p>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1.5">שם התינוק/ת</label>
-              <input value={babyName} onChange={e => setBabyName(e.target.value)} placeholder="שם התינוק"
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('שם התינוק/ת')}</label>
+              <input value={babyName} onChange={e => setBabyName(e.target.value)} placeholder={tx('שם התינוק')}
                 className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-sand-600 mb-1.5">תאריך לידה</label>
+              <label className="block text-xs font-semibold text-sand-600 mb-1.5">{tx('תאריך לידה')}</label>
               <input type="date" value={babyDob} onChange={e => setBabyDob(e.target.value)}
                 max={formatDate(new Date())}
                 className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl focus:outline-none focus:border-mustard-400 text-sm" />
@@ -931,7 +933,7 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
               {(['girl', 'boy', 'other'] as const).map(g => (
                 <button key={g} onClick={() => setBabyGender(g)}
                   className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-all ${babyGender === g ? 'border-mustard-400 bg-mustard-50 text-mustard-700' : 'border-sand-200 text-sand-500'}`}>
-                  {g === 'girl' ? 'בת 👧🏼' : g === 'boy' ? 'בן 👶🏼' : 'אחר 👶🏼'}
+                  {g === 'girl' ? tx('בת 👧🏼') : g === 'boy' ? tx('בן 👶🏼') : tx('אחר 👶🏼')}
                 </button>
               ))}
             </div>
@@ -939,9 +941,9 @@ export default function PregnancyDashboard({ onNavigate }: Props) {
               <button onClick={graduate} disabled={saving || !babyName.trim()}
                 className="flex-1 py-3 rounded-2xl text-white font-bold disabled:opacity-50"
                 style={{ background: '#E7C78A' }}>
-                {saving ? 'שומרת...' : 'כניסה ליומן 🎉'}
+                {saving ? tx('שומרת...') : tx('כניסה ליומן 🎉')}
               </button>
-              <button onClick={() => setGraduating(false)} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>
+              <button onClick={() => setGraduating(false)} className="px-4 py-3 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">{tx('ביטול')}</button>
             </div>
           </div>
         )}

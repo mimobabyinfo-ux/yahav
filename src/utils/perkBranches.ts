@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 // Brenda 19.8.26: partner businesses have branches — the cafe has three —
 // and a mom standing in the app should be able to tap one and be navigated
 // there. Branches live on the perk as jsonb, so the shape that comes back
@@ -57,6 +58,6 @@ export function branchMapUrl(branch: PerkBranch): string | null {
 /** "3 סניפים" / "סניף אחד" — for the small chip on a perk card. */
 export function branchCountLabel(count: number): string | null {
   if (count <= 0) return null
-  if (count === 1) return 'סניף אחד'
-  return `${count} סניפים`
+  if (count === 1) return tx('סניף אחד')
+  return tx('{count} סניפים', { count })
 }

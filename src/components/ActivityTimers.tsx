@@ -9,6 +9,7 @@ import { formatSeconds, timerElapsedSeconds, timersForChild } from '../hooks/use
 import { sleepTypeFromStartTime } from '../utils/sleepTypeFromTime'
 import BreastfeedingQuickSwitch from './BreastfeedingQuickSwitch'
 
+import { tx } from '../i18n'
 // ── Quick-add tile config ──────────────────────────────────────────────────
 // 9 tiles total. Top six are always visible; the bottom three (medical /
 // milestone / note) live under a "More…" toggle and only appear on demand.
@@ -49,12 +50,12 @@ type Tile = {
 }
 
 const PRIMARY_TILES: Tile[] = [
-  { key: 'feeding-breast', icon: Baby,     label: 'הנקה',    modalEntry: 'feeding', modalPreset: 'breast', sinceKey: 'feeding' },
-  { key: 'feeding-bottle', icon: Milk,     label: 'בקבוק',   modalEntry: 'feeding', modalPreset: 'bottle', sinceKey: 'feeding' },
-  { key: 'feeding-solid',  icon: Utensils, label: 'אוכל',    modalEntry: 'feeding', modalPreset: 'solid',  sinceKey: 'feeding' },
-  { key: 'sleep',          icon: Moon,     label: 'שינה',     modalEntry: 'sleep',                          sinceKey: 'sleep' },
-  { key: 'diaper',         icon: Droplets, label: 'חיתול',    modalEntry: 'diaper',                         sinceKey: 'diaper' },
-  { key: 'tummy_time',     icon: Shapes,   label: 'זמן בטן',  modalEntry: 'tummy_time',                     sinceKey: 'tummy_time' },
+  { key: 'feeding-breast', icon: Baby,     label: tx('הנקה'),    modalEntry: 'feeding', modalPreset: 'breast', sinceKey: 'feeding' },
+  { key: 'feeding-bottle', icon: Milk,     label: tx('בקבוק'),   modalEntry: 'feeding', modalPreset: 'bottle', sinceKey: 'feeding' },
+  { key: 'feeding-solid',  icon: Utensils, label: tx('אוכל'),    modalEntry: 'feeding', modalPreset: 'solid',  sinceKey: 'feeding' },
+  { key: 'sleep',          icon: Moon,     label: tx('שינה'),     modalEntry: 'sleep',                          sinceKey: 'sleep' },
+  { key: 'diaper',         icon: Droplets, label: tx('חיתול'),    modalEntry: 'diaper',                         sinceKey: 'diaper' },
+  { key: 'tummy_time',     icon: Shapes,   label: tx('זמן בטן'),  modalEntry: 'tummy_time',                     sinceKey: 'tummy_time' },
 ]
 
 // Home hero mode: the three highest-frequency actions, always visible.
@@ -77,9 +78,9 @@ const TILE_COLORS: Record<string, { bg: string; icon: string }> = {
 }
 
 const MORE_TILES: Tile[] = [
-  { key: 'doctor_visit', icon: Stethoscope, label: 'רופא',    modalEntry: 'doctor_visit', more: true },
-  { key: 'milestone',    icon: Star,        label: 'אבן דרך', modalEntry: 'milestone',    more: true },
-  { key: 'note',         icon: StickyNote,  label: 'הערה',    modalEntry: 'note',         more: true },
+  { key: 'doctor_visit', icon: Stethoscope, label: tx('רופא'),    modalEntry: 'doctor_visit', more: true },
+  { key: 'milestone',    icon: Star,        label: tx('אבן דרך'), modalEntry: 'milestone',    more: true },
+  { key: 'note',         icon: StickyNote,  label: tx('הערה'),    modalEntry: 'note',         more: true },
 ]
 
 // All nine tiles now have dedicated action pages (Phase 2 fully landed).
@@ -193,6 +194,8 @@ export default function ActivityTimers({
     try {
       const totalSecs = timerElapsedSeconds(timer)
       const durationForLog = totalSecs >= 1 ? parseFloat((totalSecs / 60).toFixed(2)) : null
+      // Stored form, always Hebrew: the journal parses "משך: N דקות" back
+      // out of notes by regex (see TummyTimePage).
       const durationLabel = totalSecs < 60
         ? `${totalSecs} שניות`
         : `${Math.round(totalSecs / 60)} דקות`
@@ -291,7 +294,7 @@ export default function ActivityTimers({
       <div className="space-y-2">
         {/* Single shared empty line replaces four repeated fallbacks. */}
         {nothingLoggedYet && (
-          <p className="font-semibold" style={{ fontSize: 13, color: '#957860' }}>עוד לא נרשם כלום היום</p>
+          <p className="font-semibold" style={{ fontSize: 13, color: '#957860' }}>{tx('עוד לא נרשם כלום היום')}</p>
         )}
 
         {/* Always-visible tiles: hero = the top-3 frequency actions,
@@ -319,12 +322,12 @@ export default function ActivityTimers({
           {moreOpen ? (
             <>
               <ChevronUp className="w-4 h-4" />
-              <span>פחות</span>
+              <span>{tx('פחות')}</span>
             </>
           ) : (
             <>
               <ChevronDown className="w-4 h-4" />
-              <span>{hero ? 'עוד שש פעולות' : 'עוד פעולות'}</span>
+              <span>{hero ? tx('עוד שש פעולות') : tx('עוד פעולות')}</span>
             </>
           )}
         </button>
@@ -341,9 +344,9 @@ export default function ActivityTimers({
           }
           const TimerIcon = iconByType[timer.timer_type] ?? Milk
           const labelByType: Record<string, string> = {
-            feeding: 'הנקה',
-            sleep: 'שינה',
-            tummy_time: 'זמן בטן',
+            feeding: tx('הנקה'),
+            sleep: tx('שינה'),
+            tummy_time: tx('זמן בטן'),
           }
           return (
             <div
@@ -353,7 +356,7 @@ export default function ActivityTimers({
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <TimerIcon className="w-5 h-5 text-mustard-600" />
-                  <p className="text-sm font-bold text-sand-800">{labelByType[timer.timer_type] ?? timer.timer_type} פעיל</p>
+                  <p className="text-sm font-bold text-sand-800">{labelByType[timer.timer_type] ?? timer.timer_type} {' '}{tx('פעיל')}</p>
                 </div>
                 <div className="text-2xl font-mono font-bold text-mustard-600">
                   {elapsed[timer.id] ?? '00:00'}
@@ -362,7 +365,7 @@ export default function ActivityTimers({
 
               {timer.timer_type === 'feeding' && (
                 <div className="mb-3">
-                  <p className="text-xs text-musgo-600 mb-1.5">צד האכלה</p>
+                  <p className="text-xs text-musgo-600 mb-1.5">{tx('צד האכלה')}</p>
                   <BreastfeedingQuickSwitch
                     side={addl.breast_side ?? 'right'}
                     onChange={side => switchBreastSide(timer, side)}
@@ -375,7 +378,8 @@ export default function ActivityTimers({
                 className="w-full flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-mustard-500 to-mustard-600 text-white rounded-xl text-xs font-semibold hover:from-mustard-600 hover:to-mustard-700 transition-all"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
-                עצירה ושמירה
+                
+                {tx('עצירה ושמירה')}
               </button>
             </div>
           )

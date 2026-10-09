@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 
+import { tx } from '../../i18n'
 // The journal's single control, shared by all four views.
 //
 // Brenda 17.8.26: "I want everything to look like the day view, and not
@@ -25,7 +26,7 @@ type Props = {
 }
 
 export default function JournalHeader({
-  children, onPrev, onNext, nextDisabled, prevLabel = 'קודם', nextLabel = 'הבא', onOpenViews,
+  children, onPrev, onNext, nextDisabled, prevLabel = tx('קודם'), nextLabel = tx('הבא'), onOpenViews,
 }: Props) {
   return (
     <div className="flex items-center justify-between gap-1">
@@ -35,7 +36,7 @@ export default function JournalHeader({
           className="p-2 rounded-xl text-sand-500 hover:bg-white transition-colors"
           aria-label={prevLabel}
         >
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="flip-dir w-5 h-5" />
         </button>
       ) : <span className="w-9" />}
 
@@ -54,7 +55,7 @@ export default function JournalHeader({
           className="p-2 rounded-xl text-sand-500 hover:bg-white transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
           aria-label={nextLabel}
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="flip-dir w-5 h-5" />
         </button>
       ) : <span className="w-9" />}
     </div>

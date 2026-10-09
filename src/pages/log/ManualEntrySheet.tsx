@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { tx, DIR } from '../../i18n'
 // Shared bottom-sheet shell used by the "+" manual-entry modal on every
 // timer-based action page (Sleep, Tummy, Breast). Pages compose the fields
 // into `children` and pass the save handler in `bottom`. createPortal'd to
@@ -30,7 +31,7 @@ export default function ManualEntrySheet({ open, title, onClose, children, botto
   if (!open) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center" dir="rtl">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center" dir={DIR}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-t-3xl w-full max-w-[480px] shadow-2xl flex flex-col max-h-[90vh]">
         {/* Handle */}
@@ -44,7 +45,7 @@ export default function ManualEntrySheet({ open, title, onClose, children, botto
           <button
             onClick={onClose}
             className="p-2 rounded-xl hover:bg-sand-100 text-sand-400"
-            aria-label="סגירה"
+            aria-label={tx('סגירה')}
           >
             <X className="w-5 h-5" />
           </button>
