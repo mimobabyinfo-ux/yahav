@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { RefreshCw, Check, Clock, Users, CalendarDays, ChevronDown } from 'lucide-react'
+import { RefreshCw, Check, Clock, CalendarDays, ChevronDown, MessageCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOpenCustomer } from './CustomerCardContext'
 
@@ -110,7 +110,6 @@ export default function MakeupsPanel() {
   const [open, setOpen] = useState<Record<SectionKey, boolean>>(loadOpen)
   // 22.9.26 ברנדה: "כשאני רואה +1 משלימות או 1 שהודיעו שלא מגיעות הייתי רוצה
   // ללחוץ על זה ולראות מי זה". מפגש אחד פתוח בכל פעם, לפי סוג הצ'יפ.
-  const [detail, setDetail] = useState<{ meetingId: string; kind: 'absent' | 'in' | 'waiting' } | null>(null)
 
   function toggle(k: SectionKey) {
     setOpen(prev => {
@@ -118,9 +117,6 @@ export default function MakeupsPanel() {
       try { localStorage.setItem(OPEN_KEY, JSON.stringify(next)) } catch { /* ignore */ }
       return next
     })
-  }
-  function toggleDetail(meetingId: string, kind: 'absent' | 'in' | 'waiting') {
-    setDetail(prev => (prev && prev.meetingId === meetingId && prev.kind === kind ? null : { meetingId, kind }))
   }
 
   const load = useCallback(async () => {
@@ -178,255 +174,253 @@ export default function MakeupsPanel() {
 
   const waiting = requests.filter(r => r.status === 'requested')
   const incoming = requests.filter(r => r.status === 'confirmed' || r.status === 'attended')
-  const isDetail = (meetingId: string, kind: 'absent' | 'in' | 'waiting') =>
-    detail?.meetingId === meetingId && detail.kind === kind
-  const busyMeetings = roster.filter(r => !r.is_cancelled && (r.absent > 0 || r.makeups_in > 0 || r.makeups_waiting > 0))
+  // 10.10.26 (Lovable mockup): one week-by-week list of the meetings that
+  // changed, each with a head count that adds up ("8 רשומות · 2 לא מגיעות ·
+  // +1 משלימה = 7 מגיעות") and the names as small colored chips; tapping a
+  // meeting opens the names with phone + WhatsApp. Meetings with no change
+  // fold into one line. Pending requests and approved make-ups follow.
+  const [openMeeting, setOpenMeeting] = useState<string | null>(null)
+  const [showQuiet, setShowQuiet] = useState(false)
+  const live = roster.filter(r => !r.is_cancelled)
+  const busyMeetings = live.filter(r => r.absent > 0 || r.makeups_in > 0 || r.makeups_waiting > 0)
+  const quietMeetings = live.filter(r => !(r.absent > 0 || r.makeups_in > 0 || r.makeups_waiting > 0))
+  const weekOf = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number)
+    const t = new Date(Date.UTC(y, m - 1, d))
+    t.setUTCDate(t.getUTCDate() - t.getUTCDay())
+    return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`
+  }
+  const thisWeek = weekOf(todayIso())
+  const weeks: { key: string; items: Roster[] }[] = []
+  for (const m of busyMeetings) {
+    const k = weekOf(m.meeting_date)
+    const last = weeks[weeks.length - 1]
+    if (last && last.key === k) last.items.push(m); else weeks.push({ key: k, items: [m] })
+  }
+  const weekLabel = (k: string) => k === thisWeek ? 'השבוע' : k === addDaysIso(thisWeek, 7) ? 'שבוע הבא' : `שבוע ${ddmm(k)}`
+  const short = (t: string) => t.replace(/^ליווי התפתחותי\s*-\s*/, '').replace(/^סדנת\s+/, '')
+  const first = (n: string | null) => (n ?? '').split(' ')[0] || '?'
+  const wa = (phone: string | null) => phone ? `https://wa.me/${phone.replace(/\D/g, '').replace(/^0/, '972')}` : null
+  const when = (date: string, time: string | null) => `${dayName(date)} ${ddmm(date)}${time ? ` ${time.slice(0, 5)}` : ''}`
+
+  const person = (key: string, name: string | null, phone: string | null, note: React.ReactNode, tone: 'rust' | 'green' | 'gray') => (
+    <li key={key} className={`mk-person ${tone}`}>
+      <span className="mk-dot" />
+      <NameLink className="mk-pname" name={name} phone={phone} />
+      <span className="mk-pnote">{note}</span>
+      {wa(phone) && <a href={wa(phone)!} target="_blank" rel="noopener noreferrer" className="mk-icon" title="וואטסאפ" aria-label={`וואטסאפ ל${name ?? ''}`}><MessageCircle className="w-4 h-4" /></a>}
+    </li>
+  )
+
+  const meetingCard = (m: Roster) => {
+    const abs = absences.filter(a => a.meeting_id === m.meeting_id)
+    const ins = requests.filter(r => r.target_meeting_id === m.meeting_id && r.status !== 'requested')
+    const wait = requests.filter(r => r.target_meeting_id === m.meeting_id && r.status === 'requested')
+    const coming = m.registered - m.absent + m.makeups_in
+    const isOpen = openMeeting === m.meeting_id
+    return (
+      <article key={m.meeting_id} className={`mk-card${isOpen ? ' open' : ''}`}>
+        <button type="button" className="mk-head" onClick={() => setOpenMeeting(isOpen ? null : m.meeting_id)} aria-expanded={isOpen}>
+          <span className="mk-when"><b>{dayName(m.meeting_date)} {ddmm(m.meeting_date)}</b>{m.start_time && <span>{m.start_time.slice(0, 5)}</span>}</span>
+          <span className="min-w-0 flex-1">
+            <span className="mk-title">{short(m.workshop_title)} · מפגש {m.meeting_number}{m.cohort_label ? <span className="mk-faint"> · {m.cohort_label}</span> : null}</span>
+            <span className="mk-count">
+              {m.registered} רשומות
+              {m.absent > 0 && <> · <span className="rust">{m.absent} לא מגיעות</span></>}
+              {m.makeups_in > 0 && <> · <span className="green">+{m.makeups_in} {m.makeups_in === 1 ? 'משלימה' : 'משלימות'}</span></>}
+              {' = '}<b>{coming} מגיעות</b>
+              {m.capacity ? <span className="mk-faint"> מתוך {m.capacity}</span> : null}
+              {m.makeups_waiting > 0 && <span className="mk-faint"> · {m.makeups_waiting} ממתינות</span>}
+            </span>
+            <span className="mk-chips">
+              {abs.map(a => <span key={a.absence_id} className="mk-chip rust">{first(a.mother_name)}</span>)}
+              {ins.map(r => <span key={r.request_id} className="mk-chip green">{first(r.mother_name)}</span>)}
+              {wait.map(r => <span key={r.request_id} className="mk-chip">{first(r.mother_name)}</span>)}
+              {m.allocated_at && <span className="mk-faint">הוקצה</span>}
+            </span>
+          </span>
+          <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} style={{ color: '#A2937D' }} />
+        </button>
+        {isOpen && (
+          <div className="mk-body">
+            {abs.length > 0 && (
+              <div>
+                <p className="mk-group rust">לא מגיעות</p>
+                <ul>
+                  {abs.map(a => person(a.absence_id, a.mother_name, a.mother_phone,
+                    a.makeup
+                      ? `${a.makeup.status === 'requested' ? 'ביקשה להשלים' : 'משלימה'} ב${when(a.makeup.makeup_date, a.makeup.makeup_time)}`
+                      : <span className="rust">לא ביקשה השלמה</span>, 'rust'))}
+                </ul>
+              </div>
+            )}
+            {ins.length > 0 && (
+              <div>
+                <p className="mk-group green">משלימות מקבוצה אחרת</p>
+                <ul>
+                  {ins.map(r => person(r.request_id, r.mother_name, r.mother_phone,
+                    <>פספסה ב-{ddmm(r.missed_date)} · קבוצת {r.source_cohort_label}{r.status === 'attended' && <span className="green"> · הגיעה</span>}</>, 'green'))}
+                </ul>
+              </div>
+            )}
+            {wait.length > 0 && (
+              <div>
+                <p className="mk-group">ממתינות לאישור</p>
+                <ul>
+                  {wait.map(r => person(r.request_id, r.mother_name, r.mother_phone,
+                    <>פספסה ב-{ddmm(r.missed_date)} · קבוצת {r.source_cohort_label}</>, 'gray'))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </article>
+    )
+  }
+
+  const reqRow = (r: Request, done: boolean) => (
+    <li key={r.request_id} className="mk-req">
+      <span className="min-w-0 flex-1">
+        <NameLink className="mk-pname" name={r.mother_name} phone={r.mother_phone} />
+        <span className="mk-route">
+          {short(r.workshop_title)} · מפגש {r.meeting_number} · {ddmm(r.missed_date)}
+          <span className="arrow">←</span>
+          <b>{when(r.makeup_date, r.makeup_time)}</b>
+          <span className="mk-faint"> · קבוצת {r.makeup_cohort_label}</span>
+        </span>
+      </span>
+      {wa(r.mother_phone) && <a href={wa(r.mother_phone)!} target="_blank" rel="noopener noreferrer" className="mk-icon" title="וואטסאפ"><MessageCircle className="w-4 h-4" /></a>}
+      {done && (
+        <button type="button" onClick={() => markAttended(r.request_id, r.status !== 'attended')} className={`mk-btn${r.status === 'attended' ? ' ok' : ''}`}>
+          {r.status === 'attended' ? <><Check className="w-3.5 h-3.5" /> הגיעה</> : r.makeup_date <= todayIso() ? 'סימון כהגיעה' : 'מאושרת'}
+        </button>
+      )}
+    </li>
+  )
 
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-start justify-between gap-3">
+    <div className="space-y-4" dir="rtl">
+      <style>{MK_CSS}</style>
+      <header className="mk-header">
         <div>
-          <h2 className="text-xl font-bold text-sand-800">השלמות מפגשים</h2>
-          <p className="text-sand-400 text-sm">
-            ההקצאה רצה לבד כל שעה, 24 שעות לפני כל מפגש. המסך הזה רק מראה מה קורה.
-          </p>
+          <h1>השלמות</h1>
+          <p className="mk-faint">ההקצאה רצה לבד כל שעה. כאן רואים מי מגיעה לכל מפגש.</p>
         </div>
-        <button
-          onClick={runAllocation}
-          disabled={running}
-          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
-          style={{ background: '#C8A460', color: '#33281B' }}
-        >
+        <button onClick={runAllocation} disabled={running} className="mk-btn quiet" title="מריץ עכשיו את ההקצאה שרצה לבד כל שעה">
           <RefreshCw className={`w-3.5 h-3.5 ${running ? 'animate-spin' : ''}`} />
           הרצת הקצאה עכשיו
         </button>
-      </div>
+      </header>
 
-      {note && (
-        <p className="text-xs font-semibold text-[#434434] bg-[#E6E6E0] rounded-xl px-3 py-2">{note}</p>
-      )}
+      {note && <p className="mk-note">{note}</p>}
 
       {loading ? (
         <p className="text-center text-sand-400 text-sm py-10">טוענת...</p>
       ) : (
         <>
-          {/* המפגשים הקרובים שיש בהם תנועה. ראשון מ-22.9.26, ברנדה: "זה הכי חשוב לי,
-              ככה אני יכולה להבין מי מגיע למפגשים הקרובים ומי לא". */}
-          <section className="space-y-2">
-            <button
-              type="button"
-              onClick={() => toggle('meetings')}
-              className="w-full flex items-center gap-1.5 text-sm font-bold text-sand-700 py-1"
-              aria-expanded={open.meetings}
-            >
-              <CalendarDays className="w-4 h-4 text-sand-400" />
-              מפגשים קרובים עם שינויים
-              <ChevronDown className={`w-4 h-4 text-sand-400 mr-auto transition-transform ${open.meetings ? '' : '-rotate-90'}`} />
-            </button>
-            {open.meetings && (
-            busyMeetings.length === 0 ? (
-              <p className="text-sand-400 text-sm bg-sand-50 rounded-2xl px-4 py-3">
-                בשלושת השבועות הקרובים אין היעדרויות ואין השלמות. הכל כרגיל.
-              </p>
-            ) : (
-              busyMeetings.map(m => (
-                <div key={m.meeting_id} className="rounded-2xl bg-white border border-sand-200 p-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-bold text-sand-800">
-                      {dayName(m.meeting_date)} {ddmm(m.meeting_date)}
-                      {m.start_time ? ` ${m.start_time.slice(0, 5)}` : ''}
-                    </span>
-                    <span className="text-[11px] text-sand-400">
-                      {m.workshop_title} · מפגש {m.meeting_number}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[11px]">
-                    <span className="inline-flex items-center gap-1 font-semibold text-sand-600 bg-sand-100 px-2 py-0.5 rounded-full">
-                      <Users className="w-3 h-3" /> {m.registered - m.absent + m.makeups_in}/{m.capacity} צפויות
-                    </span>
-                    {m.absent > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => toggleDetail(m.meeting_id, 'absent')}
-                        className={`text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-semibold ${isDetail(m.meeting_id, 'absent') ? 'ring-2 ring-amber-300' : ''}`}
-                      >
-                        {m.absent} הודיעו שלא מגיעות
-                      </button>
-                    )}
-                    {m.makeups_in > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => toggleDetail(m.meeting_id, 'in')}
-                        className={`text-mustard-700 bg-mustard-50 px-2 py-0.5 rounded-full font-semibold ${isDetail(m.meeting_id, 'in') ? 'ring-2 ring-mustard-300' : ''}`}
-                      >
-                        +{m.makeups_in} משלימות
-                      </button>
-                    )}
-                    {m.makeups_waiting > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => toggleDetail(m.meeting_id, 'waiting')}
-                        className={`text-sand-500 bg-sand-100 px-2 py-0.5 rounded-full ${isDetail(m.meeting_id, 'waiting') ? 'ring-2 ring-sand-300' : ''}`}
-                      >
-                        {m.makeups_waiting} בתור
-                      </button>
-                    )}
-                    {m.allocated_at && <span className="text-sand-400">הוקצה</span>}
-                  </div>
-
-                  {isDetail(m.meeting_id, 'absent') && (
-                    <ul className="mt-2 space-y-1 border-t border-sand-100 pt-2">
-                      {absences.filter(a => a.meeting_id === m.meeting_id).map(a => (
-                        <li key={a.absence_id} className="flex items-baseline gap-2 flex-wrap text-[11px]">
-                          <NameLink className="text-xs font-bold text-sand-800" name={a.mother_name} phone={a.mother_phone} />
-                          <span className="text-sand-400" dir="ltr">{a.mother_phone ?? ''}</span>
-                          {a.makeup ? (
-                            <span className="text-sand-500">
-                              {a.makeup.status === 'requested' ? 'ביקשה להשלים ב' : 'משלימה ב'}
-                              {dayName(a.makeup.makeup_date)} {ddmm(a.makeup.makeup_date)}
-                              {a.makeup.makeup_time ? ` ${a.makeup.makeup_time.slice(0, 5)}` : ''}
-                            </span>
-                          ) : (
-                            <span className="text-amber-700 font-semibold">לא ביקשה השלמה</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {(isDetail(m.meeting_id, 'in') || isDetail(m.meeting_id, 'waiting')) && (
-                    <ul className="mt-2 space-y-1 border-t border-sand-100 pt-2">
-                      {requests
-                        .filter(r => r.target_meeting_id === m.meeting_id &&
-                          (detail?.kind === 'in' ? r.status !== 'requested' : r.status === 'requested'))
-                        .map(r => (
-                          <li key={r.request_id} className="flex items-baseline gap-2 flex-wrap text-[11px]">
-                            <NameLink className="text-xs font-bold text-sand-800" name={r.mother_name} phone={r.mother_phone} />
-                            <span className="text-sand-400" dir="ltr">{r.mother_phone ?? ''}</span>
-                            <span className="text-sand-500">
-                              פספסה מפגש {r.meeting_number} ב-{ddmm(r.missed_date)} (קבוצת {r.source_cohort_label})
-                            </span>
-                            {r.status === 'attended' && <span className="text-[#2E7D32]">✓ הגיעה</span>}
-                          </li>
-                        ))}
-                    </ul>
-                  )}
-                </div>
-              ))
-            )
+          {/* ברנדה 22.9.26: "זה הכי חשוב לי, ככה אני יכולה להבין מי מגיע למפגשים הקרובים ומי לא". */}
+          <section aria-label="מפגשים קרובים">
+            <div className="mk-h"><CalendarDays className="w-4 h-4" /><h2>מי מגיעה בשלושת השבועות הקרובים</h2></div>
+            {busyMeetings.length === 0 ? (
+              <p className="mk-calm"><Check className="w-4 h-4" /> אין היעדרויות ואין השלמות. הכל כרגיל.</p>
+            ) : weeks.map(w => (
+              <div key={w.key} className="mk-week">
+                <p className="mk-wlabel">{weekLabel(w.key)}</p>
+                <div className="mk-list">{w.items.map(meetingCard)}</div>
+              </div>
+            ))}
+            {quietMeetings.length > 0 && (
+              <div className="mk-fold">
+                <button type="button" onClick={() => setShowQuiet(v => !v)} aria-expanded={showQuiet}>
+                  <span>{quietMeetings.length === 1 ? 'מפגש אחד בלי שינויים' : `${quietMeetings.length} מפגשים בלי שינויים`}</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showQuiet ? 'rotate-180' : ''}`} style={{ color: '#A2937D' }} />
+                </button>
+                {showQuiet && (
+                  <ul className="mk-quiet">
+                    {quietMeetings.map(m => (
+                      <li key={m.meeting_id}><b>{dayName(m.meeting_date)} {ddmm(m.meeting_date)}{m.start_time ? ` ${m.start_time.slice(0, 5)}` : ''}</b> · {short(m.workshop_title)} · מפגש {m.meeting_number} · {m.registered} רשומות</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
           </section>
 
-          {/* ממתינות בתור.
-              ברנדה 3.9.26: "יותר מדי מלל, אני לא מצליח להבין מה רשום". המידע
-              הוא תמיד אותם ארבעה שדות (מי, איזה מפגש, מאיפה, לאן), אז הוא
-              נפרס לשתי משבצות עם תווית קטנה במקום להיסחב כמשפט. */}
-          <section className="space-y-2">
-            <button
-              type="button"
-              onClick={() => toggle('waiting')}
-              className="w-full flex items-center gap-1.5 text-sm font-bold text-sand-700 py-1"
-              aria-expanded={open.waiting}
-            >
-              <Clock className="w-4 h-4 text-sand-400" />
-              ממתינות לתשובה ({waiting.length})
-              <ChevronDown className={`w-4 h-4 text-sand-400 mr-auto transition-transform ${open.waiting ? '' : '-rotate-90'}`} />
+          <section aria-label="ממתינות לתשובה">
+            <button type="button" className="mk-h mk-toggle" onClick={() => toggle('waiting')} aria-expanded={open.waiting}>
+              <Clock className="w-4 h-4" /><h2>ממתינות לתשובה</h2>{waiting.length > 0 && <span className="mk-count-b">{waiting.length}</span>}
+              <ChevronDown className={`w-4 h-4 mr-auto transition-transform ${open.waiting ? 'rotate-180' : ''}`} style={{ color: '#A2937D' }} />
             </button>
-            {open.waiting && (
-            waiting.length === 0 ? (
-              <p className="text-sand-400 text-sm bg-sand-50 rounded-2xl px-4 py-3">
-                אף אחת לא ממתינה כרגע.
-              </p>
-            ) : (
-              waiting.map(r => (
-                <div key={r.request_id} className="rounded-2xl bg-white border border-sand-200 p-3">
-                  <div className="flex items-baseline gap-2">
-                    <NameLink className="text-sm font-bold text-sand-800" name={r.mother_name} phone={r.mother_phone} />
-                    <span className="text-[11px] text-sand-400" dir="ltr">{r.mother_phone ?? ''}</span>
-                    {r.queue_position != null && (
-                      <span className="text-[10px] font-semibold text-sand-600 bg-sand-100 px-2 py-0.5 rounded-full mr-auto flex-shrink-0">
-                        מקום {r.queue_position} בתור
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-stretch gap-2 mt-2">
-                    <div className="flex-1 rounded-xl bg-sand-50 px-3 py-2 min-w-0">
-                      <p className="text-[10px] text-sand-400">פספסה</p>
-                      <p className="text-xs font-bold text-sand-700">מפגש {r.meeting_number}</p>
-                      <p className="text-[11px] text-sand-500">{ddmm(r.missed_date)}</p>
-                    </div>
-                    <div className="flex items-center text-sand-300 text-lg flex-shrink-0">←</div>
-                    <div className="flex-1 rounded-xl bg-mustard-50 px-3 py-2 min-w-0">
-                      <p className="text-[10px] text-mustard-600">רוצה להשלים</p>
-                      <p className="text-xs font-bold text-sand-700">
-                        {dayName(r.makeup_date)} {ddmm(r.makeup_date)}
-                        {r.makeup_time ? ` ${r.makeup_time.slice(0, 5)}` : ''}
-                      </p>
-                      <p className="text-[11px] text-sand-500 truncate">קבוצת {r.makeup_cohort_label}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )
-            )}
+            {open.waiting && (waiting.length === 0
+              ? <p className="mk-faint" style={{ padding: '0 4px' }}>אף אחת לא ממתינה כרגע.</p>
+              : <ul className="mk-reqs">{waiting.map(r => reqRow(r, false))}</ul>)}
           </section>
 
-          {/* אושרו */}
-          <section className="space-y-2">
-            <button
-              type="button"
-              onClick={() => toggle('incoming')}
-              className="w-full flex items-center gap-1.5 text-sm font-bold text-sand-700 py-1"
-              aria-expanded={open.incoming}
-            >
-              <Check className="w-4 h-4 text-sand-400" />
-              משלימות שאושרו ({incoming.length})
-              <ChevronDown className={`w-4 h-4 text-sand-400 mr-auto transition-transform ${open.incoming ? '' : '-rotate-90'}`} />
+          <section aria-label="השלמות שאושרו">
+            <button type="button" className="mk-h mk-toggle" onClick={() => toggle('incoming')} aria-expanded={open.incoming}>
+              <Check className="w-4 h-4" /><h2>השלמות שאושרו</h2><span className="mk-faint">{incoming.length}</span>
+              <ChevronDown className={`w-4 h-4 mr-auto transition-transform ${open.incoming ? 'rotate-180' : ''}`} style={{ color: '#A2937D' }} />
             </button>
-            {open.incoming && (
-            incoming.length === 0 ? (
-              <p className="text-sand-400 text-sm bg-sand-50 rounded-2xl px-4 py-3">
-                עדיין אין השלמות מאושרות.
-              </p>
-            ) : (
-              incoming.map(r => (
-                <div key={r.request_id} className="rounded-2xl bg-white border border-sand-200 p-3">
-                  <div className="flex items-baseline gap-2">
-                    <NameLink className="text-sm font-bold text-sand-800" name={r.mother_name} phone={r.mother_phone} />
-                    <span className="text-[11px] text-sand-400" dir="ltr">{r.mother_phone ?? ''}</span>
-                    <button
-                      onClick={() => markAttended(r.request_id, r.status !== 'attended')}
-                      className={`mr-auto flex-shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-lg ${
-                        r.status === 'attended'
-                          ? 'text-[#2E7D32] bg-[#E8F5E9]'
-                          : 'text-sand-600 bg-sand-100 hover:bg-sand-200'
-                      }`}
-                    >
-                      {r.status === 'attended' ? '✓ הגיעה' : 'סימון כהגיעה'}
-                    </button>
-                  </div>
-                  <div className="flex items-stretch gap-2 mt-2">
-                    <div className="flex-1 rounded-xl bg-sand-50 px-3 py-2 min-w-0">
-                      <p className="text-[10px] text-sand-400">פספסה</p>
-                      <p className="text-xs font-bold text-sand-700">מפגש {r.meeting_number}</p>
-                      <p className="text-[11px] text-sand-500">{ddmm(r.missed_date)}</p>
-                    </div>
-                    <div className="flex items-center text-sand-300 text-lg flex-shrink-0">←</div>
-                    <div className="flex-1 rounded-xl bg-[#E8F5E9] px-3 py-2 min-w-0">
-                      <p className="text-[10px] text-[#2E7D32] opacity-80">מגיעה אלייך</p>
-                      <p className="text-xs font-bold text-sand-700">
-                        {dayName(r.makeup_date)} {ddmm(r.makeup_date)}
-                        {r.makeup_time ? ` ${r.makeup_time.slice(0, 5)}` : ''}
-                      </p>
-                      <p className="text-[11px] text-sand-500 truncate">קבוצת {r.makeup_cohort_label}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )
-            )}
+            {open.incoming && (incoming.length === 0
+              ? <p className="mk-faint" style={{ padding: '0 4px' }}>עדיין אין השלמות מאושרות.</p>
+              : <ul className="mk-reqs">{incoming.map(r => reqRow(r, true))}</ul>)}
           </section>
         </>
       )}
     </div>
   )
 }
+
+const MK_CSS = `
+.mk-header{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px}
+.mk-header h1{font-size:26px;font-weight:700;color:#443327;line-height:1.2}
+.mk-faint{font-size:12.5px;font-weight:600;color:#A2937D}
+.mk-btn{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;border-radius:10px;padding:7px 12px;white-space:nowrap;background:#F6ECD8;color:#6E5836}
+.mk-btn.quiet{background:transparent;color:#8A7A63;border:1px solid #E9E2D6}
+.mk-btn.quiet:hover{background:#F6F3ED}
+.mk-btn.ok{background:#E7F0E4;color:#3F5B39}
+.mk-btn:disabled{opacity:.5}
+.mk-note{font-size:13px;font-weight:600;color:#434434;background:#ECEDE6;border-radius:12px;padding:9px 12px}
+.mk-h{display:flex;align-items:center;gap:7px;margin:4px 2px 8px;color:#8A6A2F}
+.mk-h h2{font-size:17px;font-weight:700;color:#443327}
+.mk-toggle{width:100%;text-align:right}
+.mk-count-b{font-size:12px;font-weight:800;background:#F5E2D8;color:#8B4A30;border-radius:999px;padding:1px 9px}
+.mk-calm{display:flex;align-items:center;gap:6px;font-size:14px;color:#3F5B39;font-weight:600;background:#EEF3EA;border-radius:12px;padding:10px 14px}
+.mk-week{margin-bottom:12px}
+.mk-wlabel{font-size:13px;font-weight:800;color:#8A7A63;margin:0 4px 6px}
+.mk-list{display:flex;flex-direction:column;gap:8px}
+.mk-card{background:#fff;border:1px solid #E9E2D6;border-radius:16px;overflow:hidden}
+.mk-card.open{border-color:#E2D3B4}
+.mk-head{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;text-align:right}
+.mk-head:hover{background:#FCFAF6}
+.mk-when{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;width:64px;background:#F6ECD8;border-radius:12px;padding:6px 0;color:#4A3A28}
+.mk-when b{font-size:13px;white-space:nowrap}
+.mk-when span{font-size:12px;font-weight:700;color:#6E5836}
+.mk-title{display:block;font-size:15px;font-weight:700;color:#443327}
+.mk-count{display:block;font-size:13px;font-weight:600;color:#6E5836;margin-top:2px}
+.mk-count b{color:#443327}
+.rust{color:#8B4A30}.green{color:#3F5B39}
+.mk-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.mk-chip{font-size:11.5px;font-weight:700;border-radius:999px;padding:1px 9px;background:#F1EBE1;color:#6E5836}
+.mk-chip.rust{background:#F5E2D8;color:#8B4A30}
+.mk-chip.green{background:#E7F0E4;color:#3F5B39}
+.mk-body{display:flex;flex-direction:column;gap:10px;border-top:1px solid #F1EBE1;padding:10px 14px 12px;background:#FBF9F5}
+.mk-group{font-size:12px;font-weight:800;color:#8A7A63;margin-bottom:4px}
+.mk-person{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:5px 0}
+.mk-dot{width:7px;height:7px;border-radius:99px;background:#CFC4B4;flex-shrink:0}
+.mk-person.rust .mk-dot{background:#B5694A}.mk-person.green .mk-dot{background:#6E8F5E}
+.mk-pname{font-size:14px;font-weight:700;color:#443327}
+.mk-pnote{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:#8A7A63}
+.mk-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;color:#8A7A63}
+.mk-icon:hover{background:#F1EBE1;color:#443327}
+.mk-fold{background:#fff;border:1px solid #E9E2D6;border-radius:14px;overflow:hidden}
+.mk-fold>button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 14px;font-size:13.5px;font-weight:700;color:#6E5836;text-align:right}
+.mk-quiet{border-top:1px solid #F1EBE1;padding:8px 14px;font-size:12.5px;color:#8A7A63;display:flex;flex-direction:column;gap:4px}
+.mk-quiet b{color:#443327}
+.mk-reqs{display:flex;flex-direction:column;gap:6px}
+.mk-req{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #E9E2D6;border-radius:14px;padding:10px 12px}
+.mk-route{display:block;font-size:12.5px;font-weight:600;color:#8A7A63;margin-top:2px}
+.mk-route .arrow{margin:0 6px;color:#C8A460}
+.mk-route b{color:#443327}
+@media (max-width:640px){.mk-header h1{font-size:22px}.mk-req{flex-wrap:wrap}}
+`
