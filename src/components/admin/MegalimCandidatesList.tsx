@@ -67,11 +67,11 @@ export default function MegalimCandidatesList({ megalim, onChanged }: { megalim:
   }
 
   return (
-    <div className="bg-white rounded-3xl p-4 lg:p-5 shadow-sm" dir="rtl">
-      <p className="font-bold text-sand-800">
-        בגיל למגלים עכשיו · {megalim.candidates.length}
-      </p>
-      <p className="text-xs text-sand-500 mb-3">
+    <div dir="rtl">
+      <div className="lv-group-h">
+        <h2>בגיל למגלים עכשיו<span>{megalim.candidates.length}</span></h2>
+      </div>
+      <p className="mb-2 px-0.5" style={{ fontSize: 13, color: '#8A7A63' }}>
         סיימו עטופים, עוד לא נרשמו למגלים, והתינוק/ת בן/בת {ageHe(megalim.fromMonths)} ומעלה. לפי תאריך הלידה, לא לפי ה-CRM.
       </p>
 
@@ -90,18 +90,15 @@ export default function MegalimCandidatesList({ megalim, onChanged }: { megalim:
           <p className="font-semibold" style={{ fontSize: 14, color: '#8A7A63' }}>אין כרגע בוגרות עטופים בטווח הגיל של מגלים</p>
         </div>
       ) : (
-        <div className="space-y-1">
+        <div>
           {megalim.candidates.map(c => (
-            <div key={c.leadId} className="flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors hover:bg-[#FAF7F1]">
-              <span className="flex flex-col items-center justify-center flex-shrink-0 rounded-xl" style={{ width: 52, padding: '5px 0', background: '#F6ECD8' }}>
-                <span className="font-display" style={{ fontSize: 16, lineHeight: 1, color: '#6E5836' }}>{c.ageMonths}</span>
-                <span className="font-semibold" style={{ fontSize: 11, color: '#8A7A63' }}>חודשים</span>
-              </span>
-              <p className="flex-1 min-w-0 truncate" style={{ fontSize: 14 }}>
-                <button onClick={() => openCustomer({ phone: c.phone, leadId: c.leadId })} className="font-bold hover:underline" style={{ color: '#443327' }}>{c.name}</button>
-                {c.babyName && <span style={{ color: '#A2937D' }}> · {c.babyName}</span>}
-                <span style={{ color: '#A2937D' }}> · סיימה עטופים {agoHe(c.daysSinceFinish)}</span>
-              </p>
+            <div key={c.leadId} className="lv-grad">
+              <span className="lv-age"><strong>{c.ageMonths}</strong><span>חודשים</span></span>
+              <div className="min-w-0">
+                <button onClick={() => openCustomer({ phone: c.phone, leadId: c.leadId })} className="font-semibold hover:underline text-right" style={{ fontSize: 16, color: '#443327' }}>{c.name}{c.babyName ? ` · ${c.babyName}` : ''}</button>
+                <p className="mt-1" style={{ fontSize: 12, color: '#8A7A63' }}>סיימה עטופים {agoHe(c.daysSinceFinish)}</p>
+              </div>
+              <div className="acts flex items-center gap-2">
               <a
                 href={waHref(c.phone, `היי ${c.name.split(' ')[0]}! 🐣`)}
                 target="_blank"
@@ -120,6 +117,7 @@ export default function MegalimCandidatesList({ megalim, onChanged }: { megalim:
               >
                 לא רלוונטי
               </button>
+              </div>
             </div>
           ))}
         </div>

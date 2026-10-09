@@ -312,6 +312,94 @@ function phoneKey(p: string | null | undefined): string {
   return d.startsWith('972') ? '0' + d.slice(3) : d
 }
 
+const LV_CSS = `
+/* 9.10.26: the leads page look from the approved Lovable mockup ("lv-"). */
+.lv-page{color:#443327}
+.lv-sync{display:flex;align-items:center;gap:6px;font-size:13px;color:#8A7A63;margin-top:2px}
+.lv-owner{display:flex;gap:3px;padding:3px;border:1px solid #E9E2D6;border-radius:10px;background:#fff;width:fit-content}
+.lv-owner button{height:30px;min-width:66px;border-radius:7px;color:#8A7A63;font-size:13px;font-weight:600}
+.lv-owner button.sel{background:#F6ECD8;color:#443327;font-weight:700}
+.lv-avail{display:flex;flex-wrap:wrap;gap:8px}
+.lv-avail-chip{display:inline-flex;align-items:center;gap:5px;min-height:36px;padding:7px 12px;border:1px solid #E9E2D6;border-radius:9px;background:#fff;font-size:13px;text-align:right}
+.lv-avail-chip span{color:#8A7A63}
+.lv-avail-chip.sel{border-color:#C8A460;background:#F6ECD8}
+.lv-avail-chip.limited{background:#F5E2D8;color:#8B4A30}.lv-avail-chip.limited span{color:#8B4A30}
+.lv-avail-chip.full{background:#F6F3ED;color:#A2937D}
+.lv-pill{display:inline-flex;gap:5px;padding:5px 10px;border-radius:7px;background:#E7F0E4;color:#3F5B39;font-size:12px;font-weight:600}
+.lv-pill.full{background:#EFE9DF;color:#A2937D}
+.lv-tabs{display:flex;gap:20px;overflow-x:auto;border-bottom:1px solid #E9E2D6}
+.lv-tab{flex-shrink:0;height:40px;padding:0 2px;color:#8A7A63;border-bottom:2px solid transparent;margin-bottom:-1px;font-size:14px;font-weight:500;white-space:nowrap}
+.lv-tab span{font-size:12px;color:#A2937D;margin-right:4px}
+.lv-tab.sel{color:#443327;border-color:#C8A460;font-weight:700}
+.lv-search{position:relative;max-width:390px}
+.lv-search input{width:100%;height:40px;border:1px solid #E9E2D6;border-radius:9px;background:#fff;padding:0 36px 0 34px;font-size:13px;outline:none}
+.lv-search input:focus{border-color:#C8A460}
+.lv-prio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.lv-prio a{display:flex;align-items:center;gap:12px;min-height:72px;padding:12px 18px;border:1px solid #E9E2D6;border-radius:13px;background:#fff}
+.lv-prio strong{font-family:'Varela Round',sans-serif;font-size:28px;font-weight:400}
+.lv-prio span{font-size:15px;font-weight:700}
+.lv-prio a.high{background:#F5E2D8;color:#8B4A30;border-color:#E8C3B2}
+.lv-prio a.medium{background:#F6ECD8}
+.lv-prio a.low{background:#EFE9DF;color:#8A7A63}
+.lv-group-h{margin:26px 2px 12px}
+.lv-group-h h2{display:flex;align-items:center;gap:8px;font-size:19px;font-weight:700}
+.lv-group-h h2 span{color:#A2937D;font-size:13px;font-weight:400}
+.lv-group-h p{color:#8A7A63;font-size:13px;margin-top:3px}
+.lv-grid{display:grid;gap:14px;align-items:start}
+@media(min-width:1024px){.lv-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.lv-card{background:#fff;border:1px solid #E9E2D6;border-radius:20px;overflow:hidden;min-width:0}
+.lv-reason{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;padding:10px 18px;background:#F6F3ED;border-bottom:1px solid #E9E2D6;font-size:12.5px;line-height:1.5}
+.lv-reason strong{font-weight:600}
+.lv-reason .when{color:#8A7A63;font-size:11.5px}
+.lv-dot{width:6px;height:6px;border-radius:50%;background:#C8A460;flex-shrink:0}
+.lv-card.high .lv-reason{background:#FAEEE8}.lv-card.high .lv-dot{background:#8B4A30}
+.lv-card.low .lv-dot{background:#BCAE99}
+.lv-body{padding:15px 18px 12px}
+.lv-id{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start}
+.lv-name{font-size:19px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}
+.lv-phone{display:inline-block;margin-top:4px;color:#8A7A63;font-size:13px}
+.lv-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.lv-chip{display:inline-flex;align-items:center;font-size:11px;font-weight:600;border-radius:6px;padding:3px 7px;background:#F6F3ED;color:#8A7A63;line-height:1.35}
+.lv-chip.blue{background:#E4EBEF;color:#35505C}.lv-chip.mustard{background:#F6ECD8;color:#6E5836}.lv-chip.rust{background:#F5E2D8;color:#8B4A30}.lv-chip.green{background:#E7F0E4;color:#3F5B39}.lv-chip.purple{background:#EDE3F5;color:#5B3B7A}
+.lv-next{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:13.5px;line-height:1.5}
+.lv-next span{color:#A2937D}.lv-next strong{font-weight:600}
+.lv-why{font-size:12px;color:#8A7A63;margin-top:3px}
+.lv-msg{margin-top:10px;padding:8px 11px;background:#E4EBEF;color:#35505C;border-radius:8px;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.lv-app{display:flex;gap:5px;margin-top:8px;color:#3F5B39;font-size:12px;line-height:1.5}
+.lv-note{margin-top:8px;font-size:11.5px;color:#8A7A63;line-height:1.55;white-space:pre-line;overflow-wrap:anywhere}
+.lv-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 18px;border-top:1px solid #E9E2D6}
+.lv-btn{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;border-radius:9px;padding:7px 12px;white-space:nowrap}
+.lv-btn.primary{background:#C8A460;color:#33281B}
+.lv-btn.soft{background:#F6ECD8;color:#6E5836}
+.lv-btn.icon{padding:7px;background:#F6F3ED;color:#6E5836}
+.lv-btn.plain{color:#8A7A63;padding-inline:4px}
+.lv-btn:disabled{opacity:.5}
+.lv-transfer{margin-right:auto}
+.lv-outcomes{display:flex;flex-wrap:wrap;gap:2px;padding:0 12px 8px}
+.lv-outcome{font-size:12.5px;height:30px;padding:0 9px;color:#8A7A63;border-radius:7px;font-weight:600}
+.lv-outcome[aria-pressed="true"]{background:#F6ECD8;color:#443327}
+.lv-outcome.ok{color:#3F5B39}.lv-outcome.loss{color:#8B4A30}
+.lv-form{background:#F6F3ED;padding:14px 18px 16px;border-top:1px solid #E9E2D6}
+.lv-form select,.lv-form input,.lv-form textarea{border:1px solid #E9E2D6;border-radius:9px;background:#fff;padding:8px 10px;font-size:13.5px;outline:none}
+.lv-history{border-top:1px solid #E9E2D6}
+.lv-history>button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 18px;font-size:12px;color:#8A7A63;text-align:right}
+.lv-compact{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;width:100%;padding:12px 18px;text-align:right;align-items:center}
+.lv-compact strong{font-size:15px}
+.lv-compact .sub{font-size:12px;color:#8A7A63;margin-right:8px}
+.lv-compact p{font-size:12px;color:#A2937D;margin-top:3px}
+.lv-fold{border-top:1px solid #E9E2D6}
+.lv-fold>button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:16px 2px;font-size:14px;color:#8A7A63;font-weight:600;text-align:right}
+.lv-grad{display:grid;grid-template-columns:66px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid #E9E2D6}
+.lv-age{background:#F6ECD8;border-radius:12px;width:66px;height:62px;display:grid;align-content:center;justify-items:center}
+.lv-age strong{font-family:'Varela Round',sans-serif;font-size:23px;font-weight:400;color:#443327}
+.lv-age span{font-size:11px;color:#8A7A63}
+@media(max-width:767px){
+  .lv-prio a{padding:10px 12px;gap:8px;min-height:64px}.lv-prio strong{font-size:23px}.lv-prio span{font-size:13px}
+  .lv-actions{background:#FBF9F5}.lv-transfer{flex-basis:100%}
+  .lv-grad{grid-template-columns:58px minmax(0,1fr)}.lv-age{width:58px;height:58px;grid-row:1/3}.lv-grad .acts{grid-column:2}
+}
+`
+
 // ── component ──────────────────────────────────────────────────────────
 export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged }: {
   partnerLeads?: React.ReactNode
@@ -548,29 +636,26 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
   ]
 
   return (
-    <div className="space-y-4" dir="rtl">
-      {/* Header */}
-      <div className="bg-white rounded-3xl p-4 lg:p-5 shadow-sm space-y-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div>
-            <h2 className="font-bold text-sand-800 text-lg">לידים</h2>
-            <p className="text-xs text-sand-500">
-              מסונכרן עם ה-CRM {lastSync ? ago(lastSync) : ''}
-              {freshRound ? ' · כולל הכרטיסים מהסבב של Claude' : ''}
-            </p>
-            <p className="text-xs text-sand-600 mt-0.5">מציג את הלידים של <b>{actor}</b>{othersCount ? ` · ${othersCount} אצל ${actor === 'יהב' ? 'ברנדה' : 'יהב'}` : ''}</p>
+    <div className="space-y-4 lv-page" dir="rtl">
+      {/* Header (9.10.26: Lovable mockup, no card around it) */}
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <h2 className="font-bold" style={{ fontSize: 26, lineHeight: 1.25 }}>לידים</h2>
+            <div className="lv-sync">
+              <span>מסונכרן עם ה-CRM {lastSync ? ago(lastSync) : ''}{freshRound ? ' · כולל הכרטיסים מהסבב של Claude' : ''}</span>
+              <button onClick={syncNow} disabled={syncing} title="לסנכרן עכשיו" aria-label="לסנכרן עכשיו" className="p-1 rounded-md hover:bg-[#F6F3ED] disabled:opacity-50">
+                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex rounded-full bg-beige-100 p-0.5">
+          <div>
+            <div className="lv-owner" role="group" aria-label="של מי הלידים">
               {ACTORS.map(a => (
-                <button key={a} onClick={() => pickActor(a)}
-                  className={`px-3 py-1 rounded-full text-xs font-bold ${actor === a ? 'bg-mustard-400 text-sand-900' : 'text-sand-500'}`}>{a}</button>
+                <button key={a} onClick={() => pickActor(a)} className={actor === a ? 'sel' : ''} aria-pressed={actor === a}>{a}</button>
               ))}
             </div>
-            <button onClick={syncNow} disabled={syncing} title="לסנכרן עכשיו"
-              className="w-9 h-9 rounded-full bg-beige-100 flex items-center justify-center text-sand-600 disabled:opacity-50">
-              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            </button>
+            <p className="mt-1.5" style={{ fontSize: 12, color: '#8A7A63' }}>מציג את הלידים של {actor}{othersCount ? ` · ${othersCount} אצל ${actor === 'יהב' ? 'ברנדה' : 'יהב'}` : ''}</p>
           </div>
         </div>
         {cohorts.length > 0 && (() => {
@@ -579,33 +664,32 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
           cohorts.forEach(c => { const n = nameOf(c); byProduct.set(n, [...(byProduct.get(n) ?? []), c]) })
           const shown = openProduct ? byProduct.get(openProduct) ?? [] : []
           return (
-            <div className="space-y-2">
-              <div className="flex gap-1.5 flex-wrap">
+            <div className="space-y-3 pb-4" style={{ borderBottom: '1px solid #E9E2D6' }}>
+              <div className="lv-avail">
                 {[...byProduct.entries()].map(([name, list]) => {
                   const withCap = list.filter(c => c.capacity != null)
                   const left = withCap.reduce((sum, c) => sum + Math.max(0, (c.capacity ?? 0) - Number(c.paid)), 0)
                   const active = openProduct === name
+                  const tone = withCap.length && left <= 0 ? 'full' : withCap.length && left <= 2 ? 'limited' : ''
                   return (
                     <button key={name} onClick={() => setOpenProduct(active ? null : name)} aria-expanded={active}
-                      className={`text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 ${active ? 'bg-sand-800 text-white' : 'bg-mustard-50 text-sand-700'}`}>
-                      {name}
-                      <span className={active ? 'text-white/70' : 'text-sand-500'}>
-                        · {list.length === 1 ? 'מחזור 1' : `${list.length} מחזורים`}{withCap.length ? (left > 0 ? ` · נשארו ${left}` : ' · מלא') : ''}
-                      </span>
-                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${active ? 'rotate-180' : ''}`} />
+                      className={`lv-avail-chip ${tone} ${active ? 'sel' : ''}`}>
+                      <strong>{name}</strong>
+                      <span>· {list.length === 1 ? 'מחזור 1' : `${list.length} מחזורים`}{withCap.length ? (left > 0 ? ` · נשארו ${left}` : ' · מלא') : ''}</span>
+                      <ChevronDown className={`w-3 h-3 transition-transform ${active ? 'rotate-180' : ''}`} style={{ color: '#A2937D' }} />
                     </button>
                   )
                 })}
               </div>
               {shown.length > 0 && (
-                <div className="flex gap-1.5 flex-wrap rounded-2xl bg-beige-50 p-2">
+                <div className="flex gap-2 flex-wrap items-center">
+                  <strong style={{ fontSize: 12 }}>{openProduct}</strong>
                   {shown.map(c => {
                     const left = c.capacity != null ? c.capacity - Number(c.paid) : null
                     return (
-                      <span key={c.workshop + c.start_date + c.start_time}
-                        className={`text-[11px] font-bold px-2 py-1 rounded-full ${left != null && left <= 0 ? 'bg-sand-100 text-sand-400' : 'bg-white text-sand-700'}`}>
-                        {ddmm(c.start_date)}{c.start_time ? ` ${c.start_time.slice(0, 5)}` : ''} · {c.paid}{c.capacity != null ? `/${c.capacity}` : ''}
-                        {left != null && left > 0 ? ` (נשארו ${left})` : left != null ? ' (מלא)' : ''}
+                      <span key={c.workshop + c.start_date + c.start_time} className={`lv-pill ${left != null && left <= 0 ? 'full' : ''}`}>
+                        <span dir="ltr">{ddmm(c.start_date)}{c.start_time ? ` ${c.start_time.slice(0, 5)}` : ''} · {c.paid}{c.capacity != null ? `/${c.capacity}` : ''}</span>
+                        <span>{left != null && left > 0 ? `(נשארו ${left})` : left != null ? '(מלא)' : ''}</span>
                       </span>
                     )
                   })}
@@ -614,18 +698,17 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
             </div>
           )
         })()}
-        <div className="flex gap-1 overflow-x-auto -mx-1 px-1">
+        <div className="lv-tabs" role="tablist">
           {tabs.map(t => (
-            <button key={t.id} onClick={() => setView(t.id)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${view === t.id ? 'bg-sand-800 text-white' : 'bg-beige-100 text-sand-600'}`}>
-              {t.label}{t.n >= 0 ? ` · ${t.n}` : ''}
+            <button key={t.id} onClick={() => setView(t.id)} role="tab" aria-selected={view === t.id}
+              className={`lv-tab ${view === t.id ? 'sel' : ''}`}>
+              {t.label}{t.n >= 0 && <span>· {t.n}</span>}
             </button>
           ))}
         </div>
-        <div className="relative">
-          <Search className="w-4 h-4 text-sand-400 absolute right-3 top-1/2 -translate-y-1/2" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="חיפוש ליד לפי שם או טלפון"
-            className="w-full rounded-full bg-beige-50 pr-9 pl-9 py-2 text-sm border border-beige-300" />
+        <div className="relative lv-search">
+          <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#A2937D' }} />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="חיפוש ליד לפי שם או טלפון" />
           {searching && (
             <button onClick={() => setQ('')} title="לנקות" className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-sand-500 hover:bg-beige-200">
               <X className="w-3.5 h-3.5" />
@@ -636,7 +719,7 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
 
       {searching && (
         <Section title={`תוצאות חיפוש · ${searchHits.length + closedHits.length}`} hint={searchHits.length + closedHits.length ? 'כל הלידים הפתוחים של יהב וברנדה, ולמטה לידים שנסגרו.' : 'לא נמצא ליד. אפשר לחפש לפי חלק מהשם או 3 ספרות ומעלה מהטלפון.'}>
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="lv-grid">
             {searchHits.map(l => <LeadCard key={l.opp_id} lead={l} rule={rulesFor(l)} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
           </div>
           {closedHits.length > 0 && (
@@ -658,13 +741,13 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
 
       {!searching && view === 'queue' && (
         <>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="lv-prio">
             {LEVELS.map(lv => {
               const n = queue[lv.id].length + (lv.id === 'high' ? visibleInbound.length + visibleStalled.length : 0)
               return (
-                <a key={lv.id} href={`#lvl-${lv.id}`} className={`rounded-2xl px-3 py-2 ${lv.chip} flex items-center justify-between`}>
-                  <span className="flex items-center gap-1.5 font-bold text-sm">{lv.icon}{lv.title}</span>
-                  <span className="text-xl font-bold">{n}</span>
+                <a key={lv.id} href={`#lvl-${lv.id}`} className={lv.id}>
+                  <strong>{n}</strong>
+                  <span>{lv.title}</span>
                 </a>
               )
             })}
@@ -676,56 +759,43 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
             const stalledHere = lv.id === 'high' ? visibleStalled : []
             if (!list.length && !inboundHere.length && !stalledHere.length) return null
             return (
-              <div key={lv.id} id={`lvl-${lv.id}`} className="space-y-2 scroll-mt-4">
-                <div className={`rounded-2xl px-3 py-2 ${lv.chip}`}>
-                  <h3 className="font-bold text-sm flex items-center gap-1.5">{lv.icon}{lv.title} · {list.length + inboundHere.length + stalledHere.length}</h3>
-                  <p className="text-[11px] opacity-80">{lv.hint}</p>
+              <div key={lv.id} id={`lvl-${lv.id}`} className="scroll-mt-4">
+                <div className="lv-group-h">
+                  <h2 style={{ color: lv.id === 'high' ? '#8B4A30' : undefined }}>{lv.title}<span>{list.length + inboundHere.length + stalledHere.length}</span></h2>
+                  <p>{lv.hint}</p>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-2">
+                <div className="lv-grid">
                   {stalledHere.map(x => {
                     const rule = stalledRule(x)
                     return (
-                      <div key={x.id} className="bg-white rounded-2xl shadow-sm overflow-hidden flex">
-                        <div className={`w-1.5 shrink-0 ${lv.bar}`} />
-                        <div className="p-4 space-y-2 flex-1 min-w-0">
-                          <div className={`rounded-xl px-3 py-2 ${lv.chip}`}>
-                            <p className="text-sm font-bold">{rule.reason}</p>
-                            <p className="text-xs">{rule.dateLabel}{x.price ? ` · ₪${Number(x.price)}` : ''}</p>
-                          </div>
-                          <div>
-                            <p className="font-bold text-sand-800">{x.name}</p>
-                            <p className="text-xs text-sand-500" dir="ltr">{prettyPhone(x.normalized_phone)}</p>
-                          </div>
-                          <p className="text-xs text-sand-600">{rule.action}</p>
-                          <div className="flex gap-2 flex-wrap">
-                            {x.phone && <a href={telHref(x.phone)} className="btn-chip bg-sand-800 text-white"><Phone className="w-3.5 h-3.5" />חיוג</a>}
-                            {stalledWa(x) && <a href={stalledWa(x)} target="_blank" rel="noopener noreferrer" className="btn-chip bg-[#25D366] text-white"><MessageCircle className="w-3.5 h-3.5" />ווטסאפ</a>}
-                            <button onClick={() => markStalledHandled(x)} className="btn-chip bg-beige-100 text-sand-600"><Check className="w-3.5 h-3.5" />טופל</button>
-                          </div>
+                      <div key={x.id} className={`lv-card ${lv.id}`}>
+                        <div className="lv-reason"><span className="lv-dot" /><strong>{rule.reason}</strong><span className="when">{rule.dateLabel}</span></div>
+                        <div className="lv-body">
+                          <p className="lv-name">{x.name}</p>
+                          <a className="lv-phone" href={telHref(x.phone)} dir="ltr">{prettyPhone(x.normalized_phone)}</a>
+                          <p className="lv-next"><span>מה לעשות</span><strong>{rule.action}</strong></p>
+                          {x.price ? <p className="mt-2" style={{ fontSize: 14 }}><strong>₪{Number(x.price)}</strong> <span style={{ color: '#8B4A30', fontSize: 12 }}>· ממתינה להשלמת תשלום</span></p> : null}
+                        </div>
+                        <div className="lv-actions">
+                          {x.phone && <a href={telHref(x.phone)} className="lv-btn icon" title="שיחה" aria-label="שיחה"><Phone className="w-4 h-4" /></a>}
+                          {stalledWa(x) && <a href={stalledWa(x)} target="_blank" rel="noopener noreferrer" className="lv-btn icon" title="ווטסאפ עם הודעה מוכנה" aria-label="ווטסאפ"><MessageCircle className="w-4 h-4" /></a>}
+                          <button onClick={() => markStalledHandled(x)} className="lv-btn primary"><Check className="w-3.5 h-3.5" />טופל</button>
                         </div>
                       </div>
                     )
                   })}
                   {inboundHere.map(i => (
-                    <div key={i.contact_id} className="bg-white rounded-2xl shadow-sm overflow-hidden flex">
-                      <div className={`w-1.5 shrink-0 ${lv.bar}`} />
-                      <div className="p-4 space-y-2 flex-1 min-w-0">
-                        <div className={`rounded-xl px-3 py-2 ${lv.chip}`}>
-                          <p className="text-sm font-bold">כתבה לנו ואין לה ליד פתוח</p>
-                          <p className="text-xs">{ago(i.last_message_at)}</p>
-                        </div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-bold text-sand-800">{i.name}</p>
-                            <p className="text-xs text-sand-500" dir="ltr">{prettyPhone(i.phone_local)}</p>
-                          </div>
-                        </div>
-                        {i.last_message_text && <p className="text-sm text-sand-700 bg-beige-50 rounded-xl px-3 py-2">"{i.last_message_text}"</p>}
-                        <div className="flex gap-2 flex-wrap">
-                          <ContactButtons phone={i.phone} />
-                          <button onClick={() => createLead(i)} className="btn-chip bg-mustard-400 text-sand-900"><UserPlus className="w-3.5 h-3.5" />לפתוח ליד</button>
-                          <button onClick={() => dismissInbound(i)} className="btn-chip bg-beige-100 text-sand-500"><EyeOff className="w-3.5 h-3.5" />להסתיר</button>
-                        </div>
+                    <div key={i.contact_id} className={`lv-card ${lv.id}`}>
+                      <div className="lv-reason"><span className="lv-dot" /><strong>כתבה לנו ואין לה ליד פתוח</strong><span className="when">{ago(i.last_message_at)}</span></div>
+                      <div className="lv-body">
+                        <p className="lv-name">{i.name}</p>
+                        <a className="lv-phone" href={telHref(i.phone)} dir="ltr">{prettyPhone(i.phone_local)}</a>
+                        {i.last_message_text && <p className="lv-msg">״{i.last_message_text}״</p>}
+                      </div>
+                      <div className="lv-actions">
+                        <ContactButtons phone={i.phone} />
+                        <button onClick={() => createLead(i)} className="lv-btn primary"><UserPlus className="w-3.5 h-3.5" />לפתוח ליד</button>
+                        <button onClick={() => dismissInbound(i)} className="lv-btn plain"><EyeOff className="w-3.5 h-3.5" />להסתיר</button>
                       </div>
                     </div>
                   ))}
@@ -740,7 +810,7 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
 
           {registeredInApp.length > 0 && (
             <Section title="נרשמו באפליקציה, עדיין פתוחות ב-CRM" hint="שילמו למחזור עתידי. לסמן נרשמה כדי לסגור את הליד.">
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="lv-grid">
                 {registeredInApp.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
               </div>
             </Section>
@@ -749,7 +819,7 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
           {customerMessages.length > 0 && (
             <Collapsible title={`לקוחות שכתבו (לא ליד) · ${customerMessages.length}`}>
               <p className="text-xs text-sand-500 mb-2">סיימו מגלים. לא מכירה, רק לא לשכוח לענות.</p>
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="lv-grid">
                 {customerMessages.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
               </div>
             </Collapsible>
@@ -789,7 +859,7 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
 
       {!searching && view === 'upcoming' && (
         <Section title="תאריך חזרה בשבעת הימים הקרובים">
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="lv-grid">
             {upcoming.map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
           </div>
         </Section>
@@ -801,7 +871,7 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
           title={megalim ? `עוד בוגרות עטופים ב-CRM · ${graduatesRest.length}` : 'סיימו עטופים ולא רשומות לאף מגלים עתידי'}
           hint={megalim ? 'בשלב "סיימה עטופים" ב-CRM, לא רשומות למגלים עתידי, ולא ברשימה למעלה (אין תאריך לידה של התינוק/ת או שעוד מוקדם).' : 'הזדמנות להמשך. ההרשמות נבדקות מול האפליקציה.'}
         >
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="lv-grid">
             {(megalim ? graduatesRest : graduates).map(l => <LeadCard key={l.opp_id} lead={l} rule={null} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
           </div>
         </Section>
@@ -809,7 +879,7 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
 
       {!searching && view === 'all' && (
         <Section title="כל הלידים הפתוחים">
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="lv-grid">
             {all.map(l => <LeadCard key={l.opp_id} lead={l} rule={rulesFor(l)} actor={actor} reasons={reasons} {...cardProps} compact onDone={(m) => { flash(m); load() }} />)}
           </div>
         </Section>
@@ -824,7 +894,7 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
       {toast && (
         <div className="fixed bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 bg-sand-800 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50">{toast}</div>
       )}
-      <style>{`.btn-chip{display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:700;padding:.4rem .7rem;border-radius:9999px}`}</style>
+      <style>{`.btn-chip{display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:700;padding:.4rem .7rem;border-radius:9999px}${LV_CSS}`}</style>
     </div>
   )
 }
@@ -832,10 +902,10 @@ export default function CrmLeadsPanel({ partnerLeads, megalim, onMegalimChanged 
 // ── pieces ─────────────────────────────────────────────────────────────
 function Section({ title, hint, children }: { title: string; hint?: string; children?: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <div className="px-1">
-        <h3 className="font-bold text-sand-800 text-sm">{title}</h3>
-        {hint && <p className="text-xs text-sand-500">{hint}</p>}
+    <div>
+      <div className="lv-group-h">
+        <h2>{title}</h2>
+        {hint && <p>{hint}</p>}
       </div>
       {children}
     </div>
@@ -845,12 +915,12 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 function Collapsible({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="bg-beige-50 rounded-2xl p-3">
-      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between text-sm font-bold text-sand-600">
+    <div className="lv-fold">
+      <button onClick={() => setOpen(o => !o)} aria-expanded={open}>
         {title}
         <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && <div className="mt-3">{children}</div>}
+      {open && <div className="pb-3">{children}</div>}
     </div>
   )
 }
@@ -859,8 +929,8 @@ function ContactButtons({ phone }: { phone: string | null }) {
   if (!phone) return null
   return (
     <>
-      <a href={telHref(phone)} className="btn-chip bg-sand-800 text-white"><Phone className="w-3.5 h-3.5" />חיוג</a>
-      <a href={waHref(phone)} target="_blank" rel="noopener noreferrer" className="btn-chip bg-[#25D366] text-white"><MessageCircle className="w-3.5 h-3.5" />ווטסאפ</a>
+      <a href={telHref(phone)} className="lv-btn icon" title="שיחה" aria-label="שיחה"><Phone className="w-4 h-4" /></a>
+      <a href={waHref(phone)} target="_blank" rel="noopener noreferrer" className="lv-btn icon" title="ווטסאפ" aria-label="ווטסאפ"><MessageCircle className="w-4 h-4" /></a>
     </>
   )
 }
@@ -932,125 +1002,124 @@ function LeadCard({ lead: l, rule, index, actor, reasons, compact, onDone, owner
     onDone(`${l.name}: ${data.label} · נשמר ב-CRM${wantsRetry ? ` · תחזור לרשימה ${slot.label}` : ''}`)
   }
 
-  return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden flex">
-      {lv && <div className={`w-1.5 shrink-0 ${lv.bar}`} />}
-      <div className="p-4 space-y-2.5 flex-1 min-w-0">
-      {rule && lv && !compact && (
-        <div className={`rounded-xl px-3 py-2 ${lv.chip} flex items-start justify-between gap-2`}>
-          <p className="text-sm font-bold leading-snug">{rule.reason}</p>
-          {rule.dateLabel && <span className="shrink-0 text-xs font-bold bg-white/70 rounded-full px-2 py-0.5">{rule.dateLabel}</span>}
+  const [expanded, setExpanded] = useState(!compact)
+  const level = lv?.id ?? 'low'
+  const outcomeForm = outcome && (
+    <div className="lv-form space-y-2">
+      {outcome === 'callback' && (
+        <div className="flex gap-2 flex-wrap items-center">
+          <input type="date" value={date} min={todayIso()} onChange={e => setDate(e.target.value)} />
+          <select value={stage} onChange={e => setStage(e.target.value)}>
+            <option value="">להשאיר בשלב: {l.stage_name}</option>
+            {stages.filter(s => s.id !== l.stage_id).map(s => <option key={s.id} value={s.id}>להעביר ל: {s.name}</option>)}
+          </select>
         </div>
       )}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-bold text-sand-800 leading-tight">
-            {index != null && <span className="text-mustard-700 ml-1">{index}.</span>}
-            {l.name}
-          </p>
-          <p className="text-xs text-sand-500 mt-0.5">
-            <span dir="ltr">{prettyPhone(l.phone_local)}</span>
-            {' · '}{l.stage_name}
-            {l.no_answer ? ` · ${l.no_answer}` : ''}
-            {l.follow_up_date ? ` · חזרה ${ddmm(l.follow_up_date)}` : l.note_callback_date ? ` · חזרה ${ddmm(l.note_callback_date)} (מההערה)` : ''}
-          </p>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {who === 'ברנדה' && <span className="text-[11px] font-bold bg-[#EDE3F5] text-[#5B3B7A] rounded-full px-2 py-0.5">בטיפול ברנדה</span>}
-          {fresh && <span title="מהסבב של Claude" className="text-mustard-600"><Sparkles className="w-4 h-4" /></span>}
-        </div>
-      </div>
-
-      {(what || why) && (
-        <div className="bg-mustard-50 rounded-xl px-3 py-2 space-y-0.5">
-          {what && <p className="text-sm text-sand-800"><b>מה לעשות:</b> {what}</p>}
-          {why && (compact || why !== rule?.reason) && <p className="text-xs text-sand-600"><b>למה עכשיו:</b> {why}</p>}
+      {outcome === 'not_relevant' && (
+        <div className="space-y-1">
+          <select value={reason} onChange={e => setReason(e.target.value)} className="w-full">
+            <option value="">סיבת אבדן (חובה)</option>
+            {reasons.map(r => (
+              <option key={r.id} value={r.id}>{r.label ?? `סיבה ללא שם${r.example ? `, כמו אצל ${r.example}` : ''}`}</option>
+            ))}
+          </select>
+          {reasons.length === 0 && <p className="text-[11px]" style={{ color: '#8B4A30' }}>רשימת הסיבות עוד לא נטענה, אי אפשר לסגור כאבוד.</p>}
         </div>
       )}
-      {known && <p className="text-xs text-sand-700 leading-relaxed"><b>מה ידוע:</b> {known}</p>}
-      {ifNo && <p className="text-xs text-sand-500"><b>אם לא עונה:</b> {ifNo}</p>}
-      {l.app_summary && <p className="text-xs text-[#3D6B35] bg-[#EEF5EC] rounded-lg px-2 py-1">באפליקציה: {l.app_summary}</p>}
-      {l.last_inbound_text && hoursAgo(l.last_inbound_at) < 24 * 7 && (
-        <p className="text-xs text-sand-700 bg-beige-50 rounded-lg px-2 py-1">כתבה {ago(l.last_inbound_at)}: "{l.last_inbound_text.slice(0, 160)}"</p>
+      <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} className="w-full"
+        placeholder={outcome === 'note' ? 'מה לרשום?' : 'מה היה בשיחה? (לא חובה)'} />
+      {(outcome === 'no_answer' || outcome === 'note') && (
+        <label className="flex items-center gap-2 text-[13px] font-semibold">
+          <input type="checkbox" checked={retry} onChange={e => setRetry(e.target.checked)} />
+          להחזיר אותה לרשימה {slot.label}
+        </label>
       )}
-      {!compact && !known && notes[0] && (
-        <p className="text-xs text-sand-600 leading-relaxed whitespace-pre-line"><b>הערה אחרונה ({ddmm(notes[0].date)}):</b> {notes[0].body.slice(0, 280)}</p>
+      {tasks.length > 0 && outcome !== 'note' && (
+        <label className="flex items-center gap-2 text-[13px]" style={{ color: '#8A7A63' }}>
+          <input type="checkbox" checked={closeTasks} onChange={e => setCloseTasks(e.target.checked)} />
+          לסגור {tasks.length === 1 ? 'את המשימה הפתוחה' : `את ${tasks.length} המשימות הפתוחות`}
+        </label>
       )}
-      {(l.products?.length ?? 0) > 0 && (
-        <div className="flex gap-1 flex-wrap">{l.products!.map(p => <span key={p} className="text-[11px] bg-beige-100 text-sand-600 rounded-full px-2 py-0.5">{p}</span>)}</div>
-      )}
-      {l.last_action_label && <p className="text-[11px] text-sand-400">טיפול אחרון: {l.last_action_label}</p>}
-
-      <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setCalling(true)} className="btn-chip bg-mustard-400 text-sand-900"><ScrollText className="w-3.5 h-3.5" />שיחה עם תסריט</button>
-        <ContactButtons phone={l.phone} />
-        <button onClick={() => onOwner(l, other)} className="btn-chip bg-beige-50 text-sand-600"><ArrowLeftRight className="w-3.5 h-3.5" />להעביר ל{other}</button>
-        {(notes.length > 0 || tasks.length > 0) && (
-          <button onClick={() => setShowNotes(s => !s)} className="btn-chip bg-beige-50 text-sand-500">
-            הערות{tasks.length ? ' ומשימות' : ''} ({notes.length + tasks.length})
-          </button>
-        )}
-      </div>
-      {showNotes && (
-        <div className="space-y-1.5 border-t border-beige-200 pt-2">
-          {tasks.map(t => <p key={t.id} className="text-xs text-[#8B4A30]">משימה פתוחה{t.due ? ` (${ddmm(t.due)})` : ''}: {t.title}</p>)}
-          {notes.map((n, i) => <p key={i} className="text-xs text-sand-600 whitespace-pre-line"><b>{ddmm(n.date)}:</b> {n.body}</p>)}
-        </div>
-      )}
-
-      {/* Outcome */}
-      <div className="flex gap-1.5 flex-wrap pt-1 border-t border-beige-100">
-        {OUTCOMES.map(o => (
-          <button key={o.id} onClick={() => { setOutcome(outcome === o.id ? null : o.id); setRetry(o.id === 'no_answer'); setErr(null) }}
-            className={`btn-chip ${o.cls} ${outcome === o.id ? 'ring-2 ring-sand-700' : ''}`}>{o.icon}{o.label}</button>
-        ))}
-      </div>
-      {outcome && (
-        <div className="bg-beige-50 rounded-xl p-3 space-y-2">
-          {outcome === 'callback' && (
-            <div className="flex gap-2 flex-wrap items-center">
-              <input type="date" value={date} min={todayIso()} onChange={e => setDate(e.target.value)} className="rounded-lg border border-beige-300 px-2 py-1 text-sm" />
-              <select value={stage} onChange={e => setStage(e.target.value)} className="rounded-lg border border-beige-300 px-2 py-1 text-sm">
-                <option value="">להשאיר בשלב: {l.stage_name}</option>
-                {stages.filter(s => s.id !== l.stage_id).map(s => <option key={s.id} value={s.id}>להעביר ל: {s.name}</option>)}
-              </select>
-            </div>
-          )}
-          {outcome === 'not_relevant' && (
-            <div className="space-y-1">
-              <select value={reason} onChange={e => setReason(e.target.value)} className="w-full rounded-lg border border-beige-300 px-2 py-1.5 text-sm">
-                <option value="">סיבת אבדן (חובה)</option>
-                {reasons.map(r => (
-                  <option key={r.id} value={r.id}>{r.label ?? `סיבה ללא שם${r.example ? `, כמו אצל ${r.example}` : ''}`}</option>
-                ))}
-              </select>
-              {reasons.length === 0 && <p className="text-[11px] text-[#8B4A30]">רשימת הסיבות עוד לא נטענה, אי אפשר לסגור כאבוד.</p>}
-            </div>
-          )}
-          <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
-            placeholder={outcome === 'note' ? 'מה לרשום?' : 'מה היה בשיחה? (לא חובה)'}
-            className="w-full rounded-lg border border-beige-300 px-2 py-1.5 text-sm" />
-          {(outcome === 'no_answer' || outcome === 'note') && (
-            <label className="flex items-center gap-2 text-xs text-sand-700 font-bold">
-              <input type="checkbox" checked={retry} onChange={e => setRetry(e.target.checked)} />
-              להחזיר אותה לרשימה {slot.label}
-            </label>
-          )}
-          {tasks.length > 0 && outcome !== 'note' && (
-            <label className="flex items-center gap-2 text-xs text-sand-600">
-              <input type="checkbox" checked={closeTasks} onChange={e => setCloseTasks(e.target.checked)} />
-              לסגור {tasks.length === 1 ? 'את המשימה הפתוחה' : `את ${tasks.length} המשימות הפתוחות`}
-            </label>
-          )}
-          {err && <p className="text-xs text-[#8B4A30]">{err}</p>}
-          <div className="flex gap-2">
-            <button onClick={submit} disabled={busy} className="btn-chip bg-sand-800 text-white disabled:opacity-50">{busy ? 'שומר...' : `לשמור ב-CRM (${actor})`}</button>
-            <button onClick={() => setOutcome(null)} className="btn-chip bg-white text-sand-500">ביטול</button>
-          </div>
-        </div>
-      )}
-      {calling && <CallScript lead={l} actor={actor} reasons={reasons} cohorts={cohorts} onClose={() => setCalling(false)} onDone={onDone} />}
+      {err && <p className="text-xs" style={{ color: '#8B4A30' }}>{err}</p>}
+      <div className="flex gap-2">
+        <button onClick={submit} disabled={busy} className="lv-btn primary"><Check className="w-3.5 h-3.5" />{busy ? 'שומר...' : `לשמור ב-CRM (${actor})`}</button>
+        <button onClick={() => setOutcome(null)} className="lv-btn plain">ביטול</button>
       </div>
     </div>
+  )
+  return (
+    <article className={`lv-card ${level}`} aria-label={`ליד ${l.name ?? ''}`}>
+      {compact ? (
+        <button className="lv-compact" onClick={() => setExpanded(v => !v)} aria-expanded={expanded}>
+          <span className="min-w-0">
+            <strong>{l.name}</strong>
+            <span className="sub">{[...(l.products ?? []), l.stage_name].filter(Boolean).join(' · ')}</span>
+            <p>{rule ? `${rule.reason}${rule.dateLabel ? ` · ${rule.dateLabel}` : ''}` : (l.follow_up_date ? `חזרה ${ddmm(l.follow_up_date)}` : l.last_action_label ?? (l.crm_created_at ? `נכנס ${ago(l.crm_created_at)}` : ''))}</p>
+          </span>
+          <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} style={{ color: '#A2937D' }} />
+        </button>
+      ) : rule && (
+        <div className="lv-reason"><span className="lv-dot" /><strong>{rule.reason}</strong>{rule.dateLabel && <span className="when">{rule.dateLabel}</span>}</div>
+      )}
+      {expanded && <>
+        <div className="lv-body">
+          <div className="lv-id">
+            <div className="min-w-0">
+              {!compact && <p className="lv-name">{index != null && <span style={{ color: '#8A6A2F' }}>{index}. </span>}{l.name}</p>}
+              <a className="lv-phone" href={telHref(l.phone)} dir="ltr">{prettyPhone(l.phone_local)}</a>
+            </div>
+            <div className="flex items-center gap-1">
+              {fresh && <span title="מהסבב של Claude" style={{ color: '#C8A460' }}><Sparkles className="w-4 h-4" /></span>}
+              {l.stage_name && <span className="lv-chip mustard">{l.stage_name}</span>}
+            </div>
+          </div>
+          <div className="lv-chips">
+            {l.source && <span className="lv-chip blue">{l.source}</span>}
+            {(l.products ?? []).map(p => <span key={p} className="lv-chip">{p}</span>)}
+            {who === 'ברנדה' && <span className="lv-chip purple">בטיפול ברנדה</span>}
+            {l.no_answer ? <span className="lv-chip">{l.no_answer}</span> : null}
+            {l.follow_up_date ? <span className="lv-chip">חזרה {ddmm(l.follow_up_date)}</span> : l.note_callback_date ? <span className="lv-chip">חזרה {ddmm(l.note_callback_date)} (מההערה)</span> : null}
+          </div>
+          {what && <p className="lv-next"><span>מה לעשות</span><strong>{what}</strong></p>}
+          {why && (compact || why !== rule?.reason) && <p className="lv-why">למה עכשיו: {why}</p>}
+          {l.last_inbound_text && hoursAgo(l.last_inbound_at) < 24 * 7 && (
+            <p className="lv-msg">כתבה {ago(l.last_inbound_at)}: ״{l.last_inbound_text.slice(0, 160)}״</p>
+          )}
+          {l.app_summary && <p className="lv-app"><Check className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />באפליקציה: {l.app_summary}</p>}
+          {known && <p className="lv-note"><b>מה ידוע:</b> {known}</p>}
+          {ifNo && <p className="lv-note"><b>אם לא עונה:</b> {ifNo}</p>}
+          {!compact && !known && notes[0] && <p className="lv-note">{ddmm(notes[0].date)} · {notes[0].body.slice(0, 280)}</p>}
+          {l.last_action_label && <p className="lv-note" style={{ color: '#A2937D' }}>טיפול אחרון: {l.last_action_label}</p>}
+        </div>
+        <div className="lv-actions">
+          <button onClick={() => setCalling(true)} className="lv-btn primary"><ScrollText className="w-3.5 h-3.5" />שיחה עם תסריט</button>
+          <ContactButtons phone={l.phone} />
+          <button onClick={() => onOwner(l, other)} className="lv-btn plain lv-transfer">להעביר ל{other} <ArrowLeftRight className="w-3 h-3" /></button>
+        </div>
+        <div className="lv-outcomes" aria-label="תוצאת שיחה">
+          {OUTCOMES.map(o => (
+            <button key={o.id} aria-pressed={outcome === o.id}
+              onClick={() => { setOutcome(outcome === o.id ? null : o.id); setRetry(o.id === 'no_answer'); setErr(null) }}
+              className={`lv-outcome ${o.id === 'registered' ? 'ok' : o.id === 'not_relevant' ? 'loss' : ''}`}>{o.label}</button>
+          ))}
+        </div>
+        {outcomeForm}
+        {(notes.length > 0 || tasks.length > 0) && (
+          <div className="lv-history">
+            <button onClick={() => setShowNotes(v => !v)} aria-expanded={showNotes}>
+              הערות{tasks.length ? ' ומשימות' : ''} ({notes.length + tasks.length})
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showNotes ? 'rotate-180' : ''}`} />
+            </button>
+            {showNotes && (
+              <div className="px-5 pb-3 space-y-1.5">
+                {tasks.map(t => <p key={t.id} className="text-xs" style={{ color: '#8B4A30' }}>משימה פתוחה{t.due ? ` (${ddmm(t.due)})` : ''}: {t.title}</p>)}
+                {notes.map((n, i) => <p key={i} className="text-xs whitespace-pre-line" style={{ color: '#8A7A63' }}><b>{ddmm(n.date)}:</b> {n.body}</p>)}
+              </div>
+            )}
+          </div>
+        )}
+      </>}
+      {calling && <CallScript lead={l} actor={actor} reasons={reasons} cohorts={cohorts} onClose={() => setCalling(false)} onDone={onDone} />}
+    </article>
   )
 }

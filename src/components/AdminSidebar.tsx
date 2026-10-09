@@ -1,4 +1,5 @@
-import { BarChart2, Users, LogOut, Eye, Video, Baby, Gift, Settings, ClipboardList, FileText, Sparkles, Link2, GraduationCap, Phone, MapPin, Home, CalendarDays, BookOpen } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronsLeft, ChevronsRight, BarChart2, Users, LogOut, Eye, Video, Baby, Gift, Settings, ClipboardList, FileText, Sparkles, Link2, GraduationCap, Phone, MapPin, Home, CalendarDays, BookOpen } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import MimoLeaf from './MimoLeaf'
 import type { AdminSection } from '../App'
@@ -55,6 +56,9 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
 
 export default function AdminSidebar({ section, onSection, viewAsUser, onToggleUserView, unreadForms = 0, unreadRegistrations = 0, taskCount = 0, workshopIssues = 0, partnersWaiting = 0, paymentClaims = 0 }: Props) {
   const { signOut, profile } = useAuth()
+  // 9.10.26 (Yahav): fold the menu to icons only, the page takes the room.
+  const [collapsed, setCollapsed] = useState<boolean>(() => { try { return localStorage.getItem('admin_sidebar_collapsed') === '1' } catch { return false } })
+  function toggleCollapsed() { setCollapsed(c => { const n = !c; try { localStorage.setItem('admin_sidebar_collapsed', n ? '1' : '0') } catch { /* */ } return n }) }
 
   function badgeFor(id: AdminSection): number {
     if (id === 'home') return taskCount
@@ -73,7 +77,9 @@ export default function AdminSidebar({ section, onSection, viewAsUser, onToggleU
       <button
         key={item.id}
         onClick={() => onSection(item.id)}
-        className="w-full flex items-center gap-3 text-right transition-all"
+        title={collapsed ? item.label : undefined}
+        aria-label={item.label}
+        className={`relative w-full flex items-center gap-3 text-right transition-all ${collapsed ? 'justify-center' : ''}`}
         style={{
           padding: '9px 12px',
           borderRadius: 14,
@@ -86,8 +92,11 @@ export default function AdminSidebar({ section, onSection, viewAsUser, onToggleU
         onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C6C0AE' } }}
       >
         <span style={{ strokeWidth: active ? 2.1 : 2 } as React.CSSProperties}>{item.icon}</span>
-        <span>{item.label}</span>
-        {badge > 0 && (
+        {!collapsed && <span>{item.label}</span>}
+        {badge > 0 && collapsed && (
+          <span className="absolute top-1 left-2 w-2 h-2 rounded-full" style={{ background: '#A35C3D' }} />
+        )}
+        {badge > 0 && !collapsed && (
           <span
             className="mr-auto min-w-[20px] h-[20px] px-1.5 rounded-full text-white font-bold flex items-center justify-center"
             style={{ background: active ? '#8B4A30' : '#A35C3D', fontSize: 13 }}
@@ -101,20 +110,24 @@ export default function AdminSidebar({ section, onSection, viewAsUser, onToggleU
 
   return (
     <aside
-      className="hidden lg:flex flex-col w-60 min-h-screen sticky top-0 shrink-0 z-20"
+      className={`hidden lg:flex flex-col ${collapsed ? 'w-[68px]' : 'w-60'} h-screen sticky top-0 shrink-0 z-20 transition-[width] duration-200`}
       style={{ background: '#2E2C24', borderLeft: '1px solid #45423636' }}
       dir="rtl"
     >
       {/* Logo */}
-      <div className="px-5 py-5 border-b" style={{ borderColor: '#45423636' }}>
-        <div className="flex items-center gap-3">
+      <div className={`${collapsed ? 'px-2' : 'px-5'} py-5 border-b`} style={{ borderColor: '#45423636' }}>
+        <div className={`flex items-center gap-3 ${collapsed ? 'flex-col' : ''}`}>
           <MimoLeaf variant="sand-1" size={30} rotate={-12} className="flex-shrink-0" />
-          <div>
+          {!collapsed && <div className="flex-1">
             <p className="font-display leading-tight" style={{ fontSize: 20, color: '#EFE8DC' }}>מימו</p>
             <p className="leading-tight font-semibold" style={{ fontSize: 12, color: '#A8A088' }}>ניהול</p>
-          </div>
+          </div>}
+          <button onClick={toggleCollapsed} className="p-1.5 rounded-lg transition-colors hover:bg-[#3A3730]"
+            title={collapsed ? 'פתיחת התפריט' : 'הקטנת התפריט'} aria-label={collapsed ? 'פתיחת התפריט' : 'הקטנת התפריט'} style={{ color: '#A8A088' }}>
+            {collapsed ? <ChevronsLeft className="w-4 h-4" /> : <ChevronsRight className="w-4 h-4" />}
+          </button>
         </div>
-        {profile?.mother_name && (
+        {!collapsed && profile?.mother_name && (
           <p className="mt-3 font-medium" style={{ fontSize: 13, color: '#A8A088' }}>
             שלום, {profile.mother_name}
           </p>
@@ -122,51 +135,53 @@ export default function AdminSidebar({ section, onSection, viewAsUser, onToggleU
       </div>
 
       {/* Nav: three groups */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
+      <nav className={`flex-1 ${collapsed ? 'px-2' : 'px-3'} py-3 overflow-y-auto space-y-4`}>
         {GROUPS.map(g => (
           <div key={g.title}>
-            <p className="px-3 mb-1 font-bold" style={{ fontSize: 11.5, color: '#8C8572', letterSpacing: '0.04em' }}>{g.title}</p>
+            {collapsed
+              ? <div className="mx-3 mb-2" style={{ borderTop: '1px solid #45423666' }} />
+              : <p className="px-3 mb-1 font-bold" style={{ fontSize: 11.5, color: '#8C8572', letterSpacing: '0.04em' }}>{g.title}</p>}
             <div className="space-y-0.5">{g.items.map(navButton)}</div>
           </div>
         ))}
       </nav>
 
       {/* Footer */}
-      <div className="px-3 pb-4 space-y-1 border-t pt-3" style={{ borderColor: '#45423636' }}>
-        {viewAsUser && (
+      <div className={`${collapsed ? 'px-2' : 'px-3'} pb-4 space-y-1 border-t pt-3`} style={{ borderColor: '#45423636' }}>
+        {viewAsUser && !collapsed && (
           <div className="px-3 py-2 rounded-xl text-xs font-bold mb-1 flex items-center gap-1.5" style={{ color: '#E7C78A', background: '#3A3730' }}>
             <Eye className="w-3.5 h-3.5" /> מצב תצוגה כמשתמשת
           </div>
         )}
         <button
           onClick={onToggleUserView}
-          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all text-right"
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all text-right ${collapsed ? 'justify-center' : ''}`}
           style={{ color: '#A8A088' }}
           onMouseEnter={e => { e.currentTarget.style.background = '#3A3730'; e.currentTarget.style.color = '#EFE8DC' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#A8A088' }}
         >
           <Eye className="w-4 h-4" />
-          {viewAsUser ? 'חזרה לניהול' : 'צפי כמשתמשת'}
+          {!collapsed && (viewAsUser ? 'חזרה לניהול' : 'צפי כמשתמשת')}
         </button>
         <button
           onClick={() => onSection('settings')}
-          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all text-right"
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all text-right ${collapsed ? 'justify-center' : ''}`}
           style={{ color: section === 'settings' ? '#E7C78A' : '#A8A088' }}
           onMouseEnter={e => { e.currentTarget.style.background = '#3A3730' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
         >
           <Settings className="w-4 h-4" />
-          הגדרות
+          {!collapsed && 'הגדרות'}
         </button>
         <button
           onClick={signOut}
-          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all text-right"
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all text-right ${collapsed ? 'justify-center' : ''}`}
           style={{ color: '#A8A088' }}
           onMouseEnter={e => { e.currentTarget.style.background = '#3A3730'; e.currentTarget.style.color = '#EFE8DC' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#A8A088' }}
         >
           <LogOut className="w-4 h-4" />
-          יציאה
+          {!collapsed && 'יציאה'}
         </button>
       </div>
     </aside>
