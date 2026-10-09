@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo, createContext, useContext } from 'react'
 import { Home as HomeIcon, BookOpen, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Baby, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
+import UsersListView from '../components/admin/UsersListView'
 import ProductsListView from '../components/admin/ProductsListView'
 import FormsListView from '../components/admin/forms/FormsListView'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
@@ -22,7 +23,7 @@ import ConfirmDialog from '../components/admin/ConfirmDialog'
 import WorkshopOffersPanel from '../components/admin/WorkshopOffersPanel'
 import { resolveSubmitter } from '../components/admin/formSubmissionResolver'
 import { CustomerCardProvider, useOpenCustomer } from '../components/admin/CustomerCardContext'
-import { useUserProducts, shortProductName, type ProductFacet } from '../components/admin/useUserProducts'
+import { useUserProducts } from '../components/admin/useUserProducts'
 import { REGISTRATIONS_CHANGED_EVENT } from '../components/admin/CustomerCardModal'
 import GlobalSearchBar from '../components/admin/GlobalSearchBar'
 import { normalizeIlPhone, offerPrice } from '../components/admin/customerLookup'
@@ -351,82 +352,12 @@ type UserWithChildren = UserProfile & { childCount: number }
 // the list by what a woman bought, to see it on her row, and to open her
 // customer card from here. All three hang off the same index.
 
-function ProductChips({
-  products,
-  value,
-  onChange,
-  installedCount,
-}: {
-  products: ProductFacet[]
-  value: string
-  onChange: (v: string) => void
-  installedCount: number
-}) {
-  if (products.length === 0) return null
-  const chip = (id: string, label: string, n: number) => {
-    const active = value === id
-    return (
-      <button
-        key={id}
-        onClick={() => onChange(id)}
-        className="px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap"
-        style={active
-          ? { background: '#E7C78A', color: '#4A3A28', fontSize: 12 }
-          : { background: '#F4EDE1', color: '#7B604C', fontSize: 12 }}
-      >
-        {label} · {n}
-      </button>
-    )
-  }
-  return (
-    <div className="flex gap-1.5 flex-wrap">
-      {chip('all', 'כל המוצרים', products.reduce((n, p) => n + p.buyers, 0))}
-      {products.map(p => chip(p.id, shortProductName(p.title), p.buyers))}
-      {/* Not a product, but the same question: who is really in. */}
-      {installedCount > 0 && chip('installed', '📱 במסך הבית', installedCount)}
-    </div>
-  )
-}
 
 /** Does this user pass the product chip? 'installed' is the odd one out —
  *  it filters on the home-screen install, not on a purchase. */
-function passesProductFilter(
-  u: UserProfile,
-  filter: string,
-  byUser: Map<string, string[]>,
-): boolean {
-  if (filter === 'all') return true
-  if (filter === 'installed') return !!u.pwa_installed_at
-  return (byUser.get(u.id) ?? []).includes(filter)
-}
 
-function UserProductBadges({ ids, titleById }: { ids: string[]; titleById: Map<string, string> }) {
-  if (ids.length === 0) return null
-  return (
-    <>
-      {ids.map(id => (
-        <span key={id} className="text-[13px] px-1.5 py-0.5 rounded-md font-bold"
-          style={{ background: '#F0EBE3', color: '#6E6852' }}>
-          {shortProductName(titleById.get(id) ?? 'מוצר')}
-        </span>
-      ))}
-    </>
-  )
-}
 
 /** 📱 — she opened Mimo from her home screen at least once. */
-function InstalledBadge({ at }: { at: string | null }) {
-  if (!at) return null
-  return (
-    <span
-      className="text-[13px] px-1.5 py-0.5 rounded-md font-bold"
-      style={{ background: '#EDF0E6', color: '#4F5040' }}
-      title={`הוסיפה למסך הבית ב-${new Date(at).toLocaleDateString('he-IL')}`}
-    >
-      📱 במסך הבית
-    </span>
-  )
-}
 
 type ExistingAccess = { id: string; workshop_id: string; access_start_date: string | null; access_end_date: string | null; workshops?: { title: string }[] | { title: string } | null }
 
@@ -578,9 +509,6 @@ function AssignAccessModal({ user, onClose }: { user: UserWithChildren; onClose:
 
 function UsersTab() {
   const [users, setUsers] = useState<UserWithChildren[]>([])
-  const [search, setSearch] = useState('')
-  const [modeFilter, setModeFilter] = useState<'all' | 'pregnant' | 'mom' | 'course'>('all')
-  const [productFilter, setProductFilter] = useState<string>('all')
   const { byUser, products, titleById } = useUserProducts()
   const openCustomer = useOpenCustomer()
   const [editUser, setEditUser] = useState<UserWithChildren | null>(null)
@@ -601,17 +529,6 @@ function UsersTab() {
   }, [])
   useEffect(() => { load() }, [load])
 
-  const filtered = users.filter(u => {
-    // 'course' is not a user_mode — it is where the account came from.
-    // A woman who bought the course has no baby details and would look
-    // like an abandoned signup in the plain list.
-    if (modeFilter === 'course') {
-      if (u.acquisition_source !== 'course_purchase') return false
-    } else if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
-    if (!passesProductFilter(u, productFilter, byUser)) return false
-    return matchesUserSearch(u, search)
-  })
-  const installedCount = users.filter(u => u.pwa_installed_at).length
 
   async function saveEdit() {
     if (!editUser || !editName.trim()) return
@@ -639,123 +556,20 @@ function UsersTab() {
 
   return (
     <div className="space-y-3">
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sand-300" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="שם, מייל או טלפון"
-          className="w-full pr-9 pl-4 py-3 bg-white border border-sand-100 rounded-2xl text-sm text-sand-800 focus:outline-none focus:border-mustard-400 shadow-sm"
-        />
-      </div>
-
-      {/* Mode filter */}
-      <div className="flex gap-2">
-        {(['all', 'mom', 'pregnant', 'course'] as const).map(m => (
-          <button
-            key={m}
-            onClick={() => setModeFilter(m)}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${modeFilter === m ? 'text-white shadow-sm' : 'bg-sand-50 text-sand-500'}`}
-            style={modeFilter === m ? { background: '#E7C78A' } : {}}
-          >
-            {m === 'all' ? 'הכל' : m === 'mom' ? '👶🏼 אמהות' : m === 'pregnant' ? '🤰🏼 הריון' : '🎓 קורס'}
-          </button>
-        ))}
-      </div>
-
-      <ProductChips
+      {/* 10.10.26: the list from the approved Lovable mockup (UsersListView). */}
+      <UsersListView
+        users={users}
+        byUser={byUser}
+        titleById={titleById}
         products={products}
-        value={productFilter}
-        onChange={setProductFilter}
-        installedCount={installedCount}
+        onOpen={(u, list) => openCustomer(
+            { phone: u.phone_number, email: u.email },
+            { list: list.map(x => ({ phone: x.phone_number, email: x.email })), index: list.indexOf(u) },
+          )}
+        onEdit={u => { setEditUser(u); setEditName(u.mother_name ?? ''); setEditLeadStatus(u.lead_status ?? ''); setEditNotes(u.staff_notes ?? ''); setEditUserMode(u.user_mode ?? '') }}
+        onAccess={u => setAssignAccessUser(u)}
+        onDelete={u => setDeleteUser(u)}
       />
-
-      <p className="text-xs text-sand-400">{filtered.length} משתמשות</p>
-
-      {filtered.map(u => (
-        <div key={u.id} className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-bold text-sand-800 text-sm truncate">{u.mother_name ?? '—'}</p>
-                {u.is_admin && <span className="text-[13px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-bold">ADMIN</span>}
-                {u.user_mode === 'pregnant' && <span className="text-[13px] bg-[#E4EBEF] text-[#3E5966] px-1.5 py-0.5 rounded-md font-bold">🤰🏼 הריון</span>}
-                {u.acquisition_source === 'course_purchase' && (
-                  <span className="text-[13px] bg-[#F6ECD8] text-[#6E5836] px-1.5 py-0.5 rounded-md font-bold">🎓 קורס</span>
-                )}
-                <UserProductBadges ids={byUser.get(u.id) ?? []} titleById={titleById} />
-                <InstalledBadge at={u.pwa_installed_at} />
-                <LeadBadge status={u.lead_status} />
-              </div>
-              <p className="text-xs text-sand-400 truncate">{u.email}</p>
-              <p className="text-xs text-sand-300 mt-0.5">
-                {u.childCount > 0 ? `${u.childCount} ילד${u.childCount > 1 ? 'ים' : ''}` : 'אין ילדים'}
-                {u.staff_notes && <span className="mr-2 text-sand-400">· {u.staff_notes.slice(0, 30)}{u.staff_notes.length > 30 ? '...' : ''}</span>}
-              </p>
-            </div>
-          </div>
-
-          {/* Communication row */}
-          <div className="flex gap-2">
-            {u.phone_number && <a
-              href={`https://wa.me/${u.phone_number?.replace(/\D/g, '').replace(/^0/, '972') ?? ''}?text=${encodeURIComponent(`היי ${u.mother_name ?? ''}! 👋🏼`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-            >
-              <MessageCircle className="w-3.5 h-3.5" />
-              WhatsApp
-            </a>}
-            <a
-              href={`mailto:${u.email}?subject=Mimo - עדכון עבורך&body=היי ${u.mother_name ?? ''}!`}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-            >
-              <Mail className="w-3.5 h-3.5" />
-              מייל
-            </a>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => { setEditUser(u); setEditName(u.mother_name ?? ''); setEditLeadStatus(u.lead_status ?? ''); setEditNotes(u.staff_notes ?? ''); setEditUserMode(u.user_mode ?? '') }}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-sand-50 text-sand-600 hover:bg-sand-100 transition-colors"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              ערוך
-            </button>
-            <button
-              onClick={() => setDeleteUser(u)}
-              className="p-2 rounded-xl text-red-400 hover:bg-red-50 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* The whole customer in one place: what she bought, what she
-              paid, her questionnaire, her community events. */}
-          <button
-            onClick={() => openCustomer({ phone: u.phone_number, email: u.email })}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-colors"
-            style={{ background: '#F6F3ED', color: '#443327' }}
-          >
-            <Users className="w-4 h-4" /> כרטיסיית לקוח
-          </button>
-
-          {/* Workshop access button */}
-          <button
-            onClick={() => setAssignAccessUser(u)}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold bg-[#F6ECD8] text-[#6E5836] hover:bg-[#EFDFC2] transition-colors"
-          >
-            <GraduationCap className="w-4 h-4" /> הקצה גישה לסדנה
-          </button>
-        </div>
-      ))}
-
-      {filtered.length === 0 && (
-        <p className="text-center text-sand-400 text-sm py-8">לא נמצאו משתמשות</p>
-      )}
 
       {/* Edit Modal */}
       {editUser && (
@@ -836,9 +650,6 @@ function UsersTab() {
 // ─── Users Desktop Table ──────────────────────────────────────────────────────
 function UsersTabDesktop() {
   const [users, setUsers] = useState<UserWithChildren[]>([])
-  const [search, setSearch] = useState('')
-  const [modeFilter, setModeFilter] = useState<'all' | 'pregnant' | 'mom' | 'course'>('all')
-  const [productFilter, setProductFilter] = useState<string>('all')
   const { byUser, products, titleById } = useUserProducts()
   const openCustomer = useOpenCustomer()
   const [drawer, setDrawer] = useState<UserWithChildren | null>(null)
@@ -859,19 +670,7 @@ function UsersTabDesktop() {
   }, [])
   useEffect(() => { load() }, [load])
 
-  const filtered = users.filter(u => {
-    // 'course' is not a user_mode — it is where the account came from.
-    // A woman who bought the course has no baby details and would look
-    // like an abandoned signup in the plain list.
-    if (modeFilter === 'course') {
-      if (u.acquisition_source !== 'course_purchase') return false
-    } else if (modeFilter !== 'all' && u.user_mode !== modeFilter) return false
-    if (!passesProductFilter(u, productFilter, byUser)) return false
-    return matchesUserSearch(u, search)
-  })
-  const installedCount = users.filter(u => u.pwa_installed_at).length
   // The card's ‹ › arrows walk the list she is looking at, in its order.
-  const cardList = filtered.map(u => ({ phone: u.phone_number, email: u.email }))
 
   function openDrawer(u: UserWithChildren) {
     setDrawer(u)
@@ -901,126 +700,21 @@ function UsersTabDesktop() {
 
   return (
     <div className="flex gap-6 h-full" dir="rtl">
-      {/* ── Table ── */}
+      {/* 10.10.26: the list from the approved Lovable mockup (UsersListView). */}
       <div className="flex-1 min-w-0">
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="חיפוש לפי שם / אימייל..."
-              className="w-full pr-9 pl-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-800 focus:outline-none focus:border-mustard-400 shadow-sm" />
-          </div>
-          <div className="flex gap-1.5">
-            {(['all', 'mom', 'pregnant', 'course'] as const).map(m => (
-              <button key={m} onClick={() => setModeFilter(m)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${modeFilter === m ? 'text-white' : 'bg-white text-gray-500 border border-gray-200'}`}
-                style={modeFilter === m ? { background: '#E7C78A' } : {}}>
-                {m === 'all' ? 'הכל' : m === 'mom' ? '👶🏼 אמהות' : m === 'pregnant' ? '🤰🏼 הריון' : '🎓 קורס'}
-              </button>
-            ))}
-          </div>
-          <span className="text-sm text-gray-400 mr-auto">{filtered.length} משתמשות</span>
-        </div>
-
-        <div className="mb-4">
-          <ProductChips
-            products={products}
-            value={productFilter}
-            onChange={setProductFilter}
-            installedCount={installedCount}
-          />
-        </div>
-
-        {/* Table */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
-          <table className="w-full text-right" dir="rtl">
-            <thead>
-              <tr style={{ background: '#f8f8fb' }}>
-                {['שם', 'אימייל', 'מצב', 'סטטוס CRM', 'ילדים', 'הצטרף', 'פעולות'].map(h => (
-                  <th key={h} className="px-4 py-3 text-xs font-bold text-gray-500 text-right whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.map(u => (
-                <tr key={u.id} className="hover:bg-gray-50 transition-colors group">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-mustard-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-mustard-700">
-                        {(u.mother_name ?? u.email)[0]?.toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800 whitespace-nowrap">{u.mother_name ?? '—'}</p>
-                        {u.is_admin && <span className="text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold">ADMIN</span>}
-                        {u.acquisition_source === 'course_purchase' && (
-                          <span className="text-[9px] bg-[#F6ECD8] text-[#6E5836] px-1 rounded font-bold">🎓 קורס</span>
-                        )}
-                        <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                          <UserProductBadges ids={byUser.get(u.id) ?? []} titleById={titleById} />
-                          <InstalledBadge at={u.pwa_installed_at} />
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px] truncate">{u.email}</td>
-                  <td className="px-4 py-3">
-                    {u.user_mode === 'pregnant'
-                      ? <span className="text-[13px] bg-[#E4EBEF] text-[#3E5966] px-2 py-0.5 rounded-lg font-bold">🤰🏼 הריון</span>
-                      : u.user_mode === 'mom'
-                      ? <span className="text-[13px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-lg font-bold">👶🏼 אמא</span>
-                      : <span className="text-[13px] text-gray-400">—</span>
-                    }
-                  </td>
-                  <td className="px-4 py-3"><LeadBadge status={u.lead_status} /></td>
-                  <td className="px-4 py-3 text-sm text-gray-600 text-center">{u.childCount || '—'}</td>
-                  <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
-                    {u.created_at ? new Date(u.created_at).toLocaleDateString('he-IL') : 'ללא'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      {/* Always visible: this is now the main way into a
-                          person, not a hover affordance. The edit/delete
-                          row stays hidden until hover, where it was. */}
-                      <button
-                        onClick={() => openCustomer(
-                          { phone: u.phone_number, email: u.email },
-                          { list: cardList, index: filtered.indexOf(u) },
-                        )}
-                        title="כרטיסיית לקוח"
-                        className="px-2 py-1.5 rounded-lg font-bold transition-colors hover:brightness-95 flex-shrink-0"
-                        style={{ background: '#F6F3ED', color: '#443327', fontSize: 12 }}
-                      >
-                        כרטיסייה
-                      </button>
-                      <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openDrawer(u)} title="ערוך"
-                        className="p-1.5 rounded-lg hover:bg-mustard-50 text-gray-400 hover:text-mustard-600">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => setAssignAccessUser(u)} title="גישה לסדנה"
-                        className="p-1.5 rounded-lg hover:bg-[#F6ECD8] text-[#7B604C] hover:text-[#6E5836] text-xs">
-                        <GraduationCap className="w-4 h-4" />
-                      </button>
-                      <a href={`mailto:${u.email}`}
-                        className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600">
-                        <Mail className="w-3.5 h-3.5" />
-                      </a>
-                      <button onClick={() => setDeleteUser(u)} title="מחק"
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <p className="text-center text-gray-400 text-sm py-12">לא נמצאו משתמשות</p>
+        <UsersListView
+          users={users}
+          byUser={byUser}
+          titleById={titleById}
+          products={products}
+          onOpen={(u, list) => openCustomer(
+            { phone: u.phone_number, email: u.email },
+            { list: list.map(x => ({ phone: x.phone_number, email: x.email })), index: list.indexOf(u) },
           )}
-        </div>
+          onEdit={openDrawer}
+          onAccess={u => setAssignAccessUser(u)}
+          onDelete={u => setDeleteUser(u)}
+        />
       </div>
 
       {/* ── Side Drawer ── */}
