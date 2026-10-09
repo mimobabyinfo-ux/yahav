@@ -31,7 +31,6 @@ import HomeAnnouncementsPanel from '../components/admin/HomeAnnouncementsPanel'
 import CategoryManagerModal from '../components/admin/CategoryManagerModal'
 import { useWorkshopCategories } from '../hooks/useWorkshopCategories'
 import { perkBranches, branchCountLabel, type PerkBranch } from '../utils/perkBranches'
-import MimoLeaf from '../components/MimoLeaf'
 import AdminHome from '../components/admin/AdminHome'
 import ProductPage from '../components/admin/ProductPage'
 import GiftCardsPanel from '../components/admin/GiftCardsPanel'
@@ -6955,6 +6954,76 @@ function effectiveStatus(
   return isCohortPast(c) ? 'handled' : 'paid'
 }
 
+const RG_CSS = `
+.rg-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+.rg-title h1{font-size:26px;font-weight:700;color:#443327;line-height:1.2}
+.rg-title span{font-size:13px;color:#8A7A63;font-weight:600}
+.rg-hactions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.rg-search{grid-column:1/-1;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #E9E2D6;border-radius:12px;padding:0 12px;height:42px;max-width:520px}
+.rg-search input{flex:1;min-width:0;background:transparent;outline:none;font-size:14.5px;color:#443327}
+.rg-search input::placeholder{color:#A2937D}
+.rg-btn{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;border-radius:10px;padding:7px 12px;white-space:nowrap;transition:filter .15s}
+.rg-btn:hover{filter:brightness(.97)}
+.rg-btn.primary{background:#C8A460;color:#33281B;padding:9px 16px;font-size:14px}
+.rg-btn.soft{background:#F6ECD8;color:#6E5836}
+.rg-btn.blue{background:#E4EBEF;color:#35505C}
+.rg-btn.plain{color:#8A7A63;padding-inline:8px}
+.rg-btn.plain:hover{background:#F6F3ED;filter:none}
+.rg-btn:disabled{opacity:.4}
+.rg-h{display:flex;align-items:center;gap:8px;margin-top:10px}
+.rg-h h2{font-size:19px;font-weight:700;color:#443327}
+.rg-sub{font-size:13px;color:#8A7A63;font-weight:600}
+.rg-count{font-size:12px;font-weight:800;background:#F5E2D8;color:#8B4A30;border-radius:999px;padding:1px 9px}
+.rg-calm{display:flex;align-items:center;gap:6px;font-size:14px;color:#3F5B39;font-weight:600;background:#EEF3EA;border-radius:12px;padding:10px 14px}
+.rg-inbox{background:#fff;border:1px solid #E9E2D6;border-radius:16px;overflow:hidden}
+.rg-inbox h3{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;padding:9px 16px}
+.rg-inbox.rust h3{color:#8B4A30;background:#FBF3EF}
+.rg-inbox.blue h3{color:#35505C;background:#F1F5F7}
+.rg-irow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 16px;border-top:1px solid #F1EBE1}
+.rg-person{font-size:15px;font-weight:700;color:#443327;text-align:right}
+.rg-person:hover{text-decoration:underline}
+.rg-irow p{font-size:12.5px;color:#8A7A63;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rg-chip{font-size:12px;font-weight:800;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.rg-chip.rust{background:#F5E2D8;color:#8B4A30}.rg-chip.blue{background:#E4EBEF;color:#35505C}
+.rg-iactions{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.rg-more-btn{width:100%;padding:9px;font-size:13px;font-weight:700;color:#8A7A63;border-top:1px solid #F1EBE1}
+.rg-more-btn:hover{background:#FBF9F5}
+.rg-tabs{display:flex;gap:20px;overflow-x:auto;border-bottom:1px solid #E9E2D6;scrollbar-width:none}
+.rg-tabs::-webkit-scrollbar{display:none}
+.rg-tab{padding:9px 1px;font-size:14px;font-weight:600;color:#8A7A63;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
+.rg-tab[aria-selected="true"]{color:#443327;font-weight:800;border-color:#C8A460}
+.rg-tab small{font-size:11.5px;color:#A2937D;margin-inline-start:5px;font-weight:700}
+.rg-grid{display:grid;grid-auto-flow:row dense;gap:12px;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));align-items:start}
+.rg-card{background:#fff;border:1px solid #E9E2D6;border-radius:18px;overflow:hidden}
+.rg-card.open{grid-column:1/-1;border-color:#E2D3B4;box-shadow:0 2px 10px rgba(68,51,39,.05)}
+.rg-cohort{display:flex;flex-direction:column;gap:8px;width:100%;padding:14px 16px;text-align:right}
+.rg-cohort:hover{background:#FCFAF6}
+.rg-cohort-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.rg-cohort-top strong{display:block;font-size:16px;color:#443327}
+.rg-when{display:block;font-size:13px;font-weight:700;color:#8A6A2F;margin-top:1px}
+.rg-label{display:block;font-size:12px;color:#A2937D}
+.rg-seats{display:flex;align-items:center;gap:8px;font-size:13.5px;color:#443327}
+.rg-full{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;font-weight:800;color:#3F5B39;background:#E7F0E4;border-radius:999px;padding:1px 8px}
+.rg-bar{display:block;height:6px;background:#F1EBE1;border-radius:999px;overflow:hidden}
+.rg-bar span{display:block;height:100%;border-radius:999px}
+.rg-meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;font-weight:700}
+.rg-meta span{display:inline-flex;align-items:center;gap:4px}
+.rg-names{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.rg-name{font-size:12px;font-weight:600;background:#F6F3ED;color:#5E4938;border-radius:999px;padding:2px 9px}
+.rg-name.pending{background:#F5E2D8;color:#8B4A30}
+.rg-more,.rg-empty{font-size:12px;color:#A2937D;font-weight:600}
+.rg-empty.pad{display:block;padding:14px 16px}
+.rg-expanded{border-top:1px solid #E9E2D6}
+.rg-toolbar{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;background:#FBF9F5;border-bottom:1px solid #F1EBE1}
+.rg-fold{background:#fff;border:1px solid #E9E2D6;border-radius:14px;overflow:hidden}
+.rg-fold>button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:11px 16px;font-size:13.5px;font-weight:700;color:#6E5836;text-align:right}
+.rg-fold>button:hover{background:#FCFAF6}
+.rg-fold-body{border-top:1px solid #F1EBE1}
+.rg-fold-body.pad{padding:10px;background:#FBF9F5;display:flex;flex-direction:column;gap:10px}
+.rg-focus{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#F6ECD8;border-radius:12px;padding:10px 14px;font-size:13.5px;font-weight:700;color:#6E5836}
+@media (max-width:640px){.rg-header{grid-template-columns:1fr}.rg-grid{grid-template-columns:1fr}.rg-title h1{font-size:22px}}
+`
+
 function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: string[]; onClearFocus?: () => void } = {}) {
   const [leads, setLeads] = useState<RegistrationLead[]>([])
   const [workshops, setWorkshops] = useState<Workshop[]>([])
@@ -6973,15 +7042,16 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
   // Screen A / A1: ONE filter layer. The old status chips, the cohort
   // dropdown and the רשימה/מחזורים tabs are gone — the list is always
   // grouped by cohort, filtered by exactly one chip row.
-  const [chip, setChip] = useState<'all' | 'pending' | 'no_form' | 'paid'>('all')
-  const [workshopFilter, setWorkshopFilter] = useState<string>('all')
+  // 9.10.26 (Lovable mockup): product tabs + cohorts that open in place,
+  // instead of a workshop picker that replaced the whole page.
+  const [productTab, setProductTab] = useState<string>('all')
   // פרטני section: dateless products (no cohorts defined) get their own
   // bucket so they don't clutter the main cohort-based list forever.
-  const [showPrivateSection, setShowPrivateSection] = useState(false)
+  const [openCohorts, setOpenCohorts] = useState<Set<string>>(new Set())
   // Workshop-first UX: the page opens with a workshop picker, not a
   // 90-row list. A registration list renders only after a choice
   // (workshop / פרטני / search / "הצג הכל").
-  const [showAllAnyway, setShowAllAnyway] = useState(false)
+  const [openFolds, setOpenFolds] = useState<Record<string, boolean>>({})
   const [search, setSearch] = useState('')
   // Phase 5 / A3: bulk-action selection. Persists across filter and
   // view-mode changes for convenience, but bulk actions act ONLY on
@@ -7138,19 +7208,6 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
     [cohorts],
   )
 
-  // Nearest upcoming cohort per workshop — shown on the picker card so
-  // the next date jumps out without drilling in.
-  const nextCohortByWorkshop = useMemo(() => {
-    const m = new Map<string, WorkshopCohort>()
-    for (const c of cohorts) {
-      if (!c.is_active || isCohortPast(c)) continue
-      const cur = m.get(c.workshop_id)
-      if (!cur || c.start_date < cur.start_date || (c.start_date === cur.start_date && (c.start_time ?? '') < (cur.start_time ?? ''))) {
-        m.set(c.workshop_id, c)
-      }
-    }
-    return m
-  }, [cohorts])
 
   const workshopById = useMemo(() => {
     const m = new Map<string, Workshop>()
@@ -7213,42 +7270,17 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
 
   const filtered = useMemo(() => {
     // Phase 3 focus mode (handoff §4): a task click lands here with the
-    // exact lead ids — show them and nothing else, bypassing the picker.
+    // exact lead ids — show them and nothing else.
     if (focusLeadIds) {
       const set = new Set(focusLeadIds)
       return leads.filter(l => set.has(l.id))
     }
-    if (workshopFilter === 'all' && !showPrivateSection && !search.trim() && !showAllAnyway) return []
-    return leads.filter(l => {
-      // The chip targets the EFFECTIVE status (paid + past cohort
-      // displays as מומש and is neither ממתינה nor שילמה).
-      const eff = effectiveStatus(l, cohortById)
-      // Dateless products (workshop with no cohorts at all, or no
-      // workshop) belong to the פרטני section; the main list hides them.
-      const isDateless = !l.selected_workshop_id || !workshopIdsWithCohorts.has(l.selected_workshop_id)
-      if (showPrivateSection !== isDateless) return false
-      if (workshopFilter !== 'all' && l.selected_workshop_id !== workshopFilter) return false
-      if (chip === 'pending' && eff !== 'pending') return false
-      if (chip === 'paid' && eff !== 'paid') return false
-      if (chip === 'no_form') {
-        const gap = gapByLeadId.get(l.id)
-        if (!gap || gap.isFilled) return false
-      }
-      if (search.trim()) {
-        const q = search.trim().toLowerCase()
-        if (!l.name.toLowerCase().includes(q) && !l.phone.includes(q) && !l.email.toLowerCase().includes(q)) return false
-      }
-      return true
-    })
-  }, [leads, chip, workshopFilter, search, cohortById, showPrivateSection, workshopIdsWithCohorts, showAllAnyway, focusLeadIds, gapByLeadId])
+    // 9.10.26: search covers everything, dateless products included.
+    const q = search.trim().toLowerCase()
+    if (!q) return []
+    return leads.filter(l => l.name.toLowerCase().includes(q) || (l.phone ?? '').includes(q) || (l.email ?? '').toLowerCase().includes(q))
+  }, [leads, search, focusLeadIds])
 
-  // Chip counts also reflect effective status so the numbers match
-  // what the filter would actually surface.
-  const counts = useMemo(() => {
-    const c = { all: leads.length, pending: 0, paid: 0, handled: 0 } as Record<'all' | RegistrationLead['status'], number>
-    for (const l of leads) c[effectiveStatus(l, cohortById)]++
-    return c
-  }, [leads, cohortById])
 
 
   // Polish #8: cohort-scoped form responses modal. Opened from a
@@ -7324,10 +7356,12 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
   // Phase 5 / A3: visible-selected = intersection of `selected` with
   // the currently-filtered list. Bulk actions act on this set, NEVER
   // on hidden selections — guarantees no surprise edits.
+  const listMode = !!focusLeadIds || !!search.trim()
+  const bulkPool = listMode ? filtered : leads
   const visibleSelectedIds = useMemo(() => {
     if (selected.size === 0) return [] as string[]
-    return filtered.filter(l => selected.has(l.id)).map(l => l.id)
-  }, [filtered, selected])
+    return bulkPool.filter(l => selected.has(l.id)).map(l => l.id)
+  }, [bulkPool, selected])
 
   async function bulkSetStatus(status: RegistrationLead['status']) {
     if (visibleSelectedIds.length === 0) return
@@ -7345,13 +7379,13 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
   const reminderTargets = useMemo(() => {
     const idSet = new Set(visibleSelectedIds)
     const out: { href: string; phone: string }[] = []
-    for (const l of filtered) {
+    for (const l of bulkPool) {
       if (!idSet.has(l.id)) continue
       const href = regReminderHref(l, cohorts, workshops, gapByLeadId.get(l.id) ?? null)
       if (href) out.push({ href, phone: l.phone })
     }
     return out
-  }, [visibleSelectedIds, filtered, cohorts, workshops, gapByLeadId])
+  }, [visibleSelectedIds, bulkPool, cohorts, workshops, gapByLeadId])
 
   // Phase 5 / A2 Stage 3 (Part 3): manual "+ הרשמה חדשה" entry point.
   const [addRegOpen, setAddRegOpen] = useState(false)
@@ -7359,44 +7393,12 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
   // README-IA PR10: per-group "עוד n" expansion in the מחכה לך inbox.
   const [inboxOpen, setInboxOpen] = useState<Record<string, boolean>>({})
 
-  const pickerMode = !focusLeadIds && workshopFilter === 'all' && !showPrivateSection && !search.trim() && !showAllAnyway
 
   // Focus mode used to pre-tick the matching rows for the bulk bar.
   // Brenda 11.8.26: arriving from a home task should SHOW her who they
   // are, not stage a bulk action she never asked for — she ticks the
   // ones she wants herself.
 
-  // Per-workshop registration counts for the picker cards.
-  const pickerCards = (() => {
-    const stats = new Map<string, { total: number; active: number }>()
-    let privTotal = 0
-    let privActive = 0
-    for (const l of leads) {
-      const dateless = !l.selected_workshop_id || !workshopIdsWithCohorts.has(l.selected_workshop_id)
-      const isActive = effectiveStatus(l, cohortById) !== 'handled'
-      if (dateless) { privTotal++; if (isActive) privActive++; continue }
-      const s = stats.get(l.selected_workshop_id!) ?? { total: 0, active: 0 }
-      s.total++; if (isActive) s.active++
-      stats.set(l.selected_workshop_id!, s)
-    }
-    const withRegs = workshops.filter(w => stats.has(w.id))
-    const cards = withRegs
-      .filter(w => workshopIdsWithUpcoming.has(w.id))
-      .map(w => ({ id: w.id, title: w.title, ...stats.get(w.id)! }))
-    return { cards, privTotal, privActive, hiddenCount: withRegs.length - cards.length }
-  })()
-
-  const backToPicker = () => {
-    setWorkshopFilter('all')
-    setChip('all')
-    setShowPrivateSection(false)
-    setShowAllAnyway(false)
-    setSearch('')
-    // Also leave the "arrived from a home task" filter — without this
-    // the button looked broken: pickerMode stays false while
-    // focusLeadIds is set, so nothing on screen changed.
-    onClearFocus?.()
-  }
 
   // README-IA PR10: "מחכה לך" inbox groups — computed from data already
   // loaded (no queries). q1 = paid, workshop has a linked form, no
@@ -7438,14 +7440,6 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
     }
     return { pending, unassigned, q1urgent, q1quiet, hidden, total: pending.length + unassigned.length + q1urgent.length }
   })()
-  const unfilledByWorkshop = (() => {
-    const m = new Map<string, number>()
-    for (const l of [...inboxGroups.q1urgent, ...inboxGroups.q1quiet]) {
-      if (!l.selected_workshop_id) continue
-      m.set(l.selected_workshop_id, (m.get(l.selected_workshop_id) ?? 0) + 1)
-    }
-    return m
-  })()
   // Row click in the inbox drills into that lead's workshop (or the
   // פרטני bucket for dateless products).
   // 6.10.26: a name opens HER card (status, cohort, payments, questionnaire)
@@ -7455,29 +7449,6 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
     openCustomerCard({ phone: l.phone, email: l.email, leadId: l.id })
   }
 
-  // The NEXT cohort of each workshop, with the people in it (Brenda
-  // 14.9.26: "את המחזור הקרוב של כל סדנה, לא את כל הסדנאות הפתוחות").
-  // One card per workshop, soonest first. Paid = effective status paid;
-  // a pending row is shown too, marked, because she is a seat in flight.
-  const upcomingCohortRows = useMemo(() => {
-    const byCohort = new Map<string, { paid: RegistrationLead[]; pending: RegistrationLead[] }>()
-    for (const l of leads) {
-      if (!l.cohort_id) continue
-      const eff = effectiveStatus(l, cohortById)
-      if (eff !== 'paid' && eff !== 'pending') continue
-      const b = byCohort.get(l.cohort_id) ?? { paid: [], pending: [] }
-      ;(eff === 'paid' ? b.paid : b.pending).push(l)
-      byCohort.set(l.cohort_id, b)
-    }
-    return [...nextCohortByWorkshop.values()]
-      .sort((a, b) => a.start_date.localeCompare(b.start_date) || (a.start_time ?? '').localeCompare(b.start_time ?? ''))
-      .map(c => ({
-        cohort: c,
-        title: workshopById.get(c.workshop_id)?.title ?? 'סדנה',
-        paid: byCohort.get(c.id)?.paid ?? [],
-        pending: byCohort.get(c.id)?.pending ?? [],
-      }))
-  }, [leads, nextCohortByWorkshop, cohortById, workshopById])
 
   // PR10 follow-up: non-urgent unfilled questionnaires (cohort further
   // than 7 days out, or no cohort date) collapse into one quiet footer
@@ -7534,42 +7505,176 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
     )
   }
 
+  // ── 9.10.26: the page from the approved Lovable mockup ──────────────
+  // מחכה לך first, then ONE browse area: product tabs, the upcoming
+  // cohorts as cards that open in place (names, seats, questionnaire),
+  // past cohorts and registrations without a cohort folded at the end,
+  // dateless products in their own tab.
+  const shortTitle = (t: string) => t.replace(/^ליווי התפתחותי\s*-\s*/, '').replace(/^סדנת\s+/, '')
+  const isDatelessLead = (l: RegistrationLead) => !l.selected_workshop_id || !workshopIdsWithCohorts.has(l.selected_workshop_id)
+  const inTab = (workshopId: string | null | undefined) => productTab === 'all' || productTab === workshopId
+  const tabWorkshops = workshops.filter(w => workshopIdsWithUpcoming.has(w.id))
+  const datelessLeads = leads.filter(isDatelessLead)
+  const leadsByCohort = new Map<string, RegistrationLead[]>()
+  for (const l of leads) {
+    if (!l.cohort_id) continue
+    const list = leadsByCohort.get(l.cohort_id) ?? []
+    list.push(l)
+    leadsByCohort.set(l.cohort_id, list)
+  }
+  const upcomingAll = cohorts
+    .filter(c => c.is_active && !isCohortPast(c))
+    .sort((a, b) => a.start_date.localeCompare(b.start_date) || (a.start_time ?? '').localeCompare(b.start_time ?? ''))
+  const upcomingInTab = upcomingAll.filter(c => inTab(c.workshop_id))
+  const pastLeads = leads.filter(l => {
+    const c = l.cohort_id ? cohortById.get(l.cohort_id) : null
+    return !!c && (isCohortPast(c) || !c.is_active) && inTab(c.workshop_id)
+  })
+  const pastCohortCount = new Set(pastLeads.map(l => l.cohort_id)).size
+  const noCohortLeads = leads.filter(l => !l.cohort_id && !isDatelessLead(l) && inTab(l.selected_workshop_id) && l.status !== 'handled')
+  const datelessGroups = (() => {
+    const m = new Map<string, { title: string; list: RegistrationLead[] }>()
+    for (const l of datelessLeads) {
+      const key = l.selected_workshop_id ?? '__none__'
+      const title = (l.selected_workshop_id ? workshopById.get(l.selected_workshop_id)?.title : null) ?? l.workshops?.title ?? 'בלי מוצר'
+      const g = m.get(key) ?? { title, list: [] }
+      g.list.push(l)
+      m.set(key, g)
+    }
+    return [...m.entries()].sort((a, b) => b[1].list.length - a[1].list.length)
+  })()
+  const byNewest = (list: RegistrationLead[]) => list.slice().sort((a, b) => b.created_at.localeCompare(a.created_at))
+  function cohortWhen(c: WorkshopCohort): string {
+    const [y, m, d] = c.start_date.split('-').map(Number)
+    const wd = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'][new Date(y, m - 1, d).getDay()]
+    return `יום ${wd} ${d}/${m}${c.start_time ? ` · ${c.start_time.slice(0, 5)}` : ''}`
+  }
+  function toggleCohort(id: string) {
+    setOpenCohorts(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  const renderRows = (list: RegistrationLead[]) => (
+    <>
+      {list.map((l, i) => (
+        <div key={l.id} className={i > 0 ? 'border-t border-[#F6F1E9]' : undefined}>
+          <RegistrationRow52
+            lead={l}
+            eff={effectiveStatus(l, cohortById)}
+            gap={gapByLeadId.get(l.id) ?? null}
+            navOrder={list}
+            navIndex={i}
+            selected={selected.has(l.id)}
+            onToggleSelect={toggleSelect}
+          />
+        </div>
+      ))}
+    </>
+  )
+  const fold = (key: string, title: string, body: () => React.ReactNode, padded = false) => (
+    <div className="rg-fold" key={key}>
+      <button type="button" onClick={() => setOpenFolds(o => ({ ...o, [key]: !o[key] }))} aria-expanded={!!openFolds[key]}>
+        <span>{title}</span>
+        <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${openFolds[key] ? 'rotate-180' : ''}`} style={{ color: '#A2937D' }} />
+      </button>
+      {openFolds[key] && <div className={`rg-fold-body${padded ? ' pad' : ''}`}>{body()}</div>}
+    </div>
+  )
+  const renderCohortCard = (c: WorkshopCohort) => {
+    const list = byNewest(leadsByCohort.get(c.id) ?? [])
+    const w = workshopById.get(c.workshop_id)
+    const capacity = c.capacity ?? w?.stock_quantity ?? null
+    const pend = list.filter(l => l.status === 'pending')
+    // 27.9.26: a registration pending payment does not hold a seat.
+    const taken = list.length - pend.length
+    const gaps = list.map(l => gapByLeadId.get(l.id)).filter((g): g is GapStatusType => !!g)
+    const filled = gaps.filter(g => g.isFilled).length
+    const open = openCohorts.has(c.id)
+    const full = capacity != null && taken >= capacity
+    const ratio = capacity ? Math.min(1, taken / capacity) : 0
+    return (
+      <article key={c.id} className={`rg-card${open ? ' open' : ''}`}>
+        <button type="button" className="rg-cohort" onClick={() => toggleCohort(c.id)} aria-expanded={open}>
+          <span className="rg-cohort-top">
+            <span className="min-w-0">
+              <strong>{shortTitle(w?.title ?? 'סדנה')}</strong>
+              <span className="rg-when">{cohortWhen(c)}</span>
+              {c.label && <span className="rg-label">{c.label}</span>}
+            </span>
+            <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} style={{ color: '#A2937D' }} />
+          </span>
+          <span className="rg-seats">
+            <b>{capacity != null ? `${taken} מתוך ${capacity} נרשמו` : taken === 1 ? 'נרשמה אחת' : `${taken} נרשמו`}</b>
+            {full && <span className="rg-full"><Check className="w-3 h-3" />מלא</span>}
+          </span>
+          {capacity != null && <span className="rg-bar"><span style={{ width: `${ratio * 100}%`, background: full ? '#3F5B39' : '#C8A460' }} /></span>}
+          {(gaps.length > 0 || pend.length > 0) && (
+            <span className="rg-meta">
+              {gaps.length > 0 && <span style={{ color: filled < gaps.length ? '#8B4A30' : '#4F5040' }}><ClipboardList className="w-3.5 h-3.5" />מילאו שאלון {filled}/{gaps.length}</span>}
+              {pend.length > 0 && <span style={{ color: '#8B4A30' }}>{pend.length === 1 ? 'אחת ממתינה לתשלום' : `${pend.length} ממתינות לתשלום`}</span>}
+            </span>
+          )}
+          <span className="rg-names">
+            {list.length === 0
+              ? <span className="rg-empty">עדיין אין נרשמות</span>
+              : <>
+                  {list.slice(0, 6).map(l => <span key={l.id} className={`rg-name${l.status === 'pending' ? ' pending' : ''}`}>{l.name.split(' ')[0]}</span>)}
+                  {list.length > 6 && <span className="rg-more">+{list.length - 6}</span>}
+                </>}
+          </span>
+        </button>
+        {open && (
+          <div className="rg-expanded">
+            {list.length > 0 ? (
+              <>
+                <div className="rg-toolbar">
+                  {filled > 0 && <button type="button" className="rg-btn soft" onClick={() => openCohortResponses(c)}><ClipboardList className="w-3.5 h-3.5" />תשובות לשאלון</button>}
+                  <button type="button" className="rg-btn plain" onClick={() => toggleSelectGroup(list)}>{list.every(l => selected.has(l.id)) ? 'ביטול בחירה' : 'בחירת כולן'}</button>
+                </div>
+                {renderRows(list)}
+              </>
+            ) : <p className="rg-empty pad">עדיין אין נרשמות במחזור הזה</p>}
+          </div>
+        )}
+      </article>
+    )
+  }
+
   return (
     <RegBalanceContext.Provider value={balanceByLead}>
     <div className="space-y-3" dir="rtl">
-      {/* README-IA PR10: compact header — one search + new-registration. */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2" style={{ flex: '1 1 260px', minWidth: 240, maxWidth: 440, background: '#F8F4EC', border: '1px solid #E4DAD0', borderRadius: 16, padding: '0 14px', height: 44 }}>
-          <Search className="flex-shrink-0" style={{ width: 17, height: 17, color: '#7B604C' }} />
+      <style>{RG_CSS}</style>
+      {/* 9.10.26: header without a card (Lovable mockup). */}
+      <header className="rg-header">
+        <div className="rg-title">
+          <h1>הרשמות</h1>
+          <span>{leads.length} הרשמות</span>
+        </div>
+        <div className="rg-hactions">
+          <button type="button" onClick={() => setAddRegOpen(true)} className="rg-btn primary">
+            <Plus className="w-4 h-4" /> הרשמה חדשה
+          </button>
+          <a href="?register" target="_blank" rel="noopener noreferrer" className="rg-btn plain" title="עמוד ההרשמה הציבורי, מה שהאמהות רואות">
+            עמוד ההרשמה <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+        <div className="rg-search">
+          <Search className="w-4 h-4 flex-shrink-0" style={{ color: '#A2937D' }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="סינון הרשימה: שם, טלפון או אימייל"
-            className="flex-1 min-w-0 bg-transparent focus:outline-none placeholder:text-[#7B604C]"
-            style={{ fontSize: 15, color: '#443327', height: '100%' }}
+            placeholder="חיפוש בכל ההרשמות: שם, טלפון או אימייל"
+            aria-label="חיפוש הרשמה"
           />
+          {search && (
+            <button type="button" onClick={() => setSearch('')} aria-label="ניקוי החיפוש" style={{ color: '#A2937D' }}>
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={() => setAddRegOpen(true)}
-          className="inline-flex items-center gap-2 transition-all hover:shadow-sm"
-          style={{ background: '#C8A460', color: '#33281B', borderRadius: 16, padding: '12px 20px', fontWeight: 700, fontSize: 15 }}
-        >
-          <Plus style={{ width: 17, height: 17 }} />
-          הרשמה חדשה
-        </button>
-        <a
-          href="?register"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 whitespace-nowrap hover:underline"
-          style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D' }}
-          title="עמוד ההרשמה הציבורי, מה שהאמהות רואות"
-        >
-          עמוד ההרשמה
-          <ExternalLink style={{ width: 14, height: 14 }} />
-        </a>
-      </div>
+      </header>
       {addRegOpen && (
         <AddRegistrationModal
           mode="new-mother"
@@ -7578,316 +7683,183 @@ function RegistrationsTab({ focusLeadIds, onClearFocus }: { focusLeadIds?: strin
         />
       )}
 
-      {/* README-IA PR10: "מחכה לך" inbox — the page's needs-action queue. */}
-      {pickerMode && (
+      {/* A home task or a search shows a flat list, grouped by cohort. */}
+      {listMode && (
         <div className="space-y-3">
-          <div className="flex items-baseline gap-3">
-            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>מחכה לך</h2>
-            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{inboxGroups.total} פריטים</span>
-          </div>
-          {inboxGroups.total === 0 ? (
-            <>
-              <div className="bg-white flex flex-col items-center text-center" style={{ border: '1px solid #E4DAD0', borderRadius: 20, padding: 40 }}>
-                <MimoLeaf variant="sand-2" size={64} rotate={-8} />
-                <p className="font-display" style={{ fontSize: 26, color: '#5E4938', marginTop: 10 }}>הכל מטופל</p>
-                <p style={{ fontWeight: 400, fontSize: 16, color: '#7B604C', marginTop: 4 }}>אין הרשמות שמחכות לך הבוקר</p>
-              </div>
-              {inboxGroups.q1quiet.length > 0 && (
-                <div className="bg-white" style={{ border: '1px solid #E4DAD0', borderRadius: 20, overflow: 'hidden' }}>
-                  {renderQuietFooter(false)}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="bg-white" style={{ border: '1px solid #E4DAD0', borderRadius: 20, overflow: 'hidden' }}>
-              {([
-                { key: 'q1', items: inboxGroups.q1urgent, stripBg: '#F5E2D8', stripBorder: '#E8C3B2', stripColor: '#713924', icon: <AlertCircle style={{ width: 17, height: 17, color: '#8B4A30' }} />, stripLabel: `${inboxGroups.q1urgent.length} שאלונים שחסרים לסדנאות הקרובות`, badge: { label: 'שאלון לא מולא', color: '#8B4A30', bg: '#F5E2D8' }, action: 'reminder' as const },
-                { key: 'q2', items: inboxGroups.pending, stripBg: '#F5E2D8', stripBorder: '#E8C3B2', stripColor: '#713924', icon: <CreditCard style={{ width: 17, height: 17, color: '#8B4A30' }} />, stripLabel: `${inboxGroups.pending.length} ממתינות לתשלום`, badge: { label: 'ממתינה לתשלום', color: '#8B4A30', bg: '#F5E2D8' }, action: null },
-                { key: 'q3', items: inboxGroups.unassigned, stripBg: '#E4EBEF', stripBorder: '#D3DEE4', stripColor: '#3E5966', icon: <CalendarDays style={{ width: 17, height: 17, color: '#3E5966' }} />, stripLabel: `${inboxGroups.unassigned.length} ללא שיבוץ למחזור`, badge: { label: 'ללא שיבוץ', color: '#3E5966', bg: '#E4EBEF' }, action: 'assign' as const },
-              ]).filter(g => g.items.length > 0).map(g => {
-                const shown = inboxOpen[g.key] ? g.items : g.items.slice(0, 3)
-                return (
-                  <div key={g.key}>
-                    <div className="flex items-center gap-2" style={{ background: g.stripBg, borderBottom: `1px solid ${g.stripBorder}`, padding: '10px 20px' }}>
-                      {g.icon}
-                      <span style={{ fontWeight: 700, fontSize: 15, color: g.stripColor }}>{g.stripLabel}</span>
-                    </div>
-                    {shown.map(l => {
-                      const cohort = l.cohort_id ? cohortById.get(l.cohort_id) : null
-                      const wTitle = (l.selected_workshop_id ? workshopById.get(l.selected_workshop_id)?.title : null) ?? l.workshops?.title ?? '—'
-                      const gap = gapByLeadId.get(l.id)
-                      const href = g.action === 'reminder' ? regReminderHref(l, cohorts, workshops, gap ?? null) : null
-                      return (
-                        <div
-                          key={l.id}
-                          onClick={() => drillToLead(l)}
-                          className="flex flex-wrap items-center cursor-pointer border-b border-[#F0EBE3] last:border-b-0 hover:bg-[#FBF8F3] transition-colors"
-                          style={{ padding: '12px 16px', columnGap: 12, rowGap: 6 }}
-                        >
-                          <div className="flex-1 min-w-0" style={{ flexBasis: 180 }}>
-                            <p className="truncate" style={{ fontWeight: 700, fontSize: 17, color: '#443327' }}>{l.name}</p>
-                            <p className="truncate" style={{ fontWeight: 600, fontSize: 14, color: '#7B604C' }}>
-                              {wTitle} · {cohort ? `מחזור ${cohortDateTimeLabel(cohort, { shortYear: true })}` : 'אין מחזור'}
-                            </p>
-                          </div>
-                          <span className="whitespace-nowrap flex-shrink-0" style={{ fontWeight: 700, fontSize: 13, color: g.badge.color, background: g.badge.bg, padding: '5px 12px', borderRadius: 9999 }}>{g.badge.label}</span>
-                          {href && (
-                            <a href={href} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="whitespace-nowrap flex-shrink-0" style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D' }}>
-                              שלחי תזכורת
-                            </a>
-                          )}
-                          {g.action === 'assign' && (
-                            <>
-                              <button onClick={e => { e.stopPropagation(); drillToLead(l) }} className="whitespace-nowrap flex-shrink-0" style={{ fontWeight: 700, fontSize: 14, color: '#3E5966' }}>
-                                שבצי למחזור
-                              </button>
-                              {/* The escape hatch for a registration that never
-                                  materialized (e.g. עיסוי that didn't happen):
-                                  mark it מומש so it stops waiting forever. */}
-                              <button onClick={e => { e.stopPropagation(); updateStatus(l.id, 'handled') }} className="whitespace-nowrap flex-shrink-0 hover:underline" style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
-                                סמני כמומש
-                              </button>
-                            </>
-                          )}
-                          <button
-                            onClick={e => { e.stopPropagation(); markInboxDone(g.key, l.id) }}
-                            disabled={inboxRunning === `inbox:${g.key}:${l.id}`}
-                            className="whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1 rounded-xl disabled:opacity-40"
-                            style={{ fontWeight: 700, fontSize: 13, color: '#4F5040', background: '#EDEDE6', padding: '6px 12px' }}
-                            title="מסתיר מהרשימה הזו. ההרשמה עצמה לא משתנה"
-                          >
-                            <Check style={{ width: 14, height: 14 }} /> טופל
-                          </button>
-                        </div>
-                      )
-                    })}
-                    {g.items.length > 3 && !inboxOpen[g.key] && (
-                      <button
-                        onClick={() => setInboxOpen(o => ({ ...o, [g.key]: true }))}
-                        className="w-full text-center border-b border-[#F0EBE3] last:border-b-0"
-                        style={{ fontWeight: 700, fontSize: 14, color: '#7B604C', padding: '12px 0' }}
-                      >
-                        עוד {g.items.length - 3}
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-              {renderQuietFooter(true)}
+          {focusLeadIds ? (
+            <div className="rg-focus">
+              <span className="flex-1">מציג {filtered.length === 1 ? 'הרשמה אחת' : `${filtered.length} הרשמות`} מהמשימה</span>
+              <button type="button" onClick={() => onClearFocus?.()} className="hover:underline">חזרה לכל ההרשמות</button>
             </div>
+          ) : (
+            <p className="rg-sub">{filtered.length === 0 ? 'לא נמצאה הרשמה' : filtered.length === 1 ? 'תוצאה אחת' : `${filtered.length} תוצאות`} בכל ההרשמות</p>
           )}
-          {inboxGroups.hidden > 0 && (
-            <p style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
-              {inboxGroups.hidden === 1 ? 'פריט אחד סומן כטופל ומוסתר' : `${inboxGroups.hidden} פריטים סומנו כטופלו ומוסתרים`}
-              {' · '}
-              <button onClick={restoreInbox} className="hover:underline" style={{ fontWeight: 700, color: '#A35C3D' }}>החזרה של כולם</button>
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* 6.10.26: the action queue comes first, the browse-by-workshop picker after it. */}
-      {/* ── לפי סדנה — workshop picker, the page's opening state ── */}
-      {pickerMode && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-baseline gap-3">
-            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>לפי סדנה</h2>
-            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{leads.length} הרשמות · {counts.pending + counts.paid} פעילות</span>
-            <button onClick={() => setShowAllAnyway(true)} className="hover:underline" style={{ fontWeight: 700, fontSize: 14, color: '#A35C3D', marginInlineStart: 'auto' }}>
-              הצגת כל ההרשמות ברשימה אחת
-            </button>
-          </div>
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-            {pickerCards.cards.map(c => (
-              <button
-                key={c.id}
-                onClick={() => { setWorkshopFilter(c.id); setShowAllAnyway(false) }}
-                className="text-right transition-all hover:shadow-sm"
-                style={{ border: '1px solid #E4DAD0', borderRadius: 18, padding: '16px 18px', background: c.active > 0 ? '#fff' : '#FAF7F1' }}
-              >
-                <p className="font-bold" style={{ fontSize: 15, color: '#443327' }}>{c.title}</p>
-                {nextCohortByWorkshop.has(c.id) && (
-                  <p className="mt-1 font-bold flex items-center gap-1" style={{ fontSize: 13, color: '#8A6A2F' }}>
-                    <CalendarDays style={{ width: 14, height: 14 }} />
-                    מחזור קרוב · {cohortDateTimeLabel(nextCohortByWorkshop.get(c.id)!, { shortYear: true })}
-                  </p>
-                )}
-                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#7B604C' }}>
-                  {c.active > 0
-                    ? <><span style={{ color: '#8A6A2F', fontWeight: 700 }}>{c.active} פעילות</span> · {c.total} סה"כ</>
-                    : `${c.total} סה"כ · אין פעילות`}
-                </p>
-                {(unfilledByWorkshop.get(c.id) ?? 0) > 0 && (
-                  <span className="inline-block mt-2 whitespace-nowrap" style={{ fontWeight: 700, fontSize: 13, color: '#8B4A30', background: '#F5E2D8', padding: '4px 10px', borderRadius: 9999 }}>
-                    {unfilledByWorkshop.get(c.id)} שאלונים
-                  </span>
-                )}
-              </button>
-            ))}
-            {pickerCards.privTotal > 0 && (
-              <button
-                onClick={() => { setShowPrivateSection(true); setShowAllAnyway(false) }}
-                className="text-right transition-all hover:shadow-sm"
-                style={{ border: '1px solid #C3CDD2', borderRadius: 18, padding: '16px 18px', background: '#E4EBEF' }}
-              >
-                <p className="font-bold" style={{ fontSize: 15, color: '#3E5966' }}>פרטני וללא תאריך</p>
-                <p className="mt-1.5 font-semibold" style={{ fontSize: 13, color: '#3E5966' }}>
-                  {pickerCards.privActive > 0 ? `${pickerCards.privActive} פעילות · ` : ''}{pickerCards.privTotal} סה"כ
-                </p>
-              </button>
-            )}
-          </div>
-          {pickerCards.hiddenCount > 0 && (
-            <p style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
-              {pickerCards.hiddenCount === 1 ? 'סדנה אחת ללא מחזור קרוב מוסתרת' : `${pickerCards.hiddenCount} סדנאות ללא מחזור קרוב מוסתרות`}
-              {' · '}
-              <button onClick={() => setShowAllAnyway(true)} className="hover:underline" style={{ fontWeight: 700, color: '#A35C3D' }}>לרשימה המלאה</button>
-            </p>
+          {filtered.length > 0 && (
+            <RegistrationsGroupedView
+              leads={filtered}
+              allLeads={leads}
+              workshops={workshops}
+              cohorts={cohorts}
+              selected={selected}
+              onToggleSelect={toggleSelect}
+              onToggleSelectGroup={toggleSelectGroup}
+              gapByLeadId={gapByLeadId}
+              cohortById={cohortById}
+              onOpenResponses={openCohortResponses}
+            />
           )}
         </div>
       )}
 
-      {/* Brenda 14.9.26: "שיופיע לי בעמוד גם את המחזורים הקרובים עם הנרשמות
-          שנמצאות שם". Every active cohort that has not started yet, with
-          the names already in it, so she does not open each workshop to
-          count heads. Tap a name to drill into that registration. */}
-      {pickerMode && upcomingCohortRows.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-baseline gap-3">
-            <h2 style={{ fontWeight: 700, fontSize: 22, color: '#443327' }}>המחזור הקרוב בכל סדנה</h2>
-            <span style={{ fontWeight: 600, fontSize: 15, color: '#7B604C' }}>{upcomingCohortRows.length} סדנאות</span>
+      {/* README-IA PR10: "מחכה לך", the page's needs-action queue. */}
+      {!listMode && (
+        <section className="space-y-2.5" aria-label="מחכה לך">
+          <div className="rg-h">
+            <h2>מחכה לך</h2>
+            {inboxGroups.total > 0 && <span className="rg-count">{inboxGroups.total}</span>}
           </div>
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-            {upcomingCohortRows.map(({ cohort, title, paid, pending }) => (
-              <div key={cohort.id} className="bg-white" style={{ border: '1px solid #E4DAD0', borderRadius: 18, padding: '14px 18px' }}>
-                <p className="font-bold" style={{ fontSize: 15, color: '#443327' }}>{title}</p>
-                <p className="mt-0.5 font-bold flex items-center gap-1" style={{ fontSize: 13, color: '#8A6A2F' }}>
-                  <CalendarDays style={{ width: 14, height: 14 }} />
-                  {cohortDateTimeLabel(cohort, { shortYear: true })}{cohort.label ? ` · ${cohort.label}` : ''}
-                </p>
-                <p className="mt-1 font-semibold" style={{ fontSize: 13, color: '#7B604C' }}>
-                  {paid.length} נרשמו{cohort.capacity ? ` מתוך ${cohort.capacity}` : ''}{pending.length > 0 ? ` · ${pending.length} ממתינות לתשלום` : ''}
-                </p>
-                {paid.length + pending.length === 0 ? (
-                  <p className="mt-2" style={{ fontSize: 13, color: '#A2937D' }}>עדיין אין נרשמות</p>
-                ) : (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {paid.map(l => (
-                      <button key={l.id} onClick={() => drillToLead(l)} className="rounded-full hover:brightness-95"
-                        style={{ fontSize: 13, fontWeight: 600, color: '#4A3A28', background: '#F6ECD8', padding: '4px 10px' }}>
-                        {l.name}
-                      </button>
-                    ))}
-                    {pending.map(l => (
-                      <button key={l.id} onClick={() => drillToLead(l)} className="rounded-full hover:brightness-95" title="ממתינה לתשלום"
-                        style={{ fontSize: 13, fontWeight: 600, color: '#8B4A30', background: '#F5E2D8', padding: '4px 10px' }}>
-                        {l.name}
-                      </button>
-                    ))}
-                  </div>
+          {inboxGroups.total === 0 && (
+            <p className="rg-calm"><Check className="w-4 h-4" /> הכל מטופל. אין הרשמות שמחכות לך.</p>
+          )}
+          {([
+            { key: 'q1', items: inboxGroups.q1urgent, tone: 'rust', icon: <ClipboardList className="w-4 h-4" />, title: 'שאלון לא מולא, הסדנה מתחילה עד מחר', badge: 'שאלון חסר' },
+            { key: 'q2', items: inboxGroups.pending, tone: 'rust', icon: <CreditCard className="w-4 h-4" />, title: 'ממתינה לתשלום', badge: 'ממתינה' },
+            { key: 'q3', items: inboxGroups.unassigned, tone: 'blue', icon: <CalendarDays className="w-4 h-4" />, title: 'שילמה בלי מחזור', badge: 'בלי מחזור' },
+          ] as const).filter(g => g.items.length > 0).map(g => {
+            const shown = inboxOpen[g.key] ? g.items : g.items.slice(0, 3)
+            return (
+              <div key={g.key} className={`rg-inbox ${g.tone}`}>
+                <h3>{g.icon}{g.title} · {g.items.length}</h3>
+                {shown.map(l => {
+                  const cohort = l.cohort_id ? cohortById.get(l.cohort_id) : null
+                  const wTitle = (l.selected_workshop_id ? workshopById.get(l.selected_workshop_id)?.title : null) ?? l.workshops?.title ?? 'סדנה'
+                  const href = g.key === 'q1' ? regReminderHref(l, cohorts, workshops, gapByLeadId.get(l.id) ?? null) : null
+                  const busy = inboxRunning === `inbox:${g.key}:${l.id}`
+                  return (
+                    <div key={l.id} className="rg-irow">
+                      <div className="min-w-0" style={{ flex: '1 1 180px' }}>
+                        <button type="button" onClick={() => drillToLead(l)} className="rg-person" title="פתיחת כרטיס הלקוחה">{l.name}</button>
+                        <p>{shortTitle(wTitle)} · {cohort ? cohortDateTimeLabel(cohort, { shortYear: true }) : 'אין מחזור'}</p>
+                      </div>
+                      <span className={`rg-chip ${g.tone}`}>{g.badge}</span>
+                      <div className="rg-iactions">
+                        {href && (
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="rg-btn soft">
+                            <MessageCircle className="w-3.5 h-3.5" /> תזכורת בוואטסאפ
+                          </a>
+                        )}
+                        {g.key === 'q2' && (
+                          <button type="button" onClick={() => updateStatus(l.id, 'paid')} className="rg-btn soft">סמני כשילמה</button>
+                        )}
+                        {g.key === 'q3' && (
+                          <>
+                            <button type="button" onClick={() => drillToLead(l)} className="rg-btn blue">שבצי למחזור</button>
+                            {/* The escape hatch for a registration that never
+                                materialized (e.g. עיסוי that didn't happen). */}
+                            <button type="button" onClick={() => updateStatus(l.id, 'handled')} className="rg-btn plain">סמני כמומש</button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => markInboxDone(g.key, l.id)}
+                          disabled={busy}
+                          className="rg-btn plain"
+                          title="מסתיר מהרשימה הזו. ההרשמה עצמה לא משתנה"
+                        >
+                          <Check className="w-3.5 h-3.5" /> טופל
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+                {g.items.length > 3 && (
+                  <button type="button" onClick={() => setInboxOpen(o => ({ ...o, [g.key]: !o[g.key] }))} className="rg-more-btn">
+                    {inboxOpen[g.key] ? 'פחות' : `עוד ${g.items.length - 3}`}
+                  </button>
                 )}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {/* ── Screen A / A1: header + the ONE chip row ── */}
-      {!pickerMode && <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3 lg:p-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={backToPicker} className="font-bold hover:underline whitespace-nowrap" style={{ fontSize: 13, color: '#8A6A2F' }}>
-              → בחירת סדנה
-            </button>
-            <h2 className="font-bold text-sand-800 text-sm lg:text-base">
-              {showPrivateSection
-                ? 'פרטני וללא תאריך'
-                : workshopFilter !== 'all'
-                  ? (workshopById.get(workshopFilter)?.title ?? 'הרשמות')
-                  : 'כל ההרשמות'}
-            </h2>
-          </div>
-          <a
-            href="?register"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-[#A35C3D] hover:underline"
-          >
-            פתחי עמוד ההרשמה ↗
-          </a>
-        </div>
-
-        {/* ONE filter layer. The status chips + counters, the cohort
-            dropdown and the רשימה/מחזורים tabs that used to stack here
-            are deleted — this row replaces all three. */}
-        <div className="flex flex-wrap gap-2">
-          {([
-            ['all', 'הכל'],
-            ['pending', 'ממתינות לתשלום'],
-            ['no_form', 'ללא שאלון'],
-            ['paid', 'שילמו'],
-          ] as ['all' | 'pending' | 'no_form' | 'paid', string][]).map(([v, label]) => {
-            const active = chip === v
-            return (
-              <button
-                key={v}
-                onClick={() => setChip(v)}
-                className="rounded-full font-bold transition-all"
-                style={active
-                  ? { background: '#F6ECD8', color: '#4A3A28', padding: '9px 18px', fontSize: 14, border: '1.5px solid #E7C78A' }
-                  : { background: 'transparent', color: '#7B604C', padding: '9px 18px', fontSize: 14, border: '1px solid #E4DAD0' }}
-              >
-                {label}
-              </button>
             )
           })}
-        </div>
-      </div>}
-
-      {/* ── Screen A / A4: dark bulk bar, directly above the list ── */}
-      {!pickerMode && (
-        <BulkActionBar
-          visibleCount={visibleSelectedIds.length}
-          reminderTargets={reminderTargets}
-          onClear={clearSelection}
-          onMarkPaid={() => bulkSetStatus('paid')}
-        />
-      )}
-
-      {/* ── Screen A / A5: one global empty state ── */}
-      {!pickerMode && filtered.length === 0 && (
-        <div className="bg-white rounded-2xl shadow-sm flex flex-col items-center text-center" style={{ padding: 40 }}>
-          <MimoLeaf variant="sand-2" size={64} rotate={-8} />
-          <p className="font-display" style={{ fontSize: 24, color: '#5E4938', marginTop: 10 }}>
-            {leads.length === 0 ? 'אין הרשמות עדיין' : 'אין נרשמות שתואמות לסינון'}
-          </p>
-          {leads.length > 0 && chip !== 'all' && (
-            <button
-              onClick={() => setChip('all')}
-              className="mt-3 font-bold hover:underline"
-              style={{ fontSize: 14, color: '#A35C3D' }}
-            >
-              חזרה להכל
-            </button>
+          {inboxGroups.q1quiet.length > 0 && (
+            <div className="rg-card">{renderQuietFooter(false)}</div>
           )}
+          {inboxGroups.hidden > 0 && (
+            <p style={{ fontWeight: 600, fontSize: 12.5, color: '#8A7A63' }}>
+              {inboxGroups.hidden === 1 ? 'פריט אחד סומן כטופל ומוסתר' : `${inboxGroups.hidden} פריטים סומנו כטופלו ומוסתרים`}
+              {' · '}
+              <button type="button" onClick={restoreInbox} className="hover:underline" style={{ fontWeight: 700, color: '#A35C3D' }}>החזרה של כולם</button>
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* One browse area instead of "לפי סדנה" + "המחזור הקרוב בכל סדנה". */}
+      {!listMode && (
+        <section className="space-y-3" aria-label="מחזורים ונרשמות">
+          <div className="rg-h">
+            <h2>מחזורים ונרשמות</h2>
+          </div>
+          <div className="rg-tabs" role="tablist" aria-label="מוצר">
+            {([
+              ['all', 'הכל', upcomingAll.length],
+              ...tabWorkshops.map(w => [w.id, shortTitle(w.title), upcomingAll.filter(c => c.workshop_id === w.id).length] as [string, string, number]),
+              ...(datelessLeads.length > 0 ? [['dateless', 'פרטני ומוצרים', datelessLeads.length] as [string, string, number]] : []),
+            ] as [string, string, number][]).map(([id, label, n]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={productTab === id}
+                className="rg-tab"
+                onClick={() => { setProductTab(id); setOpenCohorts(new Set()) }}
+              >
+                {label}<small>{n}</small>
+              </button>
+            ))}
+          </div>
+
+          {productTab !== 'dateless' && (
+            <>
+              {upcomingInTab.length === 0
+                ? <p className="rg-calm" style={{ background: '#F6F3ED', color: '#8A7A63' }}>אין מחזור פתוח קרוב</p>
+                : <div className="rg-grid">{upcomingInTab.map(renderCohortCard)}</div>}
+              {noCohortLeads.length > 0 && fold(`nocohort:${productTab}`, `הרשמות בלי מחזור · ${noCohortLeads.length}`, () => renderRows(byNewest(noCohortLeads)))}
+              {pastCohortCount > 0 && fold(`past:${productTab}`, `מחזורים שעברו (${pastCohortCount})`, () => (
+                <RegistrationsGroupedView
+                  leads={pastLeads}
+                  allLeads={leads}
+                  workshops={workshops}
+                  cohorts={cohorts}
+                  selected={selected}
+                  onToggleSelect={toggleSelect}
+                  onToggleSelectGroup={toggleSelectGroup}
+                  gapByLeadId={gapByLeadId}
+                  cohortById={cohortById}
+                  onOpenResponses={openCohortResponses}
+                />
+              ), true)}
+            </>
+          )}
+
+          {productTab === 'dateless' && (
+            <div className="space-y-2">
+              {datelessGroups.map(([key, g]) => fold(`dateless:${key}`, `${g.title} · ${g.list.length}`, () => renderRows(byNewest(g.list))))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── Screen A / A4: the dark bulk bar, pinned to the bottom while rows are selected ── */}
+      {visibleSelectedIds.length > 0 && (
+        <div className="sticky bottom-3 z-20">
+          <BulkActionBar
+            visibleCount={visibleSelectedIds.length}
+            reminderTargets={reminderTargets}
+            onClear={clearSelection}
+            onMarkPaid={() => bulkSetStatus('paid')}
+          />
         </div>
       )}
-
-      {/* ── The list — always grouped by cohort ── */}
-      {!pickerMode && filtered.length > 0 && (
-        <RegistrationsGroupedView
-          leads={filtered}
-          allLeads={leads}
-          workshops={workshops}
-          cohorts={cohorts}
-          selected={selected}
-          onToggleSelect={toggleSelect}
-          onToggleSelectGroup={toggleSelectGroup}
-          gapByLeadId={gapByLeadId}
-          cohortById={cohortById}
-          onOpenResponses={openCohortResponses}
-        />
-      )}
-
 
       {/* Polish #8: cohort-scoped form responses. Reuses the same
           FormSubmissionsModal / FormSubmissionsView / FormAggregatePanel
