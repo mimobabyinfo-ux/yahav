@@ -257,7 +257,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
       <div className="lg:hidden max-w-sm mx-auto px-4 pt-4 space-y-4">
         {tab === 'home'       && (overview ? <AdminHome overview={overview} onSection={t => setTab(t)} onOpenTask={openTask} onOpenProduct={id => { setTab('workshops'); openProductPage(id) }} /> : <p className="text-center text-sand-400 text-sm py-8">טוען...</p>)}
         {tab === 'users'      && <UsersTab />}
-        {tab === 'insights'   && <><AppUsagePanel /><InsightsTab /></>}
+        {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <AgeStagesTab />}
         {tab === 'videos'     && <VideosTab />}
         {tab === 'workshops'  && (productPageId ? <ProductPage workshopId={productPageId} onBack={() => openProductPage(null)} /> : <><GiftCardsPanel /><WorkshopsTab onOpenProduct={openProductPage} /></>)}
@@ -297,7 +297,7 @@ export default function AdminPage({ defaultSection, unreadForms = 0, onFormsView
           />
         )}
         {tab === 'forms'      && <FormsTabDesktop />}
-        {tab === 'insights'   && <><AppUsagePanel /><InsightsTab /></>}
+        {tab === 'insights'   && <InsightsTab />}
         {tab === 'tips'       && <AgeStagesTab />}
         {tab === 'videos'     && <VideosTab />}
         {tab === 'perks'      && <PerksTab />}
@@ -2163,6 +2163,44 @@ function KpiGroup({ title, children }: { title: string; children: React.ReactNod
   )
 }
 
+const IN_CSS = `
+.in-header{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.in-header h1{font-size:26px;font-weight:700;color:#443327;line-height:1.2;margin-inline-end:auto}
+.in-seg{display:inline-flex;background:#F1EBE1;border-radius:11px;padding:3px}
+.in-seg button{font-size:13px;font-weight:600;color:#8A7A63;padding:6px 14px;border-radius:8px}
+.in-seg button[aria-selected="true"]{background:#fff;color:#443327;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.in-faint{font-size:12px;font-weight:600;color:#A2937D}
+.in-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.in-tile{display:flex;flex-direction:column;gap:3px;background:#fff;border:1px solid #E9E2D6;border-radius:16px;padding:14px 16px}
+.in-tl{font-size:12.5px;font-weight:700;color:#8A7A63}
+.in-tile b{font-size:28px;line-height:1.1;color:#443327}
+.in-trend{font-size:12px;font-weight:800;color:#8A7A63}
+.in-trend.up{color:#3F5B39}.in-trend.down{color:#8B4A30}
+.in-tabs{display:flex;gap:22px;border-bottom:1px solid #E9E2D6}
+.in-tab{position:relative;padding:9px 1px;font-size:15px;font-weight:600;color:#8A7A63;border-bottom:2px solid transparent;margin-bottom:-1px}
+.in-tab[aria-selected="true"]{color:#443327;font-weight:800;border-color:#C8A460}
+.in-dot{position:absolute;top:8px;left:-8px;width:7px;height:7px;border-radius:99px;background:#B5694A}
+.in-calm{display:flex;align-items:center;gap:6px;font-size:13.5px;color:#3F5B39;font-weight:600;background:#EEF3EA;border-radius:12px;padding:9px 14px}
+.in-checks{background:#FBF3EF;border:1px solid #EFD3C6;border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:3px}
+.in-checks-h{font-size:13px;font-weight:800;color:#8B4A30}
+.in-checks p{font-size:13.5px;font-weight:600;color:#713924}
+.in-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.in-card{background:#fff;border:1px solid #E9E2D6;border-radius:16px;padding:16px 18px}
+.in-card h3{font-size:15.5px;font-weight:700;color:#443327}
+.in-bars{display:flex;align-items:flex-end;gap:8px;height:150px;margin-top:12px}
+.in-bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px}
+.in-bar .b{width:100%;max-width:34px;border-radius:6px 6px 2px 2px;min-height:2px}
+.in-bar .n{font-size:11.5px;font-weight:800;color:#6E5836}
+.in-bar .l{font-size:10.5px;font-weight:600;color:#A2937D;white-space:nowrap}
+.in-hbars{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.in-hbar{display:grid;grid-template-columns:90px 1fr 44px;align-items:center;gap:8px;font-size:12.5px}
+.in-hbar .t{font-weight:700;color:#443327;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.in-hbar .track{height:9px;background:#F1EBE1;border-radius:99px;overflow:hidden}
+.in-hbar .track span{display:block;height:100%;border-radius:99px}
+.in-hbar .v{font-weight:700;color:#8A7A63;text-align:left}
+@media (max-width:760px){.in-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.in-grid{grid-template-columns:1fr}.in-header h1{font-size:22px}.in-tile b{font-size:23px}}
+`
+
 function InsightsTab() {
   const [funnel, setFunnel] = useState<FunnelRow | null>(null)
   const [cohortFill, setCohortFill] = useState<CohortFillRow[]>([])
@@ -2283,124 +2321,228 @@ function InsightsTab() {
     'יום 7': r.total_users ? Math.round((r.day7 / r.total_users) * 100) : 0,
   }))
 
+  // ── 10.10.26 (Lovable mockup): a period switch with "לעומת התקופה
+  // הקודמת", four headline tiles, three tabs (עסק / קהילה / אפליקציה), and
+  // a plain-words "מה כדאי לבדוק" per tab. Numbers that only exist as a
+  // current snapshot (active users, attendance, retention) show no trend
+  // rather than a made-up one.
+  const [period, setPeriod] = useState<'month' | '30' | 'quarter'>('month')
+  const [section, setSection] = useState<'biz' | 'community' | 'app'>('biz')
+  const periodStats = useMemo(() => {
+    const now = new Date()
+    let from: Date, prevFrom: Date, prevTo: Date
+    if (period === 'month') {
+      from = new Date(now.getFullYear(), now.getMonth(), 1)
+      prevFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      // Same number of days into last month, so a month that just started
+      // is not compared with a whole month.
+      prevTo = new Date(prevFrom.getTime() + (now.getTime() - from.getTime()))
+    } else {
+      const days = period === '30' ? 30 : 90
+      from = new Date(now.getTime() - days * 86400_000)
+      prevFrom = new Date(now.getTime() - 2 * days * 86400_000)
+      prevTo = from
+    }
+    const inCur = (iso: string) => { const t = new Date(iso).getTime(); return t >= from.getTime() && t <= now.getTime() }
+    const inPrev = (iso: string) => { const t = new Date(iso).getTime(); return t >= prevFrom.getTime() && t < prevTo.getTime() }
+    const price = (l: InsightsLeadRow) => (l.status === 'paid' || l.status === 'handled') && l.selected_workshop_id ? (workshopPrices.get(l.selected_workshop_id) ?? 0) : 0
+    const nonAdmin = users.filter(u => !u.is_admin)
+    const cur = { regs: 0, value: 0, joined: 0, partner: 0 }
+    const prev = { regs: 0, value: 0, joined: 0, partner: 0 }
+    for (const l of regLeads) {
+      if (inCur(l.created_at)) { cur.regs++; cur.value += price(l) }
+      else if (inPrev(l.created_at)) { prev.regs++; prev.value += price(l) }
+    }
+    for (const u of nonAdmin) { if (inCur(u.created_at)) cur.joined++; else if (inPrev(u.created_at)) prev.joined++ }
+    for (const d of partnerLeadDates) { if (inCur(d)) cur.partner++; else if (inPrev(d)) prev.partner++ }
+    const joinedNeverBack = nonAdmin.filter(u => inCur(u.created_at) && (!u.last_active || new Date(u.last_active).getTime() - new Date(u.created_at).getTime() < 86400_000)).length
+    // Registrations per week, last 8 weeks (oldest first).
+    const weeks: { label: string; n: number }[] = []
+    for (let w = 7; w >= 0; w--) {
+      const end = new Date(now.getTime() - w * 7 * 86400_000)
+      const startW = new Date(end.getTime() - 7 * 86400_000)
+      const n = regLeads.filter(l => { const t = new Date(l.created_at).getTime(); return t > startW.getTime() && t <= end.getTime() }).length
+      weeks.push({ label: `${startW.getDate()}/${startW.getMonth() + 1}`, n })
+    }
+    return { cur, prev, weeks, joinedNeverBack, label: period === 'month' ? 'מתחילת החודש' : period === '30' ? 'ב-30 הימים האחרונים' : 'ב-90 הימים האחרונים' }
+  }, [period, regLeads, workshopPrices, users, partnerLeadDates])
+
+  const trend = (a: number, b: number) => {
+    if (b === 0 && a === 0) return null
+    if (b === 0) return { up: true, text: `${a} לעומת 0` }
+    const pct = Math.round(((a - b) / b) * 100)
+    if (pct === 0) return { up: null, text: `כמו בתקופה הקודמת (${b.toLocaleString()})` }
+    return { up: pct > 0, text: `${pct > 0 ? '+' : ''}${pct}% לעומת ${b.toLocaleString()}` }
+  }
+  const headline = [
+    { label: 'הרשמות', value: String(periodStats.cur.regs), t: trend(periodStats.cur.regs, periodStats.prev.regs), cap: `הרשמות חדשות ${periodStats.label}` },
+    { label: 'שווי לפי מחירון', value: `₪${periodStats.cur.value.toLocaleString()}`, t: trend(periodStats.cur.value, periodStats.prev.value), cap: 'הרשמות ששולמו, לפי מחיר המוצר. לא הכסף שנכנס' },
+    { label: 'הצטרפו לאפליקציה', value: String(periodStats.cur.joined), t: trend(periodStats.cur.joined, periodStats.prev.joined), cap: `חשבונות חדשים ${periodStats.label}` },
+    { label: 'הגעה לאירועים', value: community.attendance != null ? `${community.attendance}%` : '—', t: null, cap: eventAtt && eventAtt.past_registered > 0 ? `${eventAtt.past_attended} מתוך ${eventAtt.past_registered} שנרשמו, כל הזמן` : 'ימדד אחרי צ׳ק-אין ראשון' },
+  ]
+
+  const checks: Record<'biz' | 'community' | 'app', string[]> = { biz: [], community: [], app: [] }
+  if (periodStats.prev.regs > 0 && periodStats.cur.regs < periodStats.prev.regs) checks.biz.push(`פחות הרשמות מהתקופה הקודמת: ${periodStats.cur.regs} לעומת ${periodStats.prev.regs}.`)
+  const halfEmpty = cohortFill.filter(c => c.capacity && c.registered / c.capacity < 0.5).length
+  if (halfEmpty > 0) checks.biz.push(halfEmpty === 1 ? 'מחזור פתוח אחד מלא פחות מחצי.' : `${halfEmpty} מחזורים פתוחים מלאים פחות מחצי.`)
+  if (money.payingMothers > 0 && money.withAccount < money.payingMothers) checks.biz.push(`${money.payingMothers - money.withAccount} אמהות ששילמו עוד לא פתחו חשבון באפליקציה.`)
+  if (community.attendance != null && community.attendance < 75) checks.community.push(`ההגעה לאירועים עומדת על ${community.attendance}%.`)
+  if (eventAtt && eventAtt.events_no_vendor > 0) checks.community.push(eventAtt.events_no_vendor === 1 ? 'אירוע אחד החודש בלי ספק.' : `${eventAtt.events_no_vendor} אירועים החודש בלי ספק.`)
+  if (eventAtt && eventAtt.events_no_checkin > 0) checks.community.push(eventAtt.events_no_checkin === 1 ? 'אירוע אחד החודש בלי קישור צ׳ק-אין.' : `${eventAtt.events_no_checkin} אירועים החודש בלי קישור צ׳ק-אין.`)
+  if (community.partnerLast30 === 0) checks.community.push('אין פניות לספקים ב-30 הימים האחרונים.')
+  if (periodStats.joinedNeverBack > 0) checks.app.push(`${periodStats.joinedNeverBack} הצטרפו ${periodStats.label} ולא חזרו אחרי היום הראשון.`)
+  if (usage.day7 != null && usage.day7 < 35) checks.app.push(`רק ${usage.day7}% חוזרות אחרי שבוע (השבוע האחרון שנמדד).`)
+
+  const maxWeek = Math.max(1, ...periodStats.weeks.map(w => w.n))
+  const CheckList = ({ items }: { items: string[] }) => items.length === 0
+    ? <p className="in-calm"><Check className="w-4 h-4" /> אין כאן משהו שדורש בדיקה.</p>
+    : <div className="in-checks"><p className="in-checks-h">מה כדאי לבדוק</p>{items.map(t => <p key={t}>{t}</p>)}</div>
+
   return (
-    <div className="space-y-6">
-      {/* The digital course is an exposure product — what matters is not
-          how many bought, but how many became Mimo users afterwards. */}
-      <CourseInsightsPanel />
+    <div className="space-y-5" dir="rtl">
+      <style>{IN_CSS}</style>
+      <header className="in-header">
+        <h1>תובנות</h1>
+        <div className="in-seg" role="tablist" aria-label="תקופה">
+          {([['month', 'החודש'], ['30', '30 יום'], ['quarter', 'רבעון']] as const).map(([k, l]) => (
+            <button key={k} type="button" role="tab" aria-selected={period === k} onClick={() => setPeriod(k)}>{l}</button>
+          ))}
+        </div>
+        <p className="in-faint" style={{ flexBasis: '100%' }}>החצים משווים לתקופה הקודמת באותו אורך.</p>
+      </header>
 
-      {/* ── B1-1: כסף והרשמות ── */}
-      <KpiGroup title="כסף והרשמות">
-        <KpiCard
-          label="הרשמות החודש"
-          value={String(money.regsThis)}
-          sub={money.regsLast > 0 || money.regsThis > 0
-            ? `${money.regsLast} בחודש שעבר`
-            : 'אין עדיין הרשמות'}
-          subColor={money.regsThis > money.regsLast ? '#4F5040' : money.regsThis < money.regsLast ? '#8B4A30' : '#A2937D'}
-        />
-        <KpiCard
-          label="אמהות שפתחו חשבון"
-          value={money.activationPct != null ? `${money.activationPct}%` : '—'}
-          ratePct={money.activationPct}
-          sub={money.payingMothers > 0
-            ? `${money.withAccount} מתוך ${money.payingMothers} אמהות ששילמו`
-            : 'אין עדיין אמהות ששילמו'}
-        />
-        <KpiCard
-          label="לקוחות חוזרות"
-          value={String(money.repeatMothers)}
-          sub={money.payingMothers > 0
-            ? `${money.repeatPct}% מתוך ${money.payingMothers} אמהות ששילמו`
-            : null}
-        />
-        <KpiCard
-          label="שווי הרשמות החודש (לפי מחירון)"
-          value={`₪${money.revenueThis.toLocaleString()}`}
-          sub="לא כולל הנחות. הכסף שנכנס בפועל: בבית, ״נכנס החודש״"
-        />
-        <KpiCard
-          label="תפוסת מחזורים פתוחים"
-          value={money.occupancy != null ? `${money.occupancy}%` : '—'}
-          ratePct={money.occupancy}
-          sub={money.capSum > 0
-            ? `${money.regSum} מתוך ${money.capSum} מקומות ב-${money.openCohorts === 1 ? 'מחזור אחד' : `${money.openCohorts} מחזורים`}`
-            : 'אין מחזורים פתוחים עם תפוסה מוגדרת'}
-        />
-      </KpiGroup>
+      <div className="in-tiles">
+        {headline.map(h => (
+          <div key={h.label} className="in-tile">
+            <span className="in-tl">{h.label}</span>
+            <b>{h.value}</b>
+            {h.t && <span className={`in-trend ${h.t.up === null ? '' : h.t.up ? 'up' : 'down'}`}>{h.t.up === null ? '=' : h.t.up ? '▲' : '▼'} {h.t.text}</span>}
+            <span className="in-faint">{h.cap}</span>
+          </div>
+        ))}
+      </div>
 
-      {/* ── B1-2: קהילה ואירועים ── */}
-      <KpiGroup title="קהילה ואירועים">
-        <KpiCard
-          label="הגעה בפועל לאירועים"
-          value={community.attendance != null ? `${community.attendance}%` : '—'}
-          ratePct={community.attendance}
-          sub={eventAtt && eventAtt.past_registered > 0
-            ? `${eventAtt.past_attended} הגיעו מתוך ${eventAtt.past_registered} שנרשמו`
-            : 'ימדד אחרי האירוע הראשון עם צ׳ק-אין'}
-        />
-        <KpiCard
-          label="לידים לספקים (30 יום)"
-          value={String(community.partnerLast30)}
-          sub={community.partnerTotal > 0
-            ? `סה"כ ${community.partnerTotal}${community.newestAgeDays != null ? ` · האחרון לפני ${community.newestAgeDays === 0 ? 'פחות מיום' : `${community.newestAgeDays} ימים`}` : ''}`
-            : 'אין עדיין לידים לספקים'}
-        />
-        <KpiCard
-          label="אירועים החודש"
-          value={String(eventAtt?.events_this_month ?? 0)}
-          sub={eventAtt && eventAtt.events_this_month > 0
-            ? (eventAtt.events_no_vendor > 0 || eventAtt.events_no_checkin > 0
-              ? `${eventAtt.events_no_vendor} בלי ספק · ${eventAtt.events_no_checkin} בלי קישור צ׳ק-אין`
-              : 'לכולם ספק וקישור צ׳ק-אין')
-            : 'אין אירועים החודש'}
-          subColor={eventAtt && eventAtt.events_this_month > 0 && (eventAtt.events_no_vendor > 0 || eventAtt.events_no_checkin > 0) ? '#8B4A30' : eventAtt && eventAtt.events_this_month > 0 ? '#4F5040' : '#A2937D'}
-        />
-      </KpiGroup>
+      <div className="in-tabs" role="tablist" aria-label="תחום">
+        {([['biz', 'עסק'], ['community', 'קהילה'], ['app', 'אפליקציה']] as const).map(([k, l]) => (
+          <button key={k} type="button" role="tab" aria-selected={section === k} className="in-tab" onClick={() => setSection(k)}>
+            {l}{checks[k].length > 0 && <span className="in-dot" aria-label={`${checks[k].length} דברים לבדוק`} />}
+          </button>
+        ))}
+      </div>
 
-      {/* ── המסע לסדנה — one funnel across the app's own screens ── */}
-      {funnel && <FunnelBlock funnel={funnel} />}
-
-      {/* ── שימוש באפליקציה ── */}
-      <KpiGroup title="שימוש באפליקציה">
-        <KpiCard
-          label="משתמשות פעילות (7 ימים)"
-          value={String(usage.active7)}
-          sub={`מתוך ${usage.total} רשומות`}
-        />
-        <KpiCard
-          label="הצטרפו החודש"
-          value={String(usage.newThisMonth)}
-        />
-        <KpiCard
-          label="רשומות יומן"
-          value={String(journalCount)}
-        />
-        <KpiCard
-          label="Retention יום 7 (שבוע אחרון)"
-          value={usage.day7 != null ? `${usage.day7}%` : '—'}
-          ratePct={usage.day7}
-        />
-      </KpiGroup>
-
-      {retentionChart.length > 0 && (
-        <div className="bg-white" style={{ border: '1px solid #E9E2D6', borderRadius: 16, padding: 18 }}>
-          <h3 className="font-display" style={{ fontSize: 16, color: '#443327', marginBottom: 12 }}>Retention (%) לפי שבוע הצטרפות</h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={retentionChart}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1EBE1" />
-              <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#8A7A63' }} />
-              <YAxis unit="%" tick={{ fontSize: 10, fill: '#8A7A63' }} domain={[0, 100]} />
-              <Tooltip formatter={(v) => `${v}%`} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="יום 1" stroke="#C8A460" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="יום 3" stroke="#35505C" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="יום 7" stroke="#4F5040" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
+      {section === 'biz' && (
+        <div className="space-y-4">
+          <CheckList items={checks.biz} />
+          <div className="in-grid">
+            <div className="in-card">
+              <h3>הרשמות לפי שבוע</h3>
+              <p className="in-faint">8 השבועות האחרונים, כל ההרשמות (כולל שלא שולמו)</p>
+              <div className="in-bars" role="img" aria-label="הרשמות לפי שבוע">
+                {periodStats.weeks.map((w, i) => (
+                  <div key={i} className="in-bar">
+                    <span className="n">{w.n}</span>
+                    <span className="b" style={{ height: `${(w.n / maxWeek) * 100}%`, background: i === periodStats.weeks.length - 1 ? '#C8A460' : '#E2D3B4' }} />
+                    <span className="l">{w.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="in-card">
+              <h3>תפוסת מחזורים פתוחים</h3>
+              <p className="in-faint">{money.capSum > 0 ? `${money.regSum} מתוך ${money.capSum} מקומות · ${money.occupancy}%` : 'אין מחזורים פתוחים עם תפוסה מוגדרת'}</p>
+              <div className="in-hbars">
+                {cohortFill.filter(c => c.capacity).slice(0, 8).map(c => {
+                  const r = Math.min(1, c.registered / (c.capacity ?? 1))
+                  return (
+                    <div key={c.cohort_id} className="in-hbar">
+                      <span className="t">{c.workshop_title.replace(/^ליווי התפתחותי\s*-\s*/, '').replace(/^סדנת\s+/, '')}</span>
+                      <span className="track"><span style={{ width: `${r * 100}%`, background: r >= 1 ? '#3F5B39' : r < 0.5 ? '#C99A85' : '#C8A460' }} /></span>
+                      <span className="v">{c.registered}/{c.capacity}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+          <KpiGroup title="לקוחות">
+            <KpiCard
+              label="אמהות ששילמו ופתחו חשבון"
+              value={money.activationPct != null ? `${money.activationPct}%` : '—'}
+              ratePct={money.activationPct}
+              sub={money.payingMothers > 0 ? `${money.withAccount} מתוך ${money.payingMothers} אמהות ששילמו, כל הזמן` : 'אין עדיין אמהות ששילמו'}
+            />
+            <KpiCard
+              label="לקוחות חוזרות"
+              value={String(money.repeatMothers)}
+              sub={money.payingMothers > 0 ? `${money.repeatPct}% מהאמהות ששילמו קנו יותר ממוצר אחד` : null}
+            />
+          </KpiGroup>
+          {funnel && <FunnelBlock funnel={funnel} />}
         </div>
       )}
 
+      {section === 'community' && (
+        <div className="space-y-4">
+          <CheckList items={checks.community} />
+          <KpiGroup title="קהילה ואירועים">
+            <KpiCard
+              label="הגעה בפועל לאירועים"
+              value={community.attendance != null ? `${community.attendance}%` : '—'}
+              ratePct={community.attendance}
+              sub={eventAtt && eventAtt.past_registered > 0 ? `${eventAtt.past_attended} הגיעו מתוך ${eventAtt.past_registered} שנרשמו לאירועים שעברו` : 'ימדד אחרי האירוע הראשון עם צ׳ק-אין'}
+            />
+            <KpiCard
+              label={`פניות לספקים ${periodStats.label}`}
+              value={String(periodStats.cur.partner)}
+              sub={(() => { const t = trend(periodStats.cur.partner, periodStats.prev.partner); return t ? `${t.up === null ? '=' : t.up ? '▲' : '▼'} ${t.text}` : `סה"כ ${community.partnerTotal}` })()}
+            />
+            <KpiCard
+              label="אירועים החודש"
+              value={String(eventAtt?.events_this_month ?? 0)}
+              sub={eventAtt && eventAtt.events_this_month > 0
+                ? (eventAtt.events_no_vendor > 0 || eventAtt.events_no_checkin > 0
+                  ? `${eventAtt.events_no_vendor} בלי ספק · ${eventAtt.events_no_checkin} בלי קישור צ׳ק-אין`
+                  : 'לכולם ספק וקישור צ׳ק-אין')
+                : 'אין אירועים החודש'}
+              subColor={eventAtt && eventAtt.events_this_month > 0 && (eventAtt.events_no_vendor > 0 || eventAtt.events_no_checkin > 0) ? '#8B4A30' : '#A2937D'}
+            />
+          </KpiGroup>
+        </div>
+      )}
+
+      {section === 'app' && (
+        <div className="space-y-4">
+          <CheckList items={checks.app} />
+          <KpiGroup title="שימוש באפליקציה">
+            <KpiCard label="משתמשות פעילות (7 ימים)" value={String(usage.active7)} sub={`מתוך ${usage.total} עם חשבון`} />
+            <KpiCard label={`הצטרפו ${periodStats.label}`} value={String(periodStats.cur.joined)} sub={(() => { const t = trend(periodStats.cur.joined, periodStats.prev.joined); return t ? `${t.up === null ? '=' : t.up ? '▲' : '▼'} ${t.text}` : null })()} />
+            <KpiCard label="רשומות יומן" value={String(journalCount)} sub="כל הרשומות אי פעם" />
+            <KpiCard label="חוזרות אחרי שבוע" value={usage.day7 != null ? `${usage.day7}%` : '—'} ratePct={usage.day7} sub="מהמצטרפות של השבוע האחרון שנמדד" />
+          </KpiGroup>
+          {retentionChart.length > 0 && (
+            <div className="in-card">
+              <h3>כמה חוזרות, לפי שבוע הצטרפות</h3>
+              <p className="in-faint">אחוז מהמצטרפות של כל שבוע שחזרו ביום 1, 3 ו-7</p>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={retentionChart}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1EBE1" />
+                  <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#8A7A63' }} />
+                  <YAxis unit="%" tick={{ fontSize: 10, fill: '#8A7A63' }} domain={[0, 100]} />
+                  <Tooltip formatter={(v) => `${v}%`} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Line type="monotone" dataKey="יום 1" stroke="#C8A460" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="יום 3" stroke="#35505C" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="יום 7" stroke="#4F5040" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          <AppUsagePanel />
+          {/* The digital course is an exposure product: what matters is how
+              many became Mimo users afterwards. */}
+          <CourseInsightsPanel />
+        </div>
+      )}
     </div>
   )
 }
