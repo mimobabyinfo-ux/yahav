@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo, createContext, useContext } from 'react'
-import { Home as HomeIcon, BookOpen, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Baby, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
+import { Home as HomeIcon, BookOpen, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Baby, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink, Lock, EyeOff, MoreHorizontal } from 'lucide-react'
 import UsersListView from '../components/admin/UsersListView'
 import ProductsListView from '../components/admin/ProductsListView'
 import FormsListView from '../components/admin/forms/FormsListView'
@@ -5572,6 +5572,54 @@ const SUBCAT_LEGACY: Record<string, string> = {
 const subcatLabel = (v: string | null | undefined) => v ? (SUBCAT_LEGACY[v] ?? v) : 'ללא נושא'
 const SUBCAT_PRESETS = ['מאמנות כושר', 'תזונה', 'אוסטאופתיה', 'דולה', 'יועצת הנקה', 'פיזיותרפיה', 'פסיכולוגיה', 'רצפת האגן', 'סטודיו', 'מרצות']
 
+const VD_CSS = `
+.vd-header{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.vd-header h1{font-size:26px;font-weight:700;color:#443327;line-height:1.2;margin-inline-end:auto}
+.vd-header h1 span{font-size:15px;font-weight:600;color:#A2937D}
+.vd-search{flex-basis:100%;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #E9E2D6;border-radius:12px;padding:0 12px;height:42px;max-width:520px}
+.vd-search input{flex:1;min-width:0;background:transparent;outline:none;font-size:14.5px;color:#443327}
+.vd-btn{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;border-radius:10px;padding:7px 12px;white-space:nowrap}
+.vd-btn.primary{background:#C8A460;color:#33281B;padding:9px 16px;font-size:14px}
+.vd-btn.soft{background:#F6ECD8;color:#6E5836}
+.vd-btn.plain{color:#8A7A63}
+.vd-btn.plain:hover{background:#F6F3ED}
+.vd-faint{font-size:12.5px;font-weight:600;color:#A2937D}
+.vd-attn{background:#FBF3EF;border:1px solid #EFD3C6;border-radius:16px;padding:6px 10px}
+.vd-attn-h{display:flex;align-items:center;justify-content:space-between;width:100%;padding:6px 4px;font-size:13.5px;font-weight:800;color:#8B4A30;text-align:right}
+.vd-lead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 4px;border-top:1px solid #F1D9CD;font-size:13.5px;color:#443327}
+.vd-bar{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px;border-bottom:1px solid #E9E2D6}
+.vd-tabs{display:flex;gap:18px;overflow-x:auto;scrollbar-width:none;max-width:100%}
+.vd-tabs::-webkit-scrollbar{display:none}
+.vd-tab{padding:9px 1px;font-size:14px;font-weight:600;color:#8A7A63;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
+.vd-tab[aria-selected="true"]{color:#443327;font-weight:800;border-color:#C8A460}
+.vd-tab small{font-size:11.5px;color:#A2937D;margin-inline-start:5px;font-weight:700}
+.vd-select{font-size:12.5px;font-weight:600;color:#6E5836;background:#F6F3ED;border:none;border-radius:9px;padding:6px 8px;margin-bottom:6px;outline:none}
+.vd-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));align-items:start}
+.vd-card{display:flex;flex-direction:column;gap:10px;background:#fff;border:1px solid #E9E2D6;border-radius:18px;padding:14px 16px}
+.vd-card.off{background:#FBF9F5;border-style:dashed;opacity:.85}
+.vd-top{display:flex;gap:12px;align-items:flex-start}
+.vd-logo{flex-shrink:0;width:46px;height:46px;border-radius:14px;object-fit:cover}
+.vd-logo.initials{display:flex;align-items:center;justify-content:center;background:#E4EBEF;color:#35505C;font-weight:800;font-size:20px}
+.vd-top h3{font-size:16px;font-weight:700;color:#443327;line-height:1.3}
+.vd-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.vd-chip{font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 9px;background:#F6F3ED;color:#6E5836;white-space:nowrap}
+.vd-chip.blue{background:#E4EBEF;color:#35505C}.vd-chip.gold{background:#FBF1DC;color:#8A6A2F}
+.vd-desc{font-size:13.5px;line-height:1.55;color:#7B604C;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.vd-leads{display:flex;flex-direction:column;gap:4px;background:#FBF9F5;border-radius:12px;padding:8px 10px;font-size:13px;color:#443327}
+.vd-private{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#8A6A2F;background:#FBF9F5;border:1px dashed #D8CCB6;border-radius:9px;padding:4px 8px}
+.vd-private span{font-weight:500;color:#957860;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vd-actions{display:flex;align-items:center;gap:4px;border-top:1px solid #F1EBE1;padding-top:10px;margin-top:auto}
+.vd-icon{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;color:#8A7A63}
+.vd-icon:hover{background:#F6F3ED;color:#443327}
+.vd-menu{position:absolute;bottom:38px;left:0;z-index:40;display:flex;flex-direction:column;min-width:190px;background:#fff;border:1px solid #E9E2D6;border-radius:12px;box-shadow:0 8px 24px rgba(68,51,39,.12);padding:4px}
+.vd-menu button{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:#443327;padding:8px 10px;border-radius:8px;text-align:right}
+.vd-menu button:hover{background:#F6F3ED}
+.vd-menu button.danger{color:#8B4A30}
+.vd-sheet-bg{position:fixed;inset:0;z-index:60;background:rgba(51,40,27,.35);display:flex;justify-content:flex-start}
+.vd-sheet{width:min(460px,100%);height:100%;overflow-y:auto;background:#fff;padding:18px;box-shadow:0 0 30px rgba(0,0,0,.15)}
+@media (max-width:640px){.vd-header h1{font-size:22px}.vd-grid{grid-template-columns:1fr}.vd-sheet{width:100%}}
+`
+
 function PartnersTab() {
   const [partners, setPartners] = useState<ServicePartner[]>([])
   const [editing, setEditing] = useState<ServicePartner | null>(null)
@@ -5587,8 +5635,23 @@ function PartnersTab() {
   // Task A: shared delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<ServicePartner | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
-  // Folder view: vendors grouped by topic, collapsible per group.
-  const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({})
+  // 10.10.26 (Lovable mockup): flat grid with search + audience filter,
+  // a strip of call requests not passed on yet, and a ⋯ menu per card.
+  const [vSearch, setVSearch] = useState('')
+  const [audience, setAudience] = useState<'all' | 'pregnancy' | 'motherhood'>('all')
+  const [menuFor, setMenuFor] = useState<string | null>(null)
+  const [showLeadsStrip, setShowLeadsStrip] = useState(false)
+  // A call request is 'passed on' once marked here; kept in
+  // admin_task_dismissals as partnerlead:<id> (same as the registrations inbox).
+  const [passedLeads, setPassedLeads] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    supabase.from('admin_task_dismissals').select('task_key').like('task_key', 'partnerlead:%')
+      .then(({ data }) => setPassedLeads(new Set(((data ?? []) as { task_key: string }[]).map(d => d.task_key.slice('partnerlead:'.length)))))
+  }, [])
+  async function markPassed(id: string) {
+    setPassedLeads(prev => new Set(prev).add(id))
+    await supabase.from('admin_task_dismissals').upsert({ task_key: `partnerlead:${id}`, dismissed_at: new Date().toISOString() }, { onConflict: 'task_key' })
+  }
   // Topic filter — null = show all folders.
   const [topicFilter, setTopicFilter] = useState<string | null>(null)
   // Phase 6 (handoff §6): each vendor carries its leads + events context
@@ -5687,33 +5750,82 @@ function PartnersTab() {
     setPendingDelete(null)
   }
 
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-[13px] font-semibold text-sand-600">{partners.length} ספקים</p>
-        <button onClick={openNew}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-bold"
-          style={{ background: '#C8A460', color: '#33281B' }}>
-          <Plus className="w-4 h-4" /> ספק חדש
-        </button>
-      </div>
+  const topicsOf = (p: ServicePartner) => Array.from(new Set((p.subcategories?.length ? p.subcategories : [p.subcategory]).map(t => subcatLabel(t))))
+  const allTopics = [...new Set(partners.flatMap(topicsOf))]
+  const vendorById = new Map(partners.map(p => [p.id, p]))
+  // Call requests ("ביקשה שיחה") from the last 60 days not passed on yet.
+  const openCallbacks = Object.values(leadsByVendor).flat()
+    .filter(l => l.action_type === 'callback' && !passedLeads.has(l.id) && Date.now() - new Date(l.created_at).getTime() < 60 * 86400000)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+  const q = vSearch.trim()
+  const shownVendors = partners
+    .filter(p => !topicFilter || topicsOf(p).includes(topicFilter))
+    .filter(p => audience === 'all' || p.category === audience || p.category === 'both')
+    .filter(p => !q || `${p.title} ${p.description ?? ''} ${topicsOf(p).join(' ')}`.includes(q))
+    .sort((a, b) => Number(b.is_active) - Number(a.is_active))
+  const waVendor = (n: string | null, text?: string) => n ? `https://wa.me/${n.replace(/\D/g, '').replace(/^0/, '972')}${text ? `?text=${encodeURIComponent(text)}` : ''}` : null
+  const ddmmIso = (iso: string) => { const [, m2, d2] = iso.slice(0, 10).split('-'); return `${d2}/${m2}` }
 
-      {/* Topic filter chips — הכל / one per existing topic */}
+  return (
+    <div className="space-y-4" dir="rtl">
+      <style>{VD_CSS}</style>
+      <header className="vd-header">
+        <h1>ספקים <span>{partners.length}</span></h1>
+        <button type="button" onClick={openNew} className="vd-btn primary"><Plus className="w-4 h-4" /> ספק חדש</button>
+        <div className="vd-search">
+          <Search className="w-4 h-4 flex-shrink-0" style={{ color: '#A2937D' }} />
+          <input value={vSearch} onChange={e => setVSearch(e.target.value)} placeholder="חיפוש ספק או תחום" aria-label="חיפוש ספק" />
+          {vSearch && <button type="button" onClick={() => setVSearch('')} aria-label="ניקוי"><X className="w-4 h-4" style={{ color: '#A2937D' }} /></button>}
+        </div>
+      </header>
+
+      {openCallbacks.length > 0 && (
+        <section className="vd-attn" aria-label="ביקשו שיחה">
+          <button type="button" className="vd-attn-h" onClick={() => setShowLeadsStrip(v => !v)} aria-expanded={showLeadsStrip}>
+            <span>{openCallbacks.length === 1 ? 'אמא אחת ביקשה שיחה ועוד לא הועברה לספק' : `${openCallbacks.length} אמהות ביקשו שיחה ועוד לא הועברו לספק`}</span>
+            <ChevronDown className={`w-4 h-4 transition-transform ${showLeadsStrip ? 'rotate-180' : ''}`} />
+          </button>
+          {showLeadsStrip && openCallbacks.map(l => {
+            const v = l.partner_id ? vendorById.get(l.partner_id) : undefined
+            const msg = `היי! ${l.contact_name ?? 'אמא'} מאפליקציית מימו ביקשה שתחזרי אליה${l.contact_phone ? `: ${l.contact_phone}` : ''}`
+            return (
+              <div key={l.id} className="vd-lead">
+                <span className="min-w-0 flex-1">
+                  <b>{l.contact_name ?? 'ללא שם'}</b>
+                  <span className="vd-faint"> · {v?.title ?? 'ספק'} · {ddmmIso(l.created_at)}</span>
+                  {l.contact_phone && <span className="vd-faint"> · <bdi dir="ltr">{l.contact_phone}</bdi></span>}
+                </span>
+                {waVendor(v?.whatsapp_number ?? null, msg) && (
+                  <a className="vd-btn soft" href={waVendor(v!.whatsapp_number, msg)!} target="_blank" rel="noopener noreferrer"><MessageCircle className="w-3.5 h-3.5" /> לספק</a>
+                )}
+                <button type="button" className="vd-btn plain" onClick={() => markPassed(l.id)}><Check className="w-3.5 h-3.5" /> העברתי</button>
+              </div>
+            )
+          })}
+        </section>
+      )}
+
       {partners.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto scroll-hide pb-1">
-          {[null, ...[...new Set(partners.flatMap(p => (p.subcategories?.length ? p.subcategories : [p.subcategory]).map(t => subcatLabel(t))))]].map(t => (
-            <button key={t ?? 'all'} onClick={() => setTopicFilter(t)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all ${topicFilter === t ? 'text-white shadow-sm' : 'bg-white text-sand-500 border border-sand-200'}`}
-              style={topicFilter === t ? { background: '#E7C78A' } : {}}>
-              {t ?? 'הכל'}
-            </button>
-          ))}
+        <div className="vd-bar">
+          <div className="vd-tabs" role="tablist" aria-label="תחום">
+            {[null, ...allTopics].map(t => (
+              <button key={t ?? 'all'} type="button" role="tab" aria-selected={topicFilter === t} className="vd-tab" onClick={() => setTopicFilter(t)}>
+                {t ?? 'הכל'}<small>{t ? partners.filter(p => topicsOf(p).includes(t)).length : partners.length}</small>
+              </button>
+            ))}
+          </div>
+          <select value={audience} onChange={e => setAudience(e.target.value as typeof audience)} className="vd-select" aria-label="קהל">
+            <option value="all">כל הקהלים</option>
+            <option value="pregnancy">הריון</option>
+            <option value="motherhood">אמהות</option>
+          </select>
         </div>
       )}
 
       {adding && (
-        <div className="bg-white rounded-3xl p-4 shadow-sm space-y-3">
-          <p className="font-bold text-sand-800 text-sm">{editing ? 'עריכת ספק' : 'ספק חדש'}</p>
+        <div className="vd-sheet-bg" onClick={() => { setAdding(false); setEditing(null) }}>
+        <div className="vd-sheet space-y-3" onClick={e => e.stopPropagation()} role="dialog" aria-label={editing ? 'עריכת ספק' : 'ספק חדש'}>
+          <div className="flex items-center justify-between"><p className="font-bold text-sand-800" style={{ fontSize: 18 }}>{editing ? 'עריכת ספק' : 'ספק חדש'}</p><button type="button" onClick={() => { setAdding(false); setEditing(null) }} aria-label="סגירה" className="vd-icon"><X className="w-4 h-4" /></button></div>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
             placeholder="שם הספק / נותנת השירות"
             className="w-full px-4 py-3 border-2 border-sand-200 rounded-2xl text-sm focus:outline-none focus:border-mustard-400" />
@@ -5814,7 +5926,7 @@ function PartnersTab() {
           {/* Admin-only cost block — stored in vendor_admin_info (admin
               RLS), never shown to users anywhere in the app */}
           <div className="rounded-2xl p-3 space-y-2" style={{ background: '#F8F4EC', border: '1px dashed #C6BDA0' }}>
-            <p className="text-xs font-bold text-sand-600">💰 עלות, לעיניים שלך בלבד (לא מוצג לאמהות)</p>
+            <p className="text-xs font-bold text-sand-600 flex items-center gap-1"><Lock className="w-3.5 h-3.5" /> רק לעיניים שלך (לא מוצג לאמהות)</p>
             <div className="flex gap-2">
               <input value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))}
                 placeholder="עלות לאירוע (₪)" type="number" min="0"
@@ -5834,148 +5946,87 @@ function PartnersTab() {
               className="px-4 py-2.5 rounded-2xl bg-sand-100 text-sand-600 text-sm font-semibold">ביטול</button>
           </div>
         </div>
+        </div>
       )}
 
-      {/* Vendors grouped into collapsible topic folders */}
-      {(() => {
-        const groups: { name: string; items: ServicePartner[] }[] = []
-        for (const p of partners) {
-          // One vendor, several folders (Yahav 11.8.26).
-          const names = Array.from(new Set(
-            (p.subcategories?.length ? p.subcategories : [p.subcategory]).map(t => subcatLabel(t)),
-          ))
-          for (const name of names) {
-            if (topicFilter && name !== topicFilter) continue
-            const g = groups.find(x => x.name === name)
-            if (g) g.items.push(p)
-            else groups.push({ name, items: [p] })
-          }
-        }
-        return groups.map(g => (
-          <div key={g.name} className="space-y-2">
-            <button
-              onClick={() => setClosedGroups(c => ({ ...c, [g.name]: !c[g.name] }))}
-              className="w-full flex items-center justify-between px-4 py-2.5 bg-white rounded-2xl shadow-sm border border-sand-100"
-            >
-              <span className="font-bold text-sand-700" style={{ fontSize: 15 }}>{g.name} <span className="text-sand-500 font-semibold">({g.items.length})</span></span>
-              <ChevronDown className={`w-4 h-4 text-sand-400 transition-transform ${closedGroups[g.name] ? '' : 'rotate-180'}`} />
-            </button>
-            {!closedGroups[g.name] && (
-              <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
-                {g.items.map(p => (
-                  <div
-                    key={p.id}
-                    className="relative flex flex-col"
-                    style={p.is_active
-                      ? { background: '#fff', border: '1px solid #E4DAD0', borderRadius: 20, padding: 18, gap: 12 }
-                      : { background: '#F8F4EC', border: '1px dashed #C6BDA0', borderRadius: 20, padding: 18, gap: 12, opacity: 0.85 }}
-                  >
-                    {/* is_active pill toggle — same handler as the old row icon */}
-                    <button
-                      onClick={() => toggleActive(p)}
-                      title={p.is_active ? 'הסתר' : 'הפעל'}
-                      dir="ltr"
-                      className="absolute"
-                      style={{ top: 14, left: 14, width: 42, height: 24, borderRadius: 9999, background: p.is_active ? '#818267' : '#DCD4C8', padding: 3, display: 'flex', alignItems: 'center', justifyContent: p.is_active ? 'flex-end' : 'flex-start', transition: 'background .15s' }}
-                    >
-                      <span style={{ width: 18, height: 18, borderRadius: 9999, background: '#fff', display: 'block' }} />
-                    </button>
-                    <div className="flex items-center gap-3">
-                      {p.logo_url
-                        ? <img src={p.logo_url} alt="" className="flex-shrink-0 object-cover" style={{ width: 50, height: 50, borderRadius: 16 }} />
-                        : (
-                          <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 50, height: 50, borderRadius: 16, background: '#E4EBEF', color: '#3E5966', fontWeight: 700, fontSize: 22 }}>
-                            {(p.title ?? '').trim().charAt(0) || '?'}
-                          </div>
-                        )}
-                      <div className="min-w-0">
-                        <p className="truncate" style={{ fontWeight: 700, fontSize: 16, color: '#443327' }}>{p.title}</p>
-                        <p className="truncate" style={{ fontWeight: 600, fontSize: 13, color: '#7B604C' }}>
-                          {(p.subcategories?.length ? p.subcategories : [p.subcategory]).map(t => subcatLabel(t)).join(' · ')} · {p.category === 'both' ? 'הריון ואמהות' : p.category === 'pregnancy' ? 'הריון' : 'אמהות'}
-                        </p>
-                        {/* Admin-only cost chip — from vendor_admin_info */}
-                        {adminInfo[p.id]?.cost != null && (
-                          <p className="truncate mt-0.5" style={{ fontWeight: 700, fontSize: 13, color: '#8A6A2F' }} title={adminInfo[p.id]?.cost_notes ?? undefined}>
-                            💰 ₪{adminInfo[p.id].cost} לאירוע
-                            {adminInfo[p.id]?.cost_notes && <span style={{ fontWeight: 500, color: '#957860' }}> · {adminInfo[p.id].cost_notes}</span>}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    {p.description && (
-                      <p className="line-clamp-3" style={{ fontWeight: 400, fontSize: 14, lineHeight: 1.55, color: '#7B604C' }}>{p.description}</p>
-                    )}
-                    {/* Phase 6: leads + upcoming-event context ON the vendor */}
-                    {((leadsByVendor[p.id]?.length ?? 0) > 0 || (eventsByVendor[p.id]?.length ?? 0) > 0) && (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {(leadsByVendor[p.id]?.length ?? 0) > 0 && (
-                          <button
-                            onClick={() => setOpenLeadsVendor(cur => cur === p.id ? null : p.id)}
-                            className="font-bold rounded-full transition-all hover:brightness-95"
-                            style={{ fontSize: 12, padding: '4px 10px', background: '#E4EBEF', color: '#3E5966' }}
-                          >
-                            📞 {leadsByVendor[p.id].length} לידים {openLeadsVendor === p.id ? '▲' : '▼'}
-                          </button>
-                        )}
-                        {(eventsByVendor[p.id]?.length ?? 0) > 0 && (
-                          <span className="font-bold rounded-full" style={{ fontSize: 12, padding: '4px 10px', background: '#F4EDE1', color: '#8A6A2F' }} title={eventsByVendor[p.id].map(e => e.title).join(', ')}>
-                            🎪 אירוע קרוב: {(() => { const [, m2, d2] = eventsByVendor[p.id][0].event_date.split('-'); return `${d2}/${m2}` })()}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {openLeadsVendor === p.id && (leadsByVendor[p.id]?.length ?? 0) > 0 && (
-                      <div className="space-y-1.5 rounded-xl p-2.5" style={{ background: '#F8F4EC' }}>
-                        {leadsByVendor[p.id].slice(0, 6).map(l => (
-                          <div key={l.id} className="flex items-center gap-2">
-                            <span className="flex-1 min-w-0 truncate" style={{ fontSize: 13, fontWeight: 600, color: '#443327' }}>
-                              {l.contact_name ?? 'ללא שם'}
-                              <span style={{ color: '#A2937D', fontWeight: 500 }}> · {(() => { const [, m2, d2] = l.created_at.slice(0, 10).split('-'); return `${d2}/${m2}` })()} · {l.action_type === 'callback' ? 'ביקשה שיחה' : 'וואטסאפ'}</span>
-                            </span>
-                            {l.contact_phone && (
-                              <a href={`https://wa.me/${l.contact_phone.replace(/\D/g, '').replace(/^0/, '972')}`} target="_blank" rel="noopener noreferrer"
-                                className="flex-shrink-0 font-bold" style={{ fontSize: 12, color: '#A35C3D' }}>
-                                💬 {l.contact_phone}
-                              </a>
-                            )}
-                          </div>
-                        ))}
-                        {leadsByVendor[p.id].length > 6 && (
-                          <p style={{ fontSize: 12, color: '#A2937D' }}>ועוד {leadsByVendor[p.id].length - 6} בטאב לידים</p>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-4" style={{ borderTop: '1px solid #F0EBE3', paddingTop: 12, marginTop: 'auto' }}>
-                      {p.whatsapp_number && (
-                        <a
-                          href={`https://wa.me/${p.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1"
-                          style={{ color: '#A35C3D', fontWeight: 700, fontSize: 14 }}
-                        >
-                          <MessageCircle className="w-4 h-4" /> WhatsApp
-                        </a>
-                      )}
-                      <button onClick={() => openEdit(p)} style={{ color: '#7B604C', fontWeight: 700, fontSize: 14 }}>
-                        עריכה
-                      </button>
-                      <button
-                        onClick={() => setPendingDelete(p)}
-                        className="p-1.5 text-sand-300 hover:text-red-400 transition-colors"
-                        style={{ marginInlineStart: 'auto' }}
-                        title="מחיקה"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+      <div className="vd-grid">
+        {shownVendors.map(p => {
+          const leads = leadsByVendor[p.id] ?? []
+          const evs = eventsByVendor[p.id] ?? []
+          const info = adminInfo[p.id]
+          const audienceLabel = p.category === 'both' ? 'הריון ואמהות' : p.category === 'pregnancy' ? 'הריון' : 'אמהות'
+          return (
+            <article key={p.id} className={`vd-card${p.is_active ? '' : ' off'}`} aria-label={p.title}>
+              <div className="vd-top">
+                {p.logo_url
+                  ? <img src={p.logo_url} alt="" className="vd-logo" />
+                  : <span className="vd-logo initials" aria-hidden="true">{(p.title ?? '').trim().charAt(0) || '?'}</span>}
+                <div className="min-w-0 flex-1">
+                  <h3>{p.title}</h3>
+                  <div className="vd-chips">
+                    <span className="vd-chip blue">{audienceLabel}</span>
+                    {topicsOf(p).filter(t => t !== 'ללא נושא').map(t => <span key={t} className="vd-chip">{t}</span>)}
+                    {!p.is_active && <span className="vd-chip">מוסתר</span>}
                   </div>
-                ))}
+                </div>
               </div>
-            )}
-          </div>
-        ))
-      })()}
+              {p.description && <p className="vd-desc">{p.description}</p>}
+              {(leads.length > 0 || evs.length > 0) && (
+                <div className="vd-chips">
+                  {leads.length > 0 && (
+                    <button type="button" className="vd-chip gold" onClick={() => setOpenLeadsVendor(cur => cur === p.id ? null : p.id)} aria-expanded={openLeadsVendor === p.id}>
+                      {leads.length === 1 ? 'פנייה אחת' : `${leads.length} פניות`}
+                    </button>
+                  )}
+                  {evs.length > 0 && (
+                    <span className="vd-chip" title={evs.map(e => e.title).join(', ')}>
+                      {evs.length === 1 ? `מנחה ב-${ddmmIso(evs[0].event_date)}` : `מנחה ב-${evs.length} אירועים`}
+                    </span>
+                  )}
+                </div>
+              )}
+              {openLeadsVendor === p.id && leads.length > 0 && (
+                <div className="vd-leads">
+                  {leads.slice(0, 6).map(l => (
+                    <div key={l.id} className="flex items-center gap-2">
+                      <span className="flex-1 min-w-0 truncate">
+                        <b>{l.contact_name ?? 'ללא שם'}</b>
+                        <span className="vd-faint"> · {ddmmIso(l.created_at)} · {l.action_type === 'callback' ? 'ביקשה שיחה' : 'וואטסאפ'}{passedLeads.has(l.id) ? ' · הועבר' : ''}</span>
+                      </span>
+                      {waVendor(l.contact_phone) && <a href={waVendor(l.contact_phone)!} target="_blank" rel="noopener noreferrer" className="vd-icon" title="וואטסאפ לאמא"><MessageCircle className="w-4 h-4" /></a>}
+                    </div>
+                  ))}
+                  {leads.length > 6 && <p className="vd-faint">ועוד {leads.length - 6}</p>}
+                </div>
+              )}
+              {info?.cost != null && (
+                <p className="vd-private" title={info.cost_notes ?? undefined}><Lock className="w-3 h-3" /> ₪{info.cost} לאירוע{info.cost_notes ? <span> · {info.cost_notes}</span> : null}</p>
+              )}
+              <div className="vd-actions">
+                {waVendor(p.whatsapp_number)
+                  ? <a href={waVendor(p.whatsapp_number)!} target="_blank" rel="noopener noreferrer" className="vd-btn soft"><MessageCircle className="w-3.5 h-3.5" /> וואטסאפ</a>
+                  : <span className="vd-faint">אין מספר וואטסאפ</span>}
+                <span className="flex-1" />
+                <button type="button" className="vd-icon" onClick={() => openEdit(p)} title="עריכה" aria-label={`עריכת ${p.title}`}><Pencil className="w-4 h-4" /></button>
+                <span className="relative">
+                  <button type="button" className="vd-icon" onClick={() => setMenuFor(menuFor === p.id ? null : p.id)} title="עוד" aria-label={`עוד פעולות ל${p.title}`} aria-expanded={menuFor === p.id}><MoreHorizontal className="w-4 h-4" /></button>
+                  {menuFor === p.id && (
+                    <>
+                      <span className="fixed inset-0 z-30" onClick={() => setMenuFor(null)} />
+                      <span className="vd-menu" role="menu">
+                        <button type="button" role="menuitem" onClick={() => { setMenuFor(null); openEdit(p) }}><Pencil className="w-4 h-4" /> עריכה</button>
+                        <button type="button" role="menuitem" onClick={() => { setMenuFor(null); toggleActive(p) }}><EyeOff className="w-4 h-4" /> {p.is_active ? 'הסתרה מהאמהות' : 'הצגה לאמהות'}</button>
+                        <button type="button" role="menuitem" className="danger" onClick={() => { setMenuFor(null); setPendingDelete(p) }}><Trash2 className="w-4 h-4" /> מחיקה</button>
+                      </span>
+                    </>
+                  )}
+                </span>
+              </div>
+            </article>
+          )
+        })}
+      </div>
+      {partners.length > 0 && shownVendors.length === 0 && <p className="vd-faint" style={{ textAlign: 'center', padding: 16 }}>לא נמצא ספק</p>}
       {partners.length === 0 && !adding && <p className="text-center text-sand-400 text-sm py-8">אין ספקים עדיין</p>}
       <ConfirmDialog
         open={!!pendingDelete}
