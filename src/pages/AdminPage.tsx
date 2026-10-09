@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo, createContext, useContext } from 'react'
-import { Home as HomeIcon, BookOpen, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, AlertCircle, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Baby, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
+import { Home as HomeIcon, BookOpen, Plus, Pencil, Trash2, GraduationCap, CreditCard, CalendarDays, Image as ImageIcon, Eye, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, X, Check, Copy, Search, Users, BarChart2, Baby, Video, Gift, Settings, MessageCircle, Mail, Phone, GripVertical, ClipboardList, FileText, Sparkles, Link2, MapPin, ExternalLink } from 'lucide-react'
+import ProductsListView from '../components/admin/ProductsListView'
 import FormsListView from '../components/admin/forms/FormsListView'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
@@ -1320,7 +1321,6 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   // Phase 5 / B: per-workshop registration link copy.
-  const [copiedId, setCopiedId] = useState<string | null>(null)
   // Task A: delete-confirmation state. Trash button sets pending; the
   // shared ConfirmDialog at the bottom of the return prompts; on
   // confirm, performDelete runs the supabase delete then clears.
@@ -1334,16 +1334,7 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
   // search / category filter for the products list.
   const { categories, reload: reloadCategories } = useWorkshopCategories()
   const [showCatManager, setShowCatManager] = useState(false)
-  const [searchQ, setSearchQ] = useState('')
-  const [catFilter, setCatFilter] = useState('all')
 
-  function copyRegisterLink(id: string) {
-    const link = `${window.location.origin}?register=${id}`
-    navigator.clipboard.writeText(link).then(() => {
-      setCopiedId(id)
-      setTimeout(() => setCopiedId(prev => prev === id ? null : prev), 1500)
-    })
-  }
 
   async function uploadImage(file: File): Promise<string | null> {
     const ext = file.name.split('.').pop()
@@ -1411,26 +1402,12 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
   // Polish #7: drag-to-reorder. PointerSensor + TouchSensor configured
   // identically to the form-fields reorder above (distance/delay
   // thresholds prevent accidental drag on a regular click).
-  const dragSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
-  )
-
-  async function handleWorkshopsDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const oldIdx = workshops.findIndex(w => w.id === active.id)
-    const newIdx = workshops.findIndex(w => w.id === over.id)
-    if (oldIdx < 0 || newIdx < 0) return
-    const reordered = arrayMove(workshops, oldIdx, newIdx)
-    // Optimistic update — the UI snaps to the new order immediately;
-    // the DB writes catch up asynchronously. If any write fails we
-    // refetch via load().
+  // 9.10.26: reordering is an explicit "סידור" mode in ProductsListView.
+  async function saveWorkshopOrder(reordered: Workshop[]) {
+    // Optimistic: the list snaps to the new order; the writes catch up.
     setWorkshops(reordered.map((w, i) => ({ ...w, display_order: i })))
     const updates = await Promise.all(
-      reordered.map((w, i) =>
-        supabase.from('workshops').update({ display_order: i }).eq('id', w.id),
-      ),
+      reordered.map((w, i) => supabase.from('workshops').update({ display_order: i }).eq('id', w.id)),
     )
     if (updates.some(r => r.error)) {
       console.error('[reorder] one or more updates failed:', updates.filter(r => r.error))
@@ -1470,203 +1447,31 @@ function WorkshopsTabDesktop({ onOpenProduct }: { onOpenProduct?: (id: string) =
     load()
   }
 
-  const workshopsQ = searchQ.trim()
-  const visibleWorkshops = workshops.filter(w =>
-    (!workshopsQ || w.title.includes(workshopsQ) || (w.description ?? '').includes(workshopsQ)) &&
-    (catFilter === 'all' || (catFilter === '__none__' ? !w.workshop_type : w.workshop_type === catFilter))
-  )
   // Physical store products (category slug 'store-products') have no
   // cohorts and no digital content — hide those actions for them.
   const physicalNames = categories.filter(c => c.slug === 'store-products').map(c => c.name)
-  const isPhysicalProduct = (w: Workshop) => physicalNames.includes(w.workshop_type ?? '')
 
   // UX handoff: active priced products missing a payment link — these
   // silently block purchases, so they get a warning banner + per-row flag.
-  const missingPaymentLink = workshops.filter(w => w.is_active && (w.price ?? 0) > 0 && !w.payment_link)
 
   return (
     <div className="flex gap-6" dir="rtl">
       <div className="flex-1 min-w-0 space-y-4">
-        {missingPaymentLink.length > 0 && (
-          <div className="flex items-center gap-3" style={{ background: '#F5E2D8', border: '1px solid #E8C3B2', borderRadius: 18, padding: '15px 18px' }}>
-            <div className="flex items-center justify-center flex-shrink-0" style={{ width: 36, height: 36, borderRadius: 9999, background: '#fff' }}>
-              <AlertCircle style={{ width: 19, height: 19, color: '#8B4A30' }} />
-            </div>
-            <p style={{ fontWeight: 600, fontSize: 15, color: '#713924' }}>
-              למוצר "{missingPaymentLink[0].title}" (₪{missingPaymentLink[0].price}) אין קישור תשלום, ולא ניתן לשלם עליו.
-              {missingPaymentLink.length > 1 ? ` ועוד ${missingPaymentLink.length - 1} מוצרים נוספים ללא קישור.` : ''}
-            </p>
-          </div>
-        )}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-800">מוצרים ({workshops.length})</h2>
-            <button
-              onClick={openCreate}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold"
-              style={{ background: '#C8A460', color: '#33281B' }}
-            >
-              <Plus className="w-4 h-4" />
-              מוצר חדש
-            </button>
-          </div>
-          {/* Search + category filter + category manager */}
-          <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
-            <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="🔍 חיפוש מוצר..." className="flex-1 min-w-[160px] px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
-            <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none">
-              <option value="all">כל הקטגוריות</option>
-              <option value="__none__">סדנה דיגיטלית (ללא קטגוריה)</option>
-              {categories.map(c => <option key={c.id} value={c.name}>{c.icon ? `${c.icon} ${c.name}` : c.name}</option>)}
-            </select>
-            <button onClick={() => setShowCatManager(true)} className="px-3 py-2 rounded-xl text-sm font-semibold bg-gray-50 text-gray-600 hover:bg-gray-100" title="ניהול קטגוריות">⚙️ קטגוריות</button>
-          </div>
-          {showCatManager && <CategoryManagerModal onClose={() => setShowCatManager(false)} onChanged={() => { reloadCategories(); load() }} />}
-          {/* Yahav 5.9.26: the actions cell overflowed the card and the
-              registration-link button was cut off. The table can now scroll
-              sideways if it must, and the actions wrap onto two lines. */}
-          <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-right text-xs text-gray-500 font-semibold">
-                <th className="px-2 py-3 w-8"></th>
-                <th className="px-6 py-3">שם</th>
-                <th className="px-4 py-3">מחיר</th>
-                <th className="px-4 py-3">קישור תשלום</th>
-                <th className="px-4 py-3">סטטוס</th>
-                <th className="px-4 py-3" style={{ minWidth: 230 }}>פעולות</th>
-              </tr>
-            </thead>
-            <tbody>
-              <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleWorkshopsDragEnd}>
-                <SortableContext items={visibleWorkshops.map(w => w.id)} strategy={verticalListSortingStrategy}>
-                  {visibleWorkshops.map(w => (
-                    <SortableTr key={w.id} id={w.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors group">
-                      {(dragHandle) => (
-                        <>
-                          <td className="px-2 py-3 w-8 text-center">{dragHandle}</td>
-                          <td className="px-6 py-3">
-                            <div className="flex items-center gap-3">
-                              {w.image_url
-                                ? <img src={w.image_url} className="w-9 h-9 rounded-xl object-cover" alt="" />
-                                : <div className="w-9 h-9 rounded-xl bg-[#E4EBEF] flex items-center justify-center"><GraduationCap className="w-5 h-5" style={{ color: '#3E5966' }} /></div>
-                              }
-                              <div>
-                                <button onClick={() => onOpenProduct?.(w.id)} className="font-semibold text-gray-800 hover:underline text-right" title="פתיחת עמוד המוצר">{w.title}</button>
-                                {w.description && <p className="text-xs text-gray-400 truncate max-w-xs">{w.description}</p>}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">{w.price != null ? `₪${w.price}` : '—'}</td>
-                          <td className="px-4 py-3">
-                            {w.payment_link ? (
-                              /* Brenda 5.9.26: "קיים" told her nothing. Show the
-                                 link itself, hover for the full URL, copy and
-                                 open beside it. */
-                              <span className="inline-flex items-center gap-1.5 whitespace-nowrap" style={{ maxWidth: 260 }}>
-                                <span style={{ width: 9, height: 9, borderRadius: 9999, background: '#818267', display: 'inline-block', flexShrink: 0 }} />
-                                <span dir="ltr" className="truncate" style={{ color: '#434434', fontSize: 12, maxWidth: 170 }} title={w.payment_link}>{w.payment_link.replace(/^https?:\/\//, '')}</span>
-                                <button
-                                  onClick={() => { navigator.clipboard.writeText(w.payment_link!).then(() => { setCopiedId('pay:' + w.id); setTimeout(() => setCopiedId(prev => prev === 'pay:' + w.id ? null : prev), 1500) }) }}
-                                  className="p-1 rounded-md hover:bg-gray-100 flex-shrink-0"
-                                  title={copiedId === 'pay:' + w.id ? 'הועתק' : 'העתקת קישור התשלום'}
-                                >
-                                  {copiedId === 'pay:' + w.id ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-gray-400" />}
-                                </button>
-                                <a href={w.payment_link} target="_blank" rel="noopener noreferrer" className="p-1 rounded-md hover:bg-gray-100 flex-shrink-0" title="פתיחת עמוד התשלום בלשונית חדשה">
-                                  <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
-                                </a>
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => onOpenProduct?.(w.id)}
-                                className="inline-flex items-center gap-1.5 whitespace-nowrap hover:underline"
-                                title="פתיחת עמוד המוצר להוספת קישור תשלום"
-                              >
-                                <span style={{ width: 9, height: 9, borderRadius: 9999, background: '#A35C3D', display: 'inline-block' }} />
-                                <span style={{ color: '#8B4A30', fontWeight: 700, fontSize: 14 }}>חסר, להוספה</span>
-                              </button>
-                            )}
-                            {(offersByWorkshop[w.id]?.length ?? 0) > 0 && (
-                              <button
-                                onClick={() => onOpenProduct?.(w.id)}
-                                className="mt-1 block text-right hover:underline"
-                                title={`לינקים מוזלים: ${offersByWorkshop[w.id].join(', ')}. לחיצה פותחת את עמוד המוצר`}
-                              >
-                                <span className="inline-flex items-center rounded-full" style={{ background: '#E4EBEF', color: '#3E5966', fontWeight: 700, fontSize: 12, padding: '3px 10px', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {offersByWorkshop[w.id].length === 1
-                                    ? `מוזל: ${offersByWorkshop[w.id][0]}`
-                                    : `${offersByWorkshop[w.id].length} מוזלים · ${offersByWorkshop[w.id].join(', ')}`}
-                                </span>
-                              </button>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <button onClick={() => toggle(w)} className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${w.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                              {w.is_active ? 'פעיל' : 'לא פעיל'}
-                            </button>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1 flex-wrap max-w-[260px] opacity-0 group-hover:opacity-100 transition-opacity">
-                              {(w as unknown as { public_registration?: boolean }).public_registration && (
-                                <button
-                                  onClick={() => copyRegisterLink(w.id)}
-                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 whitespace-nowrap"
-                                  title="העתקת לינק להרשמה ישירה למוצר הזה"
-                                >
-                                  {copiedId === w.id ? '✓ הועתק' : '🔗 לינק הרשמה'}
-                                </button>
-                              )}
-                              {/* Yahav 5.9.26: "והלינק של הגיפט קארד נמצא איפשהו?" — the public
-                                  no-account page for this product, same place as the registration link. */}
-                              {w.gift_card_enabled && (
-                                <button
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(`${window.location.origin}/?giftcard=${w.id}`).then(() => {
-                                      setCopiedId('gift:' + w.id)
-                                      setTimeout(() => setCopiedId(prev => prev === 'gift:' + w.id ? null : prev), 1500)
-                                    })
-                                  }}
-                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold hover:brightness-95 whitespace-nowrap"
-                                  style={{ background: '#F6ECD8', color: '#8A6A2F' }}
-                                  title="העתקת לינק לרכישת גיפט קארד למוצר הזה (בלי התחברות)"
-                                >
-                                  {copiedId === 'gift:' + w.id ? '✓ הועתק' : '🎁 לינק גיפט קארד'}
-                                </button>
-                              )}
-                              {!isPhysicalProduct(w) && (
-                                <>
-                                  <button onClick={() => setContentWorkshop(w)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#F6ECD8] text-[#6E5836] hover:bg-[#EFDFC2] whitespace-nowrap">📂 תוכן</button>
-                                  <button
-                                    onClick={() => setCohortsWorkshop(w)}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100"
-                                    title="ניהול מחזורים"
-                                  >
-                                    📅 מחזורים
-                                  </button>
-                                  <button
-                                    onClick={() => setAccessWorkshop(w)}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100"
-                                    title="מי עם גישה לתוכן של המוצר הזה"
-                                  >
-                                    🔑 גישות
-                                  </button>
-                                </>
-                              )}
-                              <button onClick={() => onOpenProduct?.(w.id)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => setPendingDelete(w)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                            </div>
-                          </td>
-                        </>
-                      )}
-                    </SortableTr>
-                  ))}
-                </SortableContext>
-              </DndContext>
-            </tbody>
-          </table>
-          </div>
-          {visibleWorkshops.length === 0 && <p className="text-center text-gray-400 text-sm py-12">{workshops.length === 0 ? 'אין מוצרים' : 'לא נמצאו מוצרים בסינון הזה'}</p>}
-        </div>
+        <ProductsListView
+          workshops={workshops}
+          physicalTypes={physicalNames}
+          offersByWorkshop={offersByWorkshop}
+          onOpenProduct={id => onOpenProduct?.(id)}
+          onCreate={openCreate}
+          onCategories={() => setShowCatManager(true)}
+          onToggle={toggle}
+          onDelete={w => setPendingDelete(w)}
+          onContent={w => setContentWorkshop(w)}
+          onCohorts={w => setCohortsWorkshop(w)}
+          onAccess={w => setAccessWorkshop(w)}
+          onReorder={saveWorkshopOrder}
+        />
+        {showCatManager && <CategoryManagerModal onClose={() => setShowCatManager(false)} onChanged={() => { reloadCategories(); load() }} />}
       </div>
 
       {/* Polish #6: Create / Edit modal — was a w-80 sticky aside next
@@ -1846,26 +1651,6 @@ function SortableRow({ id, children }: { id: string; children: (dragHandle: Reac
 // Polish #7: same render-prop pattern as SortableRow but emits a <tr>
 // instead of a <div>, so it slots into a table without breaking the
 // table layout. Used by WorkshopsTabDesktop's drag-to-reorder.
-function SortableTr({ id, children, className }: { id: string; children: (dragHandle: React.ReactNode) => React.ReactNode; className?: string }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
-  const dragHandle = (
-    <button
-      {...listeners}
-      {...attributes}
-      className="cursor-grab active:cursor-grabbing p-1 text-gray-300 hover:text-gray-500 touch-none"
-      title="גרור לשינוי סדר"
-      onClick={e => e.preventDefault()}
-    >
-      <GripVertical className="w-3.5 h-3.5" />
-    </button>
-  )
-  return (
-    <tr ref={setNodeRef} style={style} className={className}>
-      {children(dragHandle)}
-    </tr>
-  )
-}
 
 // ─── Polish #9: Forms-page "what's new" tracking ─────────────────────────────
 // Independent of App.tsx's `forms_last_seen` (which drives the admin
@@ -3991,28 +3776,16 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
   const [uploadingImage, setUploadingImage] = useState(false)
   // Phase 5 / B: per-workshop registration link copy. Tracks which row
   // just showed the "copied" feedback so the icon flips for ~1.5s.
-  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   // Polish #7: drag-to-reorder for mobile cards. Same sensor config
   // as the desktop table; touch sensor uses a 200ms delay so a
   // regular tap on the card buttons doesn't get hijacked as a drag.
-  const dragSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
-  )
-
-  async function handleWorkshopsDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const oldIdx = workshops.findIndex(w => w.id === active.id)
-    const newIdx = workshops.findIndex(w => w.id === over.id)
-    if (oldIdx < 0 || newIdx < 0) return
-    const reordered = arrayMove(workshops, oldIdx, newIdx)
+  // 9.10.26: reordering is an explicit "סידור" mode in ProductsListView.
+  async function saveWorkshopOrder(reordered: Workshop[]) {
+    // Optimistic: the list snaps to the new order; the writes catch up.
     setWorkshops(reordered.map((w, i) => ({ ...w, display_order: i })))
     const updates = await Promise.all(
-      reordered.map((w, i) =>
-        supabase.from('workshops').update({ display_order: i }).eq('id', w.id),
-      ),
+      reordered.map((w, i) => supabase.from('workshops').update({ display_order: i }).eq('id', w.id)),
     )
     if (updates.some(r => r.error)) {
       console.error('[reorder] one or more updates failed:', updates.filter(r => r.error))
@@ -4020,13 +3793,6 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
     }
   }
 
-  function copyRegisterLink(id: string) {
-    const link = `${window.location.origin}?register=${id}`
-    navigator.clipboard.writeText(link).then(() => {
-      setCopiedId(id)
-      setTimeout(() => setCopiedId(prev => prev === id ? null : prev), 1500)
-    })
-  }
 
   async function uploadImage(file: File): Promise<string | null> {
     const ext = file.name.split('.').pop()
@@ -4054,8 +3820,6 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
   // search / category filter for the products list.
   const { categories, reload: reloadCategories } = useWorkshopCategories()
   const [showCatManager, setShowCatManager] = useState(false)
-  const [searchQ, setSearchQ] = useState('')
-  const [catFilter, setCatFilter] = useState('all')
 
   const load = useCallback(async () => {
     const [{ data: ws }, { data: fs }] = await Promise.all([
@@ -4112,37 +3876,12 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
     await supabase.from('workshops').update({ is_active: !w.is_active }).eq('id', w.id); load()
   }
 
-  const workshopsQ = searchQ.trim()
-  const visibleWorkshops = workshops.filter(w =>
-    (!workshopsQ || w.title.includes(workshopsQ) || (w.description ?? '').includes(workshopsQ)) &&
-    (catFilter === 'all' || (catFilter === '__none__' ? !w.workshop_type : w.workshop_type === catFilter))
-  )
   // Physical store products (category slug 'store-products') have no
   // cohorts and no digital content — hide those actions for them.
   const physicalNames = categories.filter(c => c.slug === 'store-products').map(c => c.name)
-  const isPhysicalProduct = (w: Workshop) => physicalNames.includes(w.workshop_type ?? '')
 
   return (
     <div className="space-y-3">
-      <button
-        onClick={() => { setShowForm(true); setEditing(null) }}
-        className="w-full flex items-center justify-center gap-2 bg-mustard-500 text-white font-semibold py-3 rounded-2xl hover:bg-mustard-600 transition-colors"
-      >
-        <Plus className="w-4 h-4" />
-        מוצר חדש
-      </button>
-
-      {/* Search + category filter + category manager */}
-      <div className="flex gap-2">
-        <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="🔍 חיפוש מוצר..." className="flex-1 px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 bg-white" />
-        <button onClick={() => setShowCatManager(true)} className="px-3 py-2 rounded-xl text-sm font-semibold bg-white text-sand-600 shadow-sm" title="ניהול קטגוריות">⚙️</button>
-      </div>
-      <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm bg-white focus:outline-none focus:border-mustard-400">
-        <option value="all">כל הקטגוריות</option>
-        <option value="__none__">סדנה דיגיטלית (ללא קטגוריה)</option>
-        {categories.map(c => <option key={c.id} value={c.name}>{c.icon ? `${c.icon} ${c.name}` : c.name}</option>)}
-      </select>
-      {showCatManager && <CategoryManagerModal onClose={() => setShowCatManager(false)} onChanged={() => { reloadCategories(); load() }} />}
 
       {/* Polish #6: mobile editor is also a centered modal using the
           AdminLargeModal shell, matching the desktop pattern. */}
@@ -4271,71 +4010,20 @@ function WorkshopsTab({ onOpenProduct }: { onOpenProduct?: (id: string) => void 
         </AdminLargeModal>
       )}
 
-      <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleWorkshopsDragEnd}>
-        <SortableContext items={visibleWorkshops.map(w => w.id)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
-          {visibleWorkshops.map(w => (
-            <SortableRow key={w.id} id={w.id}>
-              {(dragHandle) => (
-                <div className={`bg-white rounded-2xl p-4 shadow-sm space-y-2 ${!w.is_active ? 'opacity-50' : ''}`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {dragHandle}
-                      <div className="flex-1 min-w-0">
-                        <button onClick={() => onOpenProduct?.(w.id)} className="font-semibold text-sand-800 text-sm truncate text-right block w-full" title="פתיחת עמוד המוצר">{w.title}</button>
-                        {w.price != null && <p className="text-xs text-mustard-600">₪{w.price}</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => toggle(w)} className="text-sand-400 hover:text-mustard-500">
-                        {w.is_active ? <ToggleRight className="w-5 h-5 text-mustard-500" /> : <ToggleLeft className="w-5 h-5" />}
-                      </button>
-                      <button onClick={() => onOpenProduct?.(w.id)} className="p-1.5 text-sand-400 hover:text-mustard-500" title="פתיחת עמוד המוצר"><Pencil className="w-4 h-4" /></button>
-                      <button onClick={() => setPendingDelete(w)} className="p-1.5 text-sand-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {!isPhysicalProduct(w) && (
-                      <>
-                    <button
-                      onClick={() => setContentWorkshop(w)}
-                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-mustard-50 text-mustard-700 hover:bg-mustard-100 transition-colors"
-                    >
-                      📂 ניהול תוכן
-                    </button>
-                    <button
-                      onClick={() => setCohortsWorkshop(w)}
-                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-                      title="ניהול מחזורים, תאריכי התחלה למוצר הזה"
-                    >
-                      📅 מחזורים
-                    </button>
-                    <button
-                      onClick={() => setAccessWorkshop(w)}
-                      className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                      title="מי עם גישה לתוכן של המוצר הזה"
-                    >
-                      🔑 מי עם גישה
-                    </button>
-                      </>
-                    )}
-                    {(w as unknown as { public_registration?: boolean }).public_registration && (
-                      <button
-                        onClick={() => copyRegisterLink(w.id)}
-                        className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                        title="העתקת לינק להרשמה ישירה למוצר הזה"
-                      >
-                        {copiedId === w.id ? '✓ הועתק' : '🔗 לינק ייעודי'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </SortableRow>
-          ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+        <ProductsListView
+          workshops={workshops}
+          physicalTypes={physicalNames}
+          onOpenProduct={id => onOpenProduct?.(id)}
+          onCreate={() => { setShowForm(true); setEditing(null) }}
+          onCategories={() => setShowCatManager(true)}
+          onToggle={toggle}
+          onDelete={w => setPendingDelete(w)}
+          onContent={w => setContentWorkshop(w)}
+          onCohorts={w => setCohortsWorkshop(w)}
+          onAccess={w => setAccessWorkshop(w)}
+          onReorder={saveWorkshopOrder}
+        />
+        {showCatManager && <CategoryManagerModal onClose={() => setShowCatManager(false)} onChanged={() => { reloadCategories(); load() }} />}
 
       {contentWorkshop && <WorkshopContentModal workshop={contentWorkshop} onClose={() => setContentWorkshop(null)} />}
       {cohortsWorkshop && <CohortsModal workshop={cohortsWorkshop} onClose={() => setCohortsWorkshop(null)} />}
