@@ -304,7 +304,8 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
             {!openCapacity ? null : capacity.length === 0 ? (
               <p className="text-sm py-3 text-center" style={{ color: '#A2937D' }}>אין מחזורים או אירועים קרובים</p>
             ) : (
-              <div className="space-y-4">
+              /* 9.10.26 (Yahav): community events and workshops side by side, as in the Lovable mockup. */
+              <div className="grid gap-x-6 gap-y-4 lg:grid-cols-2">
                 {([
                   ['event', 'אירועי קהילה'],
                   ['cohort', 'סדנאות'],
@@ -312,7 +313,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
                   const group = capacity.filter(r => r.kind === kind)
                   if (group.length === 0) return null
                   return (
-                    <div key={kind}>
+                    <div key={kind} className="min-w-0">
                       <p className="font-bold mb-1.5 px-1" style={{ fontSize: 13, color: '#6E5836' }}>
                         {label} · {group.length}
                       </p>
