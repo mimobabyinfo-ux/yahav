@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Check, Plus, RotateCcw, CalendarDays, Pencil, Trash2, X, UserRound, Copy, MessageCircle, AlignRight } from 'lucide-react'
+import { ChevronDown, Check, Search, Plus, RotateCcw, CalendarDays, Pencil, Trash2, X, UserRound, Copy, MessageCircle, AlignRight, Flag } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { ManualTask, TaskAssignee } from './adminTasks'
@@ -36,6 +36,18 @@ import { useOpenCustomer } from './CustomerCardContext'
  *   person that opens the chat with the text ready. Who was already sent is
  *   remembered per browser.
  * - "נמוך" severity is shown and kept (it used to be edited into רגיל).
+ *
+ * Yahav 9.10.26: "המשותף לא צריך להופיע גם ליהב וגם לברנדה" and "איך
+ * הקדימות מביאה לידי ביטוי את הדחיפות?". It did not: דחוף was a 8px dot,
+ * did not change the order, and a דחוף task with no date or a far date sat
+ * folded under "בהמשך". Now:
+ * - יהב / ברנדה show only their own tasks. Shared ones live under משותף
+ *   (and הכל); a personal view ends with "ועוד N משותפות" to jump there.
+ * - דחוף always goes to the first group ("עכשיו"), whatever its date, and is
+ *   sorted first inside every group. It has a rust stripe and a flag; the
+ *   flag toggles דחוף in one tap.
+ * - Groups: עכשיו (overdue, today, דחוף) / השבוע / בהמשך / בלי תאריך.
+ * - Done = the round check at the start of the row, like any to-do list.
  */
 const OPEN_KEY = 'admin_my_tasks_open'
 const WHO_KEY = 'admin_my_tasks_who'
@@ -48,8 +60,6 @@ const WHO_CHIP: Record<TaskAssignee, { background: string; color: string }> = {
   yahav: { background: '#E3EAE6', color: '#3F5A4C' },
   both: { background: '#F6ECD8', color: '#6E5836' },
 }
-const SEVERITY_DOT: Record<Severity, string> = { high: '#8B4A30', mid: '#C8A460', low: '#D8CFC0' }
-const SEVERITY_LABEL: Record<Severity, string> = { high: 'דחוף', mid: 'רגיל', low: 'נמוך' }
 
 const todayIl = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' })
 function addDays(iso: string, days: number): string {
@@ -105,8 +115,9 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
   const [laterOpen, setLaterOpen] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  // A shared task (משותף) shows under ברנדה and יהב too; משותף alone shows only shared ones.
-  const tasks = who === 'all' ? allTasks : who === 'both' ? allTasks.filter(t => t.assignee === 'both') : allTasks.filter(t => t.assignee === who || t.assignee === 'both')
+  // 9.10.26: personal views show only that person's tasks; shared stay under משותף / הכל.
+  const tasks = who === 'all' ? allTasks : allTasks.filter(t => t.assignee === who)
+  const sharedCount = who === 'brenda' || who === 'yahav' ? allTasks.filter(t => t.assignee === 'both').length : 0
 
   // ── undo after טופל / מחיקה (one slot, ~10s) ──
   const [undo, setUndo] = useState<{ label: string; run: () => Promise<void> } | null>(null)
@@ -145,6 +156,11 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
       })
       await reload()
     })
+  }
+
+  async function toggleUrgent(t: ManualTask) {
+    await supabase.from('admin_tasks').update({ severity: t.severity === 'high' ? 'mid' : 'high' }).eq('id', t.id)
+    reload()
   }
 
   async function setDue(id: string, due: string) {
@@ -212,9 +228,39 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
 
   const today = todayIl()
   const weekEnd = addDays(today, 7)
-  const dueNow = tasks.filter(isDue)
-  const thisWeek = tasks.filter(t => !!t.due_date && t.due_date > today && t.due_date <= weekEnd)
-  const later = tasks.filter(t => !t.due_date || t.due_date > weekEnd)
+  // דחוף first, then by date (no date last), then oldest first.
+  const SEV_RANK: Record<Severity, number> = { high: 0, mid: 1, low: 2 }
+  const byUrgency = (a: ManualTask, b: ManualTask) =>
+    SEV_RANK[a.severity] - SEV_RANK[b.severity]
+    || (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999')
+    || String(a.created_at).localeCompare(String(b.created_at))
+  const isNow = (t: ManualTask) => isDue(t) || t.severity === 'high'
+  const dueNow = tasks.filter(isNow).sort(byUrgency)
+  const thisWeek = tasks.filter(t => !isNow(t) && !!t.due_date && t.due_date > today && t.due_date <= weekEnd).sort(byUrgency)
+  const later = tasks.filter(t => !isNow(t) && !!t.due_date && t.due_date > weekEnd).sort(byUrgency)
+  const noDate = tasks.filter(t => !isNow(t) && !t.due_date).sort(byUrgency)
+  const urgentCount = tasks.filter(t => t.severity === 'high').length
+  const [noDateOpen, setNoDateOpen] = useState(false)
+
+  // 9.10.26 (Yahav): "חיפוש של משימה כדי לדעת האם הוספתי אותה". Searches every
+  // open task (all people, whatever the filter) by title, detail and customer,
+  // and the last 20 done ones from the database.
+  const [q, setQ] = useState('')
+  const [doneHits, setDoneHits] = useState<{ id: string; title: string; done_at: string | null; assignee: TaskAssignee | null }[]>([])
+  const qn = q.trim().toLowerCase()
+  const openHits = qn ? allTasks.filter(t => [t.title, t.detail, t.customer_name].some(x => (x ?? '').toLowerCase().includes(qn))).sort(byUrgency) : []
+  useEffect(() => {
+    if (qn.length < 2) { setDoneHits([]); return }
+    const h = setTimeout(async () => {
+      const like = `"%${qn.replace(/[%_,()"\\]/g, ' ')}%"`
+      const { data } = await supabase.from('admin_tasks').select('id, title, done_at, assignee')
+        .eq('status', 'done').is('link_section', null)
+        .or(`title.ilike.${like},detail.ilike.${like},customer_name.ilike.${like}`)
+        .order('done_at', { ascending: false }).limit(20)
+      setDoneHits((data ?? []) as typeof doneHits)
+    }, 300)
+    return () => clearTimeout(h)
+  }, [qn])
   const inputStyle = { border: '1px solid #E9E2D6', color: '#443327' }
 
   function renderTask(t: ManualTask) {
@@ -243,18 +289,28 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
       </div>
     )
     const isOpen = expanded === t.id
+    const urgent = t.severity === 'high'
     return (
-      <div key={t.id} className="rounded-2xl transition-colors" style={{ background: isOpen ? '#FAF7F1' : undefined }}>
+      <div key={t.id} className="rounded-2xl transition-colors" style={{ background: isOpen ? '#FAF7F1' : urgent ? '#FDF6F2' : undefined, borderRight: `3px solid ${urgent ? '#8B4A30' : t.severity === 'low' ? 'transparent' : '#E9D9B8'}` }}>
         {/* Phone: the title gets its own line (up to two lines), the chips and
             buttons go under it. From sm up it is one row, as before. */}
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-1.5 px-3.5 py-2.5 rounded-2xl hover:bg-[#FAF7F1]">
-          <button onClick={() => setExpanded(isOpen ? null : t.id)} className="w-full sm:w-auto sm:flex-1 min-w-0 flex items-center gap-2 text-right" style={{ fontSize: 14 }}
+          <button onClick={() => complete(t)} disabled={busy === t.id} title="סימון כבוצע" aria-label={`בוצע: ${t.title}`}
+            className="group flex-shrink-0 rounded-full flex items-center justify-center transition-colors disabled:opacity-40"
+            style={{ width: 22, height: 22, border: `2px solid ${urgent ? '#8B4A30' : '#C9BBA4'}`, background: '#fff' }}>
+            <Check className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: urgent ? '#8B4A30' : '#8A7A63' }} strokeWidth={3} />
+          </button>
+          <button onClick={() => setExpanded(isOpen ? null : t.id)} className="flex-1 sm:w-auto min-w-0 flex items-center gap-2 text-right" style={{ fontSize: 14 }}
             aria-expanded={isOpen} title={t.detail ? 'פתיחת הפרטים' : undefined}>
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: SEVERITY_DOT[t.severity] }} title={SEVERITY_LABEL[t.severity]} />
-            <span className="font-bold line-clamp-2 sm:line-clamp-none sm:truncate" style={{ color: '#443327' }}>{t.title}</span>
+            <span className="font-bold line-clamp-2 sm:line-clamp-none sm:truncate" style={{ color: t.severity === 'low' ? '#8A7A63' : '#443327', fontWeight: t.severity === 'low' ? 600 : 700 }}>{t.title}</span>
             {t.detail && <AlignRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#BCAE99' }} />}
           </button>
           <div className="flex items-center gap-1.5 flex-shrink-0 mr-auto sm:mr-0">
+          <button onClick={() => toggleUrgent(t)} className="flex-shrink-0 flex items-center gap-1 rounded-xl transition-all hover:bg-[#F6E3DA] font-bold"
+            style={{ fontSize: 12, padding: urgent ? '4px 8px' : '5px 6px', background: urgent ? '#F6E3DA' : 'transparent', color: urgent ? '#8B4A30' : '#C9BBA4' }}
+            title={urgent ? 'דחוף. לחיצה מבטלת' : 'סימון כדחוף'} aria-pressed={urgent}>
+            <Flag className="w-3.5 h-3.5" fill={urgent ? '#8B4A30' : 'none'} />{urgent && 'דחוף'}
+          </button>
           <button onClick={() => cycleAssignee(t)} className="flex-shrink-0 font-bold rounded-xl transition-all hover:brightness-95"
             style={{ fontSize: 12, padding: '4px 9px', ...(t.assignee ? WHO_CHIP[t.assignee] : { background: '#F6F3ED', color: '#A2937D' }) }}
             title="למי המשימה? (לחיצה מחליפה)">
@@ -270,11 +326,6 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
           <TaskDueChip due={t.due_date} onChange={d => setDue(t.id, d)} />
           <button onClick={() => startEdit(t)} className="flex-shrink-0 rounded-xl p-1.5 hover:bg-[#F6F3ED]" title="עריכה" aria-label="עריכה">
             <Pencil className="w-3.5 h-3.5" style={{ color: '#8A7A63' }} />
-          </button>
-          <button onClick={() => complete(t)} disabled={busy === t.id}
-            className="flex-shrink-0 flex items-center gap-1 font-bold rounded-xl transition-all hover:brightness-95 disabled:opacity-40"
-            style={{ fontSize: 13, padding: '6px 12px', background: '#EDEDE6', color: '#4F5040' }} title="סימון כטופל">
-            <Check className="w-3.5 h-3.5" /> טופל
           </button>
           </div>
         </div>
@@ -301,7 +352,7 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
           {tasks.length > 0 && <span className="font-display" style={{ color: '#8A6A2F' }}>· {tasks.length}</span>}
           {dueNow.length > 0 && (
             <span className="font-bold rounded-full" style={{ fontSize: 11.5, padding: '2px 8px', background: '#F6E3DA', color: '#8B4A30' }}>
-              {dueNow.length} להיום
+              {dueNow.length} עכשיו{urgentCount > 0 ? ` · ${urgentCount} דחופות` : ''}
             </span>
           )}
           <ChevronDown className="w-4 h-4 transition-transform" style={{ color: '#BCAE99', transform: open ? 'rotate(180deg)' : 'none' }} />
@@ -344,6 +395,15 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
         </div>
       )}
 
+      {open && (
+        <div className="relative mt-3">
+          <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#BCAE99' }} />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="חיפוש משימה (גם בכאלה שבוצעו)"
+            className="w-full rounded-xl pr-9 pl-9 py-2 text-sm focus:outline-none" style={{ background: '#FBF9F5', border: '1px solid #E9E2D6', color: '#443327' }} />
+          {q && <button onClick={() => setQ('')} className="absolute left-2 top-1/2 -translate-y-1/2 p-1" aria-label="ניקוי"><X className="w-3.5 h-3.5" style={{ color: '#A2937D' }} /></button>}
+        </div>
+      )}
+
       {undo && (
         <div className="flex items-center gap-2 rounded-2xl px-3.5 py-2.5 mt-3" style={{ background: '#EDEDE6' }}>
           <p className="flex-1 min-w-0 truncate font-semibold" style={{ fontSize: 13, color: '#4F5040' }}>{undo.label}</p>
@@ -360,9 +420,31 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
 
       {!open && dueNow.length > 0 && <div className="space-y-1 mt-3">{dueNow.map(renderTask)}</div>}
 
-      {open && (
+      {open && qn && (
+        <div className="mt-3">
+          {openHits.length === 0 && doneHits.length === 0 && (
+            <p className="px-1 text-sm" style={{ color: '#A2937D' }}>{qn.length < 2 ? 'עוד אות אחת...' : 'לא נמצאה משימה כזו, לא פתוחה ולא שבוצעה.'}</p>
+          )}
+          {renderGroup('פתוחות', openHits)}
+          {doneHits.length > 0 && (
+            <div className="mt-3">
+              <p className="font-bold px-1 mb-1" style={{ fontSize: 12.5, color: '#A2937D' }}>בוצעו · {doneHits.length}</p>
+              {doneHits.map(d => (
+                <p key={d.id} className="flex items-center gap-2 px-3.5 py-1.5" style={{ fontSize: 13.5, color: '#8A7A63' }}>
+                  <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#3F5B39' }} />
+                  <span className="flex-1 min-w-0 truncate line-through">{d.title}</span>
+                  {d.assignee && <span style={{ fontSize: 12 }}>{WHO_LABEL[d.assignee]}</span>}
+                  {d.done_at && <span style={{ fontSize: 12 }}>{new Date(d.done_at).toLocaleDateString('he-IL', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'numeric' })}</span>}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {open && !qn && (
         <>
-          {renderGroup('היום ובאיחור', dueNow, true)}
+          {renderGroup('עכשיו: דחוף, היום ובאיחור', dueNow, true)}
           {renderGroup('השבוע', thisWeek)}
           {later.length > 0 && (
             <div className="mt-3">
@@ -372,6 +454,20 @@ export default function MyTasksCard({ tasks: allTasks, reload }: { tasks: Manual
               </button>
               {laterOpen && <div className="space-y-1 mt-1">{later.map(renderTask)}</div>}
             </div>
+          )}
+          {noDate.length > 0 && (
+            <div className="mt-3">
+              <button onClick={() => setNoDateOpen(o => !o)} className="flex items-center gap-1 font-bold px-1" style={{ fontSize: 12.5, color: '#A2937D' }} aria-expanded={noDateOpen}>
+                בלי תאריך · {noDate.length}
+                <ChevronDown className="w-3.5 h-3.5 transition-transform" style={{ transform: noDateOpen ? 'rotate(180deg)' : 'none' }} />
+              </button>
+              {noDateOpen && <div className="space-y-1 mt-1">{noDate.map(renderTask)}</div>}
+            </div>
+          )}
+          {sharedCount > 0 && (
+            <button onClick={() => pickWho('both')} className="mt-3 px-1 font-bold" style={{ fontSize: 12.5, color: '#8A6A2F' }}>
+              ועוד {sharedCount} משימות משותפות ←
+            </button>
           )}
         </>
       )}
