@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Check, ChevronLeft, ListPlus, RefreshCw, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOpenCustomer } from './CustomerCardContext'
 import { shortProductName } from './useUserProducts'
 import { dedupePayments, type MorningPayment, type RecentRegistration } from './useAdminOverview'
 import { RegistrationRow } from './RecentRegistrationsCard'
-import type { AdminTask, UnmatchedPayment } from './adminTasks'
+import type { AdminTask, TaskAssignee, UnmatchedPayment } from './adminTasks'
+import { useAuth } from '../../contexts/AuthContext'
 
 /**
  * "מה חדש" — the first block on the admin home (9.10.26).
@@ -142,10 +143,25 @@ type Props = {
   onOpenTask?: (task: AdminTask) => void
   onOpenMonthPayments: () => void
   onAssignPayment: (p: UnmatchedPayment) => void
+  /** After a task is added from here, so "המשימות שלי" shows it. */
+  onTaskAdded?: () => Promise<void> | void
 }
 
-export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSection, onOpenTask, onOpenMonthPayments, onAssignPayment }: Props) {
+export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSection, onOpenTask, onOpenMonthPayments, onAssignPayment, onTaskAdded }: Props) {
   const openCustomer = useOpenCustomer()
+  const { profile } = useAuth()
+  // 9.10.26 (Yahav): "+ משימה" next to every name. Turns something that
+  // happened into something to do, already linked to her (customer chip in
+  // המשימות שלי, banner in her card). The task lives in המשימות שלי only.
+  const [taskFor, setTaskFor] = useState<{ name: string; phone: string | null; email: string | null } | null>(null)
+  const [tTitle, setTTitle] = useState('')
+  const [tDetail, setTDetail] = useState('')
+  const [tDue, setTDue] = useState('')
+  const [tWho, setTWho] = useState<TaskAssignee | ''>('')
+  const [tSaving, setTSaving] = useState(false)
+  const [tDone, setTDone] = useState<string | null>(null)
+  const taskPanel = useRef<HTMLDivElement | null>(null)
+  useEffect(() => { if (taskFor) taskPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, [taskFor])
   const [since] = useState<number>(() => previousVisit())
   const [period, setPeriod] = useState<Period>('today')
   const [feed, setFeed] = useState<Feed | null>(null)
@@ -230,9 +246,53 @@ export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSect
   const total = tiles.reduce((s, t) => s + t.count, 0) + (f?.other.length ?? 0)
   const sinceLabel = since > 0 ? whenHe(new Date(since).toISOString()) : null
 
+  const TASK_VERB: Partial<Record<TileKey, string>> = {
+    leads: 'להתקשר ל', users: 'לברך את', registrations: 'לוודא שהכול מוכן ל', events: 'לבדוק עם',
+    forms: 'לעבור על השאלון של', payments: 'לבדוק את התשלום של', inbound: 'לענות ל', gifts: 'לטפל בגיפט של',
+  }
+  function startTask(name: string, phone: string | null, email: string | null) {
+    const first = name.trim().split(/\s+/)[0] ?? name
+    setTaskFor({ name, phone, email })
+    setTTitle(`${(open && TASK_VERB[open]) || 'לחזור ל'}${first}`)
+    setTDetail('')
+    setTDue(ilDate(new Date()))
+    let w: TaskAssignee | '' = ''
+    try { const v = localStorage.getItem('admin_my_tasks_who'); if (v === 'brenda' || v === 'yahav' || v === 'both') w = v } catch { /* */ }
+    setTWho(w)
+    setTDone(null)
+  }
+  async function saveTask() {
+    if (!taskFor || !tTitle.trim()) return
+    setTSaving(true)
+    const { error: err } = await supabase.from('admin_tasks').insert({
+      title: tTitle.trim(), detail: tDetail.trim() || null, severity: 'mid', due_date: tDue || null, assignee: tWho || null,
+      created_by: profile?.id ?? null,
+      customer_name: taskFor.name, customer_phone: taskFor.phone, customer_email: taskFor.email,
+    })
+    setTSaving(false)
+    if (err) { console.error('[whats-new task]', err); setTDone('לא נשמר, נסו שוב'); return }
+    setTDone(`נוספה ל"המשימות שלי": ${tTitle.trim()}`)
+    setTaskFor(null)
+    await onTaskAdded?.()
+  }
+
+  function taskBtn(name: string | null, phone: string | null, email: string | null) {
+    if (!name && !phone && !email) return null
+    return (
+      <button
+        onClick={e => { e.stopPropagation(); startTask(name || phone || email || '', phone, email) }}
+        title="משימה על זה" aria-label={`משימה על ${name ?? ''}`}
+        className="flex-shrink-0 flex items-center gap-1 font-bold rounded-lg px-1.5 py-0.5 transition-colors hover:bg-[#F6ECD8]"
+        style={{ fontSize: 11.5, color: '#8A6A2F' }}
+      >
+        <ListPlus className="w-3.5 h-3.5" /> משימה
+      </button>
+    )
+  }
+
   function personBtn(name: string | null, phone: string | null, email: string | null, leadId?: string) {
     const can = !!(phone || email)
-    return (
+    return (<span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
       <button
         onClick={() => can && openCustomer({ phone, email, leadId: leadId ?? null })}
         className={`font-bold truncate text-right ${can ? 'hover:underline' : 'cursor-default'}`}
@@ -240,7 +300,8 @@ export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSect
       >
         {name || phone || email || 'ללא שם'}
       </button>
-    )
+      {taskBtn(name, phone, email)}
+    </span>)
   }
 
   function Row({ children, at }: { children: React.ReactNode; at: string }) {
@@ -304,7 +365,7 @@ export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSect
       case 'registrations': return (<>
         {f.registrations.map(r => {
           const rich = regById.get(r.id)
-          if (rich) return <RegistrationRow key={r.id} r={rich} />
+          if (rich) return <div key={r.id} className="flex items-start gap-1"><div className="flex-1 min-w-0"><RegistrationRow r={rich} /></div><div className="pt-2.5">{taskBtn(r.name, r.phone, r.email)}</div></div>
           return (
             <Row key={r.id} at={r.at}>
               {personBtn(r.name, r.phone, r.email, r.id)}
@@ -490,6 +551,39 @@ export default function WhatsNewCard({ recentRegistrations, monthRevenue, onSect
           </button>
         )}
 
+        {tDone && (
+          <p className="flex items-center gap-1.5 mt-3 rounded-2xl px-3.5 py-2 font-semibold" style={{ fontSize: 13, background: '#E7F0E4', color: '#3F5B39' }}>
+            <Check className="w-4 h-4 flex-shrink-0" /> <span className="flex-1 min-w-0 truncate">{tDone}</span>
+            <button onClick={() => setTDone(null)} aria-label="סגירה"><X className="w-3.5 h-3.5" /></button>
+          </p>
+        )}
+        {taskFor && (
+          <div ref={taskPanel} className="mt-3 rounded-2xl p-3 space-y-2" style={{ background: '#F6F3ED', border: '1px solid #E9E2D6' }}>
+            <div className="flex items-center justify-between">
+              <p className="font-bold" style={{ fontSize: 13.5, color: '#443327' }}>משימה על {taskFor.name}</p>
+              <button onClick={() => setTaskFor(null)} aria-label="ביטול"><X className="w-4 h-4" style={{ color: '#A2937D' }} /></button>
+            </div>
+            <input value={tTitle} onChange={e => setTTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveTask() }} autoFocus
+              className="w-full rounded-xl px-3 py-2 text-sm bg-white focus:outline-none" style={{ border: '1px solid #E9E2D6', color: '#443327' }} />
+            <textarea value={tDetail} onChange={e => setTDetail(e.target.value)} rows={2} placeholder="פירוט (לא חובה)"
+              className="w-full rounded-xl px-3 py-2 text-sm bg-white focus:outline-none resize-y" style={{ border: '1px solid #E9E2D6', color: '#443327' }} />
+            <div className="flex flex-wrap items-center gap-2">
+              <select value={tWho} onChange={e => setTWho(e.target.value as TaskAssignee | '')}
+                className="rounded-xl px-2 py-2 text-sm bg-white focus:outline-none" style={{ border: '1px solid #E9E2D6', color: '#443327' }} aria-label="למי">
+                <option value="">למי?</option>
+                <option value="yahav">יהב</option>
+                <option value="brenda">ברנדה</option>
+                <option value="both">משותף</option>
+              </select>
+              <input type="date" value={tDue} onChange={e => setTDue(e.target.value)} aria-label="תאריך"
+                className="rounded-xl px-2 py-2 text-sm bg-white focus:outline-none" style={{ border: '1px solid #E9E2D6', color: '#443327' }} />
+              <button onClick={saveTask} disabled={tSaving || !tTitle.trim()} className="mr-auto font-bold rounded-xl disabled:opacity-40"
+                style={{ fontSize: 13, padding: '8px 14px', background: '#C8A460', color: '#33281B' }}>
+                {tSaving ? '...' : 'הוספה למשימות'}
+              </button>
+            </div>
+          </div>
+        )}
         {open && <div className="mt-3 pt-2 space-y-0.5" style={{ borderTop: '1px solid #F1EBE1' }}>{detail()}</div>}
       </>)}
     </div>

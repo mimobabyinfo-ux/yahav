@@ -187,6 +187,7 @@ export default function AdminHome({ overview, onSection, onOpenTask, onOpenProdu
             onOpenTask={onOpenTask}
             onOpenMonthPayments={() => setShowPayments(true)}
             onAssignPayment={p => setAssigning(p)}
+            onTaskAdded={reload}
           />
 
           {/* Paid but never got in. Renders nothing when the list is empty,

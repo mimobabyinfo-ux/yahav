@@ -40,6 +40,8 @@ import MakeupsPanel from '../components/admin/MakeupsPanel'
 import ProgramPanel from '../components/admin/ProgramPanel'
 import CrmLeadsPanel from '../components/admin/CrmLeadsPanel'
 import VendorsStrip from '../components/admin/VendorsStrip'
+import FormPreview from '../components/admin/forms/FormPreview'
+import FormFieldEditor from '../components/admin/forms/FormFieldEditor'
 import { homeBadgeCount, type AdminOverview } from '../components/admin/useAdminOverview'
 import { isFormFilled, type AdminTask } from '../components/admin/adminTasks'
 import { ChevronRight as CtxBack } from 'lucide-react'
@@ -2313,6 +2315,20 @@ function FormsTabDesktop() {
   }, [focusFieldId, fields])
   function updateField(id: string, patch: Partial<FormField>) { setFields(f => f.map(field => field.id === id ? { ...field, ...patch } : field)) }
   function removeField(id: string) { setFields(f => f.filter(field => field.id !== id)) }
+  // 9.10.26: the question being edited (the preview jumps to it) and duplicate.
+  const [activeFieldId, setActiveFieldId] = useState<string | null>(null)
+  const [showPreviewPane, setShowPreviewPane] = useState(false)
+  function duplicateField(id: string) {
+    setFields(f => {
+      const i = f.findIndex(x => x.id === id)
+      if (i < 0) return f
+      // Answers are stored by question text, so the copy needs its own text.
+      const copy = { ...f[i], id: crypto.randomUUID(), label: f[i].label ? `${f[i].label} (עותק)` : '' }
+      const arr = [...f]; arr.splice(i + 1, 0, copy)
+      setActiveFieldId(copy.id)
+      return arr
+    })
+  }
   function moveField(id: string, dir: -1 | 1) {
     setFields(f => {
       const idx = f.findIndex(field => field.id === id); if (idx < 0) return f
@@ -2518,7 +2534,17 @@ function FormsTabDesktop() {
             </div>
           </div>
 
-          <div className="p-5 space-y-3">
+          <div className="p-5 grid gap-6 items-start xl:grid-cols-[minmax(0,1fr)_400px]">
+          {/* 9.10.26: live preview, side by side on a wide screen. */}
+          <div className="hidden xl:block xl:order-2 sticky top-16">
+            <FormPreview title={title} description={description} fields={fields} activeId={activeFieldId} />
+          </div>
+          <div className="space-y-3 min-w-0 xl:order-1">
+            <button onClick={() => setShowPreviewPane(v => !v)} className="xl:hidden w-full rounded-xl py-2 font-bold" style={{ fontSize: 13, background: showPreviewPane ? '#443327' : '#F6ECD8', color: showPreviewPane ? '#fff' : '#6E5836' }}>
+              {showPreviewPane ? 'חזרה לעריכה' : '📱 איך זה נראה לאמא'}
+            </button>
+            {showPreviewPane && <div className="xl:hidden"><FormPreview title={title} description={description} fields={fields} activeId={activeFieldId} /></div>}
+            <div className={showPreviewPane ? 'hidden xl:block space-y-3' : 'space-y-3'}>
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
             <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" rows={3} className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400 resize-none leading-relaxed" />
             <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="📁 תיקייה" className="w-full px-3 py-2 border border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
@@ -2545,35 +2571,16 @@ function FormsTabDesktop() {
                             <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
                           </button>
 
-                          <div className="border border-sand-200 rounded-xl p-3 space-y-2 mb-0">
-                            <div className="flex gap-2 items-center">
-                              <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="flex-1 px-3 py-1.5 border border-sand-200 rounded-lg text-xs bg-white focus:outline-none">
-                                {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                              </select>
-                              {dragHandle}
-                              <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-sand-400 disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-sand-400 disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => removeField(field.id)} className="p-1" style={{ color: '#8B4A30' }}><X className="w-3.5 h-3.5" /></button>
-                            </div>
-                            {field.type !== 'link' && (
-                              <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="שאלה / תווית" rows={2} className="w-full px-3 py-1.5 border border-sand-200 rounded-lg text-xs focus:outline-none resize-none leading-relaxed" />
-                            )}
-                            {(field.type === 'select' || field.type === 'multiselect') && <OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
-                            {field.type === 'multiselect' && (
-                              <label className="flex items-center gap-2 text-xs text-sand-500">
-                                מקסימום בחירות
-                                <input type="number" min={0} value={field.maxSelect ?? ''} onChange={e => updateField(field.id, { maxSelect: e.target.value ? Number(e.target.value) : undefined })} placeholder="ללא" className="w-16 px-2 py-1 border border-sand-200 rounded-lg text-xs bg-white" />
-                              </label>
-                            )}
-                            {field.type !== 'link' && <ShowIfEditor field={field} fields={fields} idx={idx} onChange={showIf => updateField(field.id, { showIf })} />}
-                            {field.type === 'link' && <input value={field.options?.[0] ?? ''} onChange={e => updateField(field.id, { options: [e.target.value] })} placeholder="https://..." className="w-full px-3 py-1.5 border border-sand-200 rounded-lg text-xs focus:outline-none" dir="ltr" />}
-                            {!['info', 'link'].includes(field.type) && (
-                              <label className="flex items-center gap-2 text-xs text-sand-500 cursor-pointer">
-                                <input type="checkbox" checked={field.required ?? false} onChange={e => updateField(field.id, { required: e.target.checked })} />
-                                חובה
-                              </label>
-                            )}
-                          </div>
+                          <FormFieldEditor
+                            field={field} idx={idx} total={fields.length}
+                            questionNumber={INPUT_FIELD_TYPES.has(field.type) ? fields.slice(0, idx + 1).filter(f => INPUT_FIELD_TYPES.has(f.type)).length : null}
+                            fieldTypes={fieldTypes} dragHandle={dragHandle}
+                            active={activeFieldId === field.id} onActivate={() => setActiveFieldId(field.id)}
+                            onChange={patch => updateField(field.id, patch as Partial<FormField>)}
+                            onMove={dir => moveField(field.id, dir)} onRemove={() => removeField(field.id)} onDuplicate={() => duplicateField(field.id)}
+                            optionsEditor={<OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
+                            showIfEditor={<ShowIfEditor field={field} fields={fields} idx={idx} onChange={showIf => updateField(field.id, { showIf })} />}
+                          />
                         </div>
                       )}
                     </SortableRow>
@@ -2597,6 +2604,8 @@ function FormsTabDesktop() {
               </button>
               <button onClick={() => { setShowCreate(false); setEditingForm(null); setTitle(''); setDescription(''); setFolder(''); setFields([]) }} className="px-4 py-2.5 rounded-xl text-sm" style={{ background: '#F5F2EA', color: '#5E4938' }}>ביטול</button>
             </div>
+            </div>
+          </div>
           </div>
         </div>
       )}
@@ -4764,6 +4773,7 @@ function PerksTab() {
 // Phase 5 / A4: optional `role` lets admin override the
 // formSubmissionResolver's heuristic per text field. Stored inside
 // fields_json — no migration needed.
+const INPUT_FIELD_TYPES = new Set(['text', 'textarea', 'select', 'multiselect', 'rating', 'date'])
 type FormField = { id: string; type: 'text' | 'textarea' | 'select' | 'multiselect' | 'rating' | 'date' | 'info' | 'link'; label: string; options?: string[]; required?: boolean; showIf?: FormShowIf | null; maxSelect?: number; role?: 'name' | 'phone' | 'email' | 'none' }
 // Conditional visibility editor: "show this field only if <earlier choice field> = <option>".
 function ShowIfEditor({ field, fields, idx, onChange }: { field: { showIf?: FormShowIf | null }; fields: { id: string; type: string; label: string; options?: string[] }[]; idx: number; onChange: (v: FormShowIf | null) => void }) {
@@ -5190,6 +5200,20 @@ function FormsTab() {
   function removeField(id: string) {
     setFields(f => f.filter(field => field.id !== id))
   }
+  // 9.10.26: the question being edited (the preview jumps to it) and duplicate.
+  const [activeFieldId, setActiveFieldId] = useState<string | null>(null)
+  const [showPreviewPane, setShowPreviewPane] = useState(false)
+  function duplicateField(id: string) {
+    setFields(f => {
+      const i = f.findIndex(x => x.id === id)
+      if (i < 0) return f
+      // Answers are stored by question text, so the copy needs its own text.
+      const copy = { ...f[i], id: crypto.randomUUID(), label: f[i].label ? `${f[i].label} (עותק)` : '' }
+      const arr = [...f]; arr.splice(i + 1, 0, copy)
+      setActiveFieldId(copy.id)
+      return arr
+    })
+  }
 
   function moveField(id: string, dir: -1 | 1) {
     setFields(f => {
@@ -5353,6 +5377,15 @@ function FormsTab() {
 
           {/* Body */}
           <div className="p-4 space-y-3">
+            {/* 9.10.26: "איך זה נראה לאמא" */}
+            <div className="flex rounded-xl p-0.5" style={{ background: '#F1EBE1' }}>
+              {([['edit', 'עריכה'], ['preview', '📱 איך זה נראה לאמא']] as const).map(([k, l]) => (
+                <button key={k} onClick={() => setShowPreviewPane(k === 'preview')} className="flex-1 rounded-lg py-1.5 font-bold"
+                  style={{ fontSize: 13, background: (k === 'preview') === showPreviewPane ? '#fff' : 'transparent', color: '#443327' }}>{l}</button>
+              ))}
+            </div>
+            {showPreviewPane && <FormPreview compact title={title} description={description} fields={fields} activeId={activeFieldId} />}
+            <div className={showPreviewPane ? 'hidden' : 'space-y-3'}>
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="כותרת הטופס" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
             <input value={description} onChange={e => setDescription(e.target.value)} placeholder="תיאור (אופציונלי)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
             <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="📁 תיקייה (למשל: סדנת עיסוי, הרשמות)" className="w-full px-3 py-2 border-2 border-sand-200 rounded-xl text-sm focus:outline-none focus:border-mustard-400" />
@@ -5385,81 +5418,16 @@ function FormsTab() {
                             <div className="flex-1 h-px bg-sand-200 group-hover:bg-mustard-400 transition-colors" />
                           </button>
 
-                          <div className="flex gap-2 items-start bg-sand-50 rounded-xl p-2 mb-0">
-                            <span className="text-xs text-sand-400 pt-2.5 w-5 text-center">{idx + 1}</span>
-                            <div className="flex-1 space-y-1.5">
-                              <select value={field.type} onChange={e => updateField(field.id, { type: e.target.value as FormField['type'] })} className="w-full px-3 py-1.5 border border-sand-200 rounded-xl text-xs bg-white focus:outline-none">
-                                {fieldTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                              </select>
-
-                              {/* info: label = the display text */}
-                              {field.type === 'info' && (
-                                <textarea
-                                  rows={3}
-                                  value={field.label}
-                                  onChange={e => updateField(field.id, { label: e.target.value })}
-                                  placeholder="טקסט שיוצג בטופס (תאריכים, פרטים, הנחיות...)"
-                                  className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white resize-none"
-                                />
-                              )}
-
-                              {/* link: label = display text above button, options[0] = URL */}
-                              {field.type === 'link' && (
-                                <>
-                                  <input
-                                    value={field.label}
-                                    onChange={e => updateField(field.id, { label: e.target.value })}
-                                    placeholder="טקסט מעל הכפתור (למשל: נא לבצע תשלום בלינק)"
-                                    className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
-                                  />
-                                  <input
-                                    value={field.options?.[0] ?? ''}
-                                    onChange={e => updateField(field.id, { options: [e.target.value] })}
-                                    placeholder="כתובת הלינק (https://...)"
-                                    className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none bg-white"
-                                    dir="ltr"
-                                  />
-                                </>
-                              )}
-
-                              {/* regular fields: label input */}
-                              {field.type !== 'info' && field.type !== 'link' && (
-                                <textarea data-focusid={field.id} value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="תווית השדה" rows={2} className="w-full px-3 py-2 border border-sand-200 rounded-xl text-xs focus:outline-none focus:border-mustard-400 bg-white resize-none leading-relaxed" />
-                              )}
-
-                              {(field.type === 'select' || field.type === 'multiselect') && (
-                                <OptionsTagInput
-                                  options={field.options ?? []}
-                                  onChange={opts => updateField(field.id, { options: opts })}
-                                />
-                              )}
-                              {field.type === 'multiselect' && (
-                                <label className="flex items-center gap-2 text-xs text-sand-500">
-                                  מקסימום בחירות
-                                  <input type="number" min={0} value={field.maxSelect ?? ''} onChange={e => updateField(field.id, { maxSelect: e.target.value ? Number(e.target.value) : undefined })} placeholder="ללא" className="w-16 px-2 py-1 border border-sand-200 rounded-lg text-xs bg-white" />
-                                </label>
-                              )}
-                              {field.type !== 'link' && <ShowIfEditor field={field} fields={fields} idx={idx} onChange={showIf => updateField(field.id, { showIf })} />}
-
-                              {/* required toggle — not applicable for info/link */}
-                              {field.type !== 'info' && field.type !== 'link' && (
-                                <button
-                                  type="button"
-                                  onClick={() => updateField(field.id, { required: !field.required })}
-                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all w-fit ${field.required ? 'bg-red-100 text-red-600' : 'bg-sand-100 text-sand-400'}`}
-                                >
-                                  <span>{field.required ? '★' : '☆'}</span>
-                                  {field.required ? 'חובה' : 'לא חובה'}
-                                </button>
-                              )}
-                            </div>
-                            <div className="flex flex-col gap-1 mt-1">
-                              {dragHandle}
-                              <button onClick={() => moveField(field.id, -1)} disabled={idx === 0} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▲</button>
-                              <button onClick={() => moveField(field.id, 1)} disabled={idx === fields.length - 1} className="p-1 text-sand-300 hover:text-mustard-500 disabled:opacity-20">▼</button>
-                              <button onClick={() => removeField(field.id)} className="p-1.5 text-sand-300 hover:text-red-400"><X className="w-4 h-4" /></button>
-                            </div>
-                          </div>
+                          <FormFieldEditor
+                            field={field} idx={idx} total={fields.length}
+                            questionNumber={INPUT_FIELD_TYPES.has(field.type) ? fields.slice(0, idx + 1).filter(f => INPUT_FIELD_TYPES.has(f.type)).length : null}
+                            fieldTypes={fieldTypes} dragHandle={dragHandle}
+                            active={activeFieldId === field.id} onActivate={() => setActiveFieldId(field.id)}
+                            onChange={patch => updateField(field.id, patch as Partial<FormField>)}
+                            onMove={dir => moveField(field.id, dir)} onRemove={() => removeField(field.id)} onDuplicate={() => duplicateField(field.id)}
+                            optionsEditor={<OptionsTagInput options={field.options ?? []} onChange={opts => updateField(field.id, { options: opts })} />}
+                            showIfEditor={<ShowIfEditor field={field} fields={fields} idx={idx} onChange={showIf => updateField(field.id, { showIf })} />}
+                          />
                         </div>
                       )}
                     </SortableRow>
@@ -5485,6 +5453,7 @@ function FormsTab() {
                 {saving ? 'שומר...' : editingForm ? 'שמור שינויים' : 'צור טופס'}
               </button>
               <button onClick={() => { setShowCreate(false); cancelEdit() }} className="px-4 py-2.5 bg-sand-100 rounded-xl text-sm"><X className="w-4 h-4" /></button>
+            </div>
             </div>
           </div>
         </div>
